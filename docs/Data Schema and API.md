@@ -33,20 +33,24 @@ Used to group participants within an expedition.
 
 ## 2. User Metadata
 Extending standard WP User records.
-- `ems_osm_id`: integer (Primary key for OSM sync)
+- `ems_osm_user_id`: integer (OSM `user_id` - The OIDC login account identifier)
+- `ems_scout_id`: integer (OSM `member_id` - The primary identifier for an Explorer record. Used to link parents to children before a child WP account exists)
+- `ems_osm_access_type`: string (`parent` | `member` - The primary role identifier retrieved from OSM)
 - `ems_first_aid_status`: string (`none` | `first_response` | `full`)
 - `ems_teammate_preferences`: string (Text from Gravity Forms)
-- `ems_volunteer_availability`: array (List of dates/overnights signed up for)
-- `ems_parent_children`: array (List of Explorer WP User IDs)
+- `ems_available_date`: string (ISO 8601). **Note**: Stored as multiple individual meta rows per user, NOT serialized, to allow fast `WP_User_Query` lookups for the calendar view.
+- `ems_parent_children`: array (List of Explorer **Scout IDs** - Used for multi-child aggregation and linking)
 - `ems_unit`: string (Pulled from OSM 'patrol' field)
 
 ## 3. REST API Surface
 All endpoints prefixed with `/wp-json/ems/v1/`.
 
 ### 3.1 Public/Participant Endpoints (Explorer/Parent)
-- `GET /my-expeditions`: Returns current expeditions and team status for the logged-in Explorer or their children.
-- `POST /submit-route`: Uploads GPX/Route card for a team.
-- `GET /download-route/[id]`: Securely serves route files.
+- `GET /my-expeditions`: Returns current expeditions and team status for the logged-in Explorer or their children. (Available to both roles).
+- `POST /submit-route`: Uploads GPX/Route card for a team. (Available to both roles).
+- `GET /download-route/[id]`: Securely serves route files. (Available to both roles).
+- `POST /signup-level`: Initiates signup for a new DofE level. (**Parent only**; must validate that the Explorer has an email in OSM).
+- `GET /training-access`: Validates course completion status. (**Explorer only**).
 
 ### 3.2 Volunteer Endpoints
 - `GET /available-expeditions`: List of expeditions open for volunteer signup.

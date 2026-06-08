@@ -111,9 +111,19 @@ sequenceDiagram
     - First Aid coverage per team.
 
 ### 4.6 Parent-Child Relationship
-- **Data Source**: Relationships are retrieved from OSM in a complex data block during the authentication/startup sequence.
-- **Parsing**: The EMS must parse this data block to establish links between Parent accounts and Explorer records.
-- **Selection**: Upon login, a Parent must select which child's data they wish to view if multiple children are participating.
+- **Data Source**: Relationships are retrieved from the `member_access` block in the `getDataPayload` response during authentication/startup.
+- **Parsing & Provisioning**: 
+    - Parents often log in *before* their child to sign them up.
+    - **Multi-Child Aggregation**: The system must iterate through all sections in the payload and aggregate a deduplicated list of `member_id`s (Scout IDs) where the user has `access_type: "parent"`.
+    - Upon Parent login and child selection, the EMS must query OSM for the Explorer's details if the local WP account does not exist.
+    - If the Explorer does not have a WP account, EMS will provision a "shell" account using the OSM `scout_id` as the primary anchor.
+- **Selection**: Upon login, a Parent must select which child's data they wish to view from the aggregated list.
+
+### 4.7 Access Control & Validations (OSM access_type)
+- **Role Differentiation**: The system differentiates users based on the `access_type` field in the OSM payload (`"parent"` vs. `"member"`).
+- **DofE Level Signup**: Only users with an `access_type` of `"parent"` can initiate a signup for a new DofE level.
+- **Email Validation**: During a new DofE level signup by a parent, the system must validate that the Explorer has an email address registered in OSM. If missing, the parent must be prompted to add the email in OSM before proceeding.
+- **Online Courses**: Access to Tutor LMS online courses is strictly restricted to users logged in with an `access_type` of `"member"` (Explorers). Parents cannot complete training on behalf of the Explorer.
 
 ## 5. Constraints & Data Protection
 ### 5.1 Authentication Flow
@@ -137,11 +147,6 @@ sequenceDiagram
 - **OSM**: Online Scout Manager.
 - **LiC**: Leader in Charge (Primary expedition leader).
 - **GPX**: Format for GPS exchange, used for route planning.
-- **Route Card**: A document detailing the timed stages of an expedition.
-- **Tutor LMS**: The WordPress plugin used for online training modules.
-- **Explorer**: A young person (participant) in the DofE program.
-- **CPT**: Custom Post Type (WordPress data structure).
-exchange, used for route planning.
 - **Route Card**: A document detailing the timed stages of an expedition.
 - **Tutor LMS**: The WordPress plugin used for online training modules.
 - **Explorer**: A young person (participant) in the DofE program.

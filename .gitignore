@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# Mock Data (PII)
+mockdata/
+tests/mocks/*.json
+
+# Dependencies
+vendor/
+node_modules/
+
+# Build outputs
+dist/
+*.log
+
+# Testing
+.phpunit.result.cache
+coverage/
+
+# IDEs
+.vscode/
+.idea/
+
+# Local Environment
+.env
+docker-compose.override.yml
