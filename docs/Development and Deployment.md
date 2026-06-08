@@ -20,9 +20,13 @@ In alignment with **ADR 007 (TDD Mandate)**:
 - **CI/CD**: TBD (Manual deployment or basic GitHub Actions to push via SSH/SFTP).
 
 ## 2. OSM Integration Strategy
-### 2.1 Authentication (OIDC)
+### 2.1 Authentication (OIDC) & Hydration
 - **Base Plugin**: [login-with-google](https://github.com/circularlizard/login-with-google) (configured for OSM OIDC).
-- **Extension**: We will extend or hook into this plugin to capture the OSM Access Token and store it in the user's session or transient for subsequent API calls.
+- **Identity Step**: Standard OIDC handshake performed by the base plugin to match/create the WP User.
+- **Context Step (EMS Hook)**: EMS hooks into `rtcamp.google_user_logged_in`. 
+    - Captured Access Token is used to perform a secondary `getDataPayload` (Startup API) fetch.
+    - Resulting context (Scout IDs, child mapping, `access_type`) is persisted to WP User Meta.
+- **Session Security**: The OSM Access Token is stored in a secure session/transient for subsequent business API calls but is not exposed to the frontend.
 
 ### 2.2 Rate Limiting & Performance
 OSM has strict rate limits. Our integration must include:
