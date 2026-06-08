@@ -20,8 +20,13 @@ This document outlines the key architectural decisions and foundational assumpti
     - `volunteer_availability` (User Meta): Serialized data for dates/overnights.
 
 ### ADR 002: OSM Integration & Sync Strategy
-- **Decision**: How to handle the "complex data block" for Parent-Child relationships and periodic syncs.
-- **Approach**: Dedicated `OSM_Parser` class. Flat relationship mapping in a custom table for performance.
+- **Decision**: **Persistent Scout ID Anchor & Role Differentiation**.
+- **Approach**: 
+    - Use the OSM `member_id` (`ems_scout_id`) as the immutable primary key for all internal Explorer record mapping. 
+    - This ensures that parent-child relationships remain valid even if the child does not yet have an OSM account (`user_id`).
+    - Dedicated `OSM_Parser` class for aggregating multi-child lists from the `member_access` block and identifying the `access_type` (`"parent"` vs. `"member"`).
+    - **Access Control**: Core plugin logic must enforce role-based access based on this `access_type` (e.g., Parent-only signups, Explorer-only course access).
+    - Flat relationship mapping in User Meta using Scout IDs for maximum cross-account compatibility.
 
 ### ADR 003: Frontend Integration Pattern
 - **Decision**: **React-based Single Page Application (SPA) embedded via Shortcode**.
@@ -67,6 +72,13 @@ This document outlines the key architectural decisions and foundational assumpti
 - **Backend Rationale**: PHPUnit is the industry standard. **Brain Monkey** allows us to mock WordPress functions (hooks, filters, etc.) without the overhead of loading the entire WP core, making tests extremely fast and isolated.
 - **Frontend Rationale**: **Vitest** is a modern, faster alternative to Jest, perfectly suited for React SPAs. **React Testing Library** encourages testing behavior from the user's perspective rather than implementation details.
 - **E2E Testing**: **Playwright** will be used for critical path end-to-end testing (e.g., successful route submission, volunteer signup flow).
+
+### ADR 009: Post-Login Hydration Flow (Identity vs. Context)
+- **Decision**: **Two-Step User Initialization**.
+- **Approach**: 
+    1. **Identity Step**: The existing `login-with-google` plugin handles the standard OIDC handshake, mapping the OSM `user_id` to a WordPress User account.
+    2. **Context Step**: The EMS plugin hooks into `rtcamp.google_user_logged_in`. Upon capture of the `access_token`, the EMS plugin performs an immediate secondary fetch of the OSM `getDataPayload` (Startup API).
+- **Rationale**: Keeps the authentication layer generic and lightweight while ensuring the EMS captures all necessary business context (Scout IDs, child links, access types) immediately after login. This ensures the React SPAs have all required metadata available in User Meta upon first render.
 
 ## 3. Proposed Component Diagram (High Level)
 
