@@ -30,11 +30,12 @@ In alignment with **ADR 007 (TDD Mandate)**:
 - **Shell Account Merge**: EMS also hooks into `rtcamp.google_user_logged_in` to detect if a shell account exists for the newly logged-in child (matched by `ems_scout_id`). If found, EMS performs a merge of User Meta before the session is established. See PRD §4.6.
 - **Service Account**: All subsequent EMS-to-OSM write operations (flexi-records, event status) use the dedicated EMS service account tokens stored encrypted in WP Options. See ADR 010.
 
-### 2.2 OSM Push-back Retry Queue
+### 2.2 OSM Push-back Failure Handling
 - **Problem**: Push-back operations (flexi-record updates, event status changes) may fail if OSM is temporarily unavailable.
-- **Solution**: Failed push-back jobs are queued using **WP Action Scheduler** (bundled with WooCommerce/available as standalone). Each job is retried with exponential backoff (3 attempts: immediate, +5 min, +30 min).
-- **Visibility**: Failed jobs that exhaust retries are surfaced as admin notices in the EMS dashboard so administrators can investigate and manually re-trigger if needed.
-- **TDD Task**: Write tests for the retry queue logic (job scheduling, backoff intervals, failure surfacing).
+- **Solution**: On failure, the job is persisted to a WP Option (`ems_failed_pushback_queue`) as a serialized entry and an **admin notice** is surfaced in the EMS dashboard identifying the failed operation with a **"Retry" button**. No external queue library is required.
+- **Rationale**: Push-backs are low-volume, admin-triggered operations. A manual retry with clear visibility is appropriate for this scale and avoids introducing a WooCommerce-namespaced dependency (WP Action Scheduler) for a lightweight problem.
+- **Escalation path**: If retry frequency becomes a real operational problem in production, the queue can be upgraded to use native WP Cron (`wp_schedule_single_event()`) with the same WP Option store — no architectural change required.
+- **TDD Task**: Write tests for failure persistence (job written to option on HTTP error), notice rendering, and retry dispatch.
 
 ### 2.3 Rate Limiting & Performance
 OSM has strict rate limits. Our integration must include:
@@ -65,11 +66,12 @@ OSM has strict rate limits. Our integration must include:
 ### Phase 1: Infrastructure & Test Setup (Current)
 - **Goal**: Establish the "Test-First" environment and verify OSM API connectivity.
 - **Tasks**:
-    - Configure local Docker environment.
+    - Configure local Docker environment (pin images: `wordpress:php8.2-apache`, `mariadb:10.11`).
     - Setup PHPUnit and Vitest test runners.
     - **TDD Task**: Write failing tests for the `OSM_API_Client` data parsing.
     - Implement "Mock Driver" to satisfy parsing tests using payloads from [OSM-Tools](https://github.com/circularlizard/OSM-Tools).
     - Prototype the "Section Participant Pull" to verify parsing logic via tests.
+    - Implement `Auth_Provider` interface and `LoginWithGoogle_Auth_Provider` adapter (ADR 012). Fix active bug: remove `$_SESSION` token storage from `OSM_Auth_Integration`.
 
 ### Phase 2: Core Data & Admin UI
 - **Goal**: Implement CPTs and basic management via TDD.
@@ -87,7 +89,7 @@ OSM has strict rate limits. Our integration must include:
     - Build the React "Team Builder" (Drag-and-drop); write component tests for participant assignment and team reordering.
     - **TDD Task**: Write tests for Volunteer availability submission and the confirmation state machine.
     - Implement Volunteer signup and "Confirmation" workflow.
-    - **TDD Task**: Write tests for the OSM push-back retry queue (job scheduling, backoff, failure surfacing).
+    - **TDD Task**: Write tests for push-back failure handling (job persisted to WP Option, admin notice rendered, retry re-dispatches the correct payload).
 
 ### Phase 4: Frontend Portals
 - **Goal**: Launch Explorer and Parent views.

@@ -6,7 +6,7 @@ This document outlines the key architectural decisions and foundational assumpti
 - **Environment**: WordPress 7.0+, PHP 8.2+, hosted on SiteGround.
 - **Identity**: OSM is the definitive OIDC provider.
 - **Plugin Structure**: Modern PHP architecture (Namespacing, Autoloading, Strict Typing).
-- **Frontend Builder**: Elementor Pro v4.1.0 (utilizing Container-based layouts).
+- **Theme**: Hello Elementor with Elementor Pro (site content and marketing pages). EMS portal pages use a custom page template, not Elementor sections.
 - **Frontend Framework**: React for interactive application features.
 
 ## 2. Key Architectural Decisions (ADRs Needed)
@@ -30,14 +30,16 @@ This document outlines the key architectural decisions and foundational assumpti
     - **Push-back Operations**: All server-to-OSM write operations (flexi-record updates, event status changes) use a dedicated EMS service account (see ADR 010). Individual user tokens are never stored server-side.
 
 ### ADR 003: Frontend Integration Pattern
-- **Decision**: **React-based Single Page Application (SPA) embedded via Shortcode**.
-- **Rationale**: Following the pattern of modern plugins like Tutor LMS, we will build the user interfaces (Explorer Portal, Volunteer Dashboard) as React applications. These will be "hydrated" into the page via a simple shortcode wrapper. 
+- **Decision**: **React-based SPA embedded via Shortcode, rendered inside a custom WP page template.**
+- **Page Template Approach**: EMS portal pages (`[ems-explorer-portal]`, `[ems-parent-portal]`, etc.) use a custom page template (`ems-page-template.php`) registered by the plugin. This template calls `get_header()` and `get_footer()`, which render the site's Elementor Pro Theme Builder header and navigation automatically. The EMS React SPA runs in the content area only.
+    - **Why not Elementor sections**: Embedding React inside Elementor sections creates asset optimisation conflicts (CSS/JS combining, lazy loading, defer). The custom template approach avoids all of these while delivering identical visual output.
+    - **Result**: EMS portal pages are visually indistinguishable from any other site page — same header, navigation, and footer — with no Elementor coupling in the content area.
+- **Frontend SPA Styling**: Frontend portal SPAs (Explorer, Parent, Volunteer) are styled using **Elementor's global CSS custom properties**, which are present on every page rendered by Elementor Pro. Key variables include `--e-global-color-primary`, `--e-global-color-accent`, `--e-global-typography-primary-font-family`, and spacing tokens. No CSS imports are needed — the SPA references these variables directly, ensuring automatic design consistency with the rest of the site.
 - **Benefits**: 
     - Smooth, no-reload transitions (e.g., switching between children, signing up for dates).
-    - Highly interactive components (Drag-and-drop team building, visual calendars).
-    - Better separation of concerns (PHP handles the API, React handles the UI).
-- **Elementor Role**: Elementor will provide the page wrapper, header, and footer, with the EMS React App living inside an Elementor section.
-- **Elementor Conflict Mitigation**: EMS shortcode pages should be excluded from Elementor's asset optimisation (CSS/JS combining, lazy loading) to prevent conflicts with React hydration. A minimal "shell" Elementor template should be defined for all EMS portal pages.
+    - Highly interactive components (drag-and-drop team building, visual calendars).
+    - Full site header/nav inherited with zero Elementor coupling in the application area.
+    - Design consistency via Elementor CSS variables without any theme dependency in JS.
 
 ### ADR 004: Volunteer Availability & Confirmation Logic
 - **Decision**: Use the `ems_volunteer_availability` custom database table (see ADR 011) to store availability and confirmation status per user per expedition date.
@@ -53,11 +55,13 @@ This document outlines the key architectural decisions and foundational assumpti
 - **Direct Access Protection**: An `.htaccess` rule blocking direct URL access to `/wp-content/uploads/ems-secure/` should be added. **Note**: Confirm `.htaccess` write access on SiteGround before implementing; investigate as part of Phase 5 security hardening if not available.
 
 ### ADR 006: Administrative Interface
-- **Decision**: **React-based "Single Page" Admin Dashboard**.
+- **Decision**: **React-based "Single Page" Admin Dashboard using `@wordpress/components`**.
 - **Approach**: 
     - Create a top-level "Expedition Management" menu in the WP Dashboard using `add_menu_page()`.
     - Enqueue a React bundle specifically for the admin area.
-    - Use the **@wordpress/components** library (the same library used by the Block Editor) to ensure the UI looks and feels like a native part of WordPress.
+    - Use the **`@wordpress/components`** library to ensure the admin UI looks and feels like a native part of WordPress (same components as the Block Editor).
+- **Scope**: `@wordpress/components` is used **exclusively in the WP Admin Dashboard**. It is not used in frontend portal SPAs (those use Elementor CSS variables — see ADR 003).
+- **Version Pinning**: `@wordpress/components` must be pinned to a specific minor version in `package.json`. It is not a stable API — WP major releases introduce deprecations and component API changes. Audit deprecation notices before each WP major upgrade on staging.
 - **Key Management Views**:
     - **Reconciliation Dashboard**: A real-time comparison tool for Gravity Forms vs. OSM records.
     - **Team Builder**: A drag-and-drop interface for moving Explorers between expeditions and teams.
@@ -94,6 +98,14 @@ This document outlines the key architectural decisions and foundational assumpti
     - **Token Refresh**: Per OSM OAuth specification (see `docs/OSM Oauth.md`), when the `access_token` expires, the `OSM_API_Client` automatically uses the stored `refresh_token` to obtain a new token pair from `https://www.onlinescoutmanager.co.uk/oauth/token`. Updated tokens are re-persisted to WP Options.
     - **Initial Setup**: A one-time admin setup screen allows an administrator to authorise the service account via OSM OAuth and store the resulting tokens.
 - **Rationale**: Eliminates the need to store individual user tokens server-side. All users' OSM read access is handled at login (ADR 009); all write access is handled by this centralised account.
+
+### ADR 012: Auth Provider Interface
+- **Decision**: The dependency on the `login-with-google` plugin is isolated behind an `EMS\Auth\Auth_Provider` interface.
+- **Rationale**: Although the team owns the `login-with-google` plugin source code, the hook `rtcamp.google_user_logged_in` is Google-branded and may be renamed in a future refactor. Isolating the dependency means only a single adapter class needs updating if the hook changes — no business logic is affected.
+- **Structure**:
+    - `Auth_Provider` interface: defines `get_access_token(): string` and `get_user_data(): array`.
+    - `LoginWithGoogle_Auth_Provider`: concrete adapter that hooks into `rtcamp.google_user_logged_in` and extracts the token and user payload.
+- **The hook** (`rtcamp.google_user_logged_in`) must be documented in the `login-with-google` plugin's changelog as a breaking-change surface for EMS.
 
 ### ADR 011: Custom Database Tables
 - **Decision**: Three custom tables are created on plugin activation alongside the CPT-based data model.
