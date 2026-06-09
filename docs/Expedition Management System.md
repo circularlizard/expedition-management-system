@@ -20,7 +20,9 @@ The Expedition Management System (EMS) is designed to manage and store informati
     - Expedition assignments.
     - Team assignments.
     - First Aid status per participant.
+    - **Note**: Flexi-records are stored per season in OSM. First Aid status and team assignments are written to the current season's flexi-record at the time of assignment.
 - **Event Status Update**: If a participant is assigned in EMS but not yet in the OSM event, EMS updates their OSM status to "Show in Parent Portal".
+- **Push-back Authentication**: All EMS-to-OSM write operations use a dedicated EMS service account (see Technical Architecture ADR 010). Individual user tokens are not stored server-side.
 
 ### 2.2 WordPress & Tutor LMS
 - **Hosting**: Integrated with or hosted on the SE Scotland DofE WordPress site.
@@ -68,6 +70,7 @@ sequenceDiagram
 - **Team Composition**: 
     - Participants grouped into teams (4–7 people).
     - **Teammate Preferences**: When building teams, Admins must be able to view preferences submitted by Explorers during signup.
+- **Team Code Generation**: Each expedition is assigned a short **expedition code** manually by an Admin (e.g., `SP1` for Silver Practice 1, `GQ2` for Gold Qualifying 2). Team codes are then **auto-incremented** from this code (`SP1-1`, `SP1-2`, ...) as teams are created in the Team Builder.
 - **Unit Tracking**: Participant units are retrieved from the OSM "patrol" field.
 
 ### 4.2 First Aid & Safety
@@ -76,7 +79,17 @@ sequenceDiagram
     - First Response.
     - Full First Aid Qualification.
 - **Planning View**: The team building/expedition overview must display the first aid status of each team member to ensure safety coverage.
-- **Sync**: First Aid status is pushed back to an OSM flexi-record.
+- **Sync**: First Aid status is pushed back to the current season's OSM flexi-record.
+
+### 4.2a Email Notifications *(Gap — To Be Resolved)*
+- Email notifications are required for key workflow triggers but the delivery mechanism has not yet been confirmed. The WP native email system (via SiteGround SMTP) is the most likely approach and should be investigated.
+- **Required triggers** (at minimum):
+    - Volunteer signup submitted → awaiting Admin/LiC confirmation
+    - Volunteer signup confirmed or rejected
+    - Explorer assigned to expedition and team
+    - LiC approves or provides feedback on a route submission
+    - Route submission deadline approaching
+- **Action**: Confirm SiteGround SMTP availability and decide on notification implementation before Phase 4.
 
 ### 4.3 Volunteer Management
 - **Signup**: Volunteers can view a list of expeditions and sign up to assist.
@@ -116,7 +129,8 @@ sequenceDiagram
     - Parents often log in *before* their child to sign them up.
     - **Multi-Child Aggregation**: The system must iterate through all sections in the payload and aggregate a deduplicated list of `member_id`s (Scout IDs) where the user has `access_type: "parent"`.
     - Upon Parent login and child selection, the EMS must query OSM for the Explorer's details if the local WP account does not exist.
-    - If the Explorer does not have a WP account, EMS will provision a "shell" account using the OSM `scout_id` as the primary anchor.
+    - If the Explorer does not have a WP account, EMS will provision a "shell" WP account using the OSM `scout_id` as the primary anchor.
+- **Shell Account Merge Flow**: When a child subsequently logs in via OIDC, the `login-with-google` plugin will create a new WP account using their email address. The EMS must intercept the post-login hook, query OSM using the newly obtained `access_token` to retrieve the child's `scout_id`, locate any existing shell account with a matching `ems_scout_id` in WP User Meta, and perform a merge — transferring all EMS User Meta to the OIDC account and deleting the shell. This ensures no duplicate records persist.
 - **Selection**: Upon login, a Parent must select which child's data they wish to view from the aggregated list.
 
 ### 4.7 Access Control & Validations (OSM access_type)
@@ -134,14 +148,15 @@ sequenceDiagram
 - **Minimization**: EMS should only store the minimum personal data required for expedition management (e.g., names, units, team assignments).
 - **Sensitivity**: Sensitive personal information (medical details, contact info) must remain in OSM and NOT be stored in EMS.
 - **Parental Access**: Parents have access to their child's team route planning (GPX, route cards, feedback).
+- **Right to Erasure** *(Late Phase)*: GDPR requires that participant data can be deleted on request (e.g., when a young person leaves the programme). A late-phase admin function must be implemented to: remove all EMS User Meta for the user, anonymise their records in the `ems_team_members` and `ems_route_submissions` custom tables, and remove `ems_volunteer_availability` rows. This is deferred to a post-launch phase.
 
 ## 6. Architectural Direction
 ### 6.1 WordPress Integration
 - **Custom Plugin**: The EMS will be implemented as a custom WordPress plugin.
 - **Separation of Concerns**:
-    - **Frontend (Website)**: End-user features (Explorers, Parents, Volunteers) should be integrated into the public-facing website pages (e.g., via shortcodes, blocks, or custom templates).
+    - **Frontend (Website)**: End-user features (Explorers, Parents, Volunteers) should be integrated into the public-facing website pages via shortcodes (see Shortcode Registry in Technical Architecture §4).
     - **Backend (Dashboard)**: Administrative features (Expedition Admin, LiC approval tools, Reconciliation) should reside within the WordPress Admin Dashboard.
-- **Data Model**: Leverage Custom Post Types (CPTs) for Expeditions and Teams, with custom database tables for complex relationships (like Volunteer availability and OSM parsing) to ensure performance and data integrity.
+- **Data Model**: **Hybrid** — Custom Post Types (CPTs) for Expeditions and Teams (main entities), with custom database tables for relational data (team membership, volunteer availability, route submission history). See Technical Architecture ADR 001 and ADR 011 for the full specification.
 
 ## 7. Definitions & Glossary
 - **OSM**: Online Scout Manager.
