@@ -8,7 +8,9 @@ This document defines the metadata, relationships, and API endpoints for the Exp
 Used to manage individual expedition events.
 - **Title**: e.g., "Silver Practice - Pentland Hills"
 - **Meta Fields**:
+    - `ems_level`: string (`bronze` | `silver` | `gold`)
     - `ems_type`: string (`practice` | `qualifying`)
+    - `ems_expedition_code`: string (manually assigned short code, e.g. `SP1` for Silver Practice 1 — used to auto-generate team codes)
     - `ems_start_date`: string (ISO 8601)
     - `ems_end_date`: string (ISO 8601)
     - `ems_location_name`: string
@@ -23,13 +25,14 @@ Used to group participants within an expedition.
 - **Title**: e.g., "Team 1"
 - **Post Parent**: ID of the associated `expedition`.
 - **Meta Fields**:
-    - `ems_team_code`: string (e.g., `SP1-1`, `GQ2-3`)
-    - `ems_participants`: array (List of WP User IDs)
-    - `ems_route_status`: string (`pending` | `feedback_required` | `approved`)
-    - `ems_route_feedback`: string (Most recent feedback text)
-    - `ems_gpx_file_id`: integer (WP Media ID)
-    - `ems_route_card_file_id`: integer (WP Media ID)
-    - `ems_submission_history`: array (Log of file versions and dates)
+    - `ems_team_code`: string (e.g., `SP1-1`, `GQ2-3` — auto-generated from the parent expedition's `ems_expedition_code` with an auto-incremented team number)
+    - `ems_route_status`: string (`pending` | `feedback_required` | `approved`) — current state shortcut field
+    - `ems_route_feedback`: string (Most recent LiC feedback — current state shortcut field)
+    - `ems_gpx_file_id`: integer (WP Media ID of current approved/latest GPX)
+    - `ems_route_card_file_id`: integer (WP Media ID of current approved/latest route card)
+- **Relationships** (stored in custom tables, not Post Meta):
+    - Participants: see `ems_team_members` table (§4)
+    - Submission history: see `ems_route_submissions` table (§4)
 
 ## 2. User Metadata
 Extending standard WP User records.
@@ -63,6 +66,40 @@ All endpoints prefixed with `/wp-json/ems/v1/`.
 - `PATCH /update-team`: Move explorers between teams or expeditions.
 - `POST /route-feedback`: LiC submits approval or feedback for a team's route.
 
-## 4. Custom Database Tables (Optional/Future)
-While we are using CPTs, we may create a small helper table for **Volunteer Availability** if serialized meta becomes difficult to query for the seasonal calendar view.
-- `ems_availability`: `[id, user_id, date, status, expedition_id]`
+## 4. Custom Database Tables
+Three custom tables are created on plugin activation (via `dbDelta()`). These are a definitive part of the data model (see ADR 011), not optional.
+
+### 4.1 `ems_team_members`
+Links Explorers (WP Users) to Teams. Replaces the unqueryable serialized `ems_participants` Post Meta.
+- `id`: int, auto-increment PK
+- `team_post_id`: int (WP Post ID of the `team` CPT record)
+- `user_id`: int (WP User ID of the Explorer)
+- `added_by`: int (WP User ID of the admin who made the assignment)
+- `added_at`: datetime
+
+### 4.2 `ems_volunteer_availability`
+Stores per-day volunteer availability for the seasonal calendar and expedition-specific views.
+- `id`: int, auto-increment PK
+- `user_id`: int (WP User ID of the Volunteer)
+- `expedition_post_id`: int (WP Post ID of the `expedition` CPT record)
+- `date`: date
+- `overnight`: tinyint (1 = available for overnight)
+- `confirmed`: tinyint (0 = pending, 1 = confirmed)
+- `confirmed_by`: int (WP User ID of confirming Admin/LiC, nullable)
+
+### 4.3 `ems_route_submissions`
+Stores the full version history of route submissions with LiC feedback per version.
+- `id`: int, auto-increment PK
+- `team_post_id`: int (WP Post ID of the `team` CPT record)
+- `version`: int (auto-incremented per team)
+- `file_type`: string (`gpx` | `route_card`)
+- `wp_media_id`: int (WP Attachment ID)
+- `submitted_by`: int (WP User ID)
+- `submitted_at`: datetime
+- `feedback`: text (nullable)
+- `status`: string (`pending` | `feedback_required` | `approved`)
+
+## 5. Gravity Forms Integration Note
+The Reconciliation Dashboard reads Gravity Forms signup data using **`GFAPI::get_entries()`**, filtered by form ID and Explorer email address. This is the official Gravity Forms PHP API and is preferred over direct `WPDB` queries to avoid coupling to GF's internal schema.
+- **Matching Key**: Explorer's personal email address (must be captured as a dedicated field in the GF form — not the submitter/parent email).
+- **Logic**: Compare GF entries against the OSM section participant list; highlight records present in one source but not the other.

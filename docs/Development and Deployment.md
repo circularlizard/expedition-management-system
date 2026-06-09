@@ -17,31 +17,50 @@ In alignment with **ADR 007 (TDD Mandate)**:
 
 ### 1.3 Test Server
 - **Environment**: A staging/test subdomain on SiteGround.
-- **CI/CD**: TBD (Manual deployment or basic GitHub Actions to push via SSH/SFTP).
+- **CI/CD**: See §3 for the full pipeline specification.
 
 ## 2. OSM Integration Strategy
 ### 2.1 Authentication (OIDC) & Hydration
 - **Base Plugin**: [login-with-google](https://github.com/circularlizard/login-with-google) (configured for OSM OIDC).
 - **Identity Step**: Standard OIDC handshake performed by the base plugin to match/create the WP User.
-- **Context Step (EMS Hook)**: EMS hooks into `rtcamp.google_user_logged_in`. 
+- **Context Step (EMS Hook)**: EMS hooks into `rtcamp.google_user_logged_in`.
     - Captured Access Token is used to perform a secondary `getDataPayload` (Startup API) fetch.
     - Resulting context (Scout IDs, child mapping, `access_type`) is persisted to WP User Meta.
-- **Session Security**: The OSM Access Token is stored in a secure session/transient for subsequent business API calls but is not exposed to the frontend.
+    - The user's `access_token` is used solely for this hydration step and is **discarded immediately after**. No per-user token is stored server-side.
+- **Shell Account Merge**: EMS also hooks into `rtcamp.google_user_logged_in` to detect if a shell account exists for the newly logged-in child (matched by `ems_scout_id`). If found, EMS performs a merge of User Meta before the session is established. See PRD §4.6.
+- **Service Account**: All subsequent EMS-to-OSM write operations (flexi-records, event status) use the dedicated EMS service account tokens stored encrypted in WP Options. See ADR 010.
 
-### 2.2 Rate Limiting & Performance
+### 2.2 OSM Push-back Retry Queue
+- **Problem**: Push-back operations (flexi-record updates, event status changes) may fail if OSM is temporarily unavailable.
+- **Solution**: Failed push-back jobs are queued using **WP Action Scheduler** (bundled with WooCommerce/available as standalone). Each job is retried with exponential backoff (3 attempts: immediate, +5 min, +30 min).
+- **Visibility**: Failed jobs that exhaust retries are surfaced as admin notices in the EMS dashboard so administrators can investigate and manually re-trigger if needed.
+- **TDD Task**: Write tests for the retry queue logic (job scheduling, backoff intervals, failure surfacing).
+
+### 2.3 Rate Limiting & Performance
 OSM has strict rate limits. Our integration must include:
 - **Throttling**: A central `OSM_API_Client` class that implements a "Token Bucket" or simple delay logic to ensure we never exceed the allowed requests per minute.
 - **Caching**: Aggressive use of WordPress Transients to cache OSM data (e.g., Section lists, Event details) for 1–12 hours.
 - **Batching**: Where the API allows, fetch data in batches rather than individual requests per user.
 
-### 2.3 Mock Data Layer (Test Mode)
+### 2.4 Mock Data Layer (Test Mode)
 - **Implementation**: The `OSM_API_Client` will use a "Driver" pattern.
 - **Drivers**:
     - `Live_Driver`: Makes real HTTP requests to OSM.
     - `Mock_Driver`: Returns static JSON payloads (stored in `tests/mocks/`) for all data requests.
 - **Switching**: Controlled via a WP Option or `EMS_TEST_MODE` constant in `wp-config.php`.
 
-## 3. Incremental Implementation Plan
+## 3. CI/CD Pipeline
+
+- **Local Development**: Docker Compose environment (see §1.1). All development and initial testing occurs locally.
+- **Automated Checks (GitHub Actions)**: A GitHub Actions workflow runs on every push to `main` and all pull requests:
+    1. PHP lint (`php -l`)
+    2. PHPUnit test suite
+    3. Vitest test suite
+- **Deployment to Staging**: Manual. Once all automated checks pass on a branch, the developer deploys to the SiteGround staging subdomain via SSH/SFTP (or SiteGround's deployment tools). E2E Playwright tests are run against the staging environment.
+- **Deployment to Production**: Manual promotion from staging to production, after staging sign-off.
+- **Note**: Automated deployment to SiteGround may be added in a future phase if SSH key access is confirmed.
+
+## 4. Incremental Implementation Plan
 
 ### Phase 1: Infrastructure & Test Setup (Current)
 - **Goal**: Establish the "Test-First" environment and verify OSM API connectivity.
@@ -64,19 +83,29 @@ OSM has strict rate limits. Our integration must include:
 ### Phase 3: Volunteer & Team Building
 - **Goal**: Enable staffing and participant grouping.
 - **Tasks**:
-    - Build the React "Team Builder" (Drag-and-drop).
+    - **TDD Task**: Write tests for team code auto-generation from expedition code.
+    - Build the React "Team Builder" (Drag-and-drop); write component tests for participant assignment and team reordering.
+    - **TDD Task**: Write tests for Volunteer availability submission and the confirmation state machine.
     - Implement Volunteer signup and "Confirmation" workflow.
+    - **TDD Task**: Write tests for the OSM push-back retry queue (job scheduling, backoff, failure surfacing).
 
 ### Phase 4: Frontend Portals
 - **Goal**: Launch Explorer and Parent views.
 - **Tasks**:
+    - **TDD Task**: Write component tests for the Explorer Portal (expedition view, team display, route status).
     - Create the React "Explorer Portal" shortcode.
-    - Implement Parent-Child relationship parsing and selection UI.
+    - **TDD Task**: Write tests for the shell account merge flow (matching by `ems_scout_id`, meta transfer, shell deletion).
+    - Implement Parent-Child relationship parsing, selection UI, and shell account merge.
+    - **TDD Task**: Write tests for secure route upload (file type validation, naming convention, versioning).
     - Setup secure Route Planning uploads.
+    - Confirm SiteGround SMTP availability and implement email notification triggers (see PRD §4.2a).
 
 ### Phase 5: Production Sync & Launch
 - **Goal**: Full integration and live testing.
 - **Tasks**:
     - Switch to `Live_Driver` for OSM.
-    - Perform load testing on the SiteGround test server.
+    - **TDD Task**: Write tests for service account token refresh (expired access token triggers refresh token exchange, new tokens persisted).
+    - Configure and test EMS service account authorisation flow.
+    - Investigate and implement `.htaccess` protection for `/wp-content/uploads/ems-secure/` (confirm SiteGround access).
+    - Perform load testing on the SiteGround staging server.
     - Final UI polish and user training.
