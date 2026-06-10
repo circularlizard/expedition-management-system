@@ -143,12 +143,12 @@ class TutorLMS_Client {
              JOIN {$wpdb->posts} t ON c.post_parent = t.ID
              WHERE t.post_type   = 'topics'
              AND   c.post_status IN ('publish', 'private')
-             AND   c.post_type   IN ('tutor_lesson', 'lesson', 'tutor_quiz', 'tutor_assignments')
+             AND   c.post_type   IN ('tutor_lesson', 'lesson', 'tutor_quiz', 'tutor_assignments', 'tutor_assignment')
              AND   t.post_parent IN ({$c_ph})
              UNION
              SELECT c.ID as content_id, c.post_type as content_type, c.post_parent as course_id
              FROM {$wpdb->posts} c
-             WHERE c.post_type   IN ('tutor_lesson', 'lesson', 'tutor_quiz', 'tutor_assignments')
+             WHERE c.post_type   IN ('tutor_lesson', 'lesson', 'tutor_quiz', 'tutor_assignments', 'tutor_assignment')
              AND   c.post_status IN ('publish', 'private')
              AND   c.post_parent IN ({$c_ph})",
             ...$course_ids,
@@ -182,30 +182,42 @@ class TutorLMS_Client {
         $assignment_done = [];
         $all_lesson_set = ! empty( $all_lesson_ids )     ? array_flip( $all_lesson_ids )     : [];
         $all_assign_set = ! empty( $all_assignment_ids ) ? array_flip( $all_assignment_ids ) : [];
-        if ( ! empty( $all_lesson_ids ) || ! empty( $all_assignment_ids ) ) {
+        $all_quiz_set   = ! empty( $all_quiz_ids )       ? array_flip( $all_quiz_ids )       : [];
+
+        if ( ! empty( $all_lesson_ids ) || ! empty( $all_assignment_ids ) || ! empty( $all_quiz_ids ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $lesson_meta_rows = $wpdb->get_results( $wpdb->prepare(
                 "SELECT user_id, meta_key
                  FROM {$wpdb->usermeta}
                  WHERE user_id IN ({$u_ph})
-                 AND   meta_key LIKE '_tutor_completed_lesson_id_%%'",
+                 AND   meta_key LIKE '_tutor_completed_%%'",
                 ...$user_ids
             ) );
             foreach ( $lesson_meta_rows as $row ) {
                 $lid = (int) str_replace( '_tutor_completed_lesson_id_', '', $row->meta_key );
+                if ( ! $lid ) {
+                    $lid = (int) str_replace( '_tutor_completed_assignment_id_', '', $row->meta_key );
+                }
+                if ( ! $lid ) {
+                    $lid = (int) str_replace( '_tutor_completed_quiz_id_', '', $row->meta_key );
+                }
+                if ( ! $lid ) {
+                    continue;
+                }
+
                 if ( isset( $all_lesson_set[ $lid ] ) ) {
                     $lesson_done[ (int) $row->user_id ][ $lid ] = true;
-                }
-                // TutorLMS Pro also fires this meta for assignment completions.
-                if ( isset( $all_assign_set[ $lid ] ) ) {
+                } elseif ( isset( $all_assign_set[ $lid ] ) ) {
                     $assignment_done[ (int) $row->user_id ][ $lid ] = true;
+                } elseif ( isset( $all_quiz_set[ $lid ] ) ) {
+                    $quiz_done[ (int) $row->user_id ][ $lid ] = true;
                 }
             }
         }
 
         // 4b. Completed lessons via TutorLMS Pro reading-info meta:
         //     _tutor_reading_info_{course_id} stores a serialised array of completed lesson IDs.
-        if ( ! empty( $course_ids ) && ! empty( $all_lesson_ids ) ) {
+        if ( ! empty( $course_ids ) && ( ! empty( $all_lesson_ids ) || ! empty( $all_assignment_ids ) || ! empty( $all_quiz_ids ) ) ) {
             $reading_keys = array_map( fn( $cid ) => '_tutor_reading_info_' . $cid, $course_ids );
             $ri_ph        = implode( ',', array_fill( 0, count( $reading_keys ), '%s' ) );
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -225,6 +237,10 @@ class TutorLMS_Client {
                     $lid = (int) $lid;
                     if ( isset( $all_lesson_set[ $lid ] ) ) {
                         $lesson_done[ (int) $row->user_id ][ $lid ] = true;
+                    } elseif ( isset( $all_assign_set[ $lid ] ) ) {
+                        $assignment_done[ (int) $row->user_id ][ $lid ] = true;
+                    } elseif ( isset( $all_quiz_set[ $lid ] ) ) {
+                        $quiz_done[ (int) $row->user_id ][ $lid ] = true;
                     }
                 }
             }
@@ -257,19 +273,42 @@ class TutorLMS_Client {
             $submission_rows = $wpdb->get_results( $wpdb->prepare(
                 "SELECT DISTINCT post_author, post_parent
                  FROM {$wpdb->posts}
-                 WHERE post_type   = 'tutor_assignments'
+                 WHERE post_parent IN ({$a_ph})
                  AND   post_author IN ({$u_ph})
-                 AND   post_parent IN ({$a_ph})
                  AND   post_status NOT IN ('auto-draft', 'trash')",
-                ...array_merge( $user_ids, $all_assignment_ids )
+                ...array_merge( $all_assignment_ids, $user_ids )
             ) );
             foreach ( $submission_rows as $row ) {
-                $assignment_done[ (int) $row->post_author ][ (int) $row->post_parent ] = true;
+                    $assignment_done[ (int) $row->post_author ][ (int) $row->post_parent ] = true;
+                }
             }
 
-        }
+            // 5.6 Content usage table (TutorLMS Pro source of truth)
+            $cb_table = $wpdb->prefix . 'tutor_cb_content_usage';
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $table_exists = (bool) $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $cb_table ) );
+            if ( $table_exists ) {
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $cb_rows = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT user_id, content_id
+                     FROM {$cb_table}
+                     WHERE user_id IN ({$u_ph})",
+                    ...$user_ids
+                ) );
+                foreach ( $cb_rows as $row ) {
+                    $uid = (int) $row->user_id;
+                    $lid = (int) $row->content_id;
+                    if ( isset( $all_lesson_set[ $lid ] ) ) {
+                        $lesson_done[ $uid ][ $lid ] = true;
+                    } elseif ( isset( $all_assign_set[ $lid ] ) ) {
+                        $assignment_done[ $uid ][ $lid ] = true;
+                    } elseif ( isset( $all_quiz_set[ $lid ] ) ) {
+                        $quiz_done[ $uid ][ $lid ] = true;
+                    }
+                }
+            }
 
-        // Build matrix
+            // Build matrix
         $matrix = [];
         foreach ( $user_ids as $uid ) {
             foreach ( $course_ids as $cid ) {
