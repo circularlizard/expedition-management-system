@@ -1,0 +1,31 @@
+{
+    "ok": true,
+    "read_only": [],
+    "data": {
+        "scoutid": "30001",
+        "firstname": "Alex",
+        "lastname": "Explorer",
+        "photo_guid": null,
+        "dob": "2009-01-15",
+        "started": "2023-09-01",
+        "created_date": "2023-09-01 09:00:00",
+        "last_accessed": "2026-06-01 10:00:00",
+        "patrolid": "99280",
+        "patrolleader": "0",
+        "startedsection": "2023-09-01",
+        "enddate": null,
+        "age": "17 years and 4 months",
+        "age_simple": "17 / 04",
+        "sectionid": 99001,
+        "active": true,
+        "meetings": "42",
+        "others": [
+            "Test District: Silver ESU",
+            "Test District: Gold ESU"
+        ],
+        "has_invitations": false,
+        "moving_on_date": null,
+        "moving_on_section_name": null
+    },
+    "meta": []
+}

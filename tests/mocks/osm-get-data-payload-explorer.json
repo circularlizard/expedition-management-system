@@ -1,0 +1,137 @@
+{
+    "status": true,
+    "error": null,
+    "data": {
+        "cdn": "https://oymcdn.co.uk/",
+        "resources": [],
+        "config_hash": "abc123synthetic",
+        "globals": {
+            "post_login_action": false,
+            "theme": "purple",
+            "userid": 20001,
+            "roles": false,
+            "active_user_member": false,
+            "associated_member_id": false,
+            "email": "alex.explorer@example.com",
+            "firstname": "Alex",
+            "lastname": "Explorer",
+            "fullname": "Alex Explorer",
+            "preferences": {
+                "date": "uk",
+                "calendarStartDayOfWeek": 1,
+                "logins": "1",
+                "new_user": 0
+            },
+            "member_access": {
+                "99001": {
+                    "name": "Test District: Silver ESU",
+                    "group": "Test District",
+                    "section": "Silver ESU",
+                    "abbrv": "Silver ESU\nTest District",
+                    "type": "explorers",
+                    "label": "Explorers",
+                    "members": {
+                        "30001": {
+                            "first_name": "Alex",
+                            "last_name": "Explorer",
+                            "photo_guid": null,
+                            "abbrv_name": "Alex",
+                            "chat_rooms": [],
+                            "access_type": "member",
+                            "has_unread_chat_rooms": false,
+                            "abbrv": "Alex",
+                            "pane_abbrv": "Alex, Silver ESU - Test District",
+                            "permissions": {
+                                "payments_read": true,
+                                "payments_edit": false,
+                                "events_read": true,
+                                "events_edit": false,
+                                "events_at_home": false,
+                                "details_read": true,
+                                "details_edit": true,
+                                "emails_read": false,
+                                "giftaid": false
+                            }
+                        }
+                    },
+                    "access": true,
+                    "config": {
+                        "badges": true,
+                        "programme": true,
+                        "emailbolton": true,
+                        "details": true,
+                        "events": true,
+                        "chat": false,
+                        "at_home": false,
+                        "email_address": "silver@testdistrict.example.com",
+                        "giftaid": false,
+                        "payments": true,
+                        "attachments": false,
+                        "photos": false
+                    },
+                    "noticeboard": true
+                },
+                "99002": {
+                    "name": "Test District: Gold ESU",
+                    "group": "Test District",
+                    "section": "Gold ESU",
+                    "abbrv": "Gold ESU\nTest District",
+                    "type": "explorers",
+                    "label": "Explorers",
+                    "members": {
+                        "30001": {
+                            "first_name": "Alex",
+                            "last_name": "Explorer",
+                            "photo_guid": null,
+                            "abbrv_name": "Alex",
+                            "chat_rooms": [],
+                            "access_type": "member",
+                            "has_unread_chat_rooms": false,
+                            "abbrv": "Alex",
+                            "pane_abbrv": "Alex, Gold ESU - Test District",
+                            "permissions": {
+                                "payments_read": true,
+                                "payments_edit": false,
+                                "events_read": true,
+                                "events_edit": false,
+                                "events_at_home": false,
+                                "details_read": true,
+                                "details_edit": true,
+                                "emails_read": false,
+                                "giftaid": false
+                            }
+                        }
+                    },
+                    "access": true,
+                    "config": {
+                        "badges": false,
+                        "programme": false,
+                        "emailbolton": true,
+                        "details": true,
+                        "events": true,
+                        "chat": false,
+                        "at_home": false,
+                        "email_address": "gold@testdistrict.example.com",
+                        "giftaid": false,
+                        "payments": false,
+                        "attachments": false,
+                        "photos": false
+                    },
+                    "noticeboard": false
+                }
+            },
+            "member_access_unactivated": false,
+            "terms": [],
+            "global_roles": [],
+            "hasSectionAccess": false,
+            "notepads": [],
+            "sockets": "",
+            "user_socket": "20001-synthetictoken",
+            "session_id": "synthetic-session-explorer-00000000000000000000000000000001",
+            "security_prompt": "none",
+            "user_has_image": false,
+            "language": "en-GB"
+        }
+    },
+    "meta": []
+}
