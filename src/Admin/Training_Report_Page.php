@@ -29,7 +29,7 @@ class Training_Report_Page {
             'ems',
             '__return_null',
             'dashicons-location-alt',
-            80
+            5
         );
 
         add_submenu_page(
@@ -119,6 +119,71 @@ class Training_Report_Page {
         $this->render_pagination( $data );
         // phpcs:ignore WordPress.Security.EscapeOutput
         echo $this->sort_script();
+
+        $diag = get_transient( 'ems_completion_diag' );
+        if ( $diag ) {
+            echo '<details style="margin-top:24px;border:1px solid #c3c4c7;padding:12px;background:#fff;">';
+            echo '<summary style="cursor:pointer;font-weight:600;">&#128270; EMS Completion Diagnostic (first unresolved user)</summary>';
+            printf(
+                '<p>User ID: <strong>%d</strong> &nbsp;|&nbsp; Course ID: <strong>%d</strong> &nbsp;|&nbsp; Done: <strong>%d / %d</strong></p>',
+                (int) $diag['user_id'],
+                (int) $diag['course_id'],
+                (int) $diag['done'],
+                (int) $diag['total']
+            );
+
+            printf(
+                '<p><strong>Content query — lessons found:</strong> %s</p>',
+                esc_html( implode( ', ', $diag['content_lessons'] ) ?: '(none)' )
+            );
+            printf(
+                '<p><strong>Content query — quizzes found:</strong> %s</p>',
+                esc_html( implode( ', ', $diag['content_quizzes'] ) ?: '(none)' )
+            );
+            printf(
+                '<p><strong>Content query — assignments found:</strong> %s</p>',
+                esc_html( implode( ', ', $diag['content_assigns'] ) ?: '(none)' )
+            );
+            printf(
+                '<p><strong>Lessons marked done by step 4:</strong> %s</p>',
+                esc_html( implode( ', ', $diag['lesson_done_ids'] ) ?: '(none)' )
+            );
+
+            if ( ! empty( $diag['lesson_post_rows'] ) ) {
+                echo '<p><strong>wp_posts rows for completed lesson IDs:</strong></p>';
+                echo '<table class="widefat striped" style="max-width:600px;">';
+                echo '<thead><tr><th>ID</th><th>post_type</th><th>post_status</th><th>post_parent</th></tr></thead><tbody>';
+                foreach ( $diag['lesson_post_rows'] as $row ) {
+                    printf(
+                        '<tr><td>%d</td><td><code>%s</code></td><td><code>%s</code></td><td>%d</td></tr>',
+                        (int) $row->ID,
+                        esc_html( $row->post_type ),
+                        esc_html( $row->post_status ),
+                        (int) $row->post_parent
+                    );
+                }
+                echo '</tbody></table>';
+            }
+
+            echo '<hr>';
+            if ( empty( $diag['meta_rows'] ) ) {
+                echo '<p><em>No tutor-related usermeta rows found for this user.</em></p>';
+            } else {
+                echo '<p><strong>All tutor usermeta for this user:</strong></p>';
+                echo '<table class="widefat striped" style="max-width:800px;">';
+                echo '<thead><tr><th>meta_key</th><th>meta_value (truncated)</th></tr></thead><tbody>';
+                foreach ( $diag['meta_rows'] as $row ) {
+                    printf(
+                        '<tr><td><code>%s</code></td><td><code>%s</code></td></tr>',
+                        esc_html( $row->meta_key ),
+                        esc_html( substr( $row->meta_value, 0, 120 ) )
+                    );
+                }
+                echo '</tbody></table>';
+            }
+            echo '</details>';
+        }
+
         echo '</div>';
     }
 
