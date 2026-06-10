@@ -1,9 +1,8 @@
 # macOS
 .DS_Store
 
-# Mock Data (PII)
+# Mock Data (PII — real OSM responses, never commit)
 mockdata/
-tests/mocks/*.json
 
 # Dependencies
 vendor/

@@ -99,7 +99,82 @@ Stores the full version history of route submissions with LiC feedback per versi
 - `feedback`: text (nullable)
 - `status`: string (`pending` | `feedback_required` | `approved`)
 
-## 5. Gravity Forms Integration Note
+## 5. WP Options: Reference & Configuration Data
+
+All EMS configuration is stored in WP Options (via `get_option` / `update_option`). These are set during initial plugin setup via an admin settings screen and must be in place before any OSM push-back operation is attempted.
+
+### 5.1 `ems_managed_sections`
+Type: serialized array. Defines every OSM section the EMS manages. Each entry is keyed by OSM `sectionid`.
+
+```php
+[
+    '99001' => [
+        'name'           => 'Test District: Silver ESU',   // display label
+        'type'           => 'explorers',                    // OSM section type string — required by updateScout POST
+        'termid'         => '897113',                       // current OSM term ID — changes annually, must be updated each year
+        'extraid'        => '50001',                        // OSM flexi-record ID for this section
+        'column_map'     => [                               // maps EMS field names to opaque OSM f_N column IDs
+            'practice_group'     => 'f_1',
+            'practice_accepted'  => 'f_2',
+            'qualifier_group'    => 'f_3',
+            'qualifier_accepted' => 'f_4',
+            'first_aid'          => 'f_5',
+        ],
+    ],
+    // ... additional sections
+]
+```
+
+> **Note on `termid`**: OSM terms are academic-year periods. The `termid` must be refreshed annually (before the new term's expeditions begin). A future admin notice should prompt renewal when the stored term expires.
+
+### 5.2 `ems_gravity_form_id`
+Type: integer. The ID of the Gravity Forms expedition signup form. Cannot be hardcoded as form IDs are environment-specific.
+
+### 5.3 `ems_tutor_course_map`
+Type: serialized array. Maps DofE level to Tutor LMS course ID for training access validation.
+
+```php
+[
+    'bronze' => 12,
+    'silver' => 34,
+    'gold'   => 56,
+]
+```
+
+### 5.4 `ems_service_account_tokens` *(encrypted)*
+Type: serialized array. Stores OAuth tokens for the EMS service account used for all push-back write operations. Managed by the service account auth flow (see ADR 010). Values stored encrypted at rest.
+
+```php
+[
+    'access_token'  => '...',
+    'refresh_token' => '...',
+    'expires_at'    => 1780000000,  // Unix timestamp
+]
+```
+
+### 5.5 `ems_failed_pushback_queue`
+Type: serialized array. Persists failed `updateScout` / event-status write jobs for admin retry. Each entry contains the full POST payload required to re-dispatch the job.
+
+```php
+[
+    [
+        'attempted_at' => '2026-08-01 10:32:00',
+        'endpoint'     => 'updateScout',
+        'payload'      => [
+            'sectionid' => '99001',
+            'termid'    => '897113',
+            'section'   => 'explorers',
+            'extraid'   => '50001',
+            'scoutid'   => '30001',
+            'column'    => 'f_1',
+            'value'     => 'SP1-1',
+        ],
+        'error'        => 'HTTP 429 Too Many Requests',
+    ],
+]
+```
+
+## 6. Gravity Forms Integration Note
 The Reconciliation Dashboard reads Gravity Forms signup data using **`GFAPI::get_entries()`**, filtered by form ID and Explorer email address. This is the official Gravity Forms PHP API and is preferred over direct `WPDB` queries to avoid coupling to GF's internal schema.
 - **Matching Key**: Explorer's personal email address (must be captured as a dedicated field in the GF form — not the submitter/parent email).
 - **Logic**: Compare GF entries against the OSM section participant list; highlight records present in one source but not the other.

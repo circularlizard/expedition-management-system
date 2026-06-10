@@ -1,0 +1,17 @@
+{
+    "status": true,
+    "error": null,
+    "data": {
+        "user_id": 20002,
+        "full_name": "Sam Parent",
+        "email": "sam.parent@example.com",
+        "profile_picture_url": null,
+        "scopes": [
+            "section:member:read"
+        ],
+        "sections": [],
+        "has_parent_access": true,
+        "has_section_access": false
+    },
+    "meta": []
+}

@@ -1,0 +1,18 @@
+{
+    "status": true,
+    "error": null,
+    "data": {
+        "user_id": 20001,
+        "full_name": "Alex Explorer",
+        "email": "alex.explorer@example.com",
+        "profile_picture_url": null,
+        "scopes": [
+            "section:event:read",
+            "section:member:read"
+        ],
+        "sections": [],
+        "has_parent_access": false,
+        "has_section_access": false
+    },
+    "meta": []
+}
