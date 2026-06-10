@@ -8,12 +8,23 @@ PLUGIN_FILE="ems-plugin.php"
 DIST_DIR="dist"
 STAGING_DIR="/tmp/ems-plugin-build"
 
-VERSION=$(grep -m1 "Version:" "$PLUGIN_FILE" | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
+CURRENT=$(grep -m1 "Version:" "$PLUGIN_FILE" | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
 
-if [ -z "$VERSION" ]; then
+if [ -z "$CURRENT" ]; then
   echo "ERROR: Could not read Version from $PLUGIN_FILE"
   exit 1
 fi
+
+# Increment patch segment (e.g. 0.1.0 -> 0.1.1)
+MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+MINOR=$(echo "$CURRENT" | cut -d. -f2)
+PATCH=$(echo "$CURRENT" | cut -d. -f3)
+PATCH=$(( PATCH + 1 ))
+VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+# Write new version back into the plugin header
+sed -i '' "s/ \* Version: ${CURRENT}/ \* Version: ${VERSION}/" "$PLUGIN_FILE"
+echo "==> Bumped version: ${CURRENT} → ${VERSION}"
 
 ZIP_NAME="ems-plugin-${VERSION}.zip"
 ZIP_PATH="${DIST_DIR}/${ZIP_NAME}"

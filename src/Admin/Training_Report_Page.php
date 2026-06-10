@@ -69,7 +69,9 @@ class Training_Report_Page {
 
         echo '<div class="wrap">';
         echo '<h1>Training Completion Report</h1>';
-        echo '<p><a href="' . esc_url( $export_url ) . '" class="button button-primary">Export CSV</a></p>';
+        // phpcs:ignore WordPress.Security.EscapeOutput
+        echo $this->page_styles();
+        echo '<p><a href="' . esc_url( $export_url ) . '" class="button button-primary">&#8595; Export CSV</a></p>';
 
         if ( empty( $students ) ) {
             echo '<p>No enrolled students found.</p></div>';
@@ -78,61 +80,105 @@ class Training_Report_Page {
 
         $this->render_pagination( $data );
 
-        echo '<table class="widefat striped">';
+        echo '<div class="ems-table-wrap">';
+        echo '<table class="widefat striped ems-report-table">';
         echo '<thead><tr>';
-        echo '<th>Student Name</th><th>Email</th>';
+        echo '<th class="ems-col-name">Student Name</th><th class="ems-col-email">Email</th>';
         foreach ( $courses as $course ) {
-            echo '<th>' . esc_html( $course->post_title ) . '</th>';
+            echo '<th class="ems-col-course"><span>' . esc_html( $course->post_title ) . '</span></th>';
         }
         echo '</tr></thead><tbody>';
 
         foreach ( $students as $student ) {
             echo '<tr>';
-            echo '<td>' . esc_html( $student->display_name ) . '</td>';
-            echo '<td>' . esc_html( $student->user_email ) . '</td>';
+            echo '<td class="ems-col-name">' . esc_html( $student->display_name ) . '</td>';
+            echo '<td class="ems-col-email">' . esc_html( $student->user_email ) . '</td>';
             foreach ( $courses as $course ) {
                 $status = $matrix[ $student->ID ][ $course->ID ] ?? 'not_enrolled';
-                $label  = self::STATUS_LABELS[ $status ] ?? $status;
-                $class  = 'ems-status-' . str_replace( '_', '-', $status );
-                echo '<td class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</td>';
+                // phpcs:ignore WordPress.Security.EscapeOutput
+                echo '<td class="ems-col-status">' . $this->render_status_badge( $status ) . '</td>';
             }
             echo '</tr>';
         }
 
         echo '</tbody></table>';
+        echo '</div>';
 
         $this->render_pagination( $data );
         echo '</div>';
     }
 
-    private function render_pagination( array $data ): void {
-        if ( $data['pages'] <= 1 ) {
-            return;
+    private function page_styles(): string {
+        return '
+        <style>
+        .ems-table-wrap { overflow-x: auto; width: 100%; }
+        .ems-report-table { border-collapse: collapse; }
+        .ems-report-table .ems-col-name { min-width: 120px; white-space: nowrap; }
+        .ems-report-table .ems-col-email { min-width: 160px; white-space: nowrap; }
+        .ems-report-table .ems-col-course {
+            width: 32px; min-width: 32px; max-width: 32px;
+            height: 150px; vertical-align: bottom;
+            padding: 4px 2px; text-align: center;
         }
+        .ems-report-table .ems-col-course > span {
+            display: inline-block;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            white-space: nowrap;
+            font-size: 12px;
+            max-height: 145px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ems-report-table .ems-col-status { text-align: center; padding: 4px 2px; }
+        .ems-badge {
+            display: inline-block; padding: 2px 6px;
+            border-radius: 3px; font-size: 11px; line-height: 1.5;
+            white-space: nowrap;
+        }
+        .ems-badge-complete    { background: #d4edda; color: #155724; }
+        .ems-badge-in-progress { background: #cce5ff; color: #004085; }
+        .ems-badge-not-enrolled { color: #aaa; font-size: 13px; }
+        </style>
+        ';
+    }
 
-        $base_url   = add_query_arg( 'page', 'ems-training-report', admin_url( 'admin.php' ) );
-        $pagination = paginate_links( [
-            'base'      => add_query_arg( 'paged', '%#%', $base_url ),
-            'format'    => '',
-            'current'   => $data['page'],
-            'total'     => $data['pages'],
-            'type'      => 'list',
-            'prev_text' => '&laquo; Prev',
-            'next_text' => 'Next &raquo;',
-        ] );
+    private function render_status_badge( string $status ): string {
+        switch ( $status ) {
+            case 'complete':
+                return '<span class="ems-badge ems-badge-complete">&#10003; Complete</span>';
+            case 'in_progress':
+                return '<span class="ems-badge ems-badge-in-progress">In Progress</span>';
+            default:
+                return '<span class="ems-badge-not-enrolled">&mdash;</span>';
+        }
+    }
 
+    private function render_pagination( array $data ): void {
         $from  = ( ( $data['page'] - 1 ) * self::PER_PAGE ) + 1;
         $to    = min( $data['page'] * self::PER_PAGE, $data['total'] );
-        $label = sprintf(
-            'Showing %d&ndash;%d of %d students',
-            $from, $to, $data['total']
-        );
+        $label = sprintf( "Showing %d\u{2013}%d of %d students", $from, $to, $data['total'] );
 
         echo '<div class="tablenav">';
         echo '<div class="tablenav-pages">';
         echo '<span class="displaying-num">' . esc_html( $label ) . '</span>';
-        echo $pagination; // phpcs:ignore WordPress.Security.EscapeOutput
-        echo '</div></div>';
+
+        if ( $data['pages'] > 1 ) {
+            $base_url   = add_query_arg( 'page', 'ems-training-report', admin_url( 'admin.php' ) );
+            $pagination = paginate_links( [
+                'base'      => add_query_arg( 'paged', '%#%', $base_url ),
+                'format'    => '',
+                'current'   => $data['page'],
+                'total'     => $data['pages'],
+                'type'      => 'plain',
+                'prev_text' => '&laquo;',
+                'next_text' => '&raquo;',
+            ] );
+            // phpcs:ignore WordPress.Security.EscapeOutput
+            echo '<span class="pagination-links">' . $pagination . '</span>';
+        }
+
+        echo '</div><br class="clear"></div>';
     }
 
     public function build_report_data( int $page = 1 ): array {
