@@ -199,12 +199,6 @@ class TutorLMS_ClientTest extends EMSTestCase {
             ->once()->ordered()
             ->andReturn( [] );
 
-        // Diagnostic query (first in_progress hit saves tutor meta to transient).
-        $wpdb->shouldReceive( 'get_results' )
-            ->once()->ordered()
-            ->andReturn( [] );
-        Functions\expect( 'set_transient' )->once();
-
         $matrix = ( new TutorLMS_Client() )->get_enrollment_matrix( [ 7 ], [ 42 ] );
 
         $this->assertSame( 'in_progress', $matrix[7][42] );
@@ -264,6 +258,21 @@ class TutorLMS_ClientTest extends EMSTestCase {
         $wpdb->shouldReceive( 'get_results' )
             ->once()->ordered()
             ->andReturn( [] );
+
+        // Diagnostic fires here: first in_progress case that has assignments.
+        // meta_rows query:
+        $wpdb->shouldReceive( 'get_results' )
+            ->once()->ordered()
+            ->andReturn( [] );
+        // SHOW TABLES query:
+        $wpdb->shouldReceive( 'get_col' )
+            ->once()
+            ->andReturn( [] );
+        // assign_child_rows query:
+        $wpdb->shouldReceive( 'get_results' )
+            ->once()->ordered()
+            ->andReturn( [] );
+        Functions\expect( 'set_transient' )->once();
 
         $matrix = ( new TutorLMS_Client() )->get_enrollment_matrix( [ 7 ], [ 42 ] );
 
