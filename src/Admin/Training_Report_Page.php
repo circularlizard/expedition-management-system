@@ -78,14 +78,23 @@ class Training_Report_Page {
             return;
         }
 
+        // phpcs:ignore WordPress.Security.EscapeOutput
+        echo $this->render_legend();
         $this->render_pagination( $data );
 
         echo '<div class="ems-table-wrap">';
-        echo '<table class="widefat striped ems-report-table">';
+        echo '<table class="widefat striped ems-report-table" id="ems-report-table">';
         echo '<thead><tr>';
-        echo '<th class="ems-col-name">Student Name</th><th class="ems-col-email">Email</th>';
+        echo '<th class="ems-col-name ems-sortable" data-col="0">Student Name <span class="ems-sort-ind"></span></th>';
+        echo '<th class="ems-col-email ems-sortable" data-col="1">Email <span class="ems-sort-ind"></span></th>';
+        $col_i = 2;
         foreach ( $courses as $course ) {
-            echo '<th class="ems-col-course"><span>' . esc_html( $course->post_title ) . '</span></th>';
+            printf(
+                '<th class="ems-col-course ems-sortable" data-col="%d" title="%s"><span class="ems-col-text">%s</span><span class="ems-sort-ind"></span></th>',
+                $col_i++,
+                esc_attr( $course->post_title ),
+                esc_html( $course->post_title )
+            );
         }
         echo '</tr></thead><tbody>';
 
@@ -94,9 +103,10 @@ class Training_Report_Page {
             echo '<td class="ems-col-name">' . esc_html( $student->display_name ) . '</td>';
             echo '<td class="ems-col-email">' . esc_html( $student->user_email ) . '</td>';
             foreach ( $courses as $course ) {
-                $status = $matrix[ $student->ID ][ $course->ID ] ?? 'not_enrolled';
+                $status   = $matrix[ $student->ID ][ $course->ID ] ?? 'not_enrolled';
+                $sort_val = match ( $status ) { 'complete' => 2, 'in_progress' => 1, default => 0 };
                 // phpcs:ignore WordPress.Security.EscapeOutput
-                echo '<td class="ems-col-status">' . $this->render_status_badge( $status ) . '</td>';
+                echo '<td class="ems-col-status" data-sort="' . $sort_val . '">' . $this->render_status_icon( $status ) . '</td>';
             }
             echo '</tr>';
         }
@@ -104,54 +114,131 @@ class Training_Report_Page {
         echo '</tbody></table>';
         echo '</div>';
 
+        // phpcs:ignore WordPress.Security.EscapeOutput
+        echo $this->render_legend();
         $this->render_pagination( $data );
+        // phpcs:ignore WordPress.Security.EscapeOutput
+        echo $this->sort_script();
         echo '</div>';
     }
 
     private function page_styles(): string {
         return '
         <style>
+        /* ── Layout ───────────────────────────────────────── */
         .ems-table-wrap { overflow-x: auto; width: 100%; }
         .ems-report-table { border-collapse: collapse; }
-        .ems-report-table .ems-col-name { min-width: 120px; white-space: nowrap; }
-        .ems-report-table .ems-col-email { min-width: 160px; white-space: nowrap; }
+        .ems-report-table .ems-col-name  { min-width: 130px; white-space: nowrap; }
+        .ems-report-table .ems-col-email { min-width: 170px; white-space: nowrap; }
+
+        /* ── Rotated course headers — full text, no cutoff ── */
         .ems-report-table .ems-col-course {
-            width: 32px; min-width: 32px; max-width: 32px;
-            height: 150px; vertical-align: bottom;
-            padding: 4px 2px; text-align: center;
+            width: 34px; min-width: 34px; max-width: 34px;
+            vertical-align: bottom; text-align: center;
+            padding: 4px 2px 2px; overflow: visible;
         }
-        .ems-report-table .ems-col-course > span {
+        .ems-col-text {
             display: inline-block;
             writing-mode: vertical-rl;
             transform: rotate(180deg);
-            white-space: nowrap;
+            white-space: normal;
+            word-break: break-word;
             font-size: 12px;
-            max-height: 145px;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
-        .ems-report-table .ems-col-status { text-align: center; padding: 4px 2px; }
-        .ems-badge {
-            display: inline-block; padding: 2px 6px;
-            border-radius: 3px; font-size: 11px; line-height: 1.5;
-            white-space: nowrap;
+
+        /* ── Status icons ─────────────────────────────────── */
+        .ems-report-table .ems-col-status { text-align: center; padding: 3px 2px; }
+        .ems-si {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 22px; height: 22px; border-radius: 50%;
+            font-size: 13px; font-weight: 700; line-height: 1;
         }
-        .ems-badge-complete    { background: #d4edda; color: #155724; }
-        .ems-badge-in-progress { background: #cce5ff; color: #004085; }
-        .ems-badge-not-enrolled { color: #aaa; font-size: 13px; }
+        .ems-si-complete    { background: #00a32a; color: #fff; }
+        .ems-si-in-progress { background: #2271b1; color: #fff; font-size: 10px; }
+        .ems-si-none        { border: 2px solid #ddd; }
+
+        /* ── Legend ───────────────────────────────────────── */
+        .ems-legend {
+            margin: 6px 0 8px; font-size: 13px;
+            display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+        }
+        .ems-legend-item { display: flex; align-items: center; gap: 5px; }
+
+        /* ── Sort controls ────────────────────────────────── */
+        .ems-sortable { cursor: pointer; user-select: none; }
+        .ems-sortable:hover { background: #f0f6fc; }
+        .ems-sort-ind { font-size: 10px; color: #2271b1; }
+        .ems-col-course .ems-sort-ind {
+            display: block; margin-top: 3px;
+            writing-mode: horizontal-tb; transform: none;
+        }
         </style>
         ';
     }
 
-    private function render_status_badge( string $status ): string {
+    private function render_status_icon( string $status ): string {
         switch ( $status ) {
             case 'complete':
-                return '<span class="ems-badge ems-badge-complete">&#10003; Complete</span>';
+                return '<span class="ems-si ems-si-complete" title="Complete">&#10003;</span>';
             case 'in_progress':
-                return '<span class="ems-badge ems-badge-in-progress">In Progress</span>';
+                return '<span class="ems-si ems-si-in-progress" title="In Progress">&#9654;</span>';
             default:
-                return '<span class="ems-badge-not-enrolled">&mdash;</span>';
+                return '<span class="ems-si ems-si-none" title="Not Enrolled"></span>';
         }
+    }
+
+    private function render_legend(): string {
+        return '
+        <p class="ems-legend">
+            <span class="ems-legend-item">
+                <span class="ems-si ems-si-complete">&#10003;</span> Complete
+            </span>
+            <span class="ems-legend-item">
+                <span class="ems-si ems-si-in-progress">&#9654;</span> In Progress
+            </span>
+            <span class="ems-legend-item">
+                <span class="ems-si ems-si-none"></span> Not Enrolled
+            </span>
+        </p>';
+    }
+
+    private function sort_script(): string {
+        return '<script>
+        (function () {
+            var table = document.getElementById("ems-report-table");
+            if (!table) return;
+            var tbody = table.tBodies[0];
+            var ths   = Array.from(table.tHead.rows[0].cells);
+            var state = { col: -1, asc: true };
+
+            ths.forEach(function (th, i) {
+                th.addEventListener("click", function () {
+                    var asc = (state.col === i) ? !state.asc : (i >= 2 ? false : true);
+                    state = { col: i, asc: asc };
+
+                    Array.from(tbody.rows)
+                        .sort(function (a, b) {
+                            var ac = a.cells[i], bc = b.cells[i];
+                            var av = ac.dataset.sort, bv = bc.dataset.sort;
+                            if (av !== undefined && bv !== undefined) {
+                                var d = parseInt(bv, 10) - parseInt(av, 10);
+                                return asc ? -d : d;
+                            }
+                            var at = ac.textContent.trim(), bt = bc.textContent.trim();
+                            return asc ? at.localeCompare(bt) : bt.localeCompare(at);
+                        })
+                        .forEach(function (r) { tbody.appendChild(r); });
+
+                    ths.forEach(function (t) {
+                        var ind = t.querySelector(".ems-sort-ind");
+                        if (ind) ind.textContent = "";
+                    });
+                    var ind = th.querySelector(".ems-sort-ind");
+                    if (ind) ind.textContent = asc ? " \u25b2" : " \u25bc";
+                });
+            });
+        }());
+        </script>';
     }
 
     private function render_pagination( array $data ): void {
