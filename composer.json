@@ -15,5 +15,10 @@
         "phpunit/phpunit": "^10",
         "brain/monkey": "^2.6",
         "mockery/mockery": "^1.6"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "EMS\\Tests\\": "tests/"
+        }
     }
 }

@@ -1,6 +1,9 @@
 <?php
 namespace EMS;
 
+use EMS\Admin\Training_Report_Page;
+use EMS\Integrations\TutorLMS_Client;
+
 class Plugin {
     public function __construct() {
         $this->init_hooks();
@@ -8,7 +11,9 @@ class Plugin {
 
     private function init_hooks(): void {
         add_action( 'init', [ $this, 'register_cpts' ] );
-        // Further initialization logic (API, Admin, etc.) will go here
+
+        $report_page = new Training_Report_Page( new TutorLMS_Client() );
+        add_action( 'admin_menu', [ $report_page, 'register' ] );
     }
 
     public function register_cpts(): void {

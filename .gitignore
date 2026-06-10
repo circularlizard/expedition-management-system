@@ -23,3 +23,6 @@ coverage/
 # Local Environment
 .env
 docker-compose.override.yml
+
+# WordPress core files (Docker bind mount — not committed)
+wordpress/
