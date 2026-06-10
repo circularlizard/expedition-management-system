@@ -176,10 +176,13 @@ class TutorLMS_Client {
             }
         }
 
-        // 4. Completed lessons: _tutor_completed_lesson_id_* user meta (LIKE avoids huge IN clause)
+        // 4. Completed content: TutorLMS Pro uses _tutor_completed_lesson_id_* for ALL content
+        //    types — lessons AND assignments (and quizzes). Run whenever any content exists.
         $lesson_done    = [];
-        $all_lesson_set = ! empty( $all_lesson_ids ) ? array_flip( $all_lesson_ids ) : [];
-        if ( ! empty( $all_lesson_ids ) ) {
+        $assignment_done = [];
+        $all_lesson_set = ! empty( $all_lesson_ids )     ? array_flip( $all_lesson_ids )     : [];
+        $all_assign_set = ! empty( $all_assignment_ids ) ? array_flip( $all_assignment_ids ) : [];
+        if ( ! empty( $all_lesson_ids ) || ! empty( $all_assignment_ids ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $lesson_meta_rows = $wpdb->get_results( $wpdb->prepare(
                 "SELECT user_id, meta_key
@@ -192,6 +195,10 @@ class TutorLMS_Client {
                 $lid = (int) str_replace( '_tutor_completed_lesson_id_', '', $row->meta_key );
                 if ( isset( $all_lesson_set[ $lid ] ) ) {
                     $lesson_done[ (int) $row->user_id ][ $lid ] = true;
+                }
+                // TutorLMS Pro also fires this meta for assignment completions.
+                if ( isset( $all_assign_set[ $lid ] ) ) {
+                    $assignment_done[ (int) $row->user_id ][ $lid ] = true;
                 }
             }
         }
@@ -242,8 +249,8 @@ class TutorLMS_Client {
             }
         }
 
-        // 5.5 Submitted assignments: any non-draft/trash post by the student parented to an assignment definition
-        $assignment_done = [];
+        // 5.5 Submitted assignments: wp_posts fallback for standard TutorLMS Free installs.
+        //     TutorLMS Pro uses _tutor_completed_lesson_id_* (step 4) instead.
         if ( ! empty( $all_assignment_ids ) ) {
             $a_ph            = implode( ',', array_fill( 0, count( $all_assignment_ids ), '%d' ) );
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -259,6 +266,7 @@ class TutorLMS_Client {
             foreach ( $submission_rows as $row ) {
                 $assignment_done[ (int) $row->post_author ][ (int) $row->post_parent ] = true;
             }
+
         }
 
         // Build matrix
@@ -342,12 +350,20 @@ class TutorLMS_Client {
                         ) );
                     }
 
-                    // List all TutorLMS custom tables on this server so we can identify
-                    // where assignment submissions are stored (not in wp_posts).
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-                    $tutor_tables = $wpdb->get_col(
-                        "SHOW TABLES LIKE '{$wpdb->prefix}tutor%'"
-                    );
+                    // Sample the tutor_cb_content_usage table (TutorLMS Pro) to understand
+                    // its schema and check if assignment submissions are stored there.
+                    $cb_table      = $wpdb->prefix . 'tutor_cb_content_usage';
+                    $cb_sample     = $wpdb->get_results( "SELECT * FROM {$cb_table} LIMIT 3" ); // phpcs:ignore
+                    $assign_ids_for_course = $course_assignments[ $cid ] ?? [];
+                    $cb_assign_rows = [];
+                    if ( ! empty( $assign_ids_for_course ) ) {
+                        $ca_ph = implode( ',', array_fill( 0, count( $assign_ids_for_course ), '%d' ) );
+                        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                        $cb_assign_rows = $wpdb->get_results( $wpdb->prepare(
+                            "SELECT * FROM {$cb_table} WHERE content_id IN ({$ca_ph}) LIMIT 10",
+                            ...$assign_ids_for_course
+                        ) );
+                    }
 
                     // Keep the child-post lookup as a fallback check.
                     $assign_child_rows = [];
@@ -374,7 +390,8 @@ class TutorLMS_Client {
                         'done'               => $done,
                         'lesson_done_ids'    => array_keys( $lesson_done[ $uid ]     ?? [] ),
                         'assignment_done_ids'=> array_keys( $assignment_done[ $uid ] ?? [] ),
-                        'tutor_tables'       => $tutor_tables,
+                        'cb_sample'          => $cb_sample,
+                        'cb_assign_rows'     => $cb_assign_rows,
                         'assign_child_rows'  => $assign_child_rows,
                         'lesson_post_rows'   => $lesson_post_rows,
                         'meta_rows'          => $meta_rows,
