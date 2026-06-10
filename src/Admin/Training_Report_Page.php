@@ -13,6 +13,8 @@ class Training_Report_Page {
         'not_enrolled' => 'Not Enrolled',
     ];
 
+    private const PER_PAGE = 25;
+
     public function __construct( TutorLMS_Client $client ) {
         $this->client = $client;
     }
@@ -55,11 +57,12 @@ class Training_Report_Page {
     }
 
     public function render(): void {
-        $data        = $this->build_report_data();
-        $courses     = $data['courses'];
-        $students    = $data['students'];
-        $matrix      = $data['matrix'];
-        $export_url  = wp_nonce_url(
+        $page       = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
+        $data       = $this->build_report_data( $page );
+        $courses    = $data['courses'];
+        $students   = $data['students'];
+        $matrix     = $data['matrix'];
+        $export_url = wp_nonce_url(
             add_query_arg( [ 'page' => 'ems-training-report', 'export' => 'csv' ], admin_url( 'admin.php' ) ),
             'ems_csv_export'
         );
@@ -72,6 +75,8 @@ class Training_Report_Page {
             echo '<p>No enrolled students found.</p></div>';
             return;
         }
+
+        $this->render_pagination( $data );
 
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
@@ -94,47 +99,92 @@ class Training_Report_Page {
             echo '</tr>';
         }
 
-        echo '</tbody></table></div>';
+        echo '</tbody></table>';
+
+        $this->render_pagination( $data );
+        echo '</div>';
     }
 
-    public function build_report_data(): array {
-        $courses = $this->client->get_all_courses();
+    private function render_pagination( array $data ): void {
+        if ( $data['pages'] <= 1 ) {
+            return;
+        }
 
-        $students_by_id = [];
-        foreach ( $courses as $course ) {
-            foreach ( $this->client->get_enrolled_students( $course->ID ) as $student ) {
-                $students_by_id[ $student->ID ] = $student;
+        $base_url   = add_query_arg( 'page', 'ems-training-report', admin_url( 'admin.php' ) );
+        $pagination = paginate_links( [
+            'base'      => add_query_arg( 'paged', '%#%', $base_url ),
+            'format'    => '',
+            'current'   => $data['page'],
+            'total'     => $data['pages'],
+            'type'      => 'list',
+            'prev_text' => '&laquo; Prev',
+            'next_text' => 'Next &raquo;',
+        ] );
+
+        $from  = ( ( $data['page'] - 1 ) * self::PER_PAGE ) + 1;
+        $to    = min( $data['page'] * self::PER_PAGE, $data['total'] );
+        $label = sprintf(
+            'Showing %d&ndash;%d of %d students',
+            $from, $to, $data['total']
+        );
+
+        echo '<div class="tablenav">';
+        echo '<div class="tablenav-pages">';
+        echo '<span class="displaying-num">' . esc_html( $label ) . '</span>';
+        echo $pagination; // phpcs:ignore WordPress.Security.EscapeOutput
+        echo '</div></div>';
+    }
+
+    public function build_report_data( int $page = 1 ): array {
+        $courses    = $this->client->get_all_courses();
+        $course_ids = array_map( fn( $c ) => $c->ID, $courses );
+
+        $all_ids = $this->client->get_all_enrolled_user_ids( $course_ids );
+        $total   = count( $all_ids );
+        $pages   = max( 1, (int) ceil( $total / self::PER_PAGE ) );
+        $page    = max( 1, min( $page, $pages ) );
+        $ids     = array_slice( $all_ids, ( $page - 1 ) * self::PER_PAGE, self::PER_PAGE );
+
+        $students = [];
+        foreach ( $ids as $uid ) {
+            $user = get_userdata( $uid );
+            if ( $user ) {
+                $students[] = $user;
             }
         }
 
-        $matrix = [];
-        foreach ( $students_by_id as $user_id => $student ) {
-            foreach ( $courses as $course ) {
-                $matrix[ $user_id ][ $course->ID ] = $this->client->get_enrollment_status( $course->ID, $user_id );
-            }
-        }
+        $matrix = $this->client->get_enrollment_matrix( $ids, $course_ids );
 
         return [
             'courses'  => $courses,
-            'students' => array_values( $students_by_id ),
+            'students' => $students,
             'matrix'   => $matrix,
+            'total'    => $total,
+            'page'     => $page,
+            'pages'    => $pages,
         ];
     }
 
     public function generate_csv_rows(): array {
-        $data = $this->build_report_data();
+        $courses    = $this->client->get_all_courses();
+        $course_ids = array_map( fn( $c ) => $c->ID, $courses );
+        $all_ids    = $this->client->get_all_enrolled_user_ids( $course_ids );
+        $matrix     = $this->client->get_enrollment_matrix( $all_ids, $course_ids );
 
-        $rows   = [];
         $header = [ 'Student Name', 'Email' ];
-        foreach ( $data['courses'] as $course ) {
+        foreach ( $courses as $course ) {
             $header[] = $course->post_title;
         }
-        $rows[] = $header;
+        $rows = [ $header ];
 
-        foreach ( $data['students'] as $student ) {
-            $row = [ $student->display_name, $student->user_email ];
-            foreach ( $data['courses'] as $course ) {
-                $status = $data['matrix'][ $student->ID ][ $course->ID ] ?? 'not_enrolled';
+        foreach ( $all_ids as $uid ) {
+            $user = get_userdata( $uid );
+            if ( ! $user ) {
+                continue;
+            }
+            $row = [ $user->display_name, $user->user_email ];
+            foreach ( $courses as $course ) {
+                $status = $matrix[ $uid ][ $course->ID ] ?? 'not_enrolled';
                 $row[]  = self::STATUS_LABELS[ $status ] ?? $status;
             }
             $rows[] = $row;

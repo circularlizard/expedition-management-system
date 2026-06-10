@@ -85,10 +85,10 @@ foreach ( $students as [ $login, $email, $first, $last ] ) {
 foreach ( $user_ids as $uid ) {
     foreach ( $course_ids as $cid ) {
         $existing = get_posts( [
-            'post_type'   => 'tutor_enrolled',
-            'post_author' => $uid,
-            'post_parent' => $cid,
-            'post_status' => 'any',
+            'post_type'    => 'tutor_enrolled',
+            'author__in'   => [ $uid ],
+            'post_parent'  => $cid,
+            'post_status'  => 'any',
         ] );
 
         if ( $existing ) {
