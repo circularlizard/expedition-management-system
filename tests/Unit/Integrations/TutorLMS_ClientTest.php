@@ -224,11 +224,16 @@ class TutorLMS_ClientTest extends EMSTestCase {
             ->once()->ordered()
             ->andReturn( [ (object) [ 'content_id' => 200, 'content_type' => 'tutor_assignments', 'course_id' => 42 ] ] );
 
-        // No lessons found → lesson-meta query (step 4) is skipped.
-        // Assignment submissions query (step 5.5):
+        // Step 4: _tutor_completed_lesson_id_* LIKE query now runs for assignments too.
+        // Returns the assignment completion meta, populating $assignment_done.
         $wpdb->shouldReceive( 'get_results' )
             ->once()->ordered()
-            ->andReturn( [ (object) [ 'post_author' => 7, 'post_parent' => 200 ] ] );
+            ->andReturn( [ (object) [ 'user_id' => 7, 'meta_key' => '_tutor_completed_lesson_id_200' ] ] );
+
+        // Step 5.5: wp_posts fallback (no rows on TutorLMS Pro, assignment already done via step 4).
+        $wpdb->shouldReceive( 'get_results' )
+            ->once()->ordered()
+            ->andReturn( [] );
 
         $matrix = ( new TutorLMS_Client() )->get_enrollment_matrix( [ 7 ], [ 42 ] );
 
@@ -255,6 +260,12 @@ class TutorLMS_ClientTest extends EMSTestCase {
             ->once()->ordered()
             ->andReturn( [ (object) [ 'content_id' => 200, 'content_type' => 'tutor_assignments', 'course_id' => 42 ] ] );
 
+        // Step 4: LIKE query returns nothing (assignment not done).
+        $wpdb->shouldReceive( 'get_results' )
+            ->once()->ordered()
+            ->andReturn( [] );
+
+        // Step 5.5: wp_posts fallback also returns nothing.
         $wpdb->shouldReceive( 'get_results' )
             ->once()->ordered()
             ->andReturn( [] );
@@ -264,9 +275,13 @@ class TutorLMS_ClientTest extends EMSTestCase {
         $wpdb->shouldReceive( 'get_results' )
             ->once()->ordered()
             ->andReturn( [] );
-        // SHOW TABLES query:
-        $wpdb->shouldReceive( 'get_col' )
-            ->once()
+        // cb_sample query:
+        $wpdb->shouldReceive( 'get_results' )
+            ->once()->ordered()
+            ->andReturn( [] );
+        // cb_assign_rows query:
+        $wpdb->shouldReceive( 'get_results' )
+            ->once()->ordered()
             ->andReturn( [] );
         // assign_child_rows query:
         $wpdb->shouldReceive( 'get_results' )
@@ -313,7 +328,7 @@ class TutorLMS_ClientTest extends EMSTestCase {
             ->once()->ordered()
             ->andReturn( [] );
 
-        // Step 5.5: assignment submitted.
+        // Step 5.5: assignment submitted via wp_posts.
         $wpdb->shouldReceive( 'get_results' )
             ->once()->ordered()
             ->andReturn( [ (object) [ 'post_author' => 7, 'post_parent' => 200 ] ] );
@@ -357,7 +372,7 @@ class TutorLMS_ClientTest extends EMSTestCase {
             ->once()->ordered()
             ->andReturn( [] );
 
-        // Step 5.5: no submission.
+        // Step 5.5: no wp_posts submission found.
         $wpdb->shouldReceive( 'get_results' )
             ->once()->ordered()
             ->andReturn( [] );

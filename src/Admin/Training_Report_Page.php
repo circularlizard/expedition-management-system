@@ -153,11 +153,36 @@ class Training_Report_Page {
                 esc_html( implode( ', ', $diag['assignment_done_ids'] ?? [] ) ?: '(none)' )
             );
 
-            if ( ! empty( $diag['tutor_tables'] ) ) {
-                printf(
-                    '<p><strong>TutorLMS custom tables on this server:</strong> %s</p>',
-                    esc_html( implode( ', ', $diag['tutor_tables'] ) )
-                );
+            if ( ! empty( $diag['cb_sample'] ) ) {
+                $cols = array_keys( (array) $diag['cb_sample'][0] );
+                echo '<p><strong>tutor_cb_content_usage — schema + 3 sample rows:</strong></p>';
+                echo '<table class="widefat striped" style="max-width:900px;"><thead><tr>';
+                foreach ( $cols as $col ) { printf( '<th>%s</th>', esc_html( $col ) ); }
+                echo '</tr></thead><tbody>';
+                foreach ( $diag['cb_sample'] as $row ) {
+                    echo '<tr>';
+                    foreach ( (array) $row as $val ) { printf( '<td><code>%s</code></td>', esc_html( substr( (string) $val, 0, 60 ) ) ); }
+                    echo '</tr>';
+                }
+                echo '</tbody></table>';
+            } else {
+                echo '<p><em>tutor_cb_content_usage: no rows (table empty or does not exist).</em></p>';
+            }
+
+            if ( ! empty( $diag['cb_assign_rows'] ) ) {
+                $cols = array_keys( (array) $diag['cb_assign_rows'][0] );
+                echo '<p><strong>tutor_cb_content_usage rows for assignment 9546:</strong></p>';
+                echo '<table class="widefat striped" style="max-width:900px;"><thead><tr>';
+                foreach ( $cols as $col ) { printf( '<th>%s</th>', esc_html( $col ) ); }
+                echo '</tr></thead><tbody>';
+                foreach ( $diag['cb_assign_rows'] as $row ) {
+                    echo '<tr>';
+                    foreach ( (array) $row as $val ) { printf( '<td><code>%s</code></td>', esc_html( (string) $val ) ); }
+                    echo '</tr>';
+                }
+                echo '</tbody></table>';
+            } else {
+                echo '<p><em>No rows in tutor_cb_content_usage for this assignment.</em></p>';
             }
 
             if ( ! empty( $diag['assign_child_rows'] ) ) {
