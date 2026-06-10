@@ -94,7 +94,7 @@ class TutorLMS_ClientTest extends EMSTestCase {
             ->once()
             ->with( \Mockery::subset( [
                 'post_type'   => 'tutor_enrolled',
-                'post_author' => 5,
+                'author'      => 5,
                 'post_parent' => 1,
             ] ) )
             ->andReturn( [] );
