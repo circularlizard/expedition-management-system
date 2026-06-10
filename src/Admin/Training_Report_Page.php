@@ -148,6 +148,36 @@ class Training_Report_Page {
                 '<p><strong>Lessons marked done by step 4:</strong> %s</p>',
                 esc_html( implode( ', ', $diag['lesson_done_ids'] ) ?: '(none)' )
             );
+            printf(
+                '<p><strong>Assignments marked done by step 5.5:</strong> %s</p>',
+                esc_html( implode( ', ', $diag['assignment_done_ids'] ?? [] ) ?: '(none)' )
+            );
+
+            if ( ! empty( $diag['tutor_tables'] ) ) {
+                printf(
+                    '<p><strong>TutorLMS custom tables on this server:</strong> %s</p>',
+                    esc_html( implode( ', ', $diag['tutor_tables'] ) )
+                );
+            }
+
+            if ( ! empty( $diag['assign_child_rows'] ) ) {
+                echo '<p><strong>wp_posts children of assignment definition(s) (any post_type):</strong></p>';
+                echo '<table class="widefat striped" style="max-width:700px;">';
+                echo '<thead><tr><th>ID</th><th>post_type</th><th>post_status</th><th>post_author</th><th>post_parent</th></tr></thead><tbody>';
+                foreach ( $diag['assign_child_rows'] as $row ) {
+                    printf(
+                        '<tr><td>%d</td><td><code>%s</code></td><td><code>%s</code></td><td>%d</td><td>%d</td></tr>',
+                        (int) $row->ID,
+                        esc_html( $row->post_type ),
+                        esc_html( $row->post_status ),
+                        (int) $row->post_author,
+                        (int) $row->post_parent
+                    );
+                }
+                echo '</tbody></table>';
+            } elseif ( ! empty( $diag['content_assigns'] ) ) {
+                echo '<p><em>No child posts found for assignment definition(s) — submissions may be in a custom table.</em></p>';
+            }
 
             if ( ! empty( $diag['lesson_post_rows'] ) ) {
                 echo '<p><strong>wp_posts rows for completed lesson IDs:</strong></p>';
