@@ -283,6 +283,21 @@ class TutorLMS_Client {
                 }
             }
 
+            // 5.5.5 Assignment submissions via wp_comments (TutorLMS Basic / older versions)
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $comment_rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT DISTINCT user_id, comment_post_ID
+                 FROM {$wpdb->comments}
+                 WHERE comment_post_ID IN ({$a_ph})
+                 AND   user_id IN ({$u_ph})
+                 AND   comment_type = 'tutor_assignment'
+                 AND   comment_approved NOT IN ('trash', 'spam')",
+                ...array_merge( $all_assignment_ids, $user_ids )
+            ) );
+            foreach ( $comment_rows as $row ) {
+                $assignment_done[ (int) $row->user_id ][ (int) $row->comment_post_ID ] = true;
+            }
+
             // 5.6 Content usage table (TutorLMS Pro source of truth)
             $cb_table = $wpdb->prefix . 'tutor_cb_content_usage';
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching

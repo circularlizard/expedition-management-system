@@ -334,4 +334,34 @@ class TutorLMS_ClientTest extends EMSTestCase {
         $matrix = ( new TutorLMS_Client() )->get_enrollment_matrix( [ 7 ], [ 42 ] );
         $this->assertSame( 'complete', $matrix[7][42] );
     }
+
+    public function test_get_enrollment_matrix_completes_assignment_via_comments(): void {
+        global $wpdb;
+        $wpdb         = \Mockery::mock( 'wpdb' );
+        $wpdb->posts    = 'wp_posts';
+        $wpdb->usermeta = 'wp_usermeta';
+        $wpdb->comments = 'wp_comments';
+        $wpdb->prefix   = 'wp_';
+        $wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $sql ) => $sql );
+
+        // Step 1: Enrollments
+        $wpdb->shouldReceive( 'get_results' )->once()->ordered()->andReturn( [ (object) [ 'post_author' => 7, 'post_parent' => 42 ] ] );
+        // Step 2: Explicit
+        $wpdb->shouldReceive( 'get_results' )->once()->ordered()->andReturn( [] );
+        // Step 3: Content (1 assignment)
+        $wpdb->shouldReceive( 'get_results' )->once()->ordered()->andReturn( [ (object) [ 'content_id' => 300, 'content_type' => 'tutor_assignments', 'course_id' => 42 ] ] );
+        // Step 4: Meta LIKE
+        $wpdb->shouldReceive( 'get_results' )->once()->ordered()->andReturn( [] );
+        // Step 4b: Reading info
+        $wpdb->shouldReceive( 'get_results' )->once()->ordered()->andReturn( [] );
+        // Step 5.5: Assignments (wp_posts)
+        $wpdb->shouldReceive( 'get_results' )->once()->ordered()->andReturn( [] );
+        // Step 5.5.5: Assignments (wp_comments)
+        $wpdb->shouldReceive( 'get_results' )->once()->ordered()->andReturn( [ (object) [ 'user_id' => 7, 'comment_post_ID' => 300 ] ] );
+        // Step 5.6: usage table
+        $wpdb->shouldReceive( 'get_var' )->once()->ordered()->andReturn( null );
+
+        $matrix = ( new TutorLMS_Client() )->get_enrollment_matrix( [ 7 ], [ 42 ] );
+        $this->assertSame( 'complete', $matrix[7][42] );
+    }
 }
