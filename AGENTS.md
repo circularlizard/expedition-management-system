@@ -17,15 +17,18 @@ Entry point for AI agents working on this codebase. Read this before any other f
 - **`[live]`** — requires production OSM service account credentials in WP Options.
 
 ### Phase 1 — Infrastructure & Test Setup
-| Task | Mode |
-|---|---|
-| Configure Docker environment | `[offline]` |
-| Setup PHPUnit and Vitest runners | `[offline]` |
-| Write `OSM_API_Client` parsing tests (red) | `[offline]` |
-| Implement `Mock_Driver` with payloads from `tests/mocks/` | `[offline]` |
-| Prototype Section Participant Pull | `[offline]` |
-| Implement `Auth_Provider` interface + `LoginWithGoogle_Auth_Provider` adapter | `[offline]` |
-| Fix `$_SESSION` bug in `OSM_Auth_Integration` | `[offline]` |
+| Task                                                                                 | Mode        |
+| --------------------------------------------------------------------------------------| -------------|
+| Configure Docker environment                                                         | `[offline]` |
+| Setup PHPUnit and Vitest runners                                                     | `[offline]` |
+| Write `OSM_API_Client` parsing tests (red)                                           | `[offline]` |
+| Implement `Mock_Driver` with payloads from `tests/mocks/`                            | `[offline]` |
+| Prototype Section Participant Pull                                                   | `[offline]` |
+| Implement `Auth_Provider` interface + `LoginWithGoogle_Auth_Provider` adapter        | `[offline]` |
+| Implement `Mock_Auth_Provider` (static OSM payload for offline auth-dependent tests) | `[offline]` |
+| Write rate limiting tests for `OSM_API_Client` (red)                                 | `[offline]` |
+| Implement token-bucket rate limiting in `OSM_API_Client`                             | `[offline]` |
+| Fix `$_SESSION` bug in `OSM_Auth_Integration`                                        | `[offline]` |
 
 ### Phase 2 — Core Data & Admin UI
 | Task | Mode |
@@ -74,10 +77,12 @@ Entry point for AI agents working on this codebase. Read this before any other f
 2. PHPUnit/Vitest setup
 3. `OSM_API_Client` parsing tests (red)
 4. `Mock_Driver` implementation (green)
-5. Section Participant Pull prototype
-6. `Auth_Provider` interface definition
-7. `LoginWithGoogle_Auth_Provider` adapter
-8. `$_SESSION` bug fix in `OSM_Auth_Integration`
+5. Rate limiting tests (red) → token-bucket implementation (green) — **must precede any `Live_Driver` use**
+6. Section Participant Pull prototype
+7. `Auth_Provider` interface definition
+8. `LoginWithGoogle_Auth_Provider` adapter
+9. `Mock_Auth_Provider` implementation
+10. `$_SESSION` bug fix in `OSM_Auth_Integration`
 
 **Phase 2** (two parallel streams):
 - **Stream A**: CPT tests (red) → CPT registration → meta validation

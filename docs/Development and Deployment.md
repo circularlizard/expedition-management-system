@@ -39,7 +39,7 @@ In alignment with **[ADR 007 (TDD Mandate)](./Technical Architecture.md#adr-007-
 
 ### 2.3 Rate Limiting & Performance
 OSM has strict rate limits. Our integration must include:
-- **Throttling**: A central `OSM_API_Client` class that implements a "Token Bucket" or simple delay logic to ensure we never exceed the allowed requests per minute.
+- **Throttling**: A central `OSM_API_Client` class that implements a "Token Bucket" or simple delay logic to ensure we never exceed the allowed requests per minute. **This is implemented in Phase 1** — OSM aggressively blocks accounts and IP addresses that breach rate limits, so throttling must be in place before any `Live_Driver` request is ever made.
 - **Caching**: Aggressive use of WordPress Transients to cache OSM data (e.g., Section lists, Event details) for 1–12 hours.
 - **Batching**: Where the API allows, fetch data in batches rather than individual requests per user.
 
@@ -70,13 +70,17 @@ OSM has strict rate limits. Our integration must include:
     - Setup PHPUnit and Vitest test runners.
     - **TDD Task**: Write failing tests for the `OSM_API_Client` data parsing.
     - Implement "Mock Driver" to satisfy parsing tests using payloads from [OSM-Tools](https://github.com/circularlizard/OSM-Tools).
+    - **TDD Task**: Write tests for `OSM_API_Client` rate limiting (request throttle enforced, correct inter-request delay).
+    - Implement token-bucket rate limiting in `OSM_API_Client`. **OSM blocks accounts and IPs that exceed rate limits — this must be complete before any `Live_Driver` call is made.**
     - Prototype the "Section Participant Pull" to verify parsing logic via tests.
     - Implement `Auth_Provider` interface and `LoginWithGoogle_Auth_Provider` adapter ([ADR 012](./Technical Architecture.md#adr-012-auth-provider-interface)). Fix active bug: remove `$_SESSION` token storage from `OSM_Auth_Integration`.
+    - Implement `Mock_Auth_Provider` (returns static `getDataPayload` response and access token; used by all offline tests that depend on post-login hydration context).
 - **Phase Complete When**:
     - `docker-compose up` starts WP + MariaDB cleanly.
     - `vendor/bin/phpunit` runs and all `OSM_API_Client` parsing tests pass using `Mock_Driver`.
     - `Auth_Provider` interface and `LoginWithGoogle_Auth_Provider` exist with passing unit tests.
     - `OSM_Auth_Integration` no longer stores `access_token` in `$_SESSION` — confirmed by a regression test.
+    - `OSM_API_Client` rate limiting tests pass; token-bucket logic verified in isolation.
 
 ### Phase 2: Core Data & Admin UI
 - **Goal**: Implement CPTs and basic management via TDD.
