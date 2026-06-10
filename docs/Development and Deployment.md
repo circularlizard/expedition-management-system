@@ -63,7 +63,27 @@ OSM has strict rate limits. Our integration must include:
 
 ## 4. Incremental Implementation Plan
 
-### Phase 1: Infrastructure & Test Setup (Current)
+### Phase 0: Local Dev Setup & Training Completion Report *(Start Here)*
+- **Full spec**: [docs/Phase 0 - Training Report.md](./Phase%200%20-%20Training%20Report.md)
+- **Goal**: Working local environment, CI pipeline, plugin packaging, and the first shippable feature — a Tutor LMS training completion report in the WP admin dashboard with CSV export.
+- **Tasks**:
+    - Pin Docker images (`wordpress:php8.2-apache`, `mariadb:10.11`); add WP-CLI service.
+    - Install Tutor LMS free via WP-CLI in the container; write `bin/seed-test-data.sh`.
+    - Create `.github/workflows/ci.yml` (PHP lint + PHPUnit on push/PR).
+    - Create `bin/package.sh` to produce a distributable `dist/ems-plugin-{VERSION}.zip`.
+    - **TDD Task**: Write failing tests for `TutorLMS_Client` (`get_all_courses`, `get_enrolled_students`, `get_enrollment_status`).
+    - Implement `TutorLMS_Client` wrapping Tutor LMS PHP functions.
+    - **TDD Task**: Write failing tests for `Training_Report_Page` (data assembly, CSV output).
+    - Implement `Training_Report_Page` (admin menu, table render, CSV export).
+    - Register page from `EMS\Plugin` via `admin_menu` hook.
+- **Phase Complete When**:
+    - `docker-compose up` starts WP + MariaDB; seed script runs; Tutor LMS active.
+    - **EMS → Training Report** visible in WP Admin; table and CSV export correct for seeded data.
+    - `vendor/bin/phpunit` passes for all Phase 0 tests.
+    - GitHub Actions CI passes on push.
+    - `bin/package.sh` produces a zip that installs cleanly on staging via WP Admin upload.
+
+### Phase 1: Infrastructure & Test Setup
 - **Goal**: Establish the "Test-First" environment and verify OSM API connectivity.
 - **Tasks**:
     - Configure local Docker environment (pin images: `wordpress:php8.2-apache`, `mariadb:10.11`).
@@ -153,6 +173,7 @@ Canonical class-to-file mapping for agent scaffolding. All classes use the `EMS\
 | `src/Integrations/OSM_API_Client.php` | `EMS\Integrations\OSM_API_Client` |
 | `src/Integrations/OSM_Auth_Integration.php` | `EMS\Integrations\OSM_Auth_Integration` |
 | `src/Integrations/OSM_Parser.php` | `EMS\Integrations\OSM_Parser` |
+| `src/Integrations/TutorLMS_Client.php` | `EMS\Integrations\TutorLMS_Client` *(Phase 0)* |
 | `src/Integrations/Drivers/Driver_Interface.php` | `EMS\Integrations\Drivers\Driver_Interface` *(interface)* |
 | `src/Integrations/Drivers/Live_Driver.php` | `EMS\Integrations\Drivers\Live_Driver` |
 | `src/Integrations/Drivers/Mock_Driver.php` | `EMS\Integrations\Drivers\Mock_Driver` |
@@ -162,6 +183,7 @@ Canonical class-to-file mapping for agent scaffolding. All classes use the `EMS\
 | `src/Data/Team_Repository.php` | `EMS\Data\Team_Repository` |
 | `src/Data/Volunteer_Repository.php` | `EMS\Data\Volunteer_Repository` |
 | `src/Data/Route_Submission_Repository.php` | `EMS\Data\Route_Submission_Repository` |
+| `src/Admin/Training_Report_Page.php` | `EMS\Admin\Training_Report_Page` *(Phase 0)* |
 | `src/Admin/Admin_Page.php` | `EMS\Admin\Admin_Page` |
 | `src/Admin/Reconciliation_Controller.php` | `EMS\Admin\Reconciliation_Controller` |
 | `src/Admin/Team_Builder_Controller.php` | `EMS\Admin\Team_Builder_Controller` |
