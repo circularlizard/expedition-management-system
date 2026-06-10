@@ -10,7 +10,7 @@ To ensure parity with the test server, we will use a Docker-based local environm
 - **Tools**: WP-CLI, Composer, Node/NPM.
 
 ### 1.2 Testing Infrastructure
-In alignment with **ADR 007 (TDD Mandate)**:
+In alignment with **[ADR 007 (TDD Mandate)](./Technical Architecture.md#adr-007-test-driven-development-tdd-mandate)**:
 - **PHP Testing**: `phpunit/phpunit` and `weaseur/brain-monkey` installed via Composer.
 - **JS Testing**: `vitest` and `@testing-library/react` installed via NPM.
 - **E2E Testing**: `playwright` for cross-browser validation on the staging environment.
@@ -27,8 +27,8 @@ In alignment with **ADR 007 (TDD Mandate)**:
     - Captured Access Token is used to perform a secondary `getDataPayload` (Startup API) fetch.
     - Resulting context (Scout IDs, child mapping, `access_type`) is persisted to WP User Meta.
     - The user's `access_token` is used solely for this hydration step and is **discarded immediately after**. No per-user token is stored server-side.
-- **Shell Account Merge**: EMS also hooks into `rtcamp.google_user_logged_in` to detect if a shell account exists for the newly logged-in child (matched by `ems_scout_id`). If found, EMS performs a merge of User Meta before the session is established. See PRD §4.6.
-- **Service Account**: All subsequent EMS-to-OSM write operations (flexi-records, event status) use the dedicated EMS service account tokens stored encrypted in WP Options. See ADR 010.
+- **Shell Account Merge**: EMS also hooks into `rtcamp.google_user_logged_in` to detect if a shell account exists for the newly logged-in child (matched by `ems_scout_id`). If found, EMS performs a merge of User Meta before the session is established. See [PRD §4.6](./Expedition Management System.md#46-parent-child-relationship).
+- **Service Account**: All subsequent EMS-to-OSM write operations (flexi-records, event status) use the dedicated EMS service account tokens stored encrypted in WP Options. See [ADR 010](./Technical Architecture.md#adr-010-osm-service-account-for-push-back-operations).
 
 ### 2.2 OSM Push-back Failure Handling
 - **Problem**: Push-back operations (flexi-record updates, event status changes) may fail if OSM is temporarily unavailable.
@@ -71,7 +71,12 @@ OSM has strict rate limits. Our integration must include:
     - **TDD Task**: Write failing tests for the `OSM_API_Client` data parsing.
     - Implement "Mock Driver" to satisfy parsing tests using payloads from [OSM-Tools](https://github.com/circularlizard/OSM-Tools).
     - Prototype the "Section Participant Pull" to verify parsing logic via tests.
-    - Implement `Auth_Provider` interface and `LoginWithGoogle_Auth_Provider` adapter (ADR 012). Fix active bug: remove `$_SESSION` token storage from `OSM_Auth_Integration`.
+    - Implement `Auth_Provider` interface and `LoginWithGoogle_Auth_Provider` adapter ([ADR 012](./Technical Architecture.md#adr-012-auth-provider-interface)). Fix active bug: remove `$_SESSION` token storage from `OSM_Auth_Integration`.
+- **Phase Complete When**:
+    - `docker-compose up` starts WP + MariaDB cleanly.
+    - `vendor/bin/phpunit` runs and all `OSM_API_Client` parsing tests pass using `Mock_Driver`.
+    - `Auth_Provider` interface and `LoginWithGoogle_Auth_Provider` exist with passing unit tests.
+    - `OSM_Auth_Integration` no longer stores `access_token` in `$_SESSION` — confirmed by a regression test.
 
 ### Phase 2: Core Data & Admin UI
 - **Goal**: Implement CPTs and basic management via TDD.
@@ -81,6 +86,10 @@ OSM has strict rate limits. Our integration must include:
     - **TDD Task**: Define React component tests for the Reconciliation view.
     - Build the React-based "Reconciliation Dashboard" using mock data.
     - Implement Gravity Forms matching logic, verified by unit tests.
+- **Phase Complete When**:
+    - `expedition` and `team` CPT registration tests pass, including meta field validation.
+    - Reconciliation Dashboard renders correctly against mock data — Vitest component tests pass.
+    - Gravity Forms matching logic passes all unit tests.
 
 ### Phase 3: Volunteer & Team Building
 - **Goal**: Enable staffing and participant grouping.
@@ -90,6 +99,11 @@ OSM has strict rate limits. Our integration must include:
     - **TDD Task**: Write tests for Volunteer availability submission and the confirmation state machine.
     - Implement Volunteer signup and "Confirmation" workflow.
     - **TDD Task**: Write tests for push-back failure handling (job persisted to WP Option, admin notice rendered, retry re-dispatches the correct payload).
+- **Phase Complete When**:
+    - Team code auto-generation tests pass (e.g. `SP1` → `SP1-1`, `SP1-2`).
+    - Team Builder drag-and-drop component tests pass for participant assignment and reordering.
+    - Volunteer confirmation state machine tests pass.
+    - Push-back failure handling tests pass (persistence, notice rendering, retry dispatch).
 
 ### Phase 4: Frontend Portals
 - **Goal**: Launch Explorer and Parent views.
@@ -100,7 +114,12 @@ OSM has strict rate limits. Our integration must include:
     - Implement Parent-Child relationship parsing, selection UI, and shell account merge.
     - **TDD Task**: Write tests for secure route upload (file type validation, naming convention, versioning).
     - Setup secure Route Planning uploads.
-    - Confirm SiteGround SMTP availability and implement email notification triggers (see PRD §4.2a).
+    - Confirm SiteGround SMTP availability and implement email notification triggers (see [PRD §4.2a](./Expedition Management System.md#42a-email-notifications-gap--to-be-resolved)).
+- **Phase Complete When**:
+    - Explorer Portal component tests pass (expedition view, team display, route status).
+    - Shell account merge flow tests pass (match by `ems_scout_id`, meta transfer, shell deletion).
+    - Secure route upload validation tests pass (file type, naming convention, versioning).
+    - SiteGround SMTP confirmed; email notification triggers implemented and covered by integration tests.
 
 ### Phase 5: Production Sync & Launch
 - **Goal**: Full integration and live testing.
@@ -111,3 +130,42 @@ OSM has strict rate limits. Our integration must include:
     - Investigate and implement `.htaccess` protection for `/wp-content/uploads/ems-secure/` (confirm SiteGround access).
     - Perform load testing on the SiteGround staging server.
     - Final UI polish and user training.
+- **Phase Complete When**:
+    - All PHPUnit and Vitest tests pass with `Live_Driver` against the staging OSM environment.
+    - Service account token refresh tests pass (expired token → refresh exchange → tokens re-persisted).
+    - `.htaccess` protection for `/wp-content/uploads/ems-secure/` confirmed and tested on SiteGround.
+    - Playwright E2E suite passes on staging for all critical paths.
+    - Production deployment checklist signed off.
+
+## 5. Source Directory Map
+
+Canonical class-to-file mapping for agent scaffolding. All classes use the `EMS\` namespace root via PSR-4 Composer autoload.
+
+| File | Class / Interface |
+|---|---|
+| `src/Plugin.php` | `EMS\Plugin` |
+| `src/Core/CPT_Registry.php` | `EMS\Core\CPT_Registry` |
+| `src/Core/Table_Installer.php` | `EMS\Core\Table_Installer` |
+| `src/Integrations/OSM_API_Client.php` | `EMS\Integrations\OSM_API_Client` |
+| `src/Integrations/OSM_Auth_Integration.php` | `EMS\Integrations\OSM_Auth_Integration` |
+| `src/Integrations/OSM_Parser.php` | `EMS\Integrations\OSM_Parser` |
+| `src/Integrations/Drivers/Driver_Interface.php` | `EMS\Integrations\Drivers\Driver_Interface` *(interface)* |
+| `src/Integrations/Drivers/Live_Driver.php` | `EMS\Integrations\Drivers\Live_Driver` |
+| `src/Integrations/Drivers/Mock_Driver.php` | `EMS\Integrations\Drivers\Mock_Driver` |
+| `src/Auth/Auth_Provider.php` | `EMS\Auth\Auth_Provider` *(interface)* |
+| `src/Auth/LoginWithGoogle_Auth_Provider.php` | `EMS\Auth\LoginWithGoogle_Auth_Provider` |
+| `src/Data/Expedition_Repository.php` | `EMS\Data\Expedition_Repository` |
+| `src/Data/Team_Repository.php` | `EMS\Data\Team_Repository` |
+| `src/Data/Volunteer_Repository.php` | `EMS\Data\Volunteer_Repository` |
+| `src/Data/Route_Submission_Repository.php` | `EMS\Data\Route_Submission_Repository` |
+| `src/Admin/Admin_Page.php` | `EMS\Admin\Admin_Page` |
+| `src/Admin/Reconciliation_Controller.php` | `EMS\Admin\Reconciliation_Controller` |
+| `src/Admin/Team_Builder_Controller.php` | `EMS\Admin\Team_Builder_Controller` |
+| `src/REST/Expedition_REST_Controller.php` | `EMS\REST\Expedition_REST_Controller` |
+| `src/REST/Route_REST_Controller.php` | `EMS\REST\Route_REST_Controller` |
+| `src/REST/Volunteer_REST_Controller.php` | `EMS\REST\Volunteer_REST_Controller` |
+
+Test files mirror the `src/` structure under `tests/Unit/` (e.g. `src/Integrations/OSM_API_Client.php` → `tests/Unit/Integrations/OSM_API_ClientTest.php`). Mock JSON payloads live in `tests/mocks/`:
+- `tests/mocks/osm-get-data-payload.json` — `getDataPayload` (Startup API) response
+- `tests/mocks/osm-events.json` — OSM Events list
+- `tests/mocks/osm-flexi-records.json` — OSM Flexi-record structure
