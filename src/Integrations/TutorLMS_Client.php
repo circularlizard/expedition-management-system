@@ -310,7 +310,8 @@ class TutorLMS_Client {
                 // so the admin UI can show exactly what the content query found vs what
                 // lesson-completion meta exists — revealing any ID mismatch or $total=0.
                 static $diag_saved = false;
-                if ( ! $diag_saved ) {
+                $has_assignments = ! empty( $course_assignments[ $cid ] );
+                if ( ! $diag_saved && $has_assignments ) {
                     $diag_saved = true;
                     // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                     $meta_rows = $wpdb->get_results( $wpdb->prepare(
@@ -341,17 +342,42 @@ class TutorLMS_Client {
                         ) );
                     }
 
+                    // List all TutorLMS custom tables on this server so we can identify
+                    // where assignment submissions are stored (not in wp_posts).
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+                    $tutor_tables = $wpdb->get_col(
+                        "SHOW TABLES LIKE '{$wpdb->prefix}tutor%'"
+                    );
+
+                    // Keep the child-post lookup as a fallback check.
+                    $assign_child_rows = [];
+                    $assign_def_ids    = $course_assignments[ $cid ] ?? [];
+                    if ( ! empty( $assign_def_ids ) ) {
+                        $ad_ph = implode( ',', array_fill( 0, count( $assign_def_ids ), '%d' ) );
+                        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                        $assign_child_rows = $wpdb->get_results( $wpdb->prepare(
+                            "SELECT ID, post_type, post_status, post_author, post_parent
+                             FROM {$wpdb->posts}
+                             WHERE post_parent IN ({$ad_ph})
+                             LIMIT 10",
+                            ...$assign_def_ids
+                        ) );
+                    }
+
                     set_transient( 'ems_completion_diag', [
-                        'user_id'          => $uid,
-                        'course_id'        => $cid,
-                        'content_lessons'  => $course_lessons[ $cid ]    ?? [],
-                        'content_quizzes'  => $course_quizzes[ $cid ]    ?? [],
-                        'content_assigns'  => $course_assignments[ $cid ] ?? [],
-                        'total'            => $total,
-                        'done'             => $done,
-                        'lesson_done_ids'  => array_keys( $lesson_done[ $uid ] ?? [] ),
-                        'lesson_post_rows' => $lesson_post_rows,
-                        'meta_rows'        => $meta_rows,
+                        'user_id'            => $uid,
+                        'course_id'          => $cid,
+                        'content_lessons'    => $course_lessons[ $cid ]     ?? [],
+                        'content_quizzes'    => $course_quizzes[ $cid ]     ?? [],
+                        'content_assigns'    => $course_assignments[ $cid ] ?? [],
+                        'total'              => $total,
+                        'done'               => $done,
+                        'lesson_done_ids'    => array_keys( $lesson_done[ $uid ]     ?? [] ),
+                        'assignment_done_ids'=> array_keys( $assignment_done[ $uid ] ?? [] ),
+                        'tutor_tables'       => $tutor_tables,
+                        'assign_child_rows'  => $assign_child_rows,
+                        'lesson_post_rows'   => $lesson_post_rows,
+                        'meta_rows'          => $meta_rows,
                     ], HOUR_IN_SECONDS );
                 }
             }
