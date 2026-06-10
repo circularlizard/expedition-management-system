@@ -5,16 +5,29 @@ Entry point for AI agents working on this codebase. Read this before any other f
 ## 1. Documentation Reading Order
 
 1. `docs/Expedition Management System.md` — PRD, functional requirements, glossary
-2. `docs/Technical Architecture.md` — ADRs 001–012, component diagram, shortcode registry
-3. `docs/Data Schema and API.md` — CPTs, user meta, REST surface, custom tables
-4. `docs/Development and Deployment.md` — phases, TDD tasks, acceptance criteria, source directory map
-5. `docs/OSM Oauth.md` — OSM OAuth token URLs (reference only when implementing ADR 010)
+2. `docs/Phase 0 - Training Report.md` — Phase 0 spec: local dev, CI/deploy pipeline, Tutor LMS report
+3. `docs/Technical Architecture.md` — ADRs 001–012, component diagram, shortcode registry
+4. `docs/Data Schema and API.md` — CPTs, user meta, REST surface, custom tables
+5. `docs/Development and Deployment.md` — phases, TDD tasks, acceptance criteria, source directory map
+6. `docs/OSM Oauth.md` — OSM OAuth token URLs (reference only when implementing ADR 010)
 
 ## 2. Task Mode Classification
 
 - **`[offline]`** — completable using `Mock_Driver` and local Docker. No live credentials needed.
 - **`[staging]`** — requires the SiteGround staging subdomain. May need OSM sandbox access.
 - **`[live]`** — requires production OSM service account credentials in WP Options.
+
+### Phase 0 — Local Dev Setup & Training Completion Report *(Start Here)*
+| Task | Mode |
+|---|---|
+| Pin Docker images; add WP-CLI service to `docker-compose.yml` | `[offline]` |
+| Install Tutor LMS free via WP-CLI; write `bin/seed-test-data.sh` | `[offline]` |
+| Create `.github/workflows/ci.yml` (PHP lint + PHPUnit) | `[offline]` |
+| Create `bin/package.sh` to produce `dist/ems-plugin-{VERSION}.zip` | `[offline]` |
+| Write failing tests for `TutorLMS_Client` (red) | `[offline]` |
+| Implement `TutorLMS_Client` wrapping Tutor LMS PHP functions | `[offline]` |
+| Write failing tests for `Training_Report_Page` (red) | `[offline]` |
+| Implement `Training_Report_Page` (admin menu, table, CSV export) | `[offline]` |
 
 ### Phase 1 — Infrastructure & Test Setup
 | Task                                                                                 | Mode        |
@@ -72,6 +85,14 @@ Entry point for AI agents working on this codebase. Read this before any other f
 
 ## 3. Intra-Phase Dependency Ordering
 
+**Phase 0** (strictly sequential):
+1. Pin Docker images + add WP-CLI service
+2. Install Tutor LMS free; seed script
+3. CI workflow (lint + PHPUnit bootstrap)
+4. Package script (`bin/package.sh`)
+5. `TutorLMS_Client` tests (red) → implementation (green)
+6. `Training_Report_Page` tests (red) → implementation (green)
+
 **Phase 1** (strictly sequential):
 1. Docker environment
 2. PHPUnit/Vitest setup
@@ -112,8 +133,8 @@ Items marked **[human]** require a manual step from the operator. Halt and surfa
 
 | Item | Required From | Source |
 |---|---|---|
-| Docker running (`docker-compose up`) | Phase 1 | Local |
-| `EMS_TEST_MODE` constant in `wp-config.php` | Phase 1 | `docker-compose.yml` |
+| Docker running (`docker-compose up`) | Phase 0 | Local |
+| `EMS_TEST_MODE` constant in `wp-config.php` | Phase 0 | `docker-compose.yml` |
 | Mock payloads in `tests/mocks/` | Phase 1 | `circularlizard/OSM-Tools` repo **[human]** |
 | SiteGround staging SSH access | Phase 4 | **[human]** |
 | SiteGround SMTP confirmed | Phase 4 | **[human]** |
