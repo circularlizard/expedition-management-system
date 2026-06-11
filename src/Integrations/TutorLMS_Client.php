@@ -279,8 +279,7 @@ class TutorLMS_Client {
                 ...array_merge( $all_assignment_ids, $user_ids )
             ) );
             foreach ( $submission_rows as $row ) {
-                    $assignment_done[ (int) $row->post_author ][ (int) $row->post_parent ] = true;
-                }
+                $assignment_done[ (int) $row->post_author ][ (int) $row->post_parent ] = true;
             }
 
             // 5.5.5 Assignment submissions via wp_comments (TutorLMS Basic / older versions)
@@ -297,6 +296,7 @@ class TutorLMS_Client {
             foreach ( $comment_rows as $row ) {
                 $assignment_done[ (int) $row->user_id ][ (int) $row->comment_post_ID ] = true;
             }
+        }
 
             // 5.6 Content usage table (TutorLMS Pro source of truth)
             $cb_table = $wpdb->prefix . 'tutor_cb_content_usage';

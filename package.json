@@ -1,0 +1,13 @@
+{
+    "name": "ems-plugin",
+    "private": true,
+    "scripts": {
+        "test": "vitest run --passWithNoTests"
+    },
+    "devDependencies": {
+        "@testing-library/react": "^16.0.0",
+        "@vitejs/plugin-react": "^4.3.0",
+        "jsdom": "^25.0.0",
+        "vitest": "^2.1.0"
+    }
+}
