@@ -1,0 +1,141 @@
+<?php
+namespace EMS\Tests\Unit\Integrations;
+
+use EMS\Integrations\OSM_Parser;
+use EMS\Tests\EMSTestCase;
+
+class OSM_ParserTest extends EMSTestCase {
+    private OSM_Parser $parser;
+    private array $explorer_payload;
+    private array $parent_payload;
+    private array $events_raw;
+    private array $members_raw;
+
+    protected function setUp(): void {
+        parent::setUp();
+        $this->parser           = new OSM_Parser();
+        $this->explorer_payload = json_decode(
+            file_get_contents( __DIR__ . '/../../mocks/osm-get-data-payload-explorer.json' ),
+            true
+        );
+        $this->parent_payload   = json_decode(
+            file_get_contents( __DIR__ . '/../../mocks/osm-get-data-payload-parent.json' ),
+            true
+        );
+        $this->events_raw       = json_decode(
+            file_get_contents( __DIR__ . '/../../mocks/osm-events.json' ),
+            true
+        );
+        $this->members_raw      = json_decode(
+            file_get_contents( __DIR__ . '/../../mocks/members.json' ),
+            true
+        );
+    }
+
+    public function test_parse_user_id_from_explorer_payload(): void {
+        $this->assertSame( 20001, $this->parser->parse_user_id( $this->explorer_payload ) );
+    }
+
+    public function test_parse_user_id_from_parent_payload(): void {
+        $this->assertSame( 20002, $this->parser->parse_user_id( $this->parent_payload ) );
+    }
+
+    public function test_parse_access_type_returns_member_for_explorer(): void {
+        $this->assertSame( 'member', $this->parser->parse_access_type( $this->explorer_payload ) );
+    }
+
+    public function test_parse_access_type_returns_parent_for_parent(): void {
+        $this->assertSame( 'parent', $this->parser->parse_access_type( $this->parent_payload ) );
+    }
+
+    public function test_parse_scout_ids_returns_unique_ids_for_explorer(): void {
+        $ids = $this->parser->parse_scout_ids( $this->explorer_payload );
+        $this->assertContains( 30001, $ids );
+        $this->assertCount( 1, $ids );
+    }
+
+    public function test_parse_scout_ids_returns_unique_ids_for_parent(): void {
+        $ids = $this->parser->parse_scout_ids( $this->parent_payload );
+        $this->assertContains( 30001, $ids );
+        $this->assertContains( 30002, $ids );
+        $this->assertCount( 2, $ids );
+    }
+
+    public function test_parse_section_ids_returns_all_section_ids(): void {
+        $ids = $this->parser->parse_section_ids( $this->explorer_payload );
+        $this->assertContains( 99001, $ids );
+        $this->assertContains( 99002, $ids );
+    }
+
+    public function test_parse_children_returns_empty_for_member(): void {
+        $children = $this->parser->parse_children( $this->explorer_payload );
+        $this->assertSame( [], $children );
+    }
+
+    public function test_parse_children_returns_unique_children_for_parent(): void {
+        $children = $this->parser->parse_children( $this->parent_payload );
+        $this->assertCount( 2, $children );
+        $scout_ids = array_column( $children, 'scout_id' );
+        $this->assertContains( 30001, $scout_ids );
+        $this->assertContains( 30002, $scout_ids );
+    }
+
+    public function test_parse_children_entry_has_required_keys(): void {
+        $children = $this->parser->parse_children( $this->parent_payload );
+        $child    = $children[0];
+        $this->assertArrayHasKey( 'scout_id',    $child );
+        $this->assertArrayHasKey( 'first_name',  $child );
+        $this->assertArrayHasKey( 'last_name',   $child );
+        $this->assertArrayHasKey( 'section_ids', $child );
+    }
+
+    public function test_parse_children_aggregates_section_ids_for_same_child(): void {
+        $children  = $this->parser->parse_children( $this->parent_payload );
+        $alex      = array_values( array_filter( $children, fn( $c ) => $c['scout_id'] === 30001 ) )[0];
+        $this->assertContains( 99001, $alex['section_ids'] );
+        $this->assertContains( 99002, $alex['section_ids'] );
+    }
+
+    public function test_parse_events_returns_event_list(): void {
+        $events = $this->parser->parse_events( $this->events_raw );
+        $this->assertCount( 2, $events );
+    }
+
+    public function test_parse_events_normalises_fields(): void {
+        $events = $this->parser->parse_events( $this->events_raw );
+        $event  = $events[0];
+        $this->assertArrayHasKey( 'event_id',   $event );
+        $this->assertArrayHasKey( 'name',        $event );
+        $this->assertArrayHasKey( 'start_date',  $event );
+        $this->assertArrayHasKey( 'end_date',    $event );
+        $this->assertArrayHasKey( 'location',    $event );
+    }
+
+    public function test_parse_events_maps_ids_and_names_correctly(): void {
+        $events = $this->parser->parse_events( $this->events_raw );
+        $this->assertSame( 40001, $events[0]['event_id'] );
+        $this->assertSame( 'Silver Practice - Test Hills', $events[0]['name'] );
+        $this->assertSame( '2026-08-01', $events[0]['start_date'] );
+        $this->assertSame( '2026-08-03', $events[0]['end_date'] );
+    }
+
+    public function test_parse_members_returns_member_list(): void {
+        $members = $this->parser->parse_members( $this->members_raw );
+        $this->assertCount( 2, $members );
+    }
+
+    public function test_parse_members_normalises_fields(): void {
+        $members = $this->parser->parse_members( $this->members_raw );
+        $member  = $members[0];
+        $this->assertArrayHasKey( 'member_id',  $member );
+        $this->assertArrayHasKey( 'first_name', $member );
+        $this->assertArrayHasKey( 'last_name',  $member );
+        $this->assertArrayHasKey( 'email',      $member );
+    }
+
+    public function test_parse_members_casts_member_id_to_int(): void {
+        $members = $this->parser->parse_members( $this->members_raw );
+        $this->assertSame( 1001, $members[0]['member_id'] );
+        $this->assertIsInt( $members[0]['member_id'] );
+    }
+}
