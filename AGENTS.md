@@ -8,7 +8,7 @@ Entry point for AI agents working on this codebase. Read this before any other f
 2. `docs/Phase 0 - Training Report.md` — Phase 0 spec: local dev, CI/deploy pipeline, Tutor LMS report
 3. `docs/Technical Architecture.md` — ADRs 001–012, component diagram, shortcode registry
 4. `docs/Data Schema and API.md` — CPTs, user meta, REST surface, custom tables
-5. `docs/Development and Deployment.md` — phases, TDD tasks, acceptance criteria, source directory map
+5. `docs/Development and Deployment.md` — **canonical implementation plan**: phases, TDD tasks, acceptance criteria, progress status, source directory map
 6. `docs/OSM Oauth.md` — OSM OAuth token URLs (reference only when implementing ADR 010)
 
 ## 2. Task Mode Classification
@@ -17,117 +17,9 @@ Entry point for AI agents working on this codebase. Read this before any other f
 - **`[staging]`** — requires the SiteGround staging subdomain. May need OSM sandbox access.
 - **`[live]`** — requires production OSM service account credentials in WP Options.
 
-### Phase 0 — Local Dev Setup & Training Completion Report *(Start Here)*
-| Task | Mode |
-|---|---|
-| Pin Docker images; add WP-CLI service to `docker-compose.yml` | `[offline]` |
-| Install Tutor LMS free via WP-CLI; write `bin/seed-test-data.sh` | `[offline]` |
-| Create `.github/workflows/ci.yml` (PHP lint + PHPUnit) | `[offline]` |
-| Create `bin/package.sh` to produce `dist/ems-plugin-{VERSION}.zip` | `[offline]` |
-| Write failing tests for `TutorLMS_Client` (red) | `[offline]` |
-| Implement `TutorLMS_Client` wrapping Tutor LMS PHP functions | `[offline]` |
-| Write failing tests for `Training_Report_Page` (red) | `[offline]` |
-| Implement `Training_Report_Page` (admin menu, table, CSV export) | `[offline]` |
+Phase-by-phase tasks, dependency ordering, and progress status are in `docs/Development and Deployment.md §4`.
 
-### Phase 1 — Infrastructure & Test Setup
-| Task                                                                                 | Mode        |
-| --------------------------------------------------------------------------------------| -------------|
-| Configure Docker environment                                                         | `[offline]` |
-| Setup PHPUnit and Vitest runners                                                     | `[offline]` |
-| Write `OSM_API_Client` parsing tests (red)                                           | `[offline]` |
-| Implement `Mock_Driver` with payloads from `tests/mocks/`                            | `[offline]` |
-| Prototype Section Participant Pull                                                   | `[offline]` |
-| Implement `Auth_Provider` interface + `LoginWithGoogle_Auth_Provider` adapter        | `[offline]` |
-| Implement `Mock_Auth_Provider` (static OSM payload for offline auth-dependent tests) | `[offline]` |
-| Write rate limiting tests for `OSM_API_Client` (red)                                 | `[offline]` |
-| Implement token-bucket rate limiting in `OSM_API_Client`                             | `[offline]` |
-| Fix `$_SESSION` bug in `OSM_Auth_Integration`                                        | `[offline]` |
-
-### Phase 2 — Core Data & Admin UI
-| Task | Mode |
-|---|---|
-| Write CPT registration and meta validation tests (red) | `[offline]` |
-| Register `expedition` and `team` CPTs | `[offline]` |
-| Write React component tests for Reconciliation Dashboard (red) | `[offline]` |
-| Build Reconciliation Dashboard against mock data | `[offline]` |
-| Implement Gravity Forms matching logic | `[offline]` |
-
-### Phase 3 — Volunteer & Team Building
-| Task | Mode |
-|---|---|
-| Write team code auto-generation tests (red) | `[offline]` |
-| Build React Team Builder (drag-and-drop) | `[offline]` |
-| Write Volunteer availability and confirmation state machine tests (red) | `[offline]` |
-| Implement Volunteer signup and confirmation workflow | `[offline]` |
-| Write push-back failure handling tests (red) | `[offline]` |
-| Implement push-back failure persistence, notice, and retry | `[offline]` |
-
-### Phase 4 — Frontend Portals
-| Task | Mode |
-|---|---|
-| Write Explorer Portal component tests (red) | `[offline]` |
-| Build Explorer Portal shortcode + SPA | `[offline]` |
-| Write shell account merge flow tests (red) | `[offline]` |
-| Implement Parent-Child parsing, selection UI, shell merge | `[offline]` |
-| Write secure route upload validation tests (red) | `[offline]` |
-| Setup secure route uploads | `[offline]` |
-| Confirm SiteGround SMTP and implement email triggers | `[staging]` |
-
-### Phase 5 — Production Sync & Launch
-| Task | Mode |
-|---|---|
-| Write service account token refresh tests (red) | `[offline]` |
-| Switch to `Live_Driver` | `[staging]` |
-| Configure EMS service account authorisation flow | `[staging]` |
-| Implement `.htaccess` protection for `ems-secure/` | `[staging]` |
-| Load testing | `[staging]` |
-| Final UI polish | `[live]` |
-
-## 3. Intra-Phase Dependency Ordering
-
-**Phase 0** (strictly sequential):
-1. Pin Docker images + add WP-CLI service
-2. Install Tutor LMS free; seed script
-3. CI workflow (lint + PHPUnit bootstrap)
-4. Package script (`bin/package.sh`)
-5. `TutorLMS_Client` tests (red) → implementation (green)
-6. `Training_Report_Page` tests (red) → implementation (green)
-
-**Phase 1** (strictly sequential):
-1. Docker environment
-2. PHPUnit/Vitest setup
-3. `OSM_API_Client` parsing tests (red)
-4. `Mock_Driver` implementation (green)
-5. Rate limiting tests (red) → token-bucket implementation (green) — **must precede any `Live_Driver` use**
-6. Section Participant Pull prototype
-7. `Auth_Provider` interface definition
-8. `LoginWithGoogle_Auth_Provider` adapter
-9. `Mock_Auth_Provider` implementation
-10. `$_SESSION` bug fix in `OSM_Auth_Integration`
-
-**Phase 2** (two parallel streams):
-- **Stream A**: CPT tests (red) → CPT registration → meta validation
-- **Stream B**: Reconciliation component tests (red) → Dashboard build → Gravity Forms logic
-
-**Phase 3** (two parallel streams):
-- **Stream A**: Team code tests → Team Builder UI
-- **Stream B**: Volunteer tests → Volunteer workflow → Push-back failure tests → Push-back implementation
-
-**Phase 4** (three parallel streams; Stream D blocks release):
-- **Stream A**: Explorer Portal tests → Explorer Portal build
-- **Stream B**: Shell merge tests → Parent-Child parsing + merge
-- **Stream C**: Route upload tests → Route upload implementation
-- **Stream D** *(blocks release)*: SMTP confirmation → email triggers (must follow all other Phase 4 tasks)
-
-**Phase 5** (strictly sequential):
-1. Token refresh tests (red)
-2. `Live_Driver` switch
-3. Service account auth flow
-4. `.htaccess` protection
-5. Load testing
-6. Polish & training
-
-## 4. Environment & Credential Checklist
+## 3. Environment & Credential Checklist
 
 Items marked **[human]** require a manual step from the operator. Halt and surface a blocking prompt rather than proceeding without them.
 
@@ -141,7 +33,7 @@ Items marked **[human]** require a manual step from the operator. Halt and surfa
 | OSM service account OAuth tokens in WP Options | Phase 5 | One-time admin setup screen **[human]** |
 | `.htaccess` write access on SiteGround confirmed | Phase 5 | **[human]** |
 
-## 5. Test Execution Commands
+## 4. Test Execution Commands
 
 ```bash
 # PHP unit tests (from repo root)
