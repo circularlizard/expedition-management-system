@@ -123,4 +123,36 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
 
         $this->assertContains( 30001, $stored['ems_scout_ids'] );
     }
+
+    public function test_local_user_without_access_token_gets_local_access_type(): void {
+        $stored = [];
+        Functions\when( 'update_user_meta' )->alias( static function ( $uid, $key, $val ) use ( &$stored ): bool {
+            $stored[ $key ] = $val;
+            return true;
+        } );
+
+        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'patrol' => 'Some Patrol' ] );
+
+        $this->assertSame( 'local', $stored['ems_access_type'] );
+    }
+
+    public function test_local_user_without_access_token_does_not_call_api(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+
+        $this->api_client->shouldReceive( 'get_data_payload' )->never();
+
+        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_local_user_without_access_token_throws_no_exception(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+
+        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
+
+        $this->expectNotToPerformAssertions();
+        $integration->handle_osm_login( $this->user, [] );
+    }
 }

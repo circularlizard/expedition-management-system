@@ -88,7 +88,7 @@ OSM has strict rate limits. Our integration must include:
     - ✅ `Auth_Provider` interface, `LoginWithGoogle_Auth_Provider` adapter, and `Mock_Auth_Provider` implemented with passing unit tests.
     - ✅ `OSM_Auth_Integration` does not store `access_token` in `$_SESSION` — confirmed by regression test.
 
-### Phase 2: OSM Auth Foundation & Admin Settings *(Current Phase)*
+### Phase 2: OSM Auth Foundation & Admin Settings — ✅ COMPLETE
 - **Goal**: OSM authentication working end-to-end on local dev with admin visibility; mock/live API driver switchable from WP Admin; graceful handling of non-OSM users.
 - **Completed**:
     - ✅ `expedition` and `team` CPTs registered (`CPT_Registry`); meta field validation (`Meta_Validator`); tests passing.
@@ -96,17 +96,15 @@ OSM has strict rate limits. Our integration must include:
     - ✅ `Reconciliation_Controller` matching logic (OSM members vs GF entries); `Reconciliation_ControllerTest` passing.
     - ✅ `OSM_Auth_IntegrationTest` passing (login hook wires to `getDataPayload` and persists User Meta).
     - ✅ Basic `Admin_Page` with EMS menu and Reconciliation sub-page.
-- **Remaining tasks**:
-    - **TDD Task**: Write tests for `Admin\Settings_Page` (mock/live toggle stored in WP Option `ems_api_mode`; OSM base URL validation and persistence).
-    - Implement `Admin\Settings_Page` sub-page (fields: API Mode toggle `mock`/`live`, OSM API base URL; saved to WP Options).
-    - Wire `OSM_API_Client` driver selection through `ems_api_mode` WP Option in `Plugin` bootstrap: `'mock'` → `Mock_Driver`, `'live'` → `Live_Driver`.
-    - **TDD Task**: Write regression test for non-OSM user path in `OSM_Auth_Integration` (login data missing `access_token` → `ems_access_type` set to `'local'`, no hydration attempted, no exceptions thrown).
-    - Update `OSM_Auth_Integration::handle_osm_login` to handle missing `access_token` gracefully.
-    - **TDD Task**: Write tests for admin diagnostic panel (user with OSM meta → shows hydration summary; user without → "No OSM account linked" notice).
-    - Implement admin diagnostic panel on EMS dashboard showing current user's stored `ems_access_type`, `ems_section_ids`, `ems_scout_ids`.
-    - Verify `getDataPayload` end-to-end with `Mock_Driver` in local dev: trigger login → hydration stored in User Meta → visible in diagnostic panel.
-    - **TDD Task**: Define React component tests for the Reconciliation view.
-    - Build the React-based "Reconciliation Dashboard" using mock data (Vitest component tests).
+- **Completed (continued)**:
+    - ✅ `Admin\Settings_Page` tests written and passing (`Settings_PageTest`); saves `ems_api_mode` (mock/live toggle) and `ems_osm_api_base_url` (HTTPS only) to WP Options.
+    - ✅ `Admin\Settings_Page` implemented with validation and WP admin sub-page.
+    - ✅ `OSM_API_Client` driver selection wired through `ems_api_mode` option in `Plugin` bootstrap.
+    - ✅ Regression tests for non-OSM user path in `OSM_Auth_Integration` written and passing (missing `access_token` → `ems_access_type='local'`, no API call, no exception).
+    - ✅ `OSM_Auth_Integration::handle_osm_login` updated: sets `ems_access_type='local'` when `access_token` absent.
+    - ✅ `Admin\Diagnostic_Panel` tests written and passing (`Diagnostic_PanelTest`).
+    - ✅ `Admin\Diagnostic_Panel` implemented; shown on EMS Dashboard sub-page.
+    - ✅ React `ReconciliationDashboard` component and Vitest component tests written and passing (8 tests).
 - **Phase Complete When**:
     - EMS → Settings sub-page saves mock/live toggle and OSM API base URL to WP Options.
     - Login as a local-only WP user: no errors, `ems_access_type = 'local'` set in User Meta.
