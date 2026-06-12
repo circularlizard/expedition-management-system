@@ -31,6 +31,10 @@ ZIP_PATH="${DIST_DIR}/${ZIP_NAME}"
 
 echo "==> Building EMS plugin v${VERSION}..."
 
+# Build JS assets
+echo "==> Building JS assets..."
+npm run build --silent
+
 # Clean staging area
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR/ems-plugin"
