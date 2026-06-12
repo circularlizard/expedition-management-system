@@ -63,57 +63,56 @@ OSM has strict rate limits. Our integration must include:
 
 ## 4. Incremental Implementation Plan
 
-### Phase 0: Local Dev Setup & Training Completion Report *(Start Here)*
+### Phase 0: Local Dev Setup & Training Completion Report — ✅ COMPLETE
 - **Full spec**: [docs/Phase 0 - Training Report.md](./Phase%200%20-%20Training%20Report.md)
 - **Goal**: Working local environment, CI pipeline, plugin packaging, and the first shippable feature — a Tutor LMS training completion report in the WP admin dashboard with CSV export.
-- **Tasks**:
-    - Pin Docker images (`wordpress:php8.2-apache`, `mariadb:10.11`); add WP-CLI service.
-    - Install Tutor LMS free via WP-CLI in the container; write `bin/seed-test-data.sh`.
-    - Create `.github/workflows/ci.yml` (PHP lint + PHPUnit on push/PR).
-    - Create `bin/package.sh` to produce a distributable `dist/ems-plugin-{VERSION}.zip`.
-    - **TDD Task**: Write failing tests for `TutorLMS_Client` (`get_all_courses`, `get_enrolled_students`, `get_enrollment_status`).
-    - Implement `TutorLMS_Client` wrapping Tutor LMS PHP functions.
-    - **TDD Task**: Write failing tests for `Training_Report_Page` (data assembly, CSV output).
-    - Implement `Training_Report_Page` (admin menu, table render, CSV export).
-    - Register page from `EMS\Plugin` via `admin_menu` hook.
-- **Phase Complete When**:
-    - `docker-compose up` starts WP + MariaDB; seed script runs; Tutor LMS active.
-    - **EMS → Training Report** visible in WP Admin; table and CSV export correct for seeded data.
-    - `vendor/bin/phpunit` passes for all Phase 0 tests.
-    - GitHub Actions CI passes on push.
-    - `bin/package.sh` produces a zip that installs cleanly on staging via WP Admin upload.
+- **Completed**:
+    - ✅ Docker images pinned (`wordpress:php8.2-apache`, `mariadb:10.11`); WP-CLI service added.
+    - ✅ Seed script `bin/seed-test-data.sh` written.
+    - ✅ `.github/workflows/ci.yml` (PHP lint + PHPUnit on push/PR).
+    - ✅ `bin/package.sh` produces `dist/ems-plugin-{VERSION}.zip`.
+    - ✅ `TutorLMS_Client` tests written and passing (`TutorLMS_ClientTest`).
+    - ✅ `TutorLMS_Client` implemented wrapping Tutor LMS PHP functions.
+    - ✅ `Training_Report_Page` tests written and passing (`Training_Report_PageTest`).
+    - ✅ `Training_Report_Page` implemented (admin menu, table render, CSV export).
 
-### Phase 1: Infrastructure & Test Setup
+### Phase 1: Infrastructure & Test Setup — ✅ COMPLETE
 - **Goal**: Establish the "Test-First" environment and verify OSM API connectivity.
-- **Tasks**:
-    - Configure local Docker environment (pin images: `wordpress:php8.2-apache`, `mariadb:10.11`).
-    - Setup PHPUnit and Vitest test runners.
-    - **TDD Task**: Write failing tests for the `OSM_API_Client` data parsing.
-    - Implement "Mock Driver" to satisfy parsing tests using payloads from [OSM-Tools](https://github.com/circularlizard/OSM-Tools).
-    - **TDD Task**: Write tests for `OSM_API_Client` rate limiting (request throttle enforced, correct inter-request delay).
-    - Implement token-bucket rate limiting in `OSM_API_Client`. **OSM blocks accounts and IPs that exceed rate limits — this must be complete before any `Live_Driver` call is made.**
-    - Prototype the "Section Participant Pull" to verify parsing logic via tests.
-    - Implement `Auth_Provider` interface and `LoginWithGoogle_Auth_Provider` adapter ([ADR 012](./Technical Architecture.md#adr-012-auth-provider-interface)). Fix active bug: remove `$_SESSION` token storage from `OSM_Auth_Integration`.
-    - Implement `Mock_Auth_Provider` (returns static `getDataPayload` response and access token; used by all offline tests that depend on post-login hydration context).
-- **Phase Complete When**:
-    - `docker-compose up` starts WP + MariaDB cleanly.
-    - `vendor/bin/phpunit` runs and all `OSM_API_Client` parsing tests pass using `Mock_Driver`.
-    - `Auth_Provider` interface and `LoginWithGoogle_Auth_Provider` exist with passing unit tests.
-    - `OSM_Auth_Integration` no longer stores `access_token` in `$_SESSION` — confirmed by a regression test.
-    - `OSM_API_Client` rate limiting tests pass; token-bucket logic verified in isolation.
+- **Completed**:
+    - ✅ Docker environment configured.
+    - ✅ PHPUnit and Vitest test runners set up.
+    - ✅ `OSM_API_Client` parsing tests written and passing (`OSM_ParserTest`, `OSM_API_ClientTest`).
+    - ✅ `Mock_Driver` implemented with payloads in `tests/mocks/`.
+    - ✅ `Rate_Limiter` (token-bucket) implemented; rate limiting tests pass.
+    - ✅ Section Participant Pull prototyped (`get_section_participants`).
+    - ✅ `Auth_Provider` interface, `LoginWithGoogle_Auth_Provider` adapter, and `Mock_Auth_Provider` implemented with passing unit tests.
+    - ✅ `OSM_Auth_Integration` does not store `access_token` in `$_SESSION` — confirmed by regression test.
 
-### Phase 2: Core Data & Admin UI
-- **Goal**: Implement CPTs and basic management via TDD.
-- **Tasks**:
-    - **TDD Task**: Write tests for CPT registration and meta field validation.
-    - Register `expedition` and `team` CPTs.
+### Phase 2: OSM Auth Foundation & Admin Settings *(Current Phase)*
+- **Goal**: OSM authentication working end-to-end on local dev with admin visibility; mock/live API driver switchable from WP Admin; graceful handling of non-OSM users.
+- **Completed**:
+    - ✅ `expedition` and `team` CPTs registered (`CPT_Registry`); meta field validation (`Meta_Validator`); tests passing.
+    - ✅ `Gravity_Forms_Client` and `Mock_Gravity_Forms_Client` implemented.
+    - ✅ `Reconciliation_Controller` matching logic (OSM members vs GF entries); `Reconciliation_ControllerTest` passing.
+    - ✅ `OSM_Auth_IntegrationTest` passing (login hook wires to `getDataPayload` and persists User Meta).
+    - ✅ Basic `Admin_Page` with EMS menu and Reconciliation sub-page.
+- **Remaining tasks**:
+    - **TDD Task**: Write tests for `Admin\Settings_Page` (mock/live toggle stored in WP Option `ems_api_mode`; OSM base URL validation and persistence).
+    - Implement `Admin\Settings_Page` sub-page (fields: API Mode toggle `mock`/`live`, OSM API base URL; saved to WP Options).
+    - Wire `OSM_API_Client` driver selection through `ems_api_mode` WP Option in `Plugin` bootstrap: `'mock'` → `Mock_Driver`, `'live'` → `Live_Driver`.
+    - **TDD Task**: Write regression test for non-OSM user path in `OSM_Auth_Integration` (login data missing `access_token` → `ems_access_type` set to `'local'`, no hydration attempted, no exceptions thrown).
+    - Update `OSM_Auth_Integration::handle_osm_login` to handle missing `access_token` gracefully.
+    - **TDD Task**: Write tests for admin diagnostic panel (user with OSM meta → shows hydration summary; user without → "No OSM account linked" notice).
+    - Implement admin diagnostic panel on EMS dashboard showing current user's stored `ems_access_type`, `ems_section_ids`, `ems_scout_ids`.
+    - Verify `getDataPayload` end-to-end with `Mock_Driver` in local dev: trigger login → hydration stored in User Meta → visible in diagnostic panel.
     - **TDD Task**: Define React component tests for the Reconciliation view.
-    - Build the React-based "Reconciliation Dashboard" using mock data.
-    - Implement Gravity Forms matching logic, verified by unit tests.
+    - Build the React-based "Reconciliation Dashboard" using mock data (Vitest component tests).
 - **Phase Complete When**:
-    - `expedition` and `team` CPT registration tests pass, including meta field validation.
+    - EMS → Settings sub-page saves mock/live toggle and OSM API base URL to WP Options.
+    - Login as a local-only WP user: no errors, `ems_access_type = 'local'` set in User Meta.
+    - Login via OSM OIDC in `mock` mode: `getDataPayload` hydration stored in User Meta and visible in admin diagnostic panel.
+    - `vendor/bin/phpunit` passes all Phase 2 PHP tests.
     - Reconciliation Dashboard renders correctly against mock data — Vitest component tests pass.
-    - Gravity Forms matching logic passes all unit tests.
 
 ### Phase 3: Volunteer & Team Building
 - **Goal**: Enable staffing and participant grouping.
