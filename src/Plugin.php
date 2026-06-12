@@ -2,10 +2,13 @@
 namespace EMS;
 
 use EMS\Admin\Admin_Page;
+use EMS\Admin\Diagnostic_Panel;
 use EMS\Admin\Reconciliation_Controller;
+use EMS\Admin\Settings_Page;
 use EMS\Admin\Training_Report_Page;
 use EMS\Core\CPT_Registry;
 use EMS\Core\Table_Installer;
+use EMS\Integrations\Drivers\Live_Driver;
 use EMS\Integrations\Drivers\Mock_Driver;
 use EMS\Integrations\Gravity_Forms_Client;
 use EMS\Integrations\Mock_Gravity_Forms_Client;
@@ -28,10 +31,19 @@ class Plugin {
         $report_page = new Training_Report_Page( new TutorLMS_Client() );
         add_action( 'admin_menu', [ $report_page, 'register' ] );
 
-        $osm_client  = new OSM_API_Client( new Mock_Driver(), new OSM_Parser(), new Rate_Limiter( 10, 1.0 ) );
-        $gf_client   = new Mock_Gravity_Forms_Client();
-        $admin_page  = new Admin_Page( new Reconciliation_Controller( $osm_client, $gf_client ) );
+        $api_mode   = get_option( 'ems_api_mode', 'mock' );
+        $driver     = ( $api_mode === 'live' ) ? new Live_Driver() : new Mock_Driver();
+        $osm_client = new OSM_API_Client( $driver, new OSM_Parser(), new Rate_Limiter( 10, 1.0 ) );
+        $gf_client  = new Mock_Gravity_Forms_Client();
+
+        $admin_page = new Admin_Page(
+            new Reconciliation_Controller( $osm_client, $gf_client ),
+            new Diagnostic_Panel()
+        );
         add_action( 'admin_menu', [ $admin_page, 'register' ] );
+
+        $settings_page = new Settings_Page();
+        add_action( 'admin_menu', [ $settings_page, 'register' ] );
     }
 
     public static function activate(): void {
