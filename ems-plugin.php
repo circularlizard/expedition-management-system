@@ -20,9 +20,10 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 /**
  * Initialize the plugin
  */
+register_activation_hook( __FILE__, [ 'EMS\\Plugin', 'activate' ] );
+
 add_action( 'plugins_loaded', function() {
-    // Initial hook for booting the system
     if ( class_exists( 'EMS\\Plugin' ) ) {
         new EMS\Plugin();
     }
-});
+} );
