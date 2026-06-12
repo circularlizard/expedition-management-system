@@ -3,12 +3,23 @@ namespace EMS\Admin;
 
 class Admin_Page {
     private Reconciliation_Controller $reconciliation;
+    private Diagnostic_Panel $diagnostic;
 
-    public function __construct( Reconciliation_Controller $reconciliation ) {
+    public function __construct( Reconciliation_Controller $reconciliation, Diagnostic_Panel $diagnostic ) {
         $this->reconciliation = $reconciliation;
+        $this->diagnostic     = $diagnostic;
     }
 
     public function register(): void {
+        add_submenu_page(
+            'ems',
+            __( 'Dashboard', 'ems-plugin' ),
+            __( 'Dashboard', 'ems-plugin' ),
+            'manage_options',
+            'ems',
+            [ $this, 'render_dashboard' ]
+        );
+
         add_submenu_page(
             'ems',
             __( 'Reconciliation', 'ems-plugin' ),
@@ -17,6 +28,15 @@ class Admin_Page {
             'ems-reconciliation',
             [ $this, 'render_reconciliation' ]
         );
+    }
+
+    public function render_dashboard(): void {
+        $user_id = get_current_user_id();
+        echo '<div class="wrap">';
+        echo '<h1>' . esc_html__( 'EMS Dashboard', 'ems-plugin' ) . '</h1>';
+        echo '<h2>' . esc_html__( 'OSM Account Diagnostic', 'ems-plugin' ) . '</h2>';
+        $this->diagnostic->render( $user_id );
+        echo '</div>';
     }
 
     public function render_reconciliation(): void {

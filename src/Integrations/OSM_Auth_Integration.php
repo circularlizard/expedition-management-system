@@ -41,6 +41,8 @@ class OSM_Auth_Integration {
                 }
             }
             // Access token intentionally NOT stored — ADR 009.
+        } else {
+            update_user_meta( $user->ID, 'ems_access_type', 'local' );
         }
     }
 }
