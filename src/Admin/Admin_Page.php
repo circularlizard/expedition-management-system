@@ -11,7 +11,7 @@ class Admin_Page {
     }
 
     public function register(): void {
-        add_submenu_page(
+        $dashboard_hook = add_submenu_page(
             'ems',
             __( 'Dashboard', 'ems-plugin' ),
             __( 'Dashboard', 'ems-plugin' ),
@@ -20,7 +20,7 @@ class Admin_Page {
             [ $this, 'render_dashboard' ]
         );
 
-        add_submenu_page(
+        $reconciliation_hook = add_submenu_page(
             'ems',
             __( 'Reconciliation', 'ems-plugin' ),
             __( 'Reconciliation', 'ems-plugin' ),
@@ -29,7 +29,7 @@ class Admin_Page {
             [ $this, 'render_reconciliation' ]
         );
 
-        add_submenu_page(
+        $mapper_hook = add_submenu_page(
             'ems',
             __( 'Column Mapper', 'ems-plugin' ),
             __( 'Column Mapper', 'ems-plugin' ),
@@ -37,6 +37,44 @@ class Admin_Page {
             'ems-column-mapper',
             [ $this, 'render_column_mapper' ]
         );
+
+        add_action( "admin_enqueue_scripts", function( $hook ) use ( $dashboard_hook, $reconciliation_hook, $mapper_hook ) {
+            if ( $hook === $dashboard_hook ) {
+                $this->enqueue_dashboard_assets();
+            } elseif ( $hook === $reconciliation_hook ) {
+                $this->enqueue_reconciliation_assets();
+            } elseif ( $hook === $mapper_hook ) {
+                $this->enqueue_mapper_assets();
+            }
+        } );
+    }
+
+    private function enqueue_dashboard_assets(): void {
+        $this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
+        wp_localize_script( 'ems-expedition-board', 'emsExpeditionBoard', [
+            'root_url'   => get_rest_url( null, 'ems/v1' ),
+            'nonce'      => wp_create_nonce( 'wp_rest' ),
+            'sync_url'   => admin_url( 'admin.php?page=ems' ),
+            'sync_nonce' => wp_create_nonce( 'ems_sync_osm' ),
+        ] );
+    }
+
+    private function enqueue_reconciliation_assets(): void {
+        $section_id = (int) get_option( 'ems_managed_sections_default', 99001 );
+        $form_id    = (int) get_option( 'ems_gravity_form_id', 1 );
+        $data       = $this->reconciliation->reconcile( $section_id, $form_id );
+
+        $this->enqueue_admin_script( 'ems-reconciliation', 'assets/js/reconciliation.js' );
+        wp_localize_script( 'ems-reconciliation', 'emsReconciliation', $data );
+    }
+
+    private function enqueue_mapper_assets(): void {
+        $this->enqueue_admin_script( 'ems-column-mapper', 'assets/js/column-mapper.js' );
+        wp_localize_script( 'ems-column-mapper', 'emsColumnMapper', [
+            'root_url' => get_rest_url( null, 'ems/v1' ),
+            'nonce'    => wp_create_nonce( 'wp_rest' ),
+            'sections' => (array) get_option( 'ems_managed_sections', [] ),
+        ] );
     }
 
     public function render_dashboard(): void {
@@ -44,15 +82,6 @@ class Admin_Page {
             $handler = new OSM_Sync_Auth_Handler();
             $handler->initiate();
         }
-
-        $this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
-
-        wp_localize_script( 'ems-expedition-board', 'emsExpeditionBoard', [
-            'root_url' => get_rest_url( null, 'ems/v1' ),
-            'nonce'    => wp_create_nonce( 'wp_rest' ),
-            'sync_url' => admin_url( 'admin.php?page=ems' ),
-            'sync_nonce' => wp_create_nonce( 'ems_sync_osm' ),
-        ] );
 
         $user_id = get_current_user_id();
         echo '<div class="wrap">';
@@ -71,15 +100,6 @@ class Admin_Page {
     }
 
     public function render_reconciliation(): void {
-        $section_id = (int) get_option( 'ems_managed_sections_default', 99001 );
-        $form_id    = (int) get_option( 'ems_gravity_form_id', 1 );
-
-        $data = $this->reconciliation->reconcile( $section_id, $form_id );
-
-        $this->enqueue_admin_script( 'ems-reconciliation', 'assets/js/reconciliation.js' );
-
-        wp_localize_script( 'ems-reconciliation', 'emsReconciliation', $data );
-
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'Reconciliation Dashboard', 'ems-plugin' ) . '</h1>';
         echo '<div id="ems-reconciliation-root"></div>';
@@ -87,14 +107,6 @@ class Admin_Page {
     }
 
     public function render_column_mapper(): void {
-        $this->enqueue_admin_script( 'ems-column-mapper', 'assets/js/column-mapper.js' );
-
-        wp_localize_script( 'ems-column-mapper', 'emsColumnMapper', [
-            'root_url' => get_rest_url( null, 'ems/v1' ),
-            'nonce'    => wp_create_nonce( 'wp_rest' ),
-            'sections' => (array) get_option( 'ems_managed_sections', [] ),
-        ] );
-
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'Flexi-Record Column Mapper', 'ems-plugin' ) . '</h1>';
         echo '<div id="ems-column-mapper-root"></div>';

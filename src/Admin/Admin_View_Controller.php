@@ -56,8 +56,10 @@ class Admin_View_Controller {
                 
                 // Hydrate member data
                 foreach ( $members as &$member ) {
-                    $user_id = (int) $member['user_id'];
-                    $this->hydrate_member_data( $member, $user_id );
+                    $user_id = isset( $member['user_id'] ) ? (int) $member['user_id'] : 0;
+                    if ( $user_id > 0 ) {
+                        $this->hydrate_member_data( $member, $user_id );
+                    }
                 }
 
                 $all_members[ $team['ID'] ] = $members;
