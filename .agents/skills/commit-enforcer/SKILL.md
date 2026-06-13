@@ -28,9 +28,9 @@ To avoid manual password entry during `git push`, the skill uses a helper script
 
 1. **Setup**: Ensure `.env.local` exists in the project root (ignored by git).
 2. **Content**: Add `GITHUB_PASSPHRASE=your_passphrase` to `.env.local`.
-3. **Execution**: The push command must be prefixed with `GIT_ASKPASS`:
+3. **Execution**: The push command must be prefixed with `SSH_ASKPASS` and `SSH_ASKPASS_REQUIRE`:
    ```bash
-   GIT_ASKPASS=.agents/skills/commit-enforcer/scripts/askpass.sh git push origin main
+   SSH_ASKPASS=.agents/skills/commit-enforcer/scripts/askpass.sh SSH_ASKPASS_REQUIRE=force DISPLAY=:0 git push origin main
    ```
    *Note: Ensure the script is executable (`chmod +x`).*
 
@@ -42,5 +42,5 @@ To avoid manual password entry during `git push`, the skill uses a helper script
 4. **Draft Message**: Propose a message following the `type: description` pattern (e.g., `feat:`, `fix:`, `chore:`, `docs:`).
 5. **Commit & Push**:
    ```bash
-   git commit -m "..." && GIT_ASKPASS=.agents/skills/commit-enforcer/scripts/askpass.sh git push origin main
+   git commit -m "..." && SSH_ASKPASS=.agents/skills/commit-enforcer/scripts/askpass.sh SSH_ASKPASS_REQUIRE=force DISPLAY=:0 git push origin main
    ```
