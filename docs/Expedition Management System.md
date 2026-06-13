@@ -22,7 +22,7 @@ The Expedition Management System (EMS) is designed to manage and store informati
     - First Aid status per participant.
     - **Note**: Flexi-records are stored per season in OSM. First Aid status and team assignments are written to the current season's flexi-record at the time of assignment.
 - **Event Status Update**: If a participant is assigned in EMS but not yet in the OSM event, EMS updates their OSM status to "Show in Parent Portal".
-- **Push-back Authentication**: All EMS-to-OSM write operations use a dedicated EMS service account (see Technical Architecture ADR 010). Individual user tokens are not stored server-side.
+- **Push-back Authentication**: All EMS-to-OSM write operations are performed via the admin-triggered personal OAuth2 flow (the same flow used for data imports). No tokens are stored server-side. OSM has no machine/service account concept. See Technical Architecture ADR 010.
 
 ### 2.2 WordPress & Tutor LMS
 - **Hosting**: Integrated with or hosted on the SE Scotland DofE WordPress site.

@@ -32,7 +32,7 @@ In alignment with **[ADR 007 (TDD Mandate)](./Technical Architecture.md#adr-007-
     - Resulting context (Scout IDs, child mapping, `access_type`) is persisted to WP User Meta.
     - The user's `access_token` is used solely for this hydration step and is **discarded immediately after**. No per-user token is stored server-side.
 - **Shell Account Merge**: EMS also hooks into `rtcamp.google_user_logged_in` to detect if a shell account exists for the newly logged-in child (matched by `ems_scout_id`). If found, EMS performs a merge of User Meta before the session is established. See [PRD §4.6](./Expedition Management System.md#46-parent-child-relationship).
-- **Service Account**: All subsequent EMS-to-OSM write operations (flexi-records, event status) use the dedicated EMS service account tokens stored encrypted in WP Options. See [ADR 010](./Technical Architecture.md#adr-010-osm-service-account-for-push-back-operations).
+- **All OSM Operations**: All EMS-to-OSM operations — data imports, membership pulls, and push-backs — are performed via an admin-triggered personal OAuth2 authorization code flow. No tokens are stored at any point. OSM has no machine/service account concept. See [ADR 010](./Technical Architecture.md#adr-010-revised-admin-triggered-osm-sync-oauth).
 
 ### 2.2 OSM Push-back Failure Handling
 - **Problem**: Push-back operations (flexi-record updates, event status changes) may fail if OSM is temporarily unavailable.
@@ -203,14 +203,14 @@ OSM has strict rate limits. Our integration must include:
 ---
 
 ### Phase 6: OSM Push-back & Production Launch
-- **Goal**: Write operations from EMS back to OSM are fully operational. Service account is configured. All systems pass production readiness checks.
+- **Goal**: Write operations from EMS back to OSM are fully operational via admin-triggered OAuth. All systems pass production readiness checks.
 
-#### Stage 6.1 — Service Account Setup & Token Refresh
-- **TDD Task**: Write tests for service account authorisation flow: one-time admin setup screen triggers OAuth exchange, `access_token` and `refresh_token` are persisted encrypted to WP Options. Test: tokens stored, missing token raises admin notice.
-- **TDD Task**: Write tests for token refresh: when `OSM_API_Client` receives a 401, it automatically exchanges `refresh_token` for a new token pair and re-persists. Test: refresh succeeds, refresh fails (admin notice fired).
-- Implement service account OAuth screen in `Admin_Page`.
-- Implement auto-refresh logic in `Live_Driver`.
-- **Stage Complete When**: Auth screen tests pass; token refresh tests pass.
+#### Stage 6.1 — Write-Scope OAuth & Push-back Authorisation
+- The `OSM_Sync_Auth_Handler` (Stage 1.2) is extended to request write scopes when push-back operations are triggered. The same admin-triggered personal OAuth2 flow is used — no token persistence is introduced.
+- **TDD Task**: Write tests for `OSM_Sync_Auth_Handler` with write scopes — `initiate()` builds an authorization URL containing `section:member:write section:flexirecord:write` in addition to the read scopes when invoked from a push-back action. Test: correct scope string present; read-only initiation does not include write scopes.
+- **TDD Task**: Write tests confirming that when `OSM_API_Client` receives a 401 during a push-back, the failure is written to `ems_failed_pushback_queue` (per §2.2) and an admin notice is surfaced. No token refresh is attempted — the token was already discarded.
+- Extend `OSM_Sync_Auth_Handler` to accept a `$scopes` parameter; wire push-back actions in `Admin_Page` to use the write-scope variant.
+- **Stage Complete When**: Write-scope auth handler tests pass; 401 failure queue test passes; no token is persisted at any point.
 
 #### Stage 6.2 — OSM Push-back Operations
 - **TDD Task**: Write tests for `OSM_Pushback_Service` — pushes team assignment to flexi-record, pushes first aid status to flexi-record, updates OSM event status to "Show in Parent Portal". On HTTP error, job is written to `ems_failed_pushback_queue` WP Option.
