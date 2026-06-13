@@ -26,9 +26,6 @@ services:
         define( 'WP_HOME', 'https://localhost' );
         define( 'WP_SITEURL', 'https://localhost' );
         define( 'FORCE_SSL_ADMIN', true );
-        if ( isset( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO'] ) {
-            $_SERVER['HTTPS'] = 'on';
-        }
     depends_on:
       - db
 
