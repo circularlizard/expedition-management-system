@@ -50,6 +50,13 @@ class OSM_API_Client {
         return $data;
     }
 
+    public function get_flexi_record_structure( int $section_id, int $flexi_id ): array {
+        $this->rate_limiter->consume();
+        $data = $this->driver->get_flexi_record_structure( $section_id, $flexi_id );
+        $this->sync_rate_limiter();
+        return $data;
+    }
+
     private function sync_rate_limiter(): void {
         $headers = $this->driver->get_last_response_headers();
         if ( ! empty( $headers ) ) {
