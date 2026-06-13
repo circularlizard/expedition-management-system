@@ -31,9 +31,25 @@ class Admin_Page {
     }
 
     public function render_dashboard(): void {
+        if ( isset( $_POST['ems_sync_osm'] ) && check_admin_referer( 'ems_sync_osm' ) ) {
+            $handler = new OSM_Sync_Auth_Handler();
+            $handler->initiate();
+        }
+
         $user_id = get_current_user_id();
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'EMS Dashboard', 'ems-plugin' ) . '</h1>';
+
+        if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM data synced successfully.', 'ems-plugin' ) . '</p></div>';
+        }
+
+        echo '<h2>' . esc_html__( 'Actions', 'ems-plugin' ) . '</h2>';
+        echo '<form method="post">';
+        wp_nonce_field( 'ems_sync_osm' );
+        echo '<p><input type="submit" name="ems_sync_osm" class="button button-primary" value="' . esc_attr__( 'Sync from OSM', 'ems-plugin' ) . '" /></p>';
+        echo '</form>';
+
         echo '<h2>' . esc_html__( 'OSM Account Diagnostic', 'ems-plugin' ) . '</h2>';
         $this->diagnostic->render( $user_id );
         echo '</div>';
