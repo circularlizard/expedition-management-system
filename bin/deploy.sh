@@ -17,13 +17,11 @@ npm run build --silent
 # 2. Clean staging area
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR/$PLUGIN_NAME"
-
 # 3. Copy source files to staging
 echo "==> Staging files..."
 rsync -a \
   --exclude='.git/' \
   --exclude='.github/' \
-  --exclude='tests/' \
   --exclude='wordpress/' \
   --exclude='vendor/' \
   --exclude='dist/' \
@@ -34,6 +32,7 @@ rsync -a \
   --exclude='*.log' \
   --exclude='*.crt' \
   . "$STAGING_DIR/$PLUGIN_NAME/"
+
 
 # 4. Install production Composer dependencies in staging
 echo "==> Installing production dependencies..."
