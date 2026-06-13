@@ -43,6 +43,10 @@ class Admin_View_ControllerTest extends EMSTestCase {
             };
         } );
 
+        // Mock get_users for the all-explorers list
+        $user_alice = (object) [ 'ID' => 123 ];
+        Functions\when( 'get_users' )->justReturn( [ $user_alice ] );
+
         // Mock TutorLMS
         $this->tutor_client->shouldReceive( 'get_all_courses' )->andReturn( [] );
         $this->tutor_client->shouldReceive( 'get_enrollment_matrix' )->andReturn( [ 123 => [] ] );
@@ -61,6 +65,7 @@ class Admin_View_ControllerTest extends EMSTestCase {
 
         $this->assertCount( 1, $data['expeditions'] );
         $this->assertEquals( 'Alice', $data['members'][601][0]['first_name'] );
+        $this->assertEquals( 'Alice', $data['explorers'][0]['first_name'] );
         $this->assertEquals( '2026-06-13', $data['last_sync'] );
     }
 }

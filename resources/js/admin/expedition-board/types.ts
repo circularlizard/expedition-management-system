@@ -35,6 +35,7 @@ export interface BoardData {
     expeditions: Expedition[];
     teams: Record<number, Team[]>;
     members: Record<number, Member[]>;
+    explorers: Member[];
     last_sync: string | null;
 }
 
