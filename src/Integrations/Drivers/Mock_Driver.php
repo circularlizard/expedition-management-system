@@ -46,6 +46,10 @@ class Mock_Driver implements Driver_Interface {
         return $this->last_headers;
     }
 
+    public function set_access_token( string $token ): void {
+        // Mock driver ignores token
+    }
+
     public function get_data_payload( string $access_token ): array {
         return $this->load( $this->data_payload_file );
     }
