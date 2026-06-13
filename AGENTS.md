@@ -15,14 +15,15 @@ Entry point for AI agents working on this codebase. Read this before any other f
 
 ## 2. Current Implementation State
 
-Foundations are complete. The application currently has:
+Foundations and **Phase 1 Stage 1.1** are complete. The application currently has:
 - OSM API Client (Mock + Live drivers, rate limiter, parser)
 - OSM OIDC authentication + User Meta hydration
 - Admin foundation: Settings Page, Diagnostic Panel, Reconciliation Dashboard
 - `expedition` + `team` CPTs, Gravity Forms client, Reconciliation Controller
-- PHP: 107 tests / 178 assertions green. JS: 8 Vitest tests green.
+- Data layer: `Expedition_Repository`, `Team_Repository`, `Team_Member_Repository`, `Table_Installer`
+- PHP: 136 tests / 245 assertions green. JS: 8 Vitest tests green.
 
-Next work begins at **Phase 1 — Admin Views** (`docs/Implementation Plan Phase 1.md §5`).
+Next work: **Stage 1.2 — Admin-Triggered Sync OAuth Handler** (`docs/Implementation Plan Phase 1.md §5`).
 
 ## 3. Task Mode Classification
 
