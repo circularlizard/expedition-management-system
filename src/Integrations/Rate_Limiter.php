@@ -38,6 +38,36 @@ class Rate_Limiter {
         }
     }
 
+    /**
+     * Updates the rate limiter state from HTTP response headers.
+     *
+     * @param array $headers associative array of headers (lowercase keys)
+     */
+    public function update_from_headers( array $headers ): void {
+        $limit     = $headers['x-ratelimit-limit'] ?? null;
+        $remaining = $headers['x-ratelimit-remaining'] ?? null;
+        $reset     = $headers['x-ratelimit-reset'] ?? null;
+
+        if ( null !== $limit ) {
+            $this->capacity = (int) $limit;
+        }
+
+        if ( null !== $remaining ) {
+            $this->tokens = (float) $remaining;
+        }
+
+        if ( null !== $reset ) {
+            $now = ( $this->time_fn )();
+            $time_to_reset = (float) $reset - $now;
+            if ( $time_to_reset > 0 && $this->capacity > 0 ) {
+                // Adjust refill rate to match when we'll be back at full capacity
+                $this->refill_rate = $this->capacity / $time_to_reset;
+            }
+        }
+        
+        $this->last_refill = ( $this->time_fn )();
+    }
+
     public function get_token_count(): float {
         return $this->tokens;
     }
