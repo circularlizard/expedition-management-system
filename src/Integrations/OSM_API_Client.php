@@ -18,6 +18,10 @@ class OSM_API_Client {
         $this->rate_limiter = $rate_limiter ?? new Rate_Limiter( 10, 1.0 );
     }
 
+    public function set_access_token( string $token ): void {
+        $this->driver->set_access_token( $token );
+    }
+
     public function get_data_payload( string $access_token ): array {
         $this->rate_limiter->consume();
         $data = $this->driver->get_data_payload( $access_token );
