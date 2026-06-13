@@ -108,6 +108,9 @@ class OSM_API_ClientTest extends EMSTestCase {
             ->once()
             ->with( 99001 )
             ->andReturn( $raw_members );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
 
         $client       = new OSM_API_Client( $this->driver, $this->parser );
         $participants = $client->get_section_participants( 99001 );
@@ -126,6 +129,9 @@ class OSM_API_ClientTest extends EMSTestCase {
             ->once()
             ->with( 99001 )
             ->andReturn( $raw_events );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
 
         $client = new OSM_API_Client( $this->driver, $this->parser );
         $events = $client->get_section_events( 99001 );
@@ -143,10 +149,32 @@ class OSM_API_ClientTest extends EMSTestCase {
             ->once()
             ->with( 'test-token' )
             ->andReturn( $raw_payload );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
 
         $client  = new OSM_API_Client( $this->driver, $this->parser );
         $payload = $client->get_data_payload( 'test-token' );
 
         $this->assertSame( $raw_payload, $payload );
+    }
+
+    public function test_header_aware_rate_limiting(): void {
+        $this->driver->shouldReceive( 'get_data_payload' )
+            ->andReturn( [] );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->andReturn( [
+                'x-ratelimit-limit'     => 100,
+                'x-ratelimit-remaining' => 0,
+                'x-ratelimit-reset'     => 2000000000,
+            ] );
+
+        $limiter = new Rate_Limiter( 10, 1.0 );
+        $client  = new OSM_API_Client( $this->driver, $this->parser, $limiter );
+
+        // Initial call should consume normally, then update from headers
+        $client->get_data_payload( 'token' );
+
+        $this->assertSame( 0.0, $limiter->get_token_count() );
     }
 }
