@@ -102,24 +102,15 @@ class Admin_Page {
     }
 
     /**
-     * Enqueues an admin script with the vendor chunk as a dependency.
+     * Enqueues an admin script as an ES module.
      */
     private function enqueue_admin_script( string $handle, string $rel_path ): void {
-        $vendor_url = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/vendor.js';
         $script_url = plugin_dir_url( EMS_PLUGIN_FILE ) . $rel_path;
-
-        wp_enqueue_script(
-            'ems-vendor',
-            $vendor_url,
-            [],
-            EMS_VERSION,
-            true
-        );
 
         wp_enqueue_script(
             $handle,
             $script_url,
-            [ 'ems-vendor' ],
+            [],
             EMS_VERSION,
             true
         );
