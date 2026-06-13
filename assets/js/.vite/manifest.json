@@ -1,0 +1,33 @@
+{
+  "_vendor.js": {
+    "file": "vendor.js",
+    "name": "vendor"
+  },
+  "resources/js/admin/column-mapper/index.tsx": {
+    "file": "column-mapper.js",
+    "name": "column-mapper",
+    "src": "resources/js/admin/column-mapper/index.tsx",
+    "isEntry": true,
+    "imports": [
+      "_vendor.js"
+    ]
+  },
+  "resources/js/admin/expedition-board/index.tsx": {
+    "file": "expedition-board.js",
+    "name": "expedition-board",
+    "src": "resources/js/admin/expedition-board/index.tsx",
+    "isEntry": true,
+    "imports": [
+      "_vendor.js"
+    ]
+  },
+  "resources/js/admin/reconciliation/index.tsx": {
+    "file": "reconciliation.js",
+    "name": "reconciliation",
+    "src": "resources/js/admin/reconciliation/index.tsx",
+    "isEntry": true,
+    "imports": [
+      "_vendor.js"
+    ]
+  }
+}
