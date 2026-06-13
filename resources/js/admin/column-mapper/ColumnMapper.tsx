@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Column, Section } from './types';
+import ImportReview from './ImportReview';
 
 const ColumnMapper: React.FC = () => {
     const config = window.emsColumnMapper;
@@ -112,6 +113,7 @@ const ColumnMapper: React.FC = () => {
                                 <td><strong>{field}</strong> (Required)</td>
                                 <td>
                                     <select 
+                                        aria-label={`Map ${field}`}
                                         value={mapping[field] || ''} 
                                         onChange={(e) => updateMapping(field, e.target.value)}
                                     >
@@ -140,6 +142,8 @@ const ColumnMapper: React.FC = () => {
                     Save Mapping
                 </button>
             </p>
+
+            <ImportReview config={config} />
         </div>
     );
 };

@@ -50,7 +50,13 @@ class Plugin {
             $flexi_controller = new \EMS\Admin\Flexi_Mapper_Controller(
                 $osm_client,
                 new \EMS\Integrations\Flexi_Structure_Parser(),
-                new \EMS\Integrations\Flexi_Column_Map()
+                new \EMS\Integrations\Flexi_Column_Map(),
+                new \EMS\Integrations\Flexi_Record_Importer(
+                    new \EMS\Integrations\Flexi_Column_Map(),
+                    new \EMS\Data\Expedition_Repository(),
+                    new \EMS\Data\Team_Repository(),
+                    new \EMS\Data\Team_Member_Repository()
+                )
             );
             $flexi_controller->register_routes();
         } );
