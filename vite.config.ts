@@ -10,6 +10,7 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 reconciliation: resolve( __dirname, 'resources/js/admin/reconciliation/index.tsx' ),
+                'column-mapper': resolve( __dirname, 'resources/js/admin/column-mapper/index.tsx' ),
             },
             output: {
                 entryFileNames: '[name].js',

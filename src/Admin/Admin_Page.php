@@ -28,6 +28,15 @@ class Admin_Page {
             'ems-reconciliation',
             [ $this, 'render_reconciliation' ]
         );
+
+        add_submenu_page(
+            'ems',
+            __( 'Column Mapper', 'ems-plugin' ),
+            __( 'Column Mapper', 'ems-plugin' ),
+            'manage_options',
+            'ems-column-mapper',
+            [ $this, 'render_column_mapper' ]
+        );
     }
 
     public function render_dashboard(): void {
@@ -76,6 +85,29 @@ class Admin_Page {
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'Reconciliation Dashboard', 'ems-plugin' ) . '</h1>';
         echo '<div id="ems-reconciliation-root"></div>';
+        echo '</div>';
+    }
+
+    public function render_column_mapper(): void {
+        $asset_url = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/column-mapper.js';
+
+        wp_enqueue_script(
+            'ems-column-mapper',
+            $asset_url,
+            [],
+            EMS_VERSION,
+            true
+        );
+
+        wp_localize_script( 'ems-column-mapper', 'emsColumnMapper', [
+            'root_url' => get_rest_url( null, 'ems/v1' ),
+            'nonce'    => wp_create_nonce( 'wp_rest' ),
+            'sections' => (array) get_option( 'ems_managed_sections', [] ),
+        ] );
+
+        echo '<div class="wrap">';
+        echo '<h1>' . esc_html__( 'Flexi-Record Column Mapper', 'ems-plugin' ) . '</h1>';
+        echo '<div id="ems-column-mapper-root"></div>';
         echo '</div>';
     }
 }
