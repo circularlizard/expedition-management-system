@@ -21,6 +21,31 @@ In alignment with **[ADR 007 (TDD Mandate)](./Technical Architecture.md#adr-007-
 - **Environment**: A staging/test subdomain on SiteGround.
 - **CI/CD**: See §3 for the full pipeline specification.
 
+### 1.4 Local HTTPS (Required for Stage 1.2+)
+
+The OSM OIDC callback redirect URI **must** be HTTPS. Staging and production are already HTTPS. For the local Docker environment, a Caddy reverse-proxy service handles TLS termination using Caddy's built-in local CA.
+
+**What is already configured** (`docker-compose.yml` + `Caddyfile`):
+- A `caddy` service (image `caddy:2-alpine`) proxies `https://localhost:443` → `wordpress:80`.
+- `WP_HOME`, `WP_SITEURL` are set to `https://localhost`; `FORCE_SSL_ADMIN` is `true`.
+- The `X-Forwarded-Proto` header is forwarded so WordPress correctly detects HTTPS.
+
+**One-time developer setup** (per machine, before Stage 1.2):
+
+1. Bring the stack up to let Caddy generate its local CA:
+    ```bash
+    docker compose up -d
+    ```
+2. Export and trust the Caddy root CA (macOS):
+    ```bash
+    docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-local-ca.crt
+    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ./caddy-local-ca.crt
+    rm ./caddy-local-ca.crt
+    ```
+3. Restart your browser. Navigate to `https://localhost` — the browser should show a valid (green) certificate.
+
+> **Note**: After this setup, primary browser access is `https://localhost`. The direct HTTP port `8080` remains available for PHPUnit test runs and quick checks, but WordPress admin will redirect to HTTPS. The `caddy-local-ca.crt` file is intentionally deleted after trusting — it never needs to be committed.
+
 ## 2. OSM Integration Strategy
 ### 2.1 Authentication (OIDC) & Hydration
 - **Base Plugin**: [login-with-google](https://github.com/circularlizard/login-with-google) (configured for OSM OIDC).
@@ -117,6 +142,9 @@ The following infrastructure was built during the original Phases 0–2 and is t
 - **Stage Complete When**: All repository tests pass; `ems_team_members` table created correctly on activation; team code auto-increment tests pass.
 
 #### Stage 1.2 — Admin-Triggered Sync OAuth Handler
+
+> **Pre-requisite**: Local HTTPS must be configured (§1.4) before this stage. The OSM OIDC redirect URI (`admin_url('admin-post.php?action=ems_osm_callback')`) resolves to `https://localhost/wp-admin/admin-post.php?action=ems_osm_callback`. Register this URL in the OSM OAuth application before testing the callback end-to-end.
+
 - **TDD Task**: Write tests for `OSM_Sync_Auth_Handler` — `initiate()` returns a correctly formed OSM authorization URL (correct base URL, scopes `section:member:read section:flexirecord:read`, state param, redirect URI). `handle_callback()` exchanges an authorization code for a token pair and invokes the registered sync callback. Test: valid callback fires callback, missing `state` param rejected, OSM error response surfaced as admin notice.
 - Implement `OSM_Sync_Auth_Handler` (see [ADR 010](./Technical Architecture.md#adr-010-revised-admin-triggered-osm-sync-oauth)). Wire "Sync from OSM" button in `Admin_Page` to `OSM_Sync_Auth_Handler::initiate()`.
 - Register the WP admin callback endpoint that receives the OSM redirect. Implementation anchors (see §7.5 for full notes): redirect URI is `admin_url('admin-post.php?action=ems_osm_callback')`; register via `add_action('admin_post_ems_osm_callback', ...)`; state param is a WP nonce (`wp_create_nonce` / `wp_verify_nonce`). OSM authorization and token exchange URLs are in `docs/OSM Oauth.md`.
