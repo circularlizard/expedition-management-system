@@ -45,7 +45,7 @@ describe('ColumnMapper', () => {
 
         render(<ColumnMapper />);
 
-        const select = screen.getByLabelText(/Select Section/i);
+        const select = screen.getByLabelText('Select Section to Load Columns From:');
         fireEvent.change(select, { target: { value: '43105' } });
 
         await waitFor(() => {
@@ -68,11 +68,11 @@ describe('ColumnMapper', () => {
         render(<ColumnMapper />);
 
         // Select section to show fields
-        fireEvent.change(screen.getByLabelText(/Select Section/i), { target: { value: '43105' } });
+        fireEvent.change(screen.getByLabelText('Select Section to Load Columns From:'), { target: { value: '43105' } });
         await waitFor(() => screen.getByText('expedition_code'));
 
         // Select a column
-        fireEvent.change(screen.getByRole('combobox', { name: '' }), { target: { value: 'f_1' } });
+        fireEvent.change(screen.getByLabelText(/Map expedition_code/i), { target: { value: 'f_1' } });
 
         // Save
         fireEvent.click(screen.getByText('Save Mapping'));
