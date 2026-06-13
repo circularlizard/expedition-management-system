@@ -23,7 +23,6 @@ echo "==> Staging files..."
 rsync -a \
   --exclude='.git/' \
   --exclude='.github/' \
-  --exclude='bin/' \
   --exclude='tests/' \
   --exclude='wordpress/' \
   --exclude='vendor/' \
