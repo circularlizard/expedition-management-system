@@ -21,16 +21,15 @@ In alignment with **[ADR 007 (TDD Mandate)](./Technical Architecture.md#adr-007-
 - **Environment**: A staging/test subdomain on SiteGround.
 - **CI/CD**: See §3 for the full pipeline specification.
 
-### 1.4 Local HTTPS (Required for Stage 1.2+)
+### 1.4 Local HTTPS ✅ **(Complete — Required Prerequisite for Stage 1.2+)**
 
-The OSM OIDC callback redirect URI **must** be HTTPS. Staging and production are already HTTPS. For the local Docker environment, a Caddy reverse-proxy service handles TLS termination using Caddy's built-in local CA.
+> **Must be done before Stage 1.2**. The OSM OIDC callback redirect URI must be HTTPS. Staging and production are already HTTPS. For the local Docker environment, a Caddy reverse-proxy service handles TLS termination using Caddy's built-in local CA.
 
 **What is already configured** (`docker-compose.yml` + `Caddyfile`):
 - A `caddy` service (image `caddy:2-alpine`) proxies `https://localhost:443` → `wordpress:80`.
 - `WP_HOME`, `WP_SITEURL` are set to `https://localhost`; `FORCE_SSL_ADMIN` is `true`.
-- The `X-Forwarded-Proto` header is forwarded so WordPress correctly detects HTTPS.
 
-**One-time developer setup** (per machine, before Stage 1.2):
+**One-time developer setup** (per machine):
 
 1. Bring the stack up to let Caddy generate its local CA:
     ```bash
@@ -45,6 +44,8 @@ The OSM OIDC callback redirect URI **must** be HTTPS. Staging and production are
 3. Restart your browser. Navigate to `https://localhost` — the browser should show a valid (green) certificate.
 
 > **Note**: After this setup, primary browser access is `https://localhost`. The direct HTTP port `8080` remains available for PHPUnit test runs and quick checks, but WordPress admin will redirect to HTTPS. The `caddy-local-ca.crt` file is intentionally deleted after trusting — it never needs to be committed.
+
+> **Fixed** (`docker-compose.yml` commit 8485196): Removed `$_SERVER` interpolation in `WORDPRESS_CONFIG_EXTRA` that caused Docker Compose warnings. The `$_SERVER['HTTP_X_FORWARDED_PROTO']` override is unnecessary since `WP_HOME`/`WP_SITEURL`/`FORCE_SSL_ADMIN` already enforce HTTPS.
 
 ## 2. OSM Integration Strategy
 ### 2.1 Authentication (OIDC) & Hydration
@@ -132,7 +133,7 @@ The following infrastructure was built during the original Phases 0–2 and is t
 - **Key decision to resolve**:
     - OSM Parent/Explorer linkage when training records were completed by a parent login — define fallback strategy (Stage 1.7).
 
-#### Stage 1.1 — Data Structures & Repositories
+#### Stage 1.1 ✅ **(Complete)** — Data Structures & Repositories
 - **TDD Task**: Write tests for `Expedition_Repository` — create expedition (code, dates, DofE level, LiC `user_id`, WhatsApp link), retrieve by ID, list all. Test: required fields validated, duplicate expedition code rejected.
 - **TDD Task**: Write tests for `Team_Repository` — create team linked to expedition, auto-generate team code from expedition code (`SP1` → `SP1-1`, `SP1-2`), code uniqueness per expedition.
 - **TDD Task**: Write tests for `Team_Member_Repository` — assign explorer to team, prevent duplicate, list by team, list by expedition (all members), list unassigned explorers for an expedition.
