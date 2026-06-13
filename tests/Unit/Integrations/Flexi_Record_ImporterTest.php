@@ -25,6 +25,13 @@ class Flexi_Record_ImporterTest extends EMSTestCase {
         $this->team_members = Mockery::mock( Team_Member_Repository::class );
 
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        
+        Functions\when( 'get_users' )->alias( function( $args ) {
+            if ( isset( $args['meta_value'] ) && (int) $args['meta_value'] === 1001 ) {
+                return [ 123 ];
+            }
+            return [];
+        } );
     }
 
     public function test_bucket_rows_categorizes_correctly(): void {
@@ -43,16 +50,6 @@ class Flexi_Record_ImporterTest extends EMSTestCase {
             [ 'other' => 'data' ]
         ];
 
-        // Mock scout ID lookup for the clean row
-        Functions\expect( 'get_users' )
-            ->once()
-            ->with( Mockery::on( function( $args ) {
-                return $args['meta_value'] === 1001;
-            } ) )
-            ->andReturn( [ 123 ] );
-
-        // Mock lookup for partial row shouldn't happen (it's skipped if missing fields)
-        
         $importer = new Flexi_Record_Importer(
             $this->column_map,
             $this->expeditions,

@@ -27,6 +27,12 @@ const mockBoardData = {
             }
         ]
     },
+    explorers: [
+        { 
+            id: '1', user_id: '123', first_name: 'Alice', last_name: 'Alpha', scout_id: '1001', unit: 'Bears',
+            training: { total: 5, complete: 3, percent: 60 }
+        }
+    ],
     last_sync: '2026-06-13T20:00:00Z'
 };
 
