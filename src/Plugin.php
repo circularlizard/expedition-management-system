@@ -45,6 +45,16 @@ class Plugin {
         $settings_page = new Settings_Page();
         add_action( 'admin_menu', [ $settings_page, 'register' ] );
 
+        // REST API
+        add_action( 'rest_api_init', function() use ( $osm_client ) {
+            $flexi_controller = new \EMS\Admin\Flexi_Mapper_Controller(
+                $osm_client,
+                new \EMS\Integrations\Flexi_Structure_Parser(),
+                new \EMS\Integrations\Flexi_Column_Map()
+            );
+            $flexi_controller->register_routes();
+        } );
+
         // OSM Sync Callback
         add_action( 'admin_post_ems_osm_callback', function() {
             $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
