@@ -20,14 +20,14 @@ This document outlines the key architectural decisions and foundational assumpti
     - Custom tables for: team membership, volunteer availability, route submission history. (See ADR 011.)
 
 ### ADR 002: OSM Integration & Sync Strategy
-- **Decision**: **Persistent Scout ID Anchor, Role Differentiation & Service Account Push-back**.
+- **Decision**: **Persistent Scout ID Anchor, Role Differentiation & Admin-Triggered OAuth Push-back**.
 - **Approach**: 
     - Use the OSM `member_id` (`ems_scout_id`) as the immutable primary key for all internal Explorer record mapping. 
     - This ensures that parent-child relationships remain valid even if the child does not yet have an OSM account (`user_id`).
     - Dedicated `OSM_Parser` class for aggregating multi-child lists from the `member_access` block and identifying the `access_type` (`"parent"` vs. `"member"`).
     - **Access Control**: Core plugin logic must enforce role-based access based on this `access_type` (e.g., Parent-only signups, Explorer-only course access).
     - Flat relationship mapping in User Meta using Scout IDs for maximum cross-account compatibility.
-    - **Push-back Operations**: All server-to-OSM write operations (flexi-record updates, event status changes) use a dedicated EMS service account (see ADR 010). Individual user tokens are never stored server-side.
+    - **Push-back Operations**: All server-to-OSM write operations (flexi-record updates, event status changes) are performed via the same admin-triggered personal OAuth2 authorization code flow as data imports (see ADR 010). No tokens are stored. OSM has no machine/service account concept.
 
 ### ADR 003: Frontend Integration Pattern
 - **Decision**: **React-based SPA embedded via Shortcode, rendered inside a custom WP page template.**

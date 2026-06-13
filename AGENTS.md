@@ -29,7 +29,7 @@ Next work: **Stage 1.2 — Admin-Triggered Sync OAuth Handler** (`docs/Implement
 
 - **`[offline]`** — completable using `Mock_Driver` and local Docker. No live credentials needed.
 - **`[staging]`** — requires the SiteGround staging subdomain. May need OSM sandbox access.
-- **`[live]`** — requires production OSM service account credentials in WP Options.
+- **`[live]`** — requires production OSM OAuth client ID and secret entered in `Admin\Settings_Page` (`ems_osm_client_id`, `ems_osm_client_secret`).
 
 Phase-by-phase tasks, dependency ordering, and stage acceptance criteria are in `docs/Implementation Plan Phase 1.md §5` (Phase 1) and `docs/Implementation Plan Phase 2+.md` (Phases 2–6).
 
@@ -44,7 +44,7 @@ Items marked **[human]** require a manual step from the operator. Halt and surfa
 | Mock payloads in `tests/mocks/` | Phase 1 | `circularlizard/OSM-Tools` repo **[human]** |
 | SiteGround staging SSH access | Phase 6 | **[human]** |
 | SiteGround SMTP confirmed | Phase 4 | **[human]** |
-| OSM service account OAuth tokens in WP Options | Phase 6 | One-time admin setup screen **[human]** |
+| OSM OAuth client ID + secret in `Admin\Settings_Page` | Stage 1.2+ | Register OSM OAuth app, enter credentials in Settings **[human]** |
 | `.htaccess` write access on SiteGround confirmed | Phase 5 | **[human]** |
 
 ## 5. Test Execution Commands
