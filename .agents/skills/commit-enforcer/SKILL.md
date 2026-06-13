@@ -24,11 +24,15 @@ Trigger a commit when:
 
 ## SSH Passphrase Automation
 
-To avoid manual password entry during `git push`, use the `.env.local` file.
+To avoid manual password entry during `git push`, the skill uses a helper script.
 
-1. **Setup**: Create a `.env.local` file (excluded via `.gitignore`).
-2. **Content**: Add `GITHUB_PASSPHRASE=your_passphrase`.
-3. **Execution**: Wrap the push command to use the passphrase if possible, or remind the user of its availability.
+1. **Setup**: Ensure `.env.local` exists in the project root (ignored by git).
+2. **Content**: Add `GITHUB_PASSPHRASE=your_passphrase` to `.env.local`.
+3. **Execution**: The push command must be prefixed with `GIT_ASKPASS`:
+   ```bash
+   GIT_ASKPASS=.agents/skills/commit-enforcer/scripts/askpass.sh git push origin main
+   ```
+   *Note: Ensure the script is executable (`chmod +x`).*
 
 ## Commit Procedure
 
@@ -38,5 +42,5 @@ To avoid manual password entry during `git push`, use the `.env.local` file.
 4. **Draft Message**: Propose a message following the `type: description` pattern (e.g., `feat:`, `fix:`, `chore:`, `docs:`).
 5. **Commit & Push**:
    ```bash
-   git commit -m "..." && git push origin main
+   git commit -m "..." && GIT_ASKPASS=.agents/skills/commit-enforcer/scripts/askpass.sh git push origin main
    ```
