@@ -20,23 +20,37 @@ class OSM_API_Client {
 
     public function get_data_payload( string $access_token ): array {
         $this->rate_limiter->consume();
-        return $this->driver->get_data_payload( $access_token );
+        $data = $this->driver->get_data_payload( $access_token );
+        $this->sync_rate_limiter();
+        return $data;
     }
 
     public function get_section_participants( int $section_id ): array {
         $this->rate_limiter->consume();
         $raw = $this->driver->get_section_members( $section_id );
+        $this->sync_rate_limiter();
         return $this->parser->parse_members( $raw );
     }
 
     public function get_section_events( int $section_id ): array {
         $this->rate_limiter->consume();
         $raw = $this->driver->get_section_events( $section_id );
+        $this->sync_rate_limiter();
         return $this->parser->parse_events( $raw );
     }
 
     public function get_flexi_record_data( int $section_id, int $flexi_id ): array {
         $this->rate_limiter->consume();
-        return $this->driver->get_flexi_record_data( $section_id, $flexi_id );
+        $data = $this->driver->get_flexi_record_data( $section_id, $flexi_id );
+        $this->sync_rate_limiter();
+        return $data;
+    }
+
+    private function sync_rate_limiter(): void {
+        $headers = $this->driver->get_last_response_headers();
+        if ( ! empty( $headers ) ) {
+            $this->rate_limiter->update_from_headers( $headers );
+            set_transient( 'ems_rate_limit_status', $headers, HOUR_IN_SECONDS );
+        }
     }
 }
