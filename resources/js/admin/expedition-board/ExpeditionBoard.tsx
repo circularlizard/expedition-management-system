@@ -29,7 +29,7 @@ const ExpeditionBoard: React.FC = () => {
 
     if (loading) return <p>Loading board...</p>;
     if (error) return <div className="notice notice-error"><p>{error}</p></div>;
-    if (!data) return null;
+    if (!data || !Array.isArray(data.expeditions)) return null;
 
     return (
         <div className="ems-board">
@@ -81,7 +81,7 @@ const ExpeditionBoard: React.FC = () => {
 };
 
 const ExpeditionView: React.FC<{ data: BoardData }> = ({ data }) => {
-    if (data.expeditions.length === 0) {
+    if (!data.expeditions || data.expeditions.length === 0) {
         return (
             <div className="notice notice-info inline">
                 <p>No expeditions found. To populate this list, you can:</p>
@@ -120,7 +120,7 @@ const ExpeditionView: React.FC<{ data: BoardData }> = ({ data }) => {
 };
 
 const TeamView: React.FC<{ data: BoardData }> = ({ data }) => {
-    const allTeams = Object.values(data.teams).flat();
+    const allTeams = Object.values(data.teams ?? {}).flat();
     
     if (allTeams.length === 0) {
         return <p>No teams created yet. Teams are created during the Flexi-Record import process.</p>;
@@ -151,7 +151,7 @@ const TeamView: React.FC<{ data: BoardData }> = ({ data }) => {
 };
 
 const ExplorerView: React.FC<{ data: BoardData }> = ({ data }) => {
-    if (data.explorers.length === 0) {
+    if (!data.explorers || data.explorers.length === 0) {
         return <p>No explorers synced yet. Click <strong>Sync from OSM</strong> to pull your member lists.</p>;
     }
 
@@ -185,7 +185,7 @@ const ExplorerView: React.FC<{ data: BoardData }> = ({ data }) => {
 };
 
 const UnitView: React.FC<{ data: BoardData }> = ({ data }) => {
-    if (data.explorers.length === 0) {
+    if (!data.explorers || data.explorers.length === 0) {
         return <p>No explorers synced yet.</p>;
     }
 
