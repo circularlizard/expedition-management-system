@@ -3,15 +3,23 @@ namespace EMS\Core;
 
 class Meta_Validator {
     private const EXPEDITION_RULES = [
-        'ems_level'           => [ 'enum'     => [ 'bronze', 'silver', 'gold' ] ],
-        'ems_type'            => [ 'enum'     => [ 'practice', 'qualifying' ] ],
-        'ems_status'          => [ 'enum'     => [ 'planning', 'open', 'confirmed', 'completed' ] ],
-        'ems_expedition_code' => [ 'required' => true ],
-        'ems_start_date'      => [ 'format'   => 'date' ],
-        'ems_end_date'        => [ 'format'   => 'date' ],
-        'ems_route_deadline'  => [ 'format'   => 'date' ],
-        'ems_lic_id'          => [ 'min'      => 1 ],
-        'ems_osm_event_id'    => [ 'min'      => 0 ],
+        'ems_level'                   => [ 'enum'     => [ 'bronze', 'silver', 'gold' ] ],
+        'ems_type'                    => [ 'enum'     => [ 'practice', 'qualifying' ] ],
+        'ems_status'                  => [ 'enum'     => [ 'planning', 'open', 'confirmed', 'completed' ] ],
+        'ems_expedition_code'         => [ 'required' => true ],
+        'ems_start_date'              => [ 'format'   => 'date' ],
+        'ems_end_date'                => [ 'format'   => 'date' ],
+        'ems_route_deadline'          => [ 'format'   => 'date' ],
+        'ems_lic_id'                       => [ 'min'      => 1 ],
+        'ems_expedition_lic_name'          => [],
+        'ems_expedition_lic_phone'         => [],
+        'ems_expedition_lic_email'         => [],
+        'ems_expedition_whatsapp_explorers' => [],
+        'ems_expedition_whatsapp_parents'  => [],
+        'ems_expedition_route_info'        => [],
+        'ems_route_received'               => [ 'enum' => [ 'not_received', 'changes_requested', 'received' ] ],
+        'ems_route_approved'               => [ 'enum' => [ 'pending', 'under_review', 'approved', 'changes_requested' ] ],
+        'ems_osm_event_id'            => [ 'min'      => 0 ],
     ];
 
     private const TEAM_RULES = [

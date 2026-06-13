@@ -5,11 +5,19 @@ class Table_Installer {
     public function install(): void {
         global $wpdb;
 
-        $charset = $wpdb->get_charset_collate();
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
+        $sql = $this->generate_sql( $wpdb->prefix, $wpdb->get_charset_collate() );
+
+        foreach ( $sql as $statement ) {
+            dbDelta( $statement );
+        }
+    }
+
+    public function generate_sql( string $prefix = '', string $charset = '' ): array {
         $sql = [];
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}ems_team_members (
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_team_members (
             id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             team_post_id BIGINT UNSIGNED NOT NULL,
             user_id     BIGINT UNSIGNED NOT NULL,
@@ -20,7 +28,7 @@ class Table_Installer {
             KEY idx_user_id (user_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}ems_volunteer_availability (
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_volunteer_availability (
             id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id             BIGINT UNSIGNED NOT NULL,
             expedition_post_id  BIGINT UNSIGNED NOT NULL,
@@ -33,7 +41,7 @@ class Table_Installer {
             KEY idx_date (date)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}ems_route_submissions (
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_route_submissions (
             id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             team_post_id    BIGINT UNSIGNED NOT NULL,
             version         INT             NOT NULL DEFAULT 1,
@@ -47,10 +55,7 @@ class Table_Installer {
             KEY idx_team_post_id (team_post_id)
         ) {$charset};";
 
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-        foreach ( $sql as $statement ) {
-            dbDelta( $statement );
-        }
+        return $sql;
     }
 
     public function get_table_names(): array {
