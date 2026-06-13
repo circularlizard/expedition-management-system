@@ -44,6 +44,15 @@ class Plugin {
 
         $settings_page = new Settings_Page();
         add_action( 'admin_menu', [ $settings_page, 'register' ] );
+
+        // OSM Sync Callback
+        add_action( 'admin_post_ems_osm_callback', function() {
+            $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
+            $handler->handle_callback( function( $token ) {
+                // TODO: Stage 1.4 - Membership Pull
+                error_log( 'EMS: OAuth Sync successful, token received (not persisted).' );
+            } );
+        } );
     }
 
     public static function activate(): void {
