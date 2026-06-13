@@ -88,16 +88,20 @@ This document outlines the key architectural decisions and foundational assumpti
     1. **Identity Step**: The existing `login-with-google` plugin handles the standard OIDC handshake, mapping the OSM `user_id` to a WordPress User account.
     2. **Context Step**: The EMS plugin hooks into `rtcamp.google_user_logged_in`. Upon capture of the `access_token`, the EMS plugin performs an immediate secondary fetch of the OSM `getDataPayload` (Startup API). The resulting context (Scout IDs, child mapping, `access_type`) is persisted to WP User Meta.
     3. **Token Disposal**: The user's `access_token` is used solely for this one-time `getDataPayload` fetch and is **not stored** after hydration is complete. No per-user token persistence is required.
-- **Rationale**: Keeps the authentication layer generic and lightweight while ensuring the EMS captures all necessary business context immediately after login. Ongoing OSM API calls use the EMS service account (ADR 010), not individual user tokens. This ensures the React SPAs have all required metadata available in User Meta upon first render.
+- **Rationale**: Keeps the authentication layer generic and lightweight while ensuring the EMS captures all necessary business context immediately after login. Ongoing OSM API calls use the admin-triggered sync OAuth flow (ADR 010), not individual user tokens. This ensures the React SPAs have all required metadata available in User Meta upon first render.
 
-### ADR 010: OSM Service Account for Push-back Operations
-- **Decision**: A dedicated, pre-authorised OSM admin user account is used for all EMS-initiated write operations to OSM.
+### ADR 010 (Revised): Admin-Triggered OSM Sync OAuth
+- **Decision**: All EMS-to-OSM operations (data imports and Phase 6 push-backs) are performed via a dedicated admin-triggered OAuth2 authorization code flow. No tokens are persisted. OSM has no machine/service account concept.
 - **Approach**:
-    - The service account's `access_token` and `refresh_token` are stored encrypted in WP Options (not exposed to the frontend).
-    - All push-back operations (flexi-record updates, event status changes) use this account via the `OSM_API_Client`.
-    - **Token Refresh**: Per OSM OAuth specification (see `docs/OSM Oauth.md`), when the `access_token` expires, the `OSM_API_Client` automatically uses the stored `refresh_token` to obtain a new token pair from `https://www.onlinescoutmanager.co.uk/oauth/token`. Updated tokens are re-persisted to WP Options.
-    - **Initial Setup**: A one-time admin setup screen allows an administrator to authorise the service account via OSM OAuth and store the resulting tokens.
-- **Rationale**: Eliminates the need to store individual user tokens server-side. All users' OSM read access is handled at login (ADR 009); all write access is handled by this centralised account.
+    - Admin clicks "Sync from OSM" (or a push-back action) in the EMS dashboard.
+    - EMS redirects to `https://www.onlinescoutmanager.co.uk/oauth/authorize` with the required scopes. For data imports: `section:member:read section:flexirecord:read`. For Phase 6 push-backs: write scopes are added to the same flow.
+    - Admin authenticates with OSM (or the step is transparent if already logged in to OSM in the browser). OSM redirects back to EMS with an authorization code.
+    - EMS exchanges the code for an `access_token` + `refresh_token` at `https://www.onlinescoutmanager.co.uk/oauth/token`.
+    - The operation (import or push-back) executes immediately using the access token.
+    - **Tokens are discarded after use** — consistent with ADR 009. No token storage in WP Options or User Meta.
+- **Implementation**: A custom `OSM_Sync_Auth_Handler` class in EMS admin. The `login-with-google` plugin is **not** used for this flow — that plugin handles user session login only and cannot be repurposed for mid-session service calls.
+- **Rationale**: OSM does not support machine accounts or long-lived API keys. Manual re-auth overhead is acceptable because OSM data is not highly volatile and syncs are infrequent, admin-triggered operations. Avoiding token persistence keeps the security surface minimal.
+- **Trade-off**: An admin must be present to trigger a sync. There is no background/scheduled import.
 
 ### ADR 012: Auth Provider Interface
 - **Decision**: The dependency on the `login-with-google` plugin is isolated behind an `EMS\Auth\Auth_Provider` interface.
@@ -106,6 +110,14 @@ This document outlines the key architectural decisions and foundational assumpti
     - `Auth_Provider` interface: defines `get_access_token(): string` and `get_user_data(): array`.
     - `LoginWithGoogle_Auth_Provider`: concrete adapter that hooks into `rtcamp.google_user_logged_in` and extracts the token and user payload.
 - **The hook** (`rtcamp.google_user_logged_in`) must be documented in the `login-with-google` plugin's changelog as a breaking-change surface for EMS.
+
+### ADR 013: Flexi-Record Column Mapper
+- **Decision**: The mapping between OSM flexi-record columns and EMS fields is **admin-configurable** and stored in WP Options as a JSON structure (`ems_flexirecord_column_map`).
+- **Rationale**: Flexi-record column names and order are user-defined in OSM and vary between sections and seasons. Hardcoding column names would break on any structural change to the flexi-record. A configurable mapper also enables the bidirectional use case: once EMS is established as the source of truth, the same mapping is used in reverse to create/update the flexi-record from EMS data (Phase 6).
+- **Import flow** (Phase 1): Admin fetches the live flexi-record structure (`getFlexiStructure`), maps each column to an EMS field via a UI, saves the mapping, then triggers the data import.
+- **Export flow** (Phase 6): The saved mapping is applied in reverse — EMS expedition/team data is written back to OSM flexi-record columns.
+- **Parsing**: Flexi-record data values are free text. The importer must handle parse failures gracefully, bucketing rows as: ✅ clean, ⚠️ partial (some fields parsed), ❌ unparseable. Partial and failed rows are presented in an admin review screen before any data is committed. Admin can override or skip individual rows.
+- **Mapping schema** (`ems_flexirecord_column_map`): `{ "expedition_code": "column_id", "team_code": "column_id", "participant_scout_id": "column_id", ... }`
 
 ### ADR 011: Custom Database Tables
 - **Decision**: Three custom tables are created on plugin activation alongside the CPT-based data model.
