@@ -45,6 +45,23 @@ class Admin_Page {
             $handler->initiate();
         }
 
+        $asset_url = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/expedition-board.js';
+
+        wp_enqueue_script(
+            'ems-expedition-board',
+            $asset_url,
+            [],
+            EMS_VERSION,
+            true
+        );
+
+        wp_localize_script( 'ems-expedition-board', 'emsExpeditionBoard', [
+            'root_url' => get_rest_url( null, 'ems/v1' ),
+            'nonce'    => wp_create_nonce( 'wp_rest' ),
+            'sync_url' => admin_url( 'admin.php?page=ems' ),
+            'sync_nonce' => wp_create_nonce( 'ems_sync_osm' ),
+        ] );
+
         $user_id = get_current_user_id();
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'EMS Dashboard', 'ems-plugin' ) . '</h1>';
@@ -53,12 +70,9 @@ class Admin_Page {
             echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM data synced successfully.', 'ems-plugin' ) . '</p></div>';
         }
 
-        echo '<h2>' . esc_html__( 'Actions', 'ems-plugin' ) . '</h2>';
-        echo '<form method="post">';
-        wp_nonce_field( 'ems_sync_osm' );
-        echo '<p><input type="submit" name="ems_sync_osm" class="button button-primary" value="' . esc_attr__( 'Sync from OSM', 'ems-plugin' ) . '" /></p>';
-        echo '</form>';
+        echo '<div id="ems-expedition-board-root"></div>';
 
+        echo '<hr />';
         echo '<h2>' . esc_html__( 'OSM Account Diagnostic', 'ems-plugin' ) . '</h2>';
         $this->diagnostic->render( $user_id );
         echo '</div>';
