@@ -31,3 +31,4 @@ docker-compose.override.yml
 wordpress/
 
 caddy-root.crt
+.env.local
