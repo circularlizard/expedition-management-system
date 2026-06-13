@@ -83,6 +83,14 @@ class CPT_RegistryTest extends EMSTestCase {
             'ems_end_date',
             'ems_status',
             'ems_lic_id',
+            'ems_expedition_lic_name',
+            'ems_expedition_lic_phone',
+            'ems_expedition_lic_email',
+            'ems_expedition_whatsapp_explorers',
+            'ems_expedition_whatsapp_parents',
+            'ems_expedition_route_info',
+            'ems_route_received',
+            'ems_route_approved',
             'ems_osm_event_id',
         ] as $key ) {
             $this->assertArrayHasKey( $key, $fields, "Missing expedition meta field: {$key}" );
