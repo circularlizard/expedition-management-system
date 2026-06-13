@@ -19,6 +19,10 @@ const ImportReview: React.FC<ImportReviewProps> = ({ config }) => {
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<number | null>(null);
 
+    if (!config || !config.sections) {
+        return null;
+    }
+
     const fetchReview = async (sectionId: string) => {
         const section = config.sections[sectionId];
         if (!section || !section.extraid) return;
@@ -85,7 +89,7 @@ const ImportReview: React.FC<ImportReviewProps> = ({ config }) => {
                     }}
                 >
                     <option value="">-- Select Section --</option>
-                    {Object.entries(config.sections).map(([id, section]) => (
+                    {Object.entries(config.sections as Record<string, Section>).map(([id, section]) => (
                         <option key={id} value={id}>{section.name}</option>
                     ))}
                 </select>

@@ -11,3 +11,9 @@ export interface ReconciliationData {
     only_in_osm: ReconciliationEntry[];
     only_in_gf: ReconciliationEntry[];
 }
+
+declare global {
+    interface Window {
+        emsReconciliation: ReconciliationData;
+    }
+}

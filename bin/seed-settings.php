@@ -26,4 +26,7 @@ update_option( 'ems_managed_sections', $sections );
 update_option( 'ems_managed_sections_default', 43105 );
 update_option( 'ems_gravity_form_id', 1 );
 
+WP_CLI::log( "==> Flushing rewrite rules..." );
+global $wp_rewrite;
+$wp_rewrite->flush_rules( true );
 WP_CLI::success( "Settings seeded. Sections: Silver ESU (43105), Bronze ESU (43106)" );

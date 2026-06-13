@@ -12,6 +12,10 @@ const ColumnMapper: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
+    if (!config) {
+        return <div className="notice notice-error"><p>EMS Column Mapper configuration not loaded. Please reload the page.</p></div>;
+    }
+
     useEffect(() => {
         fetchMap();
     }, []);
@@ -31,7 +35,11 @@ const ColumnMapper: React.FC = () => {
 
     const fetchStructure = async (sectionId: string) => {
         const section = config.sections[sectionId];
-        if (!section || !section.extraid) return;
+        if (!section) return;
+        if (!section.extraid) {
+            setError(`Section "${section.name}" has no Flexi-Record ID (extraid) configured. Please set it in Settings.`);
+            return;
+        }
 
         setLoading(true);
         setError(null);
@@ -79,6 +87,12 @@ const ColumnMapper: React.FC = () => {
         <div className="ems-column-mapper">
             {error && <div className="notice notice-error"><p>{error}</p></div>}
             {success && <div className="notice notice-success"><p>Mapping saved successfully!</p></div>}
+
+            {Object.keys(config.sections).length === 0 && (
+                <div className="notice notice-warning inline">
+                    <p><strong>No sections configured.</strong> Go to <a href="admin.php?page=ems-settings">EMS Settings</a> and add at least one Managed Section with a Flexi-Record ID before using the Column Mapper.</p>
+                </div>
+            )}
 
             <div className="section-selector" style={{ marginBottom: '20px' }}>
                 <label htmlFor="ems-section-select" style={{ marginRight: '10px' }}>Select Section to Load Columns From:</label>
