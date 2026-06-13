@@ -7,7 +7,6 @@ export default defineConfig({
     build: {
         outDir: 'assets/js',
         emptyOutDir: false,
-        manifest: true,
         rollupOptions: {
             input: {
                 reconciliation: resolve( __dirname, 'resources/js/admin/reconciliation/index.tsx' ),
@@ -18,11 +17,7 @@ export default defineConfig({
                 entryFileNames: '[name].js',
                 chunkFileNames: '[name].js',
                 assetFileNames: '[name].[ext]',
-                manualChunks: (id) => {
-                    if (id.includes('node_modules')) {
-                        return 'vendor';
-                    }
-                }
+                manualChunks: undefined,
             },
         },
     },
