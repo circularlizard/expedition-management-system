@@ -45,15 +45,7 @@ class Admin_Page {
             $handler->initiate();
         }
 
-        $asset_url = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/expedition-board.js';
-
-        wp_enqueue_script(
-            'ems-expedition-board',
-            $asset_url,
-            [],
-            EMS_VERSION,
-            true
-        );
+        $this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
 
         wp_localize_script( 'ems-expedition-board', 'emsExpeditionBoard', [
             'root_url' => get_rest_url( null, 'ems/v1' ),
@@ -84,15 +76,7 @@ class Admin_Page {
 
         $data = $this->reconciliation->reconcile( $section_id, $form_id );
 
-        $asset_url = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/reconciliation.js';
-
-        wp_enqueue_script(
-            'ems-reconciliation',
-            $asset_url,
-            [],
-            EMS_VERSION,
-            true
-        );
+        $this->enqueue_admin_script( 'ems-reconciliation', 'assets/js/reconciliation.js' );
 
         wp_localize_script( 'ems-reconciliation', 'emsReconciliation', $data );
 
@@ -103,15 +87,7 @@ class Admin_Page {
     }
 
     public function render_column_mapper(): void {
-        $asset_url = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/column-mapper.js';
-
-        wp_enqueue_script(
-            'ems-column-mapper',
-            $asset_url,
-            [],
-            EMS_VERSION,
-            true
-        );
+        $this->enqueue_admin_script( 'ems-column-mapper', 'assets/js/column-mapper.js' );
 
         wp_localize_script( 'ems-column-mapper', 'emsColumnMapper', [
             'root_url' => get_rest_url( null, 'ems/v1' ),
@@ -123,5 +99,29 @@ class Admin_Page {
         echo '<h1>' . esc_html__( 'Flexi-Record Column Mapper', 'ems-plugin' ) . '</h1>';
         echo '<div id="ems-column-mapper-root"></div>';
         echo '</div>';
+    }
+
+    /**
+     * Enqueues an admin script with the vendor chunk as a dependency.
+     */
+    private function enqueue_admin_script( string $handle, string $rel_path ): void {
+        $vendor_url = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/vendor.js';
+        $script_url = plugin_dir_url( EMS_PLUGIN_FILE ) . $rel_path;
+
+        wp_enqueue_script(
+            'ems-vendor',
+            $vendor_url,
+            [],
+            EMS_VERSION,
+            true
+        );
+
+        wp_enqueue_script(
+            $handle,
+            $script_url,
+            [ 'ems-vendor' ],
+            EMS_VERSION,
+            true
+        );
     }
 }
