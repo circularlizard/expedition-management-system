@@ -141,18 +141,13 @@ Type: serialized array. Maps DofE level to Tutor LMS course ID for training acce
 ]
 ```
 
-### 5.4 `ems_service_account_tokens` *(encrypted)*
-Type: serialized array. Stores OAuth tokens for the EMS service account used for all push-back write operations. Managed by the service account auth flow (see ADR 010). Values stored encrypted at rest.
+### 5.4 `ems_osm_client_id`
+Type: string. The OSM OAuth application client ID. Used by `OSM_Sync_Auth_Handler` to build the authorization URL and perform the token exchange. Also used by the `login-with-google` plugin for OIDC user login. Set via `Admin\Settings_Page`.
 
-```php
-[
-    'access_token'  => '...',
-    'refresh_token' => '...',
-    'expires_at'    => 1780000000,  // Unix timestamp
-]
-```
+### 5.5 `ems_osm_client_secret` *(encrypted)*
+Type: string. The OSM OAuth application client secret. Stored encrypted at rest (AES-256-CBC, key derived from `AUTH_KEY` / `SECURE_AUTH_KEY` WP constants). Never exposed in the admin UI after initial entry (write-only field). Set via `Admin\Settings_Page`. Used only during the token exchange step; discarded immediately after.
 
-### 5.5 `ems_failed_pushback_queue`
+### 5.6 `ems_failed_pushback_queue`
 Type: serialized array. Persists failed `updateScout` / event-status write jobs for admin retry. Each entry contains the full POST payload required to re-dispatch the job.
 
 ```php

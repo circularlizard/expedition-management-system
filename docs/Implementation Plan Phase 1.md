@@ -56,7 +56,7 @@ In alignment with **[ADR 007 (TDD Mandate)](./Technical Architecture.md#adr-007-
     - Resulting context (Scout IDs, child mapping, `access_type`) is persisted to WP User Meta.
     - The user's `access_token` is used solely for this hydration step and is **discarded immediately after**. No per-user token is stored server-side.
 - **Shell Account Merge**: EMS also hooks into `rtcamp.google_user_logged_in` to detect if a shell account exists for the newly logged-in child (matched by `ems_scout_id`). If found, EMS performs a merge of User Meta before the session is established. See [PRD §4.6](./Expedition Management System.md#46-parent-child-relationship).
-- **Service Account**: All subsequent EMS-to-OSM write operations (flexi-records, event status) use the dedicated EMS service account tokens stored encrypted in WP Options. See [ADR 010](./Technical Architecture.md#adr-010-osm-service-account-for-push-back-operations).
+- **All OSM Operations**: All EMS-to-OSM operations — data imports, membership pulls, and push-backs — are performed via an admin-triggered personal OAuth2 authorization code flow. No tokens are stored at any point. OSM has no machine/service account concept. See [ADR 010](./Technical Architecture.md#adr-010-revised-admin-triggered-osm-sync-oauth).
 
 ### 2.2 OSM Push-back Failure Handling
 - **Problem**: Push-back operations (flexi-record updates, event status changes) may fail if OSM is temporarily unavailable.
@@ -111,7 +111,7 @@ The following infrastructure was built during the original Phases 0–2 and is t
 ### 4.4 Admin Foundation
 - ✅ `expedition` and `team` CPTs registered (`CPT_Registry`); `Meta_Validator` tests passing.
 - ✅ `Admin_Page` — top-level EMS menu with sub-pages (Dashboard, Reconciliation, Settings).
-- ✅ `Admin\Settings_Page` — mock/live API toggle (`ems_api_mode`), OSM API base URL (HTTPS only).
+- ✅ `Admin\Settings_Page` — mock/live API toggle (`ems_api_mode`), OSM API base URL (HTTPS only), OSM OAuth client ID (`ems_osm_client_id`), OSM OAuth client secret (`ems_osm_client_secret`, stored encrypted).
 - ✅ `Admin\Diagnostic_Panel` — shows `ems_access_type`, `ems_section_ids`, `ems_scout_ids` for current user.
 - ✅ `Training_Report_Page` — Tutor LMS training completion report with CSV export.
 
@@ -144,7 +144,7 @@ The following infrastructure was built during the original Phases 0–2 and is t
 
 #### Stage 1.2 — Admin-Triggered Sync OAuth Handler
 
-> **Pre-requisite**: Local HTTPS must be configured (§1.4) before this stage. The OSM OIDC redirect URI (`admin_url('admin-post.php?action=ems_osm_callback')`) resolves to `https://localhost/wp-admin/admin-post.php?action=ems_osm_callback`. Register this URL in the OSM OAuth application before testing the callback end-to-end.
+> **Pre-requisites**: (1) Local HTTPS must be configured (§1.4). The OSM OIDC redirect URI resolves to `https://localhost/wp-admin/admin-post.php?action=ems_osm_callback` — register this URL in the OSM OAuth application. (2) The OSM OAuth `client_id` and `client_secret` must be entered in `Admin\Settings_Page` (stored as `ems_osm_client_id` and `ems_osm_client_secret`). `OSM_Sync_Auth_Handler::initiate()` reads these from WP Options to build the authorization URL and perform the token exchange; they are the same credentials used by the `login-with-google` plugin for OIDC user login.
 
 - **TDD Task**: Write tests for `OSM_Sync_Auth_Handler` — `initiate()` returns a correctly formed OSM authorization URL (correct base URL, scopes `section:member:read section:flexirecord:read`, state param, redirect URI). `handle_callback()` exchanges an authorization code for a token pair and invokes the registered sync callback. Test: valid callback fires callback, missing `state` param rejected, OSM error response surfaced as admin notice.
 - Implement `OSM_Sync_Auth_Handler` (see [ADR 010](./Technical Architecture.md#adr-010-revised-admin-triggered-osm-sync-oauth)). Wire "Sync from OSM" button in `Admin_Page` to `OSM_Sync_Auth_Handler::initiate()`.
@@ -404,3 +404,5 @@ Phase 1 admin REST paths (from `docs/Data Schema and API.md §3.3`): `/reconcili
 | `ems_managed_sections` | serialized array | Admin Settings | Section IDs + config (see `docs/Data Schema and API.md §5.1`) |
 | `ems_flexirecord_column_map` | serialized array | Stage 1.4 `Flexi_Column_Map` | Maps EMS field names to OSM `f_N` column IDs |
 | `ems_osm_last_sync` | string (ISO 8601 UTC) | Stage 1.5 commit step | Timestamp of last successful OSM sync; `null` / absent if never synced |
+| `ems_osm_client_id` | string | Admin Settings | OSM OAuth application client ID — used by `OSM_Sync_Auth_Handler` and the `login-with-google` OIDC flow |
+| `ems_osm_client_secret` | string (encrypted) | Admin Settings | OSM OAuth application client secret — stored encrypted; write-only field in admin UI after initial entry |
