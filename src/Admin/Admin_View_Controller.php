@@ -57,25 +57,41 @@ class Admin_View_Controller {
                 // Hydrate member data
                 foreach ( $members as &$member ) {
                     $user_id = (int) $member['user_id'];
-                    $member['first_name'] = get_user_meta( $user_id, 'ems_first_name', true );
-                    $member['last_name']  = get_user_meta( $user_id, 'ems_last_name', true );
-                    $member['scout_id']   = get_user_meta( $user_id, 'ems_scout_id', true );
-                    $member['unit']       = get_user_meta( $user_id, 'ems_unit', true );
-                    
-                    // TODO: Training status fallback in Stage 1.8
-                    $member['training'] = $this->get_user_training_summary( $user_id );
+                    $this->hydrate_member_data( $member, $user_id );
                 }
 
                 $all_members[ $team['ID'] ] = $members;
             }
         }
 
+        // Fetch ALL explorers (anyone with a scout ID)
+        $explorer_users = get_users( [
+            'meta_key'     => 'ems_scout_id',
+            'meta_compare' => 'EXISTS',
+        ] );
+
+        $all_explorers = [];
+        foreach ( $explorer_users as $user ) {
+            $explorer = [ 'user_id' => $user->ID ];
+            $this->hydrate_member_data( $explorer, $user->ID );
+            $all_explorers[] = $explorer;
+        }
+
         return new \WP_REST_Response( [
             'expeditions' => $expeditions,
             'teams'       => $all_teams,
             'members'     => $all_members,
+            'explorers'   => $all_explorers,
             'last_sync'   => get_option( 'ems_osm_last_sync' ),
         ] );
+    }
+
+    private function hydrate_member_data( array &$member, int $user_id ): void {
+        $member['first_name'] = get_user_meta( $user_id, 'ems_first_name', true );
+        $member['last_name']  = get_user_meta( $user_id, 'ems_last_name', true );
+        $member['scout_id']   = get_user_meta( $user_id, 'ems_scout_id', true );
+        $member['unit']       = get_user_meta( $user_id, 'ems_unit', true );
+        $member['training']   = $this->get_user_training_summary( $user_id );
     }
 
     /**

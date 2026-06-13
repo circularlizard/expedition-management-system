@@ -81,6 +81,19 @@ const ExpeditionBoard: React.FC = () => {
 };
 
 const ExpeditionView: React.FC<{ data: BoardData }> = ({ data }) => {
+    if (data.expeditions.length === 0) {
+        return (
+            <div className="notice notice-info inline">
+                <p>No expeditions found. To populate this list, you can:</p>
+                <ol>
+                    <li>Click <strong>Sync from OSM</strong> above to load members.</li>
+                    <li>Configure your mappings in the <strong>Column Mapper</strong>.</li>
+                    <li>Import your 2026 season flexi-record data.</li>
+                </ol>
+            </div>
+        );
+    }
+
     return (
         <div className="expedition-view">
             {data.expeditions.map(exp => (
@@ -94,7 +107,7 @@ const ExpeditionView: React.FC<{ data: BoardData }> = ({ data }) => {
                                 <strong>Team {team.ems_team_code}</strong>
                                 <ul style={{ margin: '5px 0 0 0', padding: '0 0 0 15px', fontSize: '0.9em' }}>
                                     {(data.members[team.ID] || []).map(m => (
-                                        <li key={m.id}>{m.first_name} {m.last_name}</li>
+                                        <li key={m.user_id}>{m.first_name} {m.last_name}</li>
                                     ))}
                                 </ul>
                             </div>
@@ -108,6 +121,11 @@ const ExpeditionView: React.FC<{ data: BoardData }> = ({ data }) => {
 
 const TeamView: React.FC<{ data: BoardData }> = ({ data }) => {
     const allTeams = Object.values(data.teams).flat();
+    
+    if (allTeams.length === 0) {
+        return <p>No teams created yet. Teams are created during the Flexi-Record import process.</p>;
+    }
+
     return (
         <table className="widefat striped">
             <thead>
@@ -133,14 +151,9 @@ const TeamView: React.FC<{ data: BoardData }> = ({ data }) => {
 };
 
 const ExplorerView: React.FC<{ data: BoardData }> = ({ data }) => {
-    const allMembers = Object.values(data.members).flat();
-    // Unique members (an explorer might be in multiple teams over time, though unlikely for current board)
-    const seen = new Set();
-    const uniqueMembers = allMembers.filter(m => {
-        const isDuplicate = seen.has(m.user_id);
-        seen.add(m.user_id);
-        return !isDuplicate;
-    });
+    if (data.explorers.length === 0) {
+        return <p>No explorers synced yet. Click <strong>Sync from OSM</strong> to pull your member lists.</p>;
+    }
 
     return (
         <table className="widefat striped">
@@ -153,8 +166,8 @@ const ExplorerView: React.FC<{ data: BoardData }> = ({ data }) => {
                 </tr>
             </thead>
             <tbody>
-                {uniqueMembers.map(m => (
-                    <tr key={m.id}>
+                {data.explorers.map(m => (
+                    <tr key={m.user_id}>
                         <td>{m.first_name} {m.last_name}</td>
                         <td>{m.scout_id}</td>
                         <td>{m.unit}</td>
@@ -172,15 +185,15 @@ const ExplorerView: React.FC<{ data: BoardData }> = ({ data }) => {
 };
 
 const UnitView: React.FC<{ data: BoardData }> = ({ data }) => {
-    const allMembers = Object.values(data.members).flat();
+    if (data.explorers.length === 0) {
+        return <p>No explorers synced yet.</p>;
+    }
+
     const units: Record<string, Member[]> = {};
     
-    allMembers.forEach(m => {
+    data.explorers.forEach(m => {
         if (!units[m.unit]) units[m.unit] = [];
-        // Unique per unit
-        if (!units[m.unit].find(em => em.user_id === m.user_id)) {
-            units[m.unit].push(m);
-        }
+        units[m.unit].push(m);
     });
 
     return (
