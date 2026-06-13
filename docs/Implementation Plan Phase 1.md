@@ -65,17 +65,17 @@ In alignment with **[ADR 007 (TDD Mandate)](./Technical Architecture.md#adr-007-
 - **Escalation path**: If retry frequency becomes a real operational problem in production, the queue can be upgraded to use native WP Cron (`wp_schedule_single_event()`) with the same WP Option store — no architectural change required.
 - **TDD Task**: Write tests for failure persistence (job written to option on HTTP error), notice rendering, and retry dispatch.
 
-### 2.3 Rate Limiting & Performance
+### 2.3 Rate Limiting & Performance (Smart Rate Limiting)
 OSM has strict rate limits. Our integration must include:
-- **Throttling**: A central `OSM_API_Client` class that implements a "Token Bucket" or simple delay logic to ensure we never exceed the allowed requests per minute. Throttling is already in place — OSM aggressively blocks accounts and IP addresses that breach rate limits.
+- **Smart Throttling**: A central `OSM_API_Client` class that implements a "Token Bucket" with **Header Awareness**. The `Rate_Limiter` must listen to `x-ratelimit-limit`, `x-ratelimit-remaining`, and `x-ratelimit-reset` headers from live responses to synchronise its local state with OSM's real-time limits.
 - **Caching**: Aggressive use of WordPress Transients to cache OSM data (e.g., Section lists, Event details) for 1–12 hours.
 - **Batching**: Where the API allows, fetch data in batches rather than individual requests per user.
 
-### 2.4 Mock Data Layer (Test Mode)
+### 2.4 Mock Data Layer & Simulation
 - **Implementation**: The `OSM_API_Client` uses a "Driver" pattern.
 - **Drivers**:
-    - `Live_Driver`: Makes real HTTP requests to OSM.
-    - `Mock_Driver`: Returns static JSON payloads (stored in `tests/mocks/`) for all data requests.
+    - `Live_Driver`: Makes real HTTP requests to OSM and extracts rate-limit telemetry.
+    - `Mock_Driver`: Returns static JSON payloads (stored in `tests/mocks/`) and **simulates rate limiting behavior** by returning mock `x-ratelimit` headers and enforcing delays or failures when mock limits are breached.
 - **Switching**: Controlled via a WP Option (`ems_api_mode`) or `EMS_TEST_MODE` constant in `wp-config.php`.
 
 ## 3. CI/CD Pipeline
@@ -142,41 +142,51 @@ The following infrastructure was built during the original Phases 0–2 and is t
 - Add `ems_expedition_lic`, `ems_expedition_whatsapp`, `ems_expedition_route_info` to the `expedition` CPT meta fields.
 - **Stage Complete When**: All repository tests pass; `ems_team_members` table created correctly on activation; team code auto-increment tests pass.
 
-#### Stage 1.2 — Admin-Triggered Sync OAuth Handler
+#### Stage 1.2 — Smart Rate Limiting & Live Driver Prototype
+- **TDD Task**: Update `Rate_Limiter` to support `update_from_headers(array $headers)`. Test: setting `x-ratelimit-remaining` to 0 prevents `consume()` until the `x-ratelimit-reset` time.
+- **TDD Task**: Implement `Live_Driver` using `wp_remote_get`. Test: successfully parses JSON response and extracts rate limit headers, passing them to the `Rate_Limiter`.
+- **TDD Task**: Update `Mock_Driver` to:
+    1. Load anonymized data from the `tests/mocks/` directory.
+    2. Support **configurable rate limits** (e.g., via WP Option `ems_mock_rate_limit`).
+    3. Simulate `x-ratelimit` headers in its responses based on this configuration.
+- **Anonymization Task**: Generate non-PII mock files in `tests/mocks/` using the structures from `mockdata/` as templates. Ensure no real names, emails, or personal identifiers are committed.
+- Implement "Smart Rate Limiting" logic.
+- Implement `Live_Driver` (moved forward from Phase 5).
+- Add "Rate Limit Monitor" to `Diagnostic_Panel` showing current bucket status and last-reported OSM limit.
+- **Stage Complete When**: `Rate_Limiter` and `Live_Driver` tests pass; Mock driver correctly simulates header-based throttling with configurable thresholds; Anonymized mock data is generated and verified in `tests/mocks/`.
 
-> **Pre-requisites**: (1) Local HTTPS must be configured (§1.4). The OSM OIDC redirect URI resolves to `https://localhost/wp-admin/admin-post.php?action=ems_osm_callback` — register this URL in the OSM OAuth application. (2) The OSM OAuth `client_id` and `client_secret` must be entered in `Admin\Settings_Page` (stored as `ems_osm_client_id` and `ems_osm_client_secret`). `OSM_Sync_Auth_Handler::initiate()` reads these from WP Options to build the authorization URL and perform the token exchange; they are the same credentials used by the `login-with-google` plugin for OIDC user login.
-
+#### Stage 1.3 — Admin-Triggered Sync OAuth Handler
 - **TDD Task**: Write tests for `OSM_Sync_Auth_Handler` — `initiate()` returns a correctly formed OSM authorization URL (correct base URL, scopes `section:member:read section:flexirecord:read`, state param, redirect URI). `handle_callback()` exchanges an authorization code for a token pair and invokes the registered sync callback. Test: valid callback fires callback, missing `state` param rejected, OSM error response surfaced as admin notice.
 - Implement `OSM_Sync_Auth_Handler` (see [ADR 010](./Technical Architecture.md#adr-010-revised-admin-triggered-osm-sync-oauth)). Wire "Sync from OSM" button in `Admin_Page` to `OSM_Sync_Auth_Handler::initiate()`.
 - Register the WP admin callback endpoint that receives the OSM redirect. Implementation anchors (see §7.5 for full notes): redirect URI is `admin_url('admin-post.php?action=ems_osm_callback')`; register via `add_action('admin_post_ems_osm_callback', ...)`; state param is a WP nonce (`wp_create_nonce` / `wp_verify_nonce`). OSM authorization and token exchange URLs are in `docs/OSM Oauth.md`.
 - Add mock OAuth callback payloads to `tests/mocks/`.
 - **Stage Complete When**: Auth handler tests pass; no token is persisted after the callback; mock callback correctly fires the sync callback.
 
-#### Stage 1.3 — Membership Pull
+#### Stage 1.4 — Membership Pull
 - **TDD Task**: Write tests for `OSM_Section_Importer` — given a valid access token and a list of section IDs, calls `get_section_members()` for each, parses `member_id` (scout ID), first name, last name, explorer email, parent email, unit. Upserts to WP User Meta (keyed by `ems_scout_id` — singular int). Meta keys written per imported user: `ems_scout_id`, `ems_first_name`, `ems_last_name`, `ems_explorer_email`, `ems_parent_email`, `ems_unit` (see §7.2). Section IDs to import are read from the `ems_managed_sections` WP Option (see `docs/Data Schema and API.md §5.1`). Test: new member created, existing member updated, member with missing email handled gracefully, duplicate scout ID skipped.
 - Implement `OSM_Section_Importer`. Wire to the `OSM_Sync_Auth_Handler` callback.
 - `tests/mocks/members.json` already exists and is loaded by `Mock_Driver::get_section_members()`. Extend it with any additional fields needed (e.g. `parent_email`) rather than creating a new file.
 - **Stage Complete When**: Importer tests pass for all member states; WP User Meta contains `ems_scout_id`, `ems_first_name`, `ems_last_name`, `ems_explorer_email`, `ems_parent_email`, `ems_unit` after a mock import.
 
-#### Stage 1.4 — Flexi-Record Column Mapper
+#### Stage 1.5 — Flexi-Record Column Mapper
 - **TDD Task**: Write tests for `Flexi_Structure_Parser` — given a `getFlexiStructure` response, returns a flat list of `{ column_id, column_name }` objects for display in the mapper UI.
 - **TDD Task**: Write tests for `Flexi_Column_Map` — saves a mapping array to WP Options (`ems_flexirecord_column_map`), retrieves it, validates required EMS fields are mapped (`expedition_code`, `team_code`, `participant_scout_id`). Test: valid map saves, missing required field returns validation error.
-- **Stage 1.4 prerequisite**: `get_flexi_record_structure(int $section_id, int $flexi_id): array` exists on `Driver_Interface` and `Mock_Driver` but is **not yet exposed on `OSM_API_Client`**. Add this method to `OSM_API_Client` before implementing `Flexi_Structure_Parser` (see §7.3).
+- **Stage 1.5 prerequisite**: `get_flexi_record_structure(int $section_id, int $flexi_id): array` exists on `Driver_Interface` and `Mock_Driver` but is **not yet exposed on `OSM_API_Client`**. Add this method to `OSM_API_Client` before implementing `Flexi_Structure_Parser` (see §7.3).
 - Implement `Flexi_Structure_Parser` and `Flexi_Column_Map`.
 - Build React "Column Mapper" admin UI: fetch live flexi-record structure, display columns, allow admin to assign each column to an EMS field (or mark as unmapped), save mapping. Write Vitest component tests.
 - Create `tests/mocks/osm-flexi-record-structure.json` — this is the exact filename loaded by `Mock_Driver::get_flexi_record_structure()` (see §7.4).
 - **Stage Complete When**: Parser and map tests pass; component saves a valid mapping; missing required field validation fires correctly.
 
-#### Stage 1.5 — Flexi-Record Import: Parse, Review & Commit
-- **TDD Task**: Write tests for `Flexi_Record_Importer` — given a `getFlexiRecords` response and a saved column map, produces three buckets: clean rows (all required fields parsed), partial rows (some fields parsed), unparseable rows (no required fields matched). Test: clean row, row with one missing field, row with a `participant_scout_id` not present in the membership snapshot from Stage 1.3 (flagged as unmatched), empty row.
+#### Stage 1.6 — Flexi-Record Import: Parse, Review & Commit
+- **TDD Task**: Write tests for `Flexi_Record_Importer` — given a `getFlexiRecords` response and a saved column map, produces three buckets: clean rows (all required fields parsed), partial rows (some fields parsed), unparseable rows (no required fields matched). Test: clean row, row with one missing field, row with a `participant_scout_id` not present in the membership snapshot from Stage 1.4 (flagged as unmatched), empty row.
 - **TDD Task**: Write tests for the commit step — given a validated set of clean rows, creates `expedition` CPTs and `team` CPTs, inserts rows into `ems_team_members`. Test: idempotent on re-import (no duplicates), partial rows not committed, unmatched scout IDs not committed.
 - **TDD Task**: After a successful commit, the WP Option `ems_osm_last_sync` is updated to the current UTC datetime as an ISO 8601 string. Test: option is set on successful commit; option is **not** updated if commit throws or inserts zero rows.
-- Implement `Flexi_Record_Importer`. Wire to the `OSM_Sync_Auth_Handler` callback (runs after Stage 1.3 membership pull).
+- Implement `Flexi_Record_Importer`. Wire to the `OSM_Sync_Auth_Handler` callback (runs after Stage 1.4 membership pull).
 - Build React "Import Review" admin screen: shows three buckets, allows admin to override or skip partial/failed rows, presents a "Commit" button. Write Vitest component tests for each bucket state and the override interaction.
 - Create `tests/mocks/osm-flexi-record-data.json` — this is the exact filename loaded by `Mock_Driver::get_flexi_record_data()` (see §7.4). Include clean, partial, and bad rows.
 - **Stage Complete When**: Importer bucketing tests pass; commit idempotency tests pass; `ems_osm_last_sync` is written on success and not written on failure; review component tests pass for all bucket states.
 
-#### Stage 1.6 — Admin Read Views
+#### Stage 1.7 — Admin Read Views
 - **TDD Task**: Write tests for `Admin_View_Controller` — returns correctly shaped payloads for each view: by explorer (expeditions + teams + training status), by team (members + first aid coverage flag), by expedition (all teams and members), by unit/patrol. Every payload includes a top-level `last_synced` field populated from the `ems_osm_last_sync` WP Option (ISO 8601 string, or `null` if never synced).
 - Implement `Admin_View_Controller` and wire to REST endpoints.
 - Build React admin views (four tabs or sub-pages):
@@ -188,14 +198,14 @@ The following infrastructure was built during the original Phases 0–2 and is t
 - Write Vitest component tests for each view (data rendering, empty state, loading state). Each view renders a "Last synced: [date]" indicator; test the `null` (never synced) state renders "Never synced".
 - **Stage Complete When**: All view controller tests pass (`last_synced` field present in every payload); all four view component tests pass including last-synced display; CSV download tests pass.
 
-#### Stage 1.7 — EMS-Internal Update Logic
+#### Stage 1.8 — EMS-Internal Update Logic
 - **TDD Task**: Write tests for `Expedition_Admin_Controller` — create expedition (validates code format, rejects duplicate), edit expedition (LiC, WhatsApp link, route info, dates), assign explorer to expedition, reassign explorer between teams.
 - Implement `Expedition_Admin_Controller` and wire to WP admin meta boxes / REST endpoints.
 - Build React "Create/Edit Expedition" form (code, dates, DofE level, LiC user picker, WhatsApp URL, route info text). Write Vitest component tests (validation states, submission, edit pre-population).
 - Build React "Explorer Assignment" drag-and-drop view — move explorers from unassigned pool into teams. Write Vitest component tests.
 - **Stage Complete When**: Controller tests pass; expedition form component tests pass; drag-drop assignment component tests pass.
 
-#### Stage 1.8 — Training Status Fallback
+#### Stage 1.9 — Training Status Fallback
 - **TDD Task**: Write tests for training record fallback: when a Tutor LMS record is linked to a parent `user_id` rather than the explorer's `user_id`, the system falls back to the `ems_scout_id` anchor to retrieve the record. Test: match found via fallback, no record found (returns `null`).
 - Implement fallback logic in `TutorLMS_Client`.
 - **Stage Complete When**: Both fallback paths tested and passing; admin view shows correct training status for parent-trained explorers.
@@ -353,15 +363,16 @@ This method exists on `Driver_Interface` and `Mock_Driver` but has not yet been 
 
 ### 7.4 Mock Driver File Registry
 
-`Mock_Driver` loads fixed filenames from `tests/mocks/`. The filenames below are what the driver **actually** loads — use these when creating mock payloads, not the aspirational names sometimes referenced in TDD task descriptions.
+`Mock_Driver` loads anonymized data from `tests/mocks/`. The structures are based on the template files in the uncommitted `mockdata/` directory.
 
-| `Driver_Interface` method | Actual mock filename | Status |
+| `Driver_Interface` method | Anonymized Mock filename | Status |
 | --- | --- | --- |
+| `get_data_payload()` | `osm-get-data-payload.json` | ✅ Already exists |
 | `get_section_members()` | `members.json` | ✅ Already exists |
 | `get_flexi_records()` | `osm-flexi-records.json` | ✅ Already exists |
-| `get_flexi_record_structure()` | `osm-flexi-record-structure.json` | Create in Stage 1.4 |
-| `get_flexi_record_data()` | `osm-flexi-record-data.json` | Create in Stage 1.5 |
-| `get_data_payload()` | `osm-get-data-payload-explorer.json` | ✅ Already exists |
+| `get_flexi_record_structure()` | `osm-flexi-record-structure.json` | Create in Stage 1.2 |
+| `get_flexi_record_data()` | `osm-flexi-record-data.json` | Create in Stage 1.2 |
+| `get_section_events()` | `osm-events.json` | ✅ Already exists |
 
 ### 7.5 Stage 1.2 OAuth Implementation Notes
 
