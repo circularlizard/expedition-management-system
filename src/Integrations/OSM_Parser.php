@@ -84,12 +84,13 @@ class OSM_Parser {
         return array_map(
             static function ( array $item ): array {
                 return [
-                    'member_id'  => (int) $item['member_id'],
-                    'first_name' => $item['first_name'] ?? '',
-                    'last_name'  => $item['last_name']  ?? '',
-                    'email'      => $item['email']      ?? '',
-                    'dob'        => $item['dob']        ?? '',
-                    'patrol'     => $item['patrol']     ?? '',
+                    'member_id'    => (int) ( $item['member_id'] ?? $item['scoutid'] ?? 0 ),
+                    'first_name'   => $item['first_name']   ?? $item['firstname'] ?? '',
+                    'last_name'    => $item['last_name']    ?? $item['lastname']  ?? '',
+                    'email'        => $item['email']        ?? '',
+                    'parent_email' => $item['parent_email'] ?? '',
+                    'dob'          => $item['dob']          ?? '',
+                    'patrol'       => $item['patrol']       ?? '',
                 ];
             },
             $raw

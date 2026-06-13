@@ -49,8 +49,13 @@ class Plugin {
         add_action( 'admin_post_ems_osm_callback', function() {
             $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
             $handler->handle_callback( function( $token ) {
-                // TODO: Stage 1.4 - Membership Pull
-                error_log( 'EMS: OAuth Sync successful, token received (not persisted).' );
+                $api_mode   = get_option( 'ems_api_mode', 'mock' );
+                $driver     = ( $api_mode === 'live' ) ? new Live_Driver() : new Mock_Driver();
+                $osm_client = new OSM_API_Client( $driver, new OSM_Parser(), new Rate_Limiter( 10, 1.0 ) );
+                $osm_client->set_access_token( $token );
+
+                $importer = new \EMS\Integrations\OSM_Section_Importer( $osm_client );
+                $importer->import_all();
             } );
         } );
     }

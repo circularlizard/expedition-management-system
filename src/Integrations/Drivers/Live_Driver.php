@@ -3,12 +3,19 @@ namespace EMS\Integrations\Drivers;
 
 class Live_Driver implements Driver_Interface {
     private array $last_headers = [];
+    private string $access_token = '';
 
     private function get_base_url(): string {
         return get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk/api.php' );
     }
 
     private function request( string $url, array $args = [] ): array {
+        if ( $this->access_token ) {
+            $args['headers'] = array_merge( $args['headers'] ?? [], [
+                'Authorization' => 'Bearer ' . $this->access_token,
+            ] );
+        }
+
         $response = wp_remote_get( $url, $args );
 
         if ( is_wp_error( $response ) ) {
@@ -36,6 +43,10 @@ class Live_Driver implements Driver_Interface {
 
     public function get_last_response_headers(): array {
         return $this->last_headers;
+    }
+
+    public function set_access_token( string $token ): void {
+        $this->access_token = $token;
     }
 
     public function get_data_payload( string $access_token ): array {

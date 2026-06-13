@@ -11,6 +11,13 @@ interface Driver_Interface {
     public function get_individual( int $section_id, int $member_id ): array;
 
     /**
+     * Sets the access token for the driver to use in subsequent requests.
+     *
+     * @param string $token
+     */
+    public function set_access_token( string $token ): void;
+
+    /**
      * Returns the HTTP headers from the last request.
      *
      * @return array
