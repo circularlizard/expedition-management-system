@@ -82,6 +82,18 @@ class Plugin {
                 $importer->import_all();
             } );
         } );
+
+        // Support for ES Modules in Admin
+        add_filter( 'script_loader_tag', function ( $tag, $handle, $src ) {
+            if ( str_starts_with( $handle, 'ems-' ) ) {
+                return sprintf(
+                    '<script type="module" src="%s" id="%s-js"></script>',
+                    esc_url( $src ),
+                    esc_attr( $handle )
+                );
+            }
+            return $tag;
+        }, 10, 3 );
     }
 
     public static function activate(): void {
