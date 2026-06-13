@@ -37,6 +37,11 @@ class Settings_Page {
             update_option( 'ems_osm_token_url', $token_url );
         }
 
+        $resource_url = esc_url_raw( $post_data['ems_osm_resource_url'] ?? '' );
+        if ( $resource_url ) {
+            update_option( 'ems_osm_resource_url', $resource_url );
+        }
+
         // Client ID
         $client_id = sanitize_text_field( $post_data['ems_osm_client_id'] ?? '' );
         if ( $client_id ) {
@@ -62,8 +67,10 @@ class Settings_Page {
         $api_url       = get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk/api.php' );
         $auth_url      = get_option( 'ems_osm_auth_url', 'https://www.onlinescoutmanager.co.uk/oauth/authorize' );
         $token_url     = get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
+        $resource_url  = get_option( 'ems_osm_resource_url', 'https://www.onlinescoutmanager.co.uk/oauth/resource' );
         $client_id     = get_option( 'ems_osm_client_id', '' );
         $has_secret    = ! empty( get_option( 'ems_osm_client_secret' ) );
+        $redirect_uri  = admin_url( 'admin-post.php?action=ems_osm_callback' );
         ?>
         <div class="wrap">
             <h1><?php esc_html_e( 'EMS Settings', 'ems-plugin' ); ?></h1>
@@ -84,7 +91,19 @@ class Settings_Page {
                         <th scope="row"><?php esc_html_e( 'OSM API Base URL', 'ems-plugin' ); ?></th>
                         <td>
                             <input type="url" name="ems_osm_api_base_url" value="<?php echo esc_attr( $api_url ); ?>" class="regular-text" />
-                            <p class="description"><?php esc_html_e( 'Main OSM API endpoint. Must be an HTTPS URL.', 'ems-plugin' ); ?></p>
+                            <p class="description"><?php esc_html_e( 'Main OSM API endpoint (api.php).', 'ems-plugin' ); ?></p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row" colspan="2"><h3><?php esc_html_e( 'OAuth Configuration', 'ems-plugin' ); ?></h3></th>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php esc_html_e( 'Redirect URI (Callback)', 'ems-plugin' ); ?></th>
+                        <td>
+                            <code><?php echo esc_html( $redirect_uri ); ?></code>
+                            <p class="description"><?php esc_html_e( 'Copy this URL and paste it into the "Redirect URL" field in your OSM OAuth application settings.', 'ems-plugin' ); ?></p>
                         </td>
                     </tr>
                     <tr>
@@ -97,6 +116,12 @@ class Settings_Page {
                         <th scope="row"><?php esc_html_e( 'OSM Token URL', 'ems-plugin' ); ?></th>
                         <td>
                             <input type="url" name="ems_osm_token_url" value="<?php echo esc_attr( $token_url ); ?>" class="regular-text" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e( 'OSM Resource Owner URL', 'ems-plugin' ); ?></th>
+                        <td>
+                            <input type="url" name="ems_osm_resource_url" value="<?php echo esc_attr( $resource_url ); ?>" class="regular-text" />
                         </td>
                     </tr>
                     <tr>
