@@ -15,7 +15,6 @@ services:
       - "8080:80"
     volumes:
       - ./wordpress:/var/www/html
-      - .:/var/www/html/wp-content/plugins/ems-plugin
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
@@ -44,7 +43,6 @@ services:
     image: wordpress:cli-php8.2
     volumes:
       - ./wordpress:/var/www/html
-      - .:/var/www/html/wp-content/plugins/ems-plugin
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress

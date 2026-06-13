@@ -1,8 +1,8 @@
 {
-    local_certs
+	local_certs
 }
 
 localhost {
-    tls internal
-    reverse_proxy wordpress:80
+	tls internal
+	reverse_proxy wordpress:80
 }
