@@ -16,7 +16,7 @@ class Admin_Page {
         $this->diagnostic     = $diagnostic;
     }
 
-    public function register(): void {
+   public function register(): void {
         $dashboard_hook = add_submenu_page(
             'ems',
             __( 'Dashboard', 'ems-plugin' ),
@@ -53,6 +53,30 @@ class Admin_Page {
                 $this->enqueue_mapper_assets();
             }
         } );
+
+        add_action( 'admin_init', [ $this, 'handle_sync_post' ] );
+    }
+
+    /**
+     * Handles the OSM sync POST request before any output is sent.
+     */
+    public function handle_sync_post(): void {
+        if ( ! isset( $_POST['ems_sync_osm'] ) ) {
+            return;
+        }
+
+        if ( ! check_admin_referer( 'ems_sync_osm' ) ) {
+            return;
+        }
+
+        $api_mode = get_option( 'ems_api_mode', 'mock' );
+        if ( $api_mode === 'mock' ) {
+            $this->do_mock_sync();
+        } else {
+            $handler = new OSM_Sync_Auth_Handler();
+            $handler->initiate();
+        }
+        exit;
     }
 
     private function enqueue_dashboard_assets(): void {
@@ -84,17 +108,8 @@ class Admin_Page {
     }
 
     public function render_dashboard(): void {
-        if ( isset( $_POST['ems_sync_osm'] ) && check_admin_referer( 'ems_sync_osm' ) ) {
-            $api_mode = get_option( 'ems_api_mode', 'mock' );
-            if ( $api_mode === 'mock' ) {
-                $this->do_mock_sync();
-            } else {
-                $handler = new OSM_Sync_Auth_Handler();
-                $handler->initiate();
-            }
-        }
-
         $user_id = get_current_user_id();
+
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'EMS Dashboard', 'ems-plugin' ) . '</h1>';
 
@@ -112,9 +127,20 @@ class Admin_Page {
 
     private function do_mock_sync(): void {
         $driver     = new Mock_Driver();
-        $osm_client = new OSM_API_Client( $driver, new OSM_Parser(), new Rate_Limiter( 10, 1.0 ) );
+        $parser     = new OSM_Parser();
+        $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
         $importer   = new OSM_Section_Importer( $osm_client );
-        $importer->import_all();
+
+        // Import from all accessible sections from the data payload (not just managed sections)
+        $payload     = $osm_client->get_data_payload( 'mock_token' );
+        $section_ids = $parser->parse_section_ids( $payload );
+
+        // Also import from any configured managed sections
+        $managed_sections = (array) get_option( 'ems_managed_sections', [] );
+        $managed_ids      = array_keys( $managed_sections );
+        $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
+
+        $importer->import_sections( $all_ids );
         update_option( 'ems_osm_last_sync', current_time( 'iso' ) );
         wp_safe_redirect( admin_url( 'admin.php?page=ems&sync=success' ) );
         exit;

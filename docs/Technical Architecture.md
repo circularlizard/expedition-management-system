@@ -20,9 +20,12 @@ This document outlines the key architectural decisions and foundational assumpti
     - Custom tables for: team membership, volunteer availability, route submission history. (See ADR 011.)
 
 ### ADR 002: OSM Integration & Sync Strategy
-- **Decision**: **Persistent Scout ID Anchor, Role Differentiation & Admin-Triggered OAuth Push-back**.
+- **Decision**: **Reference-First Data Sync with Persistent Scout ID Anchor.**
 - **Approach**: 
-    - Use the OSM `member_id` (`ems_scout_id`) as the immutable primary key for all internal Explorer record mapping. 
+    - **Step 1: Reference Sync**: Sync all section members, events, and attendance statuses from OSM into dedicated local tables (`ems_osm_*`). This is the primary source of truth for participant lists and event planning.
+    - **Step 2: Flexi-Record Loading**: Load team and expedition data from OSM Flexi-records, matching participants to the local reference tables via `ems_scout_id`.
+    - **WP User Independence**: Initial team building and reconciliation views do not require WordPress User records. WP Users are only required for active system interactions (logging in, submitting routes, volunteer signup).
+    - **Identity Mapping**: Use the OSM `member_id` (`ems_scout_id`) as the immutable primary key for all internal Explorer record mapping. 
     - This ensures that parent-child relationships remain valid even if the child does not yet have an OSM account (`user_id`).
     - Dedicated `OSM_Parser` class for aggregating multi-child lists from the `member_access` block and identifying the `access_type` (`"parent"` vs. `"member"`).
     - **Access Control**: Core plugin logic must enforce role-based access based on this `access_type` (e.g., Parent-only signups, Explorer-only course access).
