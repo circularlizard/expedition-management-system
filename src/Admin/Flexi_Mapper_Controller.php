@@ -128,7 +128,7 @@ class Flexi_Mapper_Controller {
         $flexi_id   = (int) $request->get_param( 'flexi_id' );
 
         $raw      = $this->api_client->get_flexi_record_data( $section_id, $flexi_id );
-        $buckets  = $this->importer->bucket_rows( $raw['items'] ?? [] );
+        $buckets  = $this->importer->bucket_rows( $raw['items'] ?? [], $raw['identifier'] ?? 'scoutid' );
 
         return new \WP_REST_Response( [
             'buckets' => $buckets,

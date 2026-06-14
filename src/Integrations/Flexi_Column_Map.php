@@ -14,7 +14,6 @@ class Flexi_Column_Map {
     public const REQUIRED_FIELDS = [
         'expedition_code',
         'team_code',
-        'participant_scout_id',
     ];
 
     /**
