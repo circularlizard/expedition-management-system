@@ -36,16 +36,15 @@ class Flexi_Record_ImporterTest extends EMSTestCase {
 
     public function test_bucket_rows_categorizes_correctly(): void {
         $this->column_map->shouldReceive( 'get' )->andReturn( [
-            'expedition_code'      => 'f_1',
-            'team_code'            => 'f_2',
-            'participant_scout_id' => 'f_3',
+            'expedition_code' => 'f_1',
+            'team_code'       => 'f_2',
         ] );
 
         $raw_items = [
-            // Clean
-            [ 'f_1' => 'EXP1', 'f_2' => 'T1', 'f_3' => '1001' ],
-            // Partial
-            [ 'f_1' => 'EXP1', 'f_2' => ''   , 'f_3' => '1002' ],
+            // Clean - scoutid auto-resolved from identifier
+            [ 'f_1' => 'EXP1', 'f_2' => 'T1', 'scoutid' => '1001' ],
+            // Partial - missing team_code
+            [ 'f_1' => 'EXP1', 'f_2' => '', 'scoutid' => '1002' ],
             // Unparseable
             [ 'other' => 'data' ]
         ];
@@ -57,7 +56,7 @@ class Flexi_Record_ImporterTest extends EMSTestCase {
             $this->team_members
         );
 
-        $buckets = $importer->bucket_rows( $raw_items );
+        $buckets = $importer->bucket_rows( $raw_items, 'scoutid' );
 
         $this->assertCount( 1, $buckets['clean'] );
         $this->assertCount( 1, $buckets['partial'] );
@@ -73,7 +72,7 @@ class Flexi_Record_ImporterTest extends EMSTestCase {
                 'expedition_code'      => 'EXP1',
                 'team_code'            => 'T1',
                 'participant_scout_id' => '1001',
-                '_user_id'             => 123
+                '_user_id'             => 123,
             ]
         ];
 

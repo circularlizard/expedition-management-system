@@ -10,7 +10,7 @@ class Flexi_Column_MapTest extends EMSTestCase {
     public function test_save_validates_required_fields(): void {
         $map = [
             'expedition_code' => 'f_1',
-            // team_code and participant_scout_id missing
+            // team_code missing
         ];
 
         $mapper = new Flexi_Column_Map();
@@ -22,9 +22,8 @@ class Flexi_Column_MapTest extends EMSTestCase {
 
     public function test_save_persists_valid_map(): void {
         $map = [
-            'expedition_code'      => 'f_1',
-            'team_code'            => 'f_2',
-            'participant_scout_id' => 'f_3',
+            'expedition_code' => 'f_1',
+            'team_code'       => 'f_2',
         ];
 
         $called = false;

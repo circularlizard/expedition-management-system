@@ -30,10 +30,11 @@ class Flexi_Record_Importer {
     /**
      * Buckets raw OSM flexi-record data based on the current column map.
      *
-     * @param array $raw_items The 'items' array from getFlexiRecords response.
+     * @param array  $raw_items The 'items' array from getFlexiRecords response.
+     * @param string $identifier The identifier field name (e.g. 'scoutid').
      * @return array Bucketed data: [ 'clean' => [], 'partial' => [], 'unparseable' => [] ]
      */
-    public function bucket_rows( array $raw_items ): array {
+    public function bucket_rows( array $raw_items, string $identifier = 'scoutid' ): array {
         $map      = $this->column_map->get();
         $buckets = [
             'clean'       => [],
@@ -42,7 +43,7 @@ class Flexi_Record_Importer {
         ];
 
         foreach ( $raw_items as $item ) {
-            $parsed = $this->parse_row( $item, $map );
+            $parsed = $this->parse_row( $item, $map, $identifier );
             $status = $this->get_row_status( $parsed );
 
             if ( $status === 'clean' ) {
@@ -99,7 +100,7 @@ class Flexi_Record_Importer {
         return $count;
     }
 
-    private function parse_row( array $item, array $map ): array {
+    private function parse_row( array $item, array $map, string $identifier = 'scoutid' ): array {
         $parsed = [
             '_raw' => $item,
         ];
@@ -107,6 +108,9 @@ class Flexi_Record_Importer {
         foreach ( $map as $ems_field => $osm_col ) {
             $parsed[ $ems_field ] = $item[ $osm_col ] ?? null;
         }
+
+        // Auto-resolve scout ID from the identifier field (not a custom column)
+        $parsed['participant_scout_id'] = $item[ $identifier ] ?? null;
 
         return $parsed;
     }
