@@ -22,16 +22,6 @@ class Training_Report_Page {
     public function register(): void {
         add_action( 'admin_init', [ $this, 'maybe_export_csv' ] );
 
-        add_menu_page(
-            'EMS',
-            'EMS',
-            'manage_options',
-            'ems',
-            '__return_null',
-            'dashicons-location-alt',
-            5
-        );
-
         add_submenu_page(
             'ems',
             'Training Report',
