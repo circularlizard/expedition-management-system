@@ -60,11 +60,11 @@ All endpoints prefixed with `/wp-json/ems/v1/`.
 - `POST /volunteer-signup`: Submit availability for an expedition or specific dates.
 
 ### 3.3 Administrative Endpoints (Admin/LiC)
-- `GET /reconciliation`: Pulls Gravity Forms vs. OSM comparison data.
-- `POST /sync-osm`: Triggers a manual sync for a section or event.
-- `GET /expedition-board`: Returns full dataset for the Team Builder UI.
-- `PATCH /update-team`: Move explorers between teams or expeditions.
-- `POST /route-feedback`: LiC submits approval or feedback for a team's route.
+- POST `/sync-osm`: Triggers a manual sync for a section or event.
+- GET `/expedition-board`: Returns full dataset for the Team Builder UI.
+- PATCH `/update-team`: Move explorers between teams or expeditions.
+- POST `/route-feedback`: LiC submits approval or feedback for a team's route.
+
 
 ## 4. Custom Database Tables
 Three custom tables are created on plugin activation (via `dbDelta()`). These are a definitive part of the data model (see ADR 011), not optional.

@@ -80,9 +80,8 @@ Tracks member status for specific events.
 - The "Team View" (Expedition Board) will now display explorer names and details pulled from the reference table, not `WP_User` meta.
 
 ### 3.5 Admin Dashboard
-- Implement a new "OSM Reference" tab/page.
-- Update the "Expedition Board" to load data from the reference tables.
+- **Expedition Board**: Replaces the generic "Dashboard" as the primary landing page. It will now load participant data from the `ems_osm_explorers` reference table.
+- **OSM Reference**: A new page to view the raw sync data (explorers, events, and attendance) independently.
 
 ## 4. Alignment with PRD
-- **Gravity Forms Reconciliation**: Still uses email matching, but can now match GF entries against `ems_osm_explorers` instead of only `WP_User` records.
 - **Volunteer Management**: Still requires `WP_User` records (as volunteers must be logged in), but this is unchanged by the participant-focused sync update.

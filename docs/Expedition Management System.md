@@ -51,7 +51,6 @@ sequenceDiagram
     Note over Admin, OSM: Expedition Setup (Post-Deadline)
     Admin->>EMS: Sync Reference Data from OSM (Explorers, Events, Attendance)
     EMS->>EMS: Store in Reference Tables (ems_osm_*)
-    Admin->>EMS: Compare Reference list with Gravity Forms data
     Admin->>EMS: Load Flexi-Record Data to populate Team View
     Admin->>EMS: Link EMS Expedition to OSM Event
     Admin->>EMS: Assign Explorers to Expeditions (using Reference Data)
