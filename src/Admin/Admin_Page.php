@@ -1,6 +1,12 @@
 <?php
 namespace EMS\Admin;
 
+use EMS\Integrations\Drivers\Mock_Driver;
+use EMS\Integrations\OSM_API_Client;
+use EMS\Integrations\OSM_Parser;
+use EMS\Integrations\Rate_Limiter;
+use EMS\Integrations\OSM_Section_Importer;
+
 class Admin_Page {
     private Reconciliation_Controller $reconciliation;
     private Diagnostic_Panel $diagnostic;
@@ -79,8 +85,13 @@ class Admin_Page {
 
     public function render_dashboard(): void {
         if ( isset( $_POST['ems_sync_osm'] ) && check_admin_referer( 'ems_sync_osm' ) ) {
-            $handler = new OSM_Sync_Auth_Handler();
-            $handler->initiate();
+            $api_mode = get_option( 'ems_api_mode', 'mock' );
+            if ( $api_mode === 'mock' ) {
+                $this->do_mock_sync();
+            } else {
+                $handler = new OSM_Sync_Auth_Handler();
+                $handler->initiate();
+            }
         }
 
         $user_id = get_current_user_id();
@@ -97,6 +108,16 @@ class Admin_Page {
         echo '<h2>' . esc_html__( 'OSM Account Diagnostic', 'ems-plugin' ) . '</h2>';
         $this->diagnostic->render( $user_id );
         echo '</div>';
+    }
+
+    private function do_mock_sync(): void {
+        $driver     = new Mock_Driver();
+        $osm_client = new OSM_API_Client( $driver, new OSM_Parser(), new Rate_Limiter( 10, 1.0 ) );
+        $importer   = new OSM_Section_Importer( $osm_client );
+        $importer->import_all();
+        update_option( 'ems_osm_last_sync', current_time( 'iso' ) );
+        wp_safe_redirect( admin_url( 'admin.php?page=ems&sync=success' ) );
+        exit;
     }
 
     public function render_reconciliation(): void {
