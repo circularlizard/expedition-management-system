@@ -114,7 +114,7 @@ This document outlines the key architectural decisions and foundational assumpti
     - `LoginWithGoogle_Auth_Provider`: concrete adapter that hooks into `rtcamp.google_user_logged_in` and extracts the token and user payload.
 - **The hook** (`rtcamp.google_user_logged_in`) must be documented in the `login-with-google` plugin's changelog as a breaking-change surface for EMS.
 
-### ADR 013: Flexi-Record Column Mapper
+### ADR 013: Flexirecord Mapper
 - **Decision**: The mapping between OSM flexi-record columns and EMS fields is **admin-configurable** and stored in WP Options as a JSON structure (`ems_flexirecord_column_map`).
 - **Rationale**: Flexi-record column names and order are user-defined in OSM and vary between sections and seasons. Hardcoding column names would break on any structural change to the flexi-record. A configurable mapper also enables the bidirectional use case: once EMS is established as the source of truth, the same mapping is used in reverse to create/update the flexi-record from EMS data (Phase 6).
 - **Import flow** (Phase 1): Admin fetches the live flexi-record structure (`getFlexiStructure`), maps each column to an EMS field via a UI, saves the mapping, then triggers the data import.
