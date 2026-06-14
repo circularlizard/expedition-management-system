@@ -38,7 +38,7 @@ class OSM_Sync_Auth_Handler {
             'state'         => $state,
         ] );
 
-        wp_redirect( $this->auth_url . '?' . $query );
+        wp_safe_redirect( $this->auth_url . '?' . $query );
     }
 
     /**

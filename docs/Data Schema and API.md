@@ -99,6 +99,37 @@ Stores the full version history of route submissions with LiC feedback per versi
 - `feedback`: text (nullable)
 - `status`: string (`pending` | `feedback_required` | `approved`)
 
+### 4.4 `ems_osm_explorers`
+Stores reference information for all section members synced from OSM.
+- `id`: BIGINT UNSIGNED (PK)
+- `scout_id`: BIGINT UNSIGNED (OSM member_id)
+- `wp_user_id`: BIGINT UNSIGNED (Nullable link to wp_users.id)
+- `section_id`: BIGINT UNSIGNED
+- `first_name`: VARCHAR(100)
+- `last_name`: VARCHAR(100)
+- `email`: VARCHAR(100)
+- `parent_email`: VARCHAR(100)
+- `patrol`: VARCHAR(100)
+- `synced_at`: DATETIME
+
+### 4.5 `ems_osm_events`
+Stores reference information for OSM events synced from OSM.
+- `id`: BIGINT UNSIGNED (PK)
+- `event_id`: BIGINT UNSIGNED
+- `section_id`: BIGINT UNSIGNED
+- `name`: VARCHAR(255)
+- `start_date`: DATETIME
+- `end_date`: DATETIME
+- `synced_at`: DATETIME
+
+### 4.6 `ems_osm_event_attendance`
+Tracks member status for specific events synced from OSM.
+- `id`: BIGINT UNSIGNED (PK)
+- `event_id`: BIGINT UNSIGNED
+- `scout_id`: BIGINT UNSIGNED
+- `status`: VARCHAR(50) (e.g., 'Accepted', 'Declined', 'Invited', 'Show in Parent Portal')
+- `synced_at`: DATETIME
+
 ## 5. WP Options: Reference & Configuration Data
 
 All EMS configuration is stored in WP Options (via `get_option` / `update_option`). These are set during initial plugin setup via an admin settings screen and must be in place before any OSM push-back operation is attempted.

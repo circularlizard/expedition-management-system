@@ -49,14 +49,16 @@ sequenceDiagram
     GF->>OSM: Record shared with relevant OSM Section (Manual/External process)
     
     Note over Admin, OSM: Expedition Setup (Post-Deadline)
-    Admin->>EMS: Pull Explorers from configured OSM Sections
-    Admin->>EMS: Compare OSM list with Gravity Forms data
-    Admin->>EMS: Create EMS Expedition (linked to OSM Event)
-    Admin->>EMS: Assign Explorers to Expeditions
+    Admin->>EMS: Sync Reference Data from OSM (Explorers, Events, Attendance)
+    EMS->>EMS: Store in Reference Tables (ems_osm_*)
+    Admin->>EMS: Compare Reference list with Gravity Forms data
+    Admin->>EMS: Load Flexi-Record Data to populate Team View
+    Admin->>EMS: Link EMS Expedition to OSM Event
+    Admin->>EMS: Assign Explorers to Expeditions (using Reference Data)
     EMS->>OSM: Update OSM Event status ("Show in Parent Portal")
     
     Note over Admin, OSM: Team Building
-    Admin->>EMS: Assign Explorers to Teams (viewing teammate preferences)
+    Admin->>EMS: Assign Explorers to Teams (using Reference Data)
     EMS->>OSM: Push Team assignments to Flexi-record
 ```
 
@@ -65,7 +67,8 @@ sequenceDiagram
 ### 4.1 Expedition & Team Management
 - **Pre-Season Planning**: Admins define a calendar of possible dates for all expedition levels.
 - **Importing & Linking**: 
-    - Pull participant lists from specific OSM sections (e.g., "Explorer Scout Unit").
+    - **Step 1: OSM Reference Sync**: Pull full participant lists, events, and attendance statuses from specific OSM sections. This data is stored in local reference tables and is the source of truth for all planning.
+    - **Step 2: Flexi-Record Import**: Load team and expedition assignments from OSM Flexi-records. This populates the "Team View" and does not require local WordPress User records.
     - EMS records must be explicitly linked to an OSM Event record.
 - **Team Composition**: 
     - Participants grouped into teams (4–7 people).
