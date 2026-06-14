@@ -25,6 +25,17 @@ class OSM_Section_Importer {
     }
 
     /**
+     * Imports members for a list of section IDs.
+     *
+     * @param int[] $section_ids
+     */
+    public function import_sections( array $section_ids ): void {
+        foreach ( $section_ids as $section_id ) {
+            $this->import_section( (int) $section_id );
+        }
+    }
+
+    /**
      * Imports members for a specific section.
      */
     public function import_section( int $section_id ): void {
