@@ -8,31 +8,32 @@ use EMS\Integrations\Rate_Limiter;
 use EMS\Integrations\OSM_Section_Importer;
 
 class Admin_Page {
-    private Reconciliation_Controller $reconciliation;
     private Diagnostic_Panel $diagnostic;
 
-    public function __construct( Reconciliation_Controller $reconciliation, Diagnostic_Panel $diagnostic ) {
-        $this->reconciliation = $reconciliation;
-        $this->diagnostic     = $diagnostic;
+    public function __construct( Diagnostic_Panel $diagnostic ) {
+        $this->diagnostic = $diagnostic;
     }
 
-   public function register(): void {
+    public function register(): void {
+        add_action( 'admin_init', [ $this, 'handle_sync_post' ] );
+
+        add_menu_page(
+            'EMS',
+            'EMS',
+            'manage_options',
+            'ems',
+            [ $this, 'render_dashboard' ],
+            'dashicons-location-alt',
+            5
+        );
+
         $dashboard_hook = add_submenu_page(
             'ems',
-            __( 'Dashboard', 'ems-plugin' ),
-            __( 'Dashboard', 'ems-plugin' ),
+            __( 'Expedition Board', 'ems-plugin' ),
+            __( 'Expedition Board', 'ems-plugin' ),
             'manage_options',
             'ems',
             [ $this, 'render_dashboard' ]
-        );
-
-        $reconciliation_hook = add_submenu_page(
-            'ems',
-            __( 'Reconciliation', 'ems-plugin' ),
-            __( 'Reconciliation', 'ems-plugin' ),
-            'manage_options',
-            'ems-reconciliation',
-            [ $this, 'render_reconciliation' ]
         );
 
         $mapper_hook = add_submenu_page(
@@ -44,17 +45,13 @@ class Admin_Page {
             [ $this, 'render_column_mapper' ]
         );
 
-        add_action( "admin_enqueue_scripts", function( $hook ) use ( $dashboard_hook, $reconciliation_hook, $mapper_hook ) {
+        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $dashboard_hook, $mapper_hook ) {
             if ( $hook === $dashboard_hook ) {
                 $this->enqueue_dashboard_assets();
-            } elseif ( $hook === $reconciliation_hook ) {
-                $this->enqueue_reconciliation_assets();
             } elseif ( $hook === $mapper_hook ) {
                 $this->enqueue_mapper_assets();
             }
         } );
-
-        add_action( 'admin_init', [ $this, 'handle_sync_post' ] );
     }
 
     /**
@@ -89,15 +86,6 @@ class Admin_Page {
         ] );
     }
 
-    private function enqueue_reconciliation_assets(): void {
-        $section_id = (int) get_option( 'ems_managed_sections_default', 99001 );
-        $form_id    = (int) get_option( 'ems_gravity_form_id', 1 );
-        $data       = $this->reconciliation->reconcile( $section_id, $form_id );
-
-        $this->enqueue_admin_script( 'ems-reconciliation', 'assets/js/reconciliation.js' );
-        wp_localize_script( 'ems-reconciliation', 'emsReconciliation', $data );
-    }
-
     private function enqueue_mapper_assets(): void {
         $this->enqueue_admin_script( 'ems-column-mapper', 'assets/js/column-mapper.js' );
         wp_localize_script( 'ems-column-mapper', 'emsColumnMapper', [
@@ -111,7 +99,7 @@ class Admin_Page {
         $user_id = get_current_user_id();
 
         echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'EMS Dashboard', 'ems-plugin' ) . '</h1>';
+        echo '<h1>' . esc_html__( 'Expedition Board', 'ems-plugin' ) . '</h1>';
 
         if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
             echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM data synced successfully.', 'ems-plugin' ) . '</p></div>';
@@ -144,13 +132,6 @@ class Admin_Page {
         update_option( 'ems_osm_last_sync', current_time( 'iso' ) );
         wp_safe_redirect( admin_url( 'admin.php?page=ems&sync=success' ) );
         exit;
-    }
-
-    public function render_reconciliation(): void {
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'Reconciliation Dashboard', 'ems-plugin' ) . '</h1>';
-        echo '<div id="ems-reconciliation-root"></div>';
-        echo '</div>';
     }
 
     public function render_column_mapper(): void {
