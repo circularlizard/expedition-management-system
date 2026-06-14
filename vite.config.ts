@@ -9,7 +9,6 @@ export default defineConfig({
         emptyOutDir: false,
         rollupOptions: {
             input: {
-                reconciliation: resolve( __dirname, 'resources/js/admin/reconciliation/index.tsx' ),
                 'column-mapper': resolve( __dirname, 'resources/js/admin/column-mapper/index.tsx' ),
                 'expedition-board': resolve( __dirname, 'resources/js/admin/expedition-board/index.tsx' ),
             },
