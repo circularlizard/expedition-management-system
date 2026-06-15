@@ -88,39 +88,72 @@ OSM has strict rate limits. Our integration must include:
 - **Deployment to Staging**: Manual. Once all automated checks pass on a branch, the developer deploys to the SiteGround staging subdomain via SSH/SFTP (or SiteGround's deployment tools). E2E Playwright tests are run against the staging environment.
 - **Deployment to Production**: Manual promotion from staging to production, after staging sign-off.
 
-## 4. Current State (Foundations — ✅ Complete)
+## 4. Current State
+
+### Implementation Status — as at 15 June 2026
+
+| Stage | Description | Status |
+|---|---|---|
+| Foundations | OSM API Client, Auth, Admin, CPTs, Repositories, Table_Installer | ✅ Complete |
+| 1.1 | Expedition_Repository, Team_Repository, Team_Member_Repository | ✅ Complete |
+| 1.2 | Rate_Limiter (header-awareness), Live_Driver | ✅ Complete |
+| 1.3 | OSM_Sync_Auth_Handler (OAuth flow, nonce state, callback) | ✅ Complete |
+| 1.4 | OSM_Section_Importer → writes to `ems_osm_explorers` | ✅ Complete |
+| 1.5 | Flexi_Structure_Parser, Flexi_Column_Map, React ColumnMapper | ✅ Complete |
+| 1.6 | Flexi_Record_Importer, React ImportReview | ✅ Complete |
+| 1.7 | Admin_View_Controller — Expedition Board REST endpoint + React component | ⚠️ Partial (Expedition Board only; By Explorer / By Team / By Patrol views not yet built) |
+| Updated Sync Flow | OSM_Reference_Sync orchestrator, 3 OSM reference tables, term resolution | ✅ Complete |
+| 1.8 | Expedition_Admin_Controller | ❌ Not started |
+| 1.9 | Training status fallback (TutorLMS_Client) | ❌ Not started |
+
+**Test counts**: 162 PHP tests / 304 assertions green. 8 JS Vitest tests green.
+
+### Tooling Added
+- **`bin/reset-db.php`** — WP-CLI script: truncates all 6 EMS tables and deletes all `ems_*` options. Run via:
+  ```bash
+  docker compose run --rm wpcli eval-file wp-content/plugins/ems-plugin/bin/reset-db.php
+  ```
+- **`bin/seed-settings.php`** — Re-seeds API mode, OSM URLs, managed sections after a reset.
+
+### Mock Data
+- `tests/mocks/osm-list-of-members.json` — 123 fictitious-named members (real OSM structure, `sectionid: 99001`). Names generated with `seed(42)` from a Scottish name pool; all real names replaced.
+- `tests/mocks/osm-member-detail.json` — single static member detail response (see Deferred Items below).
+
+---
+
+### 4.0 Foundations — ✅ Complete (previously §4)
 
 The following infrastructure was built during the original Phases 0–2 and is the starting point for all new phases. These do not need to be re-built.
 
-### 4.1 Infrastructure & Tooling
+#### 4.1 Infrastructure & Tooling
 - ✅ Docker images pinned (`wordpress:php8.2-apache`, `mariadb:10.11`); WP-CLI service added.
 - ✅ PHPUnit + Brain Monkey (PHP) and Vitest + React Testing Library (JS) test runners configured.
 - ✅ `.github/workflows/ci.yml` — PHP lint + PHPUnit + Vitest on push/PR.
 - ✅ `bin/package.sh` produces `dist/ems-plugin-{VERSION}.zip`.
 
-### 4.2 OSM API Client
+#### 4.2 OSM API Client
 - ✅ `OSM_API_Client` with `Driver_Interface`, `Live_Driver`, `Mock_Driver` — tests passing.
 - ✅ `OSM_Parser` — parses `getDataPayload`, section participants, flexi-records.
 - ✅ `Rate_Limiter` (token-bucket) — rate limiting tests pass.
 - ✅ Mock payloads: `tests/mocks/osm-get-data-payload.json`, `osm-events.json`, `osm-flexi-records.json`.
 
-### 4.3 Authentication
+#### 4.3 Authentication
 - ✅ `Auth_Provider` interface, `LoginWithGoogle_Auth_Provider` adapter, `Mock_Auth_Provider`.
 - ✅ `OSM_Auth_Integration` — hooks into `rtcamp.google_user_logged_in`, hydrates User Meta, sets `ems_access_type`. Does not store `access_token`.
 
-### 4.4 Admin Foundation
+#### 4.4 Admin Foundation
 - ✅ `expedition` and `team` CPTs registered (`CPT_Registry`); `Meta_Validator` tests passing.
 - ✅ `Admin_Page` — top-level EMS menu with sub-pages (Dashboard, Reconciliation, Settings).
 - ✅ `Admin\Settings_Page` — mock/live API toggle (`ems_api_mode`), OSM API base URL (HTTPS only), OSM OAuth client ID (`ems_osm_client_id`), OSM OAuth client secret (`ems_osm_client_secret`, stored encrypted).
 - ✅ `Admin\Diagnostic_Panel` — shows `ems_access_type`, `ems_section_ids`, `ems_scout_ids` for current user.
 - ✅ `Training_Report_Page` — Tutor LMS training completion report with CSV export.
 
-### 4.5 Reconciliation
+#### 4.5 Reconciliation
 - ✅ `Gravity_Forms_Client` and `Mock_Gravity_Forms_Client`.
 - ✅ `Reconciliation_Controller` — OSM members vs GF entries matching logic; tests passing.
 - ✅ React `ReconciliationDashboard` component — Vitest component tests passing (8 tests).
 
-**Test counts at this baseline**: PHP 107 tests / 178 assertions (all green). JS 8 tests (all green).
+**Test counts at foundations baseline**: PHP 107 tests / 178 assertions (all green). JS 8 tests (all green).
 
 ---
 
@@ -186,7 +219,7 @@ The following infrastructure was built during the original Phases 0–2 and is t
 - Create `tests/mocks/osm-flexi-record-data.json` — this is the exact filename loaded by `Mock_Driver::get_flexi_record_data()` (see §7.4). Include clean, partial, and bad rows.
 - **Stage Complete When**: Importer bucketing tests pass; commit idempotency tests pass; `ems_osm_last_sync` is written on success and not written on failure; review component tests pass for all bucket states.
 
-#### Stage 1.7 — Admin Read Views
+#### Stage 1.7 — Admin Read Views ⚠️ *(Partial — Expedition Board complete; three views remaining)*
 - **TDD Task**: Write tests for `Admin_View_Controller` — returns correctly shaped payloads for each view: by explorer (expeditions + teams + training status), by team (members + first aid coverage flag), by expedition (all teams and members), by unit/patrol. Every payload includes a top-level `last_synced` field populated from the `ems_osm_last_sync` WP Option (ISO 8601 string, or `null` if never synced).
 - Implement `Admin_View_Controller` and wire to REST endpoints.
 - Build React admin views (four tabs or sub-pages):
@@ -198,14 +231,14 @@ The following infrastructure was built during the original Phases 0–2 and is t
 - Write Vitest component tests for each view (data rendering, empty state, loading state). Each view renders a "Last synced: [date]" indicator; test the `null` (never synced) state renders "Never synced".
 - **Stage Complete When**: All view controller tests pass (`last_synced` field present in every payload); all four view component tests pass including last-synced display; CSV download tests pass.
 
-#### Stage 1.8 — EMS-Internal Update Logic
+#### Stage 1.8 — EMS-Internal Update Logic ❌ *(Not started)*
 - **TDD Task**: Write tests for `Expedition_Admin_Controller` — create expedition (validates code format, rejects duplicate), edit expedition (LiC, WhatsApp link, route info, dates), assign explorer to expedition, reassign explorer between teams.
 - Implement `Expedition_Admin_Controller` and wire to WP admin meta boxes / REST endpoints.
 - Build React "Create/Edit Expedition" form (code, dates, DofE level, LiC user picker, WhatsApp URL, route info text). Write Vitest component tests (validation states, submission, edit pre-population).
 - Build React "Explorer Assignment" drag-and-drop view — move explorers from unassigned pool into teams. Write Vitest component tests.
 - **Stage Complete When**: Controller tests pass; expedition form component tests pass; drag-drop assignment component tests pass.
 
-#### Stage 1.9 — Training Status Fallback
+#### Stage 1.9 — Training Status Fallback ❌ *(Not started)*
 - **TDD Task**: Write tests for training record fallback: when a Tutor LMS record is linked to a parent `user_id` rather than the explorer's `user_id`, the system falls back to the `ems_scout_id` anchor to retrieve the record. Test: match found via fallback, no record found (returns `null`).
 - Implement fallback logic in `TutorLMS_Client`.
 - **Stage Complete When**: Both fallback paths tested and passing; admin view shows correct training status for parent-trained explorers.
@@ -417,3 +450,31 @@ Phase 1 admin REST paths (from `docs/Data Schema and API.md §3.3`): `/reconcili
 | `ems_osm_last_sync` | string (ISO 8601 UTC) | Stage 1.5 commit step | Timestamp of last successful OSM sync; `null` / absent if never synced |
 | `ems_osm_client_id` | string | Admin Settings | OSM OAuth application client ID — used by `OSM_Sync_Auth_Handler` and the `login-with-google` OIDC flow |
 | `ems_osm_client_secret` | string (encrypted) | Admin Settings | OSM OAuth application client secret — stored encrypted; write-only field in admin UI after initial entry |
+
+---
+
+## 8. Deferred Items
+
+The following have been identified and noted for future attention. They are not blocking current stage work but must be resolved before the sync flow is considered production-ready.
+
+### 8.1 Mock data: distinct email addresses per member
+
+`tests/mocks/osm-member-detail.json` currently returns a single static email/parent_email pair regardless of which `scout_id` is requested. This means tests cannot validate that the correct email is stored for each explorer.
+
+**Required change**: Either (a) expand `osm-member-detail.json` into a keyed map of `scout_id → detail` and update `Mock_Driver::get_member_detail()` to look up by ID, or (b) generate a predictable email from the scout_id (e.g. `explorer.{scout_id}@example.com`) directly in `Mock_Driver`.
+
+### 8.2 Sync: pull and store events and event attendance
+
+The `OSM_Reference_Sync` currently calls `get_section_events()` but the resulting event and attendance data is not being persisted to `ems_osm_events` / `ems_osm_event_attendance`. These tables exist in `Table_Installer` but are empty after a sync.
+
+**Required changes**:
+- `sync_events_and_attendance()` in `OSM_Reference_Sync` must upsert rows into `ems_osm_events`.
+- Per-event attendance must be fetched (likely a separate API call per event) and upserted into `ems_osm_event_attendance`.
+- Mock data for event attendance needs to be created in `tests/mocks/`.
+- Tests for the upsert logic need to be written.
+
+### 8.3 Sync: patrol reference data
+
+Patrol names and IDs are currently denormalised onto `ems_osm_explorers.patrol` / `patrol_id`. This is sufficient for per-explorer display but makes it awkward to query "all explorers in patrol X" efficiently, or to show patrol metadata (e.g. patrol leader).
+
+**Decision required**: Determine whether a dedicated `ems_osm_patrols` table is warranted, or whether the denormalised approach on `ems_osm_explorers` is acceptable for the current view requirements.
