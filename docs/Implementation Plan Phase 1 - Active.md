@@ -14,11 +14,12 @@
 | Foundations + 1.1–1.6 | All completed | ✅ See archive |
 | Step 0 | Anonymised mock data generation | ✅ Done — 15 Jun 2026 |
 | 1.7 | Admin Read Views | ✅ Done — 15 Jun 2026 |
-| 1.8 | Sync UX + Diagnostics + Reference Data Display | ❌ Not started |
-| 1.9 | Expedition Board deep review | ❌ Not started |
-| 1.10 | Expedition write logic + Explorer Assignment | ❌ Not started |
-| 1.11 | Training Status Fallback | ❌ Not started |
-| 1.12 | Column Mapper repurpose (OSM write-back) | ❌ Not started |
+| 1.8 | Diagnostics + Reference Data Display | ❌ Not started |
+| 1.9 | OSM Auth Test Modes + Sync Progress Feedback | ❌ Not started |
+| 1.10 | Expedition Board deep review | ❌ Not started |
+| 1.11 | Expedition write logic + Explorer Assignment | ❌ Not started |
+| 1.12 | Training Status Fallback | ❌ Not started |
+| 1.13 | Column Mapper repurpose (OSM write-back) | ❌ Not started |
 
 **Tests**: 168 PHP / 322 assertions green. 16 JS Vitest green.
 
@@ -66,53 +67,7 @@
 
 ---
 
-### Stage 1.8 — Sync UX, Diagnostics, Reference Data Display ❌
-
-#### Live OSM Auth — current state
-
-`OSM_Sync_Auth_Handler` is **fully built**: initiates OAuth2 code flow → redirects to OSM → exchanges code for token → fires sync callback → redirects back with success. Wired in `Plugin.php`: `ems_api_mode=live` uses it; `mock` mode bypasses it.
-
-**What still needs doing before live auth works in production:**
-- `ems_osm_client_id` / `ems_osm_client_secret` must be configured in Settings (Settings page exists but these fields need verifying)
-- OSM app registration: redirect URI `admin-post.php?action=ems_osm_callback` must be whitelisted in the OSM developer portal
-- No end-to-end smoke test has run against a real OSM sandbox
-- Error handling in `handle_callback()` calls `wp_die()` — should redirect to a graceful error page instead
-
-#### OSM auth test modes
-
-The "Sync from OSM" button on the OSM Reference page is the entry point for all OSM auth. In `Plugin.php`, the `admin_post_ems_sync_osm` handler branches on `ems_api_mode`: `mock` runs the sync immediately; `live` calls `OSM_Sync_Auth_Handler::initiate()` to begin the OAuth2 code flow. The callback handler (`admin_post_ems_osm_callback`) exchanges the code, receives the token, then calls `OSM_Reference_Sync::sync()`.
-
-Two new modes are needed in `ems_api_mode` (or a separate `ems_sync_mode` option) to allow incremental live testing:
-
-**Mode: `live-auth-only`**
-- Initiates the full OAuth2 flow identically to `live`
-- After receiving the token, calls `get_data_payload()` only — no member/event sync
-- Stores the raw payload as transient `ems_last_payload_dump` (expires 1h)
-- Redirects to OSM Reference page and displays the full parsed payload: `userid`, `access_type`, `section_ids`, `terms`, `member_access` summary — so the admin can verify auth is working and the data structure is as expected before committing to a full sync
-- Useful for: verifying OAuth credentials, confirming section IDs, checking access scope
-
-**Mode: `live-limited`**
-- Initiates full OAuth2 flow
-- After auth, runs a capped sync: fetches members for the first managed section only, limited to the first N members (configurable via `ems_sync_limit`, default 5)
-- Each API call logs to `ems_last_sync_log` transient with timestamp + call type + HTTP status + rate limit headers remaining
-- Redirects to OSM Reference page showing the partial sync result + full call log
-- Useful for: testing progress reporting, verifying rate limiting behaviour, confirming member detail parsing works against live data
-
-**Implementation:**
-- Add `live-auth-only` and `live-limited` to the `ems_api_mode` dropdown in `Settings_Page`
-- Add `ems_sync_limit` field (integer, default 5) shown only when `live-limited` is selected
-- In `Plugin.php` `admin_post_ems_sync_osm` handler: add branches for these two modes — both redirect to `OSM_Sync_Auth_Handler::initiate()`; the mode is read again in the callback to determine what to do after token exchange
-- The call log from `live-limited` feeds directly into the sync result display and diagnostic panel built in the rest of this stage
-
-#### Sync progress and import feedback
-
-Currently the sync is a silent HTTP round-trip with a single success/failure notice on redirect. The admin has no visibility into what happened.
-
-**Tasks:**
-- `OSM_Reference_Sync::sync()` must accumulate and return a structured result: `{members_upserted, members_failed, events_upserted, events_failed, errors[]}` rather than returning `void`
-- Store result as transient `ems_last_sync_result` (expires in 24h)
-- `render_reference_page()`: after sync, display a summary panel: how many members imported, how many events, how many errors, and a collapsible error list
-- Replace the bare `wp_die()` OAuth error paths with redirects back to the reference page with an error query param and a notice
+### Stage 1.8 — Diagnostics + Reference Data Display ❌
 
 #### Diagnostic panel — fix and relocate
 
@@ -124,26 +79,75 @@ Currently the sync is a silent HTTP round-trip with a single success/failure not
   - `ems_osm_client_id` configured? (yes/no, don't show value)
   - `ems_managed_sections` list
   - `ems_osm_last_sync` timestamp
-  - `ems_last_sync_result` summary (from transient above)
+  - `ems_last_sync_result` summary (from transient, populated in 1.9)
   - OSM rate limit headers (already rendered, just conditionally hidden)
   - DB row counts for each EMS table (explorers, events, attendance)
 - Move diagnostic panel from Expedition Board page to the OSM Reference page where it belongs
-- Keep current per-user OIDC section on Reference page (access type, scout IDs, section IDs) — but only show it when `ems_access_type` is set
+- Keep current per-user OIDC section (access type, scout IDs, section IDs) — show only when `ems_access_type` is set
 
-#### Reference data display — patrols and events
+#### Reference data display — tabs for explorers, patrols, events
 
-`render_reference_page()` shows the explorers table only. After a sync, the admin also needs to see patrol and event data to verify the import worked.
+`render_reference_page()` currently shows a single explorers table. Replace with a tabbed layout using WP admin nav-tabs:
 
-**Tasks:**
-- Add a **Patrols summary** below the Explorers table: group `ems_osm_explorers` by `patrol`, show patrol name + member count
-- Add an **Events** table from `ems_osm_events`: event name, start date, end date, location, attendance count (JOIN with `ems_osm_event_attendance`)
-- Both sections collapse gracefully to "No data — run a sync first" when empty
+- **Explorers tab** — existing table (scout ID, name, patrol, email); unchanged
+- **Patrols tab** — group `ems_osm_explorers` by `patrol`, show patrol name + member count as a summary table
+- **Events tab** — query `ems_osm_events` with attendance count (JOIN `ems_osm_event_attendance`); show event name, start date, end date, location, attendance count
+- All tabs show "No data — run a sync first" when empty
+- Active tab persisted via `?tab=` query param so a redirect back to the page lands on the right tab
 
-**Complete when**: sync result stored + displayed; diagnostic shows useful info for a fresh admin login; patrols and events visible on reference page; live auth error paths redirect gracefully.
+**Complete when**: diagnostic panel shows useful content for any admin login; three tabs render correctly; panel relocated from Expedition Board page.
 
 ---
 
-### Stage 1.9 — Expedition Board Deep Review ❌
+### Stage 1.9 — OSM Auth Test Modes + Sync Progress Feedback ❌
+
+#### Live OSM auth — current state
+
+`OSM_Sync_Auth_Handler` is **fully built**: initiates OAuth2 code flow → exchanges code for token → fires sync callback → redirects back. Wired in `Plugin.php`: `ems_api_mode=live` uses it; `mock` bypasses it.
+
+**Before live auth works in production:**
+- OAuth credentials (`ems_osm_client_id` / `ems_osm_client_secret`) must be configured in Settings
+- Redirect URI `admin-post.php?action=ems_osm_callback` must be whitelisted in OSM developer portal
+- `wp_die()` error paths in `handle_callback()` should redirect gracefully instead
+
+#### OSM auth test modes
+
+Two new modes in `ems_api_mode` to allow incremental live testing without a full sync:
+
+**Mode: `live-auth-only`**
+- Full OAuth2 flow → `get_data_payload()` only — no member/event sync
+- Stores raw parsed payload as transient `ems_last_payload_dump` (1h)
+- Redirects to OSM Reference page → Diagnostics tab shows: `userid`, `access_type`, `section_ids`, `terms`, `member_access` summary
+- Purpose: verify credentials, confirm section IDs, check access scope
+
+**Mode: `live-limited`**
+- Full OAuth2 flow → capped sync: first managed section only, first N members (`ems_sync_limit`, default 5)
+- Each API call appended to `ems_last_sync_log` transient: timestamp, call type, HTTP status, rate-limit headers remaining
+- Redirects to OSM Reference page showing partial sync result + full call log
+- Purpose: test progress reporting and rate limiting against real data
+
+**Implementation:**
+- Add `live-auth-only` and `live-limited` to `ems_api_mode` dropdown in `Settings_Page`
+- Add `ems_sync_limit` integer field (shown only for `live-limited`)
+- `Plugin.php` callback handler: reads `ems_api_mode` after token exchange to branch behaviour
+- Both new modes redirect to `OSM_Sync_Auth_Handler::initiate()` — same OAuth flow as `live`
+
+#### Sync progress and import feedback
+
+Currently a silent round-trip with a single success/failure notice.
+
+**Tasks:**
+- `OSM_Reference_Sync::sync()` returns a result struct: `{members_upserted, members_failed, events_upserted, events_failed, errors[]}`
+- Store as transient `ems_last_sync_result` (24h)
+- `render_reference_page()`: display sync summary panel above tabs — member count, event count, error count, collapsible error list
+- For `live-limited`: display full per-call log (from `ems_last_sync_log`) in the Diagnostics tab
+- Replace `wp_die()` OAuth error paths with redirects to reference page with `?error=` param and admin notice
+
+**Complete when**: `live-auth-only` displays parsed payload; `live-limited` runs capped sync + shows call log; full `live` sync stores and displays result summary; error paths redirect gracefully.
+
+---
+
+### Stage 1.10 — Expedition Board Deep Review ❌
 
 The current board exists but needs a thorough review before building write functionality on top of it.
 
@@ -155,11 +159,11 @@ The current board exists but needs a thorough review before building write funct
 - Identify any data that should be on the board but isn't (e.g. expedition status, route deadline, LiC contact)
 - Identify missing empty-state handling
 
-**Complete when**: Board review notes captured; any blocking bugs fixed; UX gaps documented for 1.10.
+**Complete when**: Board review notes captured; any blocking bugs fixed; UX gaps documented for 1.11.
 
 ---
 
-### Stage 1.10 — Expedition Write Logic + Explorer Assignment ❌
+### Stage 1.11 — Expedition Write Logic + Explorer Assignment ❌
 
 **TDD Tasks:**
 - `Expedition_Admin_Controller` — create expedition (validates code format, rejects duplicate), edit (LiC, WhatsApp, route info, dates), assign explorer to expedition, reassign between teams
@@ -171,7 +175,7 @@ The current board exists but needs a thorough review before building write funct
 
 ---
 
-### Stage 1.11 — Training Status Fallback ❌
+### Stage 1.12 — Training Status Fallback ❌
 
 When a Tutor LMS record is linked to a parent `user_id` rather than the explorer's, fall back to `ems_scout_id` anchor.
 
@@ -181,7 +185,7 @@ When a Tutor LMS record is linked to a parent `user_id` rather than the explorer
 
 ---
 
-### Stage 1.12 — Column Mapper Repurpose (OSM Write-back) ❌
+### Stage 1.13 — Column Mapper Repurpose (OSM Write-back) ❌
 
 The Column Mapper was originally built for flexible import mapping (flexi-record columns → EMS fields). The write-back direction (EMS → OSM) is simpler: EMS fields are fixed; the OSM flexi-record column IDs just need to be configured once and persisted.
 
@@ -201,15 +205,14 @@ The Column Mapper was originally built for flexible import mapping (flexi-record
 ---
 
 ## Phase 1 Complete When
-- All 1.8–1.11 tests pass (`vendor/bin/phpunit`, `npm run test`)
-- Sync produces visible import summary in the UI
-- Diagnostic panel shows useful info for any admin login
-- Patrol and event data visible on OSM Reference page
-- Expedition board reviewed and any blocking bugs fixed
-- `live-auth-only` and `live-limited` modes working against real OSM (1.8)
-- Admin can create/edit expeditions and reassign explorers (1.10)
-- Training fallback logic tested and passing (1.11)
-- Column mapper repurposed for write-back config (1.12)
+- All 1.8–1.13 tests pass (`vendor/bin/phpunit`, `npm run test`)
+- Diagnostic panel shows useful content for any admin login; moved to OSM Reference page (1.8)
+- Explorers / Patrols / Events visible as tabs on OSM Reference page (1.8)
+- `live-auth-only` and `live-limited` modes working against real OSM; sync result displayed (1.9)
+- Expedition board reviewed and any blocking bugs fixed (1.10)
+- Admin can create/edit expeditions and reassign explorers (1.11)
+- Training fallback logic tested and passing (1.12)
+- Column mapper repurposed for write-back config (1.13)
 
 ---
 
@@ -219,13 +222,13 @@ Files built in completed stages: see archive. New/modified files for remaining s
 
 | File | Class/Purpose | Stage |
 |---|---|---|
-| `src/Admin/Settings_Page.php` | Add `live-auth-only`, `live-limited`, `ems_sync_limit` fields | 1.8 |
-| `src/Plugin.php` | Branches for new sync modes in callback handler | 1.8 |
-| `src/Integrations/OSM_Reference_Sync.php` | Return sync result struct; support member limit | 1.8 |
-| `src/Admin/Diagnostic_Panel.php` | System-level diagnostics | 1.8 |
-| `src/Admin/Admin_Page.php` | Move diagnostic, add patrol/event tables, sync result + call log panel | 1.8 |
-| `src/Admin/Expedition_Admin_Controller.php` | Create/edit expeditions, assign explorers | 1.10 |
-| `resources/js/admin/expedition-board/ExpeditionBoard.tsx` | Board review + write-action UI | 1.9/1.10 |
+| `src/Admin/Diagnostic_Panel.php` | System-level diagnostics; relocate to OSM Reference page | 1.8 |
+| `src/Admin/Admin_Page.php` | Tabbed reference page (Explorers/Patrols/Events); move diagnostic | 1.8 |
+| `src/Admin/Settings_Page.php` | Add `live-auth-only`, `live-limited`, `ems_sync_limit` fields | 1.9 |
+| `src/Plugin.php` | Branches for new sync modes in callback handler | 1.9 |
+| `src/Integrations/OSM_Reference_Sync.php` | Return sync result struct; support member limit | 1.9 |
+| `src/Admin/Expedition_Admin_Controller.php` | Create/edit expeditions, assign explorers | 1.11 |
+| `resources/js/admin/expedition-board/ExpeditionBoard.tsx` | Board review + write-action UI | 1.10/1.11 |
 
 ---
 
