@@ -121,7 +121,30 @@
                 }
             },
             "member_access_unactivated": false,
-            "terms": [],
+            "terms": {
+                "99001": [
+                    {
+                        "termid": "5001",
+                        "sectionid": "99001",
+                        "name": "Spring 2026",
+                        "startdate": "2026-01-01",
+                        "enddate": "2026-07-31",
+                        "master_term": null,
+                        "past": false
+                    }
+                ],
+                "99002": [
+                    {
+                        "termid": "5002",
+                        "sectionid": "99002",
+                        "name": "Spring 2026",
+                        "startdate": "2026-01-01",
+                        "enddate": "2026-07-31",
+                        "master_term": null,
+                        "past": false
+                    }
+                ]
+            },
             "global_roles": [],
             "hasSectionAccess": false,
             "notepads": [],

@@ -60,20 +60,39 @@ class Live_Driver implements Driver_Interface {
         ] );
     }
 
-    public function get_section_members( int $section_id ): array {
+    public function get_section_members( int $section_id, int $term_id ): array {
         $url = add_query_arg( [
             'action'    => 'getListOfMembers',
+            'sort'      => 'dob',
             'sectionid' => $section_id,
-        ], $this->get_base_url() );
+            'termid'    => $term_id,
+            'section'   => 'explorers',
+        ], 'https://www.onlinescoutmanager.co.uk/ext/members/contact/' );
 
         return $this->request( $url );
     }
 
-    public function get_section_events( int $section_id ): array {
+    public function get_section_events( int $section_id, int $term_id ): array {
         $url = add_query_arg( [
             'action'    => 'get',
             'sectionid' => $section_id,
-        ], $this->get_base_url() );
+            'termid'    => $term_id,
+        ], 'https://www.onlinescoutmanager.co.uk/ext/events/summary/' );
+
+        return $this->request( $url );
+    }
+
+    public function get_member_detail( int $section_id, int $scout_id, int $term_id ): array {
+        $url = add_query_arg( [
+            'action'               => 'getData',
+            'section_id'          => $section_id,
+            'associated_id'       => $scout_id,
+            'associated_type'     => 'member',
+            'associated_is_section' => 'null',
+            'varname_filter'      => 'null',
+            'context'             => 'members',
+            'group_order'         => 'section',
+        ], 'https://www.onlinescoutmanager.co.uk/ext/customdata/' );
 
         return $this->request( $url );
     }

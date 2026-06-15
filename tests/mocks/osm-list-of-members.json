@@ -1,0 +1,36 @@
+{
+    "identifier": "scoutid",
+    "photos": false,
+    "items": [
+        {
+            "scoutid": 1001,
+            "firstname": "Alice",
+            "lastname": "Alpha",
+            "patrolid": 201,
+            "patrol": "Bears",
+            "sectionid": 99001,
+            "startdate": "2024-09-01",
+            "enddate": null,
+            "age": "16 / 1",
+            "patrol_role_level_label": "",
+            "active": true,
+            "full_name": "Alice Alpha",
+            "has_invitations": false
+        },
+        {
+            "scoutid": 1002,
+            "firstname": "Bob",
+            "lastname": "Bravo",
+            "patrolid": 202,
+            "patrol": "Wolves",
+            "sectionid": 99001,
+            "startdate": "2024-09-01",
+            "enddate": null,
+            "age": "15 / 4",
+            "patrol_role_level_label": "",
+            "active": true,
+            "full_name": "Bob Bravo",
+            "has_invitations": false
+        }
+    ]
+}

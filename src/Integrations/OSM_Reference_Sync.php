@@ -20,16 +20,28 @@ class OSM_Reference_Sync {
     /**
      * Runs the full sync for all managed sections.
      *
-     * @param int[] $section_ids
+     * Requires a getDataPayload response to resolve term IDs.
+     *
+     * @param int[]  $section_ids
+     * @param array  $payload  Result of OSM_API_Client::get_data_payload() — used to resolve term IDs.
      */
-    public function sync( array $section_ids ): void {
+    public function sync( array $section_ids, array $payload ): void {
         global $wpdb;
 
-        $now = current_time( 'mysql' );
+        $now   = current_time( 'mysql' );
+        $terms = $this->parser->parse_terms( $payload );
 
         foreach ( $section_ids as $section_id ) {
-            $this->sync_members( $wpdb, (int) $section_id, $now );
-            $this->sync_events_and_attendance( $wpdb, (int) $section_id, $now );
+            $section_id = (int) $section_id;
+            $term       = $this->parser->find_current_term( $terms, $section_id );
+
+            if ( $term === null ) {
+                continue;
+            }
+
+            $term_id = $term['term_id'];
+            $this->sync_members( $wpdb, $section_id, $term_id, $now );
+            $this->sync_events_and_attendance( $wpdb, $section_id, $term_id, $now );
         }
 
         update_option( 'ems_osm_last_sync', current_time( 'mysql' ) );
@@ -37,16 +49,19 @@ class OSM_Reference_Sync {
 
     /**
      * Syncs members for a section into ems_osm_explorers.
+     * Fetches basic list via getListOfMembers, then per-member getData for email addresses.
      */
-    private function sync_members( \wpdb $wpdb, int $section_id, string $now ): void {
-        $raw     = $this->api_client->get_section_participants( $section_id );
+    private function sync_members( \wpdb $wpdb, int $section_id, int $term_id, string $now ): void {
+        $members = $this->api_client->get_section_participants( $section_id, $term_id );
         $table   = $wpdb->prefix . 'ems_osm_explorers';
 
-        foreach ( $raw as $member ) {
+        foreach ( $members as $member ) {
             $scout_id = (int) ( $member['member_id'] ?? 0 );
             if ( ! $scout_id ) {
                 continue;
             }
+
+            $detail = $this->api_client->get_member_detail( $section_id, $scout_id, $term_id );
 
             $wpdb->replace(
                 $table,
@@ -54,10 +69,10 @@ class OSM_Reference_Sync {
                     'scout_id'     => $scout_id,
                     'section_id'   => $section_id,
                     'first_name'   => $member['first_name'] ?? '',
-                    'last_name'    => $member['last_name'] ?? '',
-                    'email'        => $member['email'] ?? '',
-                    'parent_email' => $member['parent_email'] ?? '',
-                    'patrol'       => $member['patrol'] ?? '',
+                    'last_name'    => $member['last_name']  ?? '',
+                    'email'        => $detail['email']        ?? '',
+                    'parent_email' => $detail['parent_email'] ?? '',
+                    'patrol'       => $member['patrol']     ?? '',
                     'synced_at'    => $now,
                 ],
                 [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
@@ -68,8 +83,8 @@ class OSM_Reference_Sync {
     /**
      * Syncs events and per-event attendance for a section.
      */
-    private function sync_events_and_attendance( \wpdb $wpdb, int $section_id, string $now ): void {
-        $raw_events  = $this->api_client->get_section_events( $section_id );
+    private function sync_events_and_attendance( \wpdb $wpdb, int $section_id, int $term_id, string $now ): void {
+        $raw_events  = $this->api_client->get_section_events( $section_id, $term_id );
         $events_table     = $wpdb->prefix . 'ems_osm_events';
         $attendance_table = $wpdb->prefix . 'ems_osm_event_attendance';
 

@@ -88,7 +88,7 @@ class Plugin {
                 $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
                 $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
 
-                ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )->sync( $all_ids );
+                ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )->sync( $all_ids, $payload );
                 wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=success' ) );
             } else {
                 $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
@@ -115,7 +115,7 @@ class Plugin {
                 $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
 
                 $sync = new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser );
-                $sync->sync( $all_ids );
+                $sync->sync( $all_ids, $payload );
             } );
         } );
 
@@ -134,5 +134,13 @@ class Plugin {
 
     public static function activate(): void {
         ( new Table_Installer() )->install();
+        update_option( 'ems_db_version', EMS_VERSION );
+    }
+
+    public static function maybe_upgrade(): void {
+        if ( get_option( 'ems_db_version' ) !== EMS_VERSION ) {
+            ( new Table_Installer() )->install();
+            update_option( 'ems_db_version', EMS_VERSION );
+        }
     }
 }

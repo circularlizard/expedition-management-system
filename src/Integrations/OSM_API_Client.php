@@ -29,18 +29,25 @@ class OSM_API_Client {
         return $data;
     }
 
-    public function get_section_participants( int $section_id ): array {
+    public function get_section_participants( int $section_id, int $term_id ): array {
         $this->rate_limiter->consume();
-        $raw = $this->driver->get_section_members( $section_id );
+        $raw = $this->driver->get_section_members( $section_id, $term_id );
         $this->sync_rate_limiter();
         return $this->parser->parse_members( $raw );
     }
 
-    public function get_section_events( int $section_id ): array {
+    public function get_section_events( int $section_id, int $term_id ): array {
         $this->rate_limiter->consume();
-        $raw = $this->driver->get_section_events( $section_id );
+        $raw = $this->driver->get_section_events( $section_id, $term_id );
         $this->sync_rate_limiter();
         return $this->parser->parse_events( $raw );
+    }
+
+    public function get_member_detail( int $section_id, int $scout_id, int $term_id ): array {
+        $this->rate_limiter->consume();
+        $raw = $this->driver->get_member_detail( $section_id, $scout_id, $term_id );
+        $this->sync_rate_limiter();
+        return $this->parser->parse_member_detail( $raw );
     }
 
     public function get_flexi_record_data( int $section_id, int $flexi_id ): array {

@@ -101,23 +101,43 @@ class OSM_API_ClientTest extends EMSTestCase {
 
     public function test_get_section_participants_returns_parsed_members(): void {
         $raw_members = json_decode(
-            file_get_contents( __DIR__ . '/../../mocks/members.json' ),
+            file_get_contents( __DIR__ . '/../../mocks/osm-list-of-members.json' ),
             true
         );
         $this->driver->shouldReceive( 'get_section_members' )
             ->once()
-            ->with( 99001 )
+            ->with( 99001, 5001 )
             ->andReturn( $raw_members );
         $this->driver->shouldReceive( 'get_last_response_headers' )
             ->once()
             ->andReturn( [] );
 
         $client       = new OSM_API_Client( $this->driver, $this->parser );
-        $participants = $client->get_section_participants( 99001 );
+        $participants = $client->get_section_participants( 99001, 5001 );
 
         $this->assertCount( 2, $participants );
         $this->assertSame( 1001, $participants[0]['member_id'] );
         $this->assertSame( 'Alice', $participants[0]['first_name'] );
+    }
+
+    public function test_get_member_detail_returns_parsed_emails(): void {
+        $raw_detail = json_decode(
+            file_get_contents( __DIR__ . '/../../mocks/osm-member-detail.json' ),
+            true
+        );
+        $this->driver->shouldReceive( 'get_member_detail' )
+            ->once()
+            ->with( 99001, 1001, 5001 )
+            ->andReturn( $raw_detail );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
+
+        $client = new OSM_API_Client( $this->driver, $this->parser );
+        $detail = $client->get_member_detail( 99001, 1001, 5001 );
+
+        $this->assertSame( 'alice@example.com', $detail['email'] );
+        $this->assertSame( 'parent.alice@example.com', $detail['parent_email'] );
     }
 
     public function test_set_access_token_delegates_to_driver(): void {
@@ -137,14 +157,14 @@ class OSM_API_ClientTest extends EMSTestCase {
         );
         $this->driver->shouldReceive( 'get_section_events' )
             ->once()
-            ->with( 99001 )
+            ->with( 99001, 5001 )
             ->andReturn( $raw_events );
         $this->driver->shouldReceive( 'get_last_response_headers' )
             ->once()
             ->andReturn( [] );
 
         $client = new OSM_API_Client( $this->driver, $this->parser );
-        $events = $client->get_section_events( 99001 );
+        $events = $client->get_section_events( 99001, 5001 );
 
         $this->assertCount( 2, $events );
         $this->assertSame( 40001, $events[0]['event_id'] );

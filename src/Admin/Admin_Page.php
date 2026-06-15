@@ -136,7 +136,11 @@ class Admin_Page {
         $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
         $explorers       = $wpdb->get_results( "SELECT * FROM {$explorers_table} ORDER BY last_name, first_name", ARRAY_A );
 
-        echo '<h2>' . esc_html__( 'Explorers', 'ems-plugin' ) . '</h2>';
+        if ( $wpdb->last_error ) {
+            echo '<div class="notice notice-error"><p><strong>Database error:</strong> ' . esc_html( $wpdb->last_error ) . '</p></div>';
+        }
+
+        echo '<h2>' . esc_html__( 'Explorers', 'ems-plugin' ) . ' <span style="font-size:0.7em;font-weight:normal;color:#666;">(' . (int) count( (array) $explorers ) . ')</span></h2>';
         if ( ! empty( $explorers ) ) {
             echo '<table class="wp-list-table widefat fixed striped">';
             echo '<thead><tr><th>' . esc_html__( 'Scout ID', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Email', 'ems-plugin' ) . '</th></tr></thead><tbody>';
