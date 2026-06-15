@@ -1,24 +1,118 @@
 {
-    "extraid": "12345",
-    "sectionid": "67890",
-    "name": "Test Expedition",
-    "config": "[{\"id\":\"f_1\",\"name\":\"EXPEDITION CODE\",\"width\":\"150\"},{\"id\":\"f_2\",\"name\":\"TEAM CODE\",\"width\":\"150\"},{\"id\":\"f_3\",\"name\":\"STATUS\",\"width\":\"150\"}]",
+    "extraid": "99848",
+    "sectionid": "99001",
+    "name": "2026 Expeditions",
+    "config": "[{\"id\":\"f_9\",\"name\":\"PRACTICE GROUPS\",\"width\":\"150\"},{\"id\":\"f_10\",\"name\":\"PRACTICE ACCEPTED\",\"width\":\"150\"},{\"id\":\"f_11\",\"name\":\"QUALIFIER ACCEPTED\",\"width\":\"150\"},{\"id\":\"f_12\",\"name\":\"QUALIFIER GROUPS\",\"width\":\"150\"},{\"id\":\"f_13\",\"name\":\"FIRST AID\",\"width\":\"150\"},{\"id\":\"f_14\",\"name\":\"MODULE E\",\"width\":\"150\"},{\"id\":\"f_15\",\"name\":\"MODULE TRAININ\",\"width\":\"150\"},{\"id\":\"f_16\",\"name\":\"NOTES\",\"width\":\"150\"},{\"id\":\"f_17\",\"name\":\"BLAIR\\/WSJ\",\"width\":\"150\"},{\"id\":\"f_18\",\"name\":\"TRAINING DAY \",\"width\":\"150\"}]",
     "total": "none",
-    "extrafields": "[{\"name\":\"Patrol\",\"field\":\"patrol\",\"width\":\"120px\"}]",
+    "extrafields": "[{\"name\":\"Age\",\"field\":\"age\",\"width\":\"70px\"},{\"name\":\"Birthday\",\"field\":\"dob\",\"width\":\"100px\"},{\"name\":\"Patrol\",\"field\":\"patrol\",\"width\":\"120px\"}]",
+    "archived": "0",
+    "soft_deleted": "0",
+    "archived_at": null,
     "structure": [
         {
             "rows": [
-                { "name": "First Name", "field": "firstname", "width": "150px" },
-                { "name": "Last Name", "field": "lastname", "width": "150px" },
-                { "name": "Patrol", "field": "patrol", "width": "120px" }
+                {
+                    "name": "First Name",
+                    "field": "firstname",
+                    "width": "150px",
+                    "formatter": "boldFormatter"
+                },
+                {
+                    "name": "Last Name",
+                    "field": "lastname",
+                    "width": "150px"
+                },
+                {
+                    "name": "Age",
+                    "field": "age",
+                    "width": "70px"
+                },
+                {
+                    "name": "Birthday",
+                    "field": "dob",
+                    "width": "100px",
+                    "formatter": "dateFormatter"
+                },
+                {
+                    "name": "Patrol",
+                    "field": "patrol",
+                    "width": "120px"
+                }
             ],
             "noscroll": true
         },
         {
             "rows": [
-                { "name": "EXPEDITION CODE", "field": "f_1", "width": "150px", "editable": true },
-                { "name": "TEAM CODE", "field": "f_2", "width": "150px", "editable": true },
-                { "name": "STATUS", "field": "f_3", "width": "150px", "editable": true }
+                {
+                    "name": "PRACTICE GROUPS",
+                    "field": "f_9",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "PRACTICE ACCEPTED",
+                    "field": "f_10",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "QUALIFIER ACCEPTED",
+                    "field": "f_11",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "QUALIFIER GROUPS",
+                    "field": "f_12",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "FIRST AID",
+                    "field": "f_13",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "MODULE E",
+                    "field": "f_14",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "MODULE TRAININ",
+                    "field": "f_15",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "NOTES",
+                    "field": "f_16",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "BLAIR/WSJ",
+                    "field": "f_17",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                },
+                {
+                    "name": "TRAINING DAY ",
+                    "field": "f_18",
+                    "width": "150px",
+                    "formatter": "boldFormatter",
+                    "editable": true
+                }
             ]
         }
     ]

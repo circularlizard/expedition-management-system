@@ -12,6 +12,7 @@
 | Stage | Description | Status |
 |---|---|---|
 | Foundations + 1.1–1.6 | All completed | ✅ See archive |
+| Step 0 | Anonymised mock data generation | ✅ Done — 15 Jun 2026 |
 | 1.7 | Admin Read Views | ⚠️ Partial — Expedition Board only |
 | 1.8 | Expedition_Admin_Controller | ❌ Not started |
 | 1.9 | Training Status Fallback | ❌ Not started |
@@ -22,41 +23,24 @@
 
 ## Immediate Next Steps (in order)
 
-### Step 0 — Generate Anonymised Mock Data *(do first)*
+### ✅ Step 0 — Anonymised Mock Data Generation *(complete — 15 Jun 2026)*
 
-The `mockdata/` directory contains real API responses (gitignored). Several `tests/mocks/` files are still stubs or partially anonymised. Before building further views and tests, we need a complete, coherent, anonymised mock dataset that:
+`bin/generate-mock-data.py` written and validated. Regenerates all `tests/mocks/` files deterministically (`random.seed(42)`). Re-run at any time to refresh from `mockdata/`.
 
-- Uses consistent scout IDs across all files (members list, event attendance, member detail)
-- Has a distinct, predictable email per member (`scout.{id}@example-ems.test`, `parent.{id}@example-ems.test`)
-- Covers realistic attendance states (`Yes`, `No`, `")` across multiple events
-- Has no real names, emails, or identifiers
+**Files generated** (9 total):
+- `osm-list-of-members.json` — 127 members, Scottish fictitious names, scout IDs `3417257+`, patrol IDs `99200+`
+- `osm-member-detail.json` — keyed map `{scout_id: {email, parent_email}}`, `scout.{id}@example-ems.test`
+- `osm-patrols.json` — mock patrol IDs matching member list
+- `osm-events.json` — 2 events, IDs `40001/40002`
+- `osm-event-attendance.json` — all 127 members, varied `yes`/`no`/`""` attending
+- `osm-flexi-record-structure.json` — mock section `99001`, extraid `99848`
+- `osm-flexi-record-data.json` — all 127 members, varied `f_9`–`f_18` flexi fields
+- `osm-get-data-payload-explorer.json` — userid `20001`, `member_access` scout `30001` in sections `99001`/`99002`
+- `osm-get-data-payload-parent.json` — userid `20002`, children `30001`/`30002`
 
-**Deliverable**: `bin/generate-mock-data.py` — a Python script that reads from `mockdata/` and writes anonymised outputs to `tests/mocks/`. Running it at any time regenerates all mock files deterministically (fixed seed).
+**`Mock_Driver::get_member_detail()`** updated: looks up by `$scout_id` in keyed map, wraps in raw `getData` structure for `parse_member_detail`.
 
-**Files to generate/update**:
-
-| Output file | Source | Notes |
-|---|---|---|
-| `tests/mocks/osm-list-of-members.json` | `mockdata/getListOfMembers.json` | Already done (123 members, Scottish names, seed 42). Regenerate via script. |
-| `tests/mocks/osm-member-detail.json` | `mockdata/members-getData.json` | Must become a keyed map `{ "scout_id": { email, parent_email } }` for all 123 members. `Mock_Driver::get_member_detail()` updated to look up by scout_id. |
-| `tests/mocks/osm-event-attendance.json` | `mockdata/getEventAttendance.json` | Replace real names/IDs with anonymised scout IDs matching member list. Vary `attending` values (`Yes`, `No`, `""`). |
-| `tests/mocks/osm-events.json` | `mockdata/getEventList.json` | Replace real section/event IDs with mock IDs (99001, 40001+). Keep date structure. |
-| `tests/mocks/osm-get-data-payload-explorer.json` | `mockdata/getDataPayload.json` | Real file contains PII (`email`, `firstname`, `lastname`, real section IDs). Script must scrub: replace `email`/`firstname`/`lastname`/`fullname` with mock values; remap all real section IDs to mock IDs (99001, 99002); ensure `terms` block has a current term per mock section. Enrich stub with real structural keys (`roles`, `member_access`, `sections`) populated with mock values so future parsing tests work. Also regenerate `osm-get-data-payload-parent.json` with `access_type: parent` variant. |
-| `tests/mocks/osm-patrols.json` | `mockdata/getPatrols.json` | Replace real section/patrol IDs with mock IDs matching those used in `osm-list-of-members.json`. Keep patrol names (they are not PII). |
-| `tests/mocks/osm-flexi-record-structure.json` | `mockdata/getStructure.json` | Regenerate with mock section/extraid IDs (99001, 73848→99848). Column names and types are not PII — keep as-is. |
-| `tests/mocks/osm-flexi-record-data.json` | `mockdata/getData.json` | Replace real scout IDs and any free-text personal values (expedition codes, team codes) with anonymised equivalents consistent with the member list. |
-
-**Script requirements**:
-- `bin/generate-mock-data.py` reads from `mockdata/`, outputs to `tests/mocks/`
-- Deterministic: `random.seed(42)` throughout
-- Idempotent: safe to re-run; overwrites existing output files
-- Prints a summary of what was written
-
-**`Mock_Driver` change required**: `get_member_detail(int $section_id, int $scout_id, int $term_id)` must look up by `$scout_id` in the keyed map rather than returning a single static response.
-
-**Test updates required**: Any test asserting a specific email from `osm-member-detail.json` must use the predictable `scout.{id}@example-ems.test` format.
-
-**Complete when**: Script runs cleanly, all mock files regenerate consistently, `Mock_Driver::get_member_detail()` returns distinct emails per member, 162 tests still green.
+**3 test files updated** to use predictable email format. **162/162 tests green**.
 
 ---
 
