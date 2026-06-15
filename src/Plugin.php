@@ -3,12 +3,10 @@ namespace EMS;
 
 use EMS\Admin\Admin_Page;
 use EMS\Admin\Diagnostic_Panel;
-use EMS\Admin\OSM_Reference_Page;
 use EMS\Admin\Settings_Page;
 use EMS\Admin\Training_Report_Page;
 use EMS\Core\CPT_Registry;
 use EMS\Core\Table_Installer;
-use EMS\Data\Expedition_Repository;
 use EMS\Integrations\Drivers\Live_Driver;
 use EMS\Integrations\Drivers\Mock_Driver;
 use EMS\Integrations\OSM_API_Client;
@@ -32,8 +30,7 @@ class Plugin {
         );
         add_action( 'admin_menu', [ $admin_page, 'register' ], 10 );
 
-        $reference_page = new OSM_Reference_Page( new Expedition_Repository() );
-        add_action( 'admin_menu', [ $reference_page, 'register' ], 12 );
+        add_action( 'admin_menu', [ $admin_page, 'register_reference_menu' ], 12 );
 
         $report_page = new Training_Report_Page( new TutorLMS_Client() );
         add_action( 'admin_menu', [ $report_page, 'register' ], 14 );

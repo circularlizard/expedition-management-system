@@ -50,6 +50,13 @@ class OSM_API_Client {
         return $data;
     }
 
+    public function get_event_attendance( int $section_id, int $event_id ): array {
+        $this->rate_limiter->consume();
+        $data = $this->driver->get_event_attendance( $section_id, $event_id );
+        $this->sync_rate_limiter();
+        return $data;
+    }
+
     public function get_flexi_record_structure( int $section_id, int $flexi_id ): array {
         $this->rate_limiter->consume();
         $data = $this->driver->get_flexi_record_structure( $section_id, $flexi_id );

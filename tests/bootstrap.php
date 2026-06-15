@@ -9,6 +9,14 @@ if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
     define( 'HOUR_IN_SECONDS', 3600 );
 }
 
+if ( ! defined( 'ARRAY_A' ) ) {
+    define( 'ARRAY_A', 'ARRAY_A' );
+}
+
+if ( ! defined( 'OBJECT' ) ) {
+    define( 'OBJECT', 'OBJECT' );
+}
+
 if ( ! class_exists( 'WP_User' ) ) {
     class WP_User {
         public int $ID = 0;

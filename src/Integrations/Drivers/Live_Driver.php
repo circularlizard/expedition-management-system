@@ -116,4 +116,14 @@ class Live_Driver implements Driver_Interface {
 
         return $this->request( $url );
     }
+
+    public function get_event_attendance( int $section_id, int $event_id ): array {
+        $url = add_query_arg( [
+            'action'    => 'getEventAttendance',
+            'sectionid' => $section_id,
+            'eventid'   => $event_id,
+        ], $this->get_base_url() );
+
+        return $this->request( $url );
+    }
 }

@@ -17,6 +17,8 @@ class Flexi_Record_ImporterTest extends EMSTestCase {
     private $teams;
     private $team_members;
 
+    private $wpdb;
+
     protected function setUp(): void {
         parent::setUp();
         $this->column_map   = Mockery::mock( Flexi_Column_Map::class );
@@ -25,12 +27,20 @@ class Flexi_Record_ImporterTest extends EMSTestCase {
         $this->team_members = Mockery::mock( Team_Member_Repository::class );
 
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        
-        Functions\when( 'get_users' )->alias( function( $args ) {
-            if ( isset( $args['meta_value'] ) && (int) $args['meta_value'] === 1001 ) {
-                return [ 123 ];
+
+        $this->wpdb         = Mockery::mock( 'wpdb' );
+        $this->wpdb->prefix = 'wp_';
+        $GLOBALS['wpdb']    = $this->wpdb;
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+            fn( $sql, ...$args ) => vsprintf( str_replace( '%d', '%s', $sql ), $args )
+        );
+
+        $this->wpdb->shouldReceive( 'get_row' )->andReturnUsing( function ( $sql ) {
+            if ( str_contains( $sql, '1001' ) ) {
+                return [ 'id' => 1, 'wp_user_id' => 123 ];
             }
-            return [];
+            return null;
         } );
     }
 

@@ -55,6 +55,48 @@ class Table_Installer {
             KEY idx_team_post_id (team_post_id)
         ) {$charset};";
 
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_explorers (
+            id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            scout_id     BIGINT UNSIGNED NOT NULL,
+            wp_user_id   BIGINT UNSIGNED          DEFAULT NULL,
+            section_id   BIGINT UNSIGNED NOT NULL,
+            first_name   VARCHAR(100)    NOT NULL DEFAULT '',
+            last_name    VARCHAR(100)    NOT NULL DEFAULT '',
+            email        VARCHAR(100)    NOT NULL DEFAULT '',
+            parent_email VARCHAR(100)    NOT NULL DEFAULT '',
+            patrol       VARCHAR(100)    NOT NULL DEFAULT '',
+            synced_at    DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_scout_id (scout_id),
+            KEY idx_section_id (section_id),
+            KEY idx_wp_user_id (wp_user_id)
+        ) {$charset};";
+
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_events (
+            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            event_id    BIGINT UNSIGNED NOT NULL,
+            section_id  BIGINT UNSIGNED NOT NULL,
+            name        VARCHAR(255)    NOT NULL DEFAULT '',
+            start_date  DATETIME                 DEFAULT NULL,
+            end_date    DATETIME                 DEFAULT NULL,
+            synced_at   DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_event_section (event_id, section_id),
+            KEY idx_section_id (section_id)
+        ) {$charset};";
+
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_event_attendance (
+            id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            event_id   BIGINT UNSIGNED NOT NULL,
+            scout_id   BIGINT UNSIGNED NOT NULL,
+            status     VARCHAR(50)     NOT NULL DEFAULT '',
+            synced_at  DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_event_scout (event_id, scout_id),
+            KEY idx_event_id (event_id),
+            KEY idx_scout_id (scout_id)
+        ) {$charset};";
+
         return $sql;
     }
 
@@ -64,6 +106,9 @@ class Table_Installer {
             'team_members'          => $wpdb->prefix . 'ems_team_members',
             'volunteer_availability' => $wpdb->prefix . 'ems_volunteer_availability',
             'route_submissions'     => $wpdb->prefix . 'ems_route_submissions',
+            'osm_explorers'         => $wpdb->prefix . 'ems_osm_explorers',
+            'osm_events'            => $wpdb->prefix . 'ems_osm_events',
+            'osm_event_attendance'  => $wpdb->prefix . 'ems_osm_event_attendance',
         ];
     }
 }

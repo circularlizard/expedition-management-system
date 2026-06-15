@@ -5,7 +5,7 @@ use EMS\Integrations\Drivers\Mock_Driver;
 use EMS\Integrations\OSM_API_Client;
 use EMS\Integrations\OSM_Parser;
 use EMS\Integrations\Rate_Limiter;
-use EMS\Integrations\OSM_Section_Importer;
+use EMS\Integrations\OSM_Reference_Sync;
 
 class Admin_Page {
     private Diagnostic_Panel $diagnostic;
@@ -41,6 +41,20 @@ class Admin_Page {
                 $this->enqueue_dashboard_assets();
             }
         } );
+    }
+
+    /**
+     * Registers the OSM Reference Data submenu.
+     */
+    public function register_reference_menu(): void {
+        add_submenu_page(
+            'ems',
+            __( 'OSM Reference', 'ems-plugin' ),
+            __( 'OSM Reference', 'ems-plugin' ),
+            'manage_options',
+            'ems-reference',
+            [ $this, 'render_reference_page' ]
+        );
     }
 
     /**
@@ -126,21 +140,58 @@ class Admin_Page {
         $driver     = new Mock_Driver();
         $parser     = new OSM_Parser();
         $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
-        $importer   = new OSM_Section_Importer( $osm_client );
 
-        // Import from all accessible sections from the data payload (not just managed sections)
+        // Gather section IDs from the data payload + managed sections config
         $payload     = $osm_client->get_data_payload( 'mock_token' );
         $section_ids = $parser->parse_section_ids( $payload );
 
-        // Also import from any configured managed sections
         $managed_sections = (array) get_option( 'ems_managed_sections', [] );
-        $managed_ids      = array_keys( $managed_sections );
+        $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
         $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
 
-        $importer->import_sections( $all_ids );
-        update_option( 'ems_osm_last_sync', current_time( 'iso' ) );
+        $sync = new OSM_Reference_Sync( $osm_client, $parser );
+        $sync->sync( $all_ids );
+
         wp_safe_redirect( admin_url( 'admin.php?page=ems&sync=success' ) );
         exit;
+    }
+
+    public function render_reference_page(): void {
+        global $wpdb;
+
+        $sections = (array) get_option( 'ems_managed_sections', [] );
+
+        echo '<div class="wrap">';
+        echo '<h1>' . esc_html__( 'OSM Reference Data', 'ems-plugin' ) . '</h1>';
+
+        $last_sync = get_option( 'ems_osm_last_sync' );
+        if ( $last_sync ) {
+            echo '<p>' . esc_html( sprintf( __( 'Last synced: %s', 'ems-plugin' ), $last_sync ) ) . '</p>';
+        } else {
+            echo '<p>' . esc_html__( 'Never synced.', 'ems-plugin' ) . '</p>';
+        }
+
+        $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+        $explorers       = $wpdb->get_results( "SELECT * FROM {$explorers_table} ORDER BY last_name, first_name", ARRAY_A );
+
+        echo '<h2>' . esc_html__( 'Explorers', 'ems-plugin' ) . '</h2>';
+        if ( ! empty( $explorers ) ) {
+            echo '<table class="wp-list-table widefat fixed striped">';
+            echo '<thead><tr><th>' . esc_html__( 'Scout ID', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Email', 'ems-plugin' ) . '</th></tr></thead><tbody>';
+            foreach ( $explorers as $row ) {
+                echo '<tr>';
+                echo '<td>' . esc_html( $row['scout_id'] ) . '</td>';
+                echo '<td>' . esc_html( $row['first_name'] . ' ' . $row['last_name'] ) . '</td>';
+                echo '<td>' . esc_html( $row['patrol'] ) . '</td>';
+                echo '<td>' . esc_html( $row['email'] ) . '</td>';
+                echo '</tr>';
+            }
+            echo '</tbody></table>';
+        } else {
+            echo '<p>' . esc_html__( 'No explorer data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
+        }
+
+        echo '</div>';
     }
 
     public function render_column_mapper(): void {
