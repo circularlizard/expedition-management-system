@@ -121,23 +121,38 @@ class OSM_API_ClientTest extends EMSTestCase {
     }
 
     public function test_get_member_detail_returns_parsed_emails(): void {
-        $raw_detail = json_decode(
+        $map      = json_decode(
             file_get_contents( __DIR__ . '/../../mocks/osm-member-detail.json' ),
             true
         );
+        $scout_id = (int) array_key_first( $map );
+        $entry    = $map[ (string) $scout_id ];
+
+        $raw_detail = [
+            'data' => [
+                [
+                    'group_id' => 6,
+                    'columns'  => [
+                        [ 'column_id' => 12, 'value' => $entry['email'] ],
+                        [ 'column_id' => 14, 'value' => $entry['parent_email'] ],
+                    ],
+                ],
+            ],
+        ];
+
         $this->driver->shouldReceive( 'get_member_detail' )
             ->once()
-            ->with( 99001, 1001, 5001 )
+            ->with( 99001, $scout_id, 5001 )
             ->andReturn( $raw_detail );
         $this->driver->shouldReceive( 'get_last_response_headers' )
             ->once()
             ->andReturn( [] );
 
         $client = new OSM_API_Client( $this->driver, $this->parser );
-        $detail = $client->get_member_detail( 99001, 1001, 5001 );
+        $detail = $client->get_member_detail( 99001, $scout_id, 5001 );
 
-        $this->assertSame( 'alice@example.com', $detail['email'] );
-        $this->assertSame( 'parent.alice@example.com', $detail['parent_email'] );
+        $this->assertSame( "scout.{$scout_id}@example-ems.test", $detail['email'] );
+        $this->assertSame( "parent.{$scout_id}@example-ems.test", $detail['parent_email'] );
     }
 
     public function test_set_access_token_delegates_to_driver(): void {

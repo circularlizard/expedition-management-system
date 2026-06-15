@@ -42,7 +42,22 @@ class Mock_Driver implements Driver_Interface {
     }
 
     public function get_member_detail( int $section_id, int $scout_id, int $term_id ): array {
-        return $this->load( 'osm-member-detail.json' );
+        $map   = $this->load( 'osm-member-detail.json' );
+        $entry = $map[ (string) $scout_id ] ?? [];
+        if ( empty( $entry ) ) {
+            return [];
+        }
+        return [
+            'data' => [
+                [
+                    'group_id' => 6,
+                    'columns'  => [
+                        [ 'column_id' => 12, 'value' => $entry['email']        ?? '' ],
+                        [ 'column_id' => 14, 'value' => $entry['parent_email'] ?? '' ],
+                    ],
+                ],
+            ],
+        ];
     }
 
     public function get_flexi_records( int $section_id ): array {
