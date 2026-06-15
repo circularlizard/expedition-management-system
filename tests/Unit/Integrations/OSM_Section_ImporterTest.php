@@ -9,17 +9,17 @@ use Mockery;
 
 class OSM_Section_ImporterTest extends EMSTestCase {
     private $api_client;
+    private $wpdb;
 
     protected function setUp(): void {
         parent::setUp();
         $this->api_client = Mockery::mock( OSM_API_Client::class );
-        
-        // Mock get_users to return empty by default
-        Functions\when( 'get_users' )->justReturn( [] );
-        // Mock user creation helpers
-        Functions\when( 'username_exists' )->justReturn( false );
-        Functions\when( 'email_exists' )->justReturn( false );
-        Functions\when( 'wp_generate_password' )->justReturn( 'password' );
+
+        $this->wpdb         = Mockery::mock( 'wpdb' );
+        $this->wpdb->prefix = 'wp_';
+        $GLOBALS['wpdb']    = $this->wpdb;
+
+        Functions\when( 'current_time' )->justReturn( '2026-06-15 08:00:00' );
     }
 
     public function test_import_all_calls_import_section_for_managed_sections(): void {
@@ -35,7 +35,7 @@ class OSM_Section_ImporterTest extends EMSTestCase {
         $this->assertTrue( true );
     }
 
-    public function test_import_section_upserts_members(): void {
+    public function test_import_section_upserts_to_explorers_table(): void {
         $mock_members = [
             [
                 'member_id'    => 1001,
@@ -43,8 +43,8 @@ class OSM_Section_ImporterTest extends EMSTestCase {
                 'last_name'    => 'Alpha',
                 'email'        => 'alice@example.com',
                 'parent_email' => 'p.alice@example.com',
-                'patrol'       => 'Bears'
-            ]
+                'patrol'       => 'Bears',
+            ],
         ];
 
         $this->api_client->shouldReceive( 'get_section_participants' )
@@ -52,45 +52,46 @@ class OSM_Section_ImporterTest extends EMSTestCase {
             ->once()
             ->andReturn( $mock_members );
 
-        Functions\expect( 'wp_insert_user' )
+        $this->wpdb->shouldReceive( 'replace' )
             ->once()
-            ->andReturn( 123 );
-
-        // We call update_user_meta multiple times (6 times in total)
-        Functions\expect( 'update_user_meta' )->times( 6 );
+            ->with(
+                'wp_ems_osm_explorers',
+                Mockery::on( function ( $data ) {
+                    return $data['scout_id'] === 1001
+                        && $data['first_name'] === 'Alice'
+                        && $data['email'] === 'alice@example.com'
+                        && $data['section_id'] === 43105;
+                } ),
+                Mockery::any()
+            );
 
         $importer = new OSM_Section_Importer( $this->api_client );
         $importer->import_section( 43105 );
         $this->assertTrue( true );
     }
 
-    public function test_existing_member_is_updated_not_created(): void {
+    public function test_member_with_zero_scout_id_is_skipped(): void {
         $mock_members = [
             [
-                'member_id'    => 1001,
-                'first_name'   => 'Alice',
-                'last_name'    => 'Alpha',
-                'email'        => 'alice@example.com',
-                'parent_email' => 'p.alice@example.com',
-                'patrol'       => 'Bears'
-            ]
+                'member_id'    => 0,
+                'first_name'   => 'Bad',
+                'last_name'    => 'Row',
+                'email'        => '',
+                'parent_email' => '',
+                'patrol'       => '',
+            ],
         ];
 
         $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( $mock_members );
 
-        // Simulate finding existing user
-        $existing_user = (object) [ 'ID' => 123 ];
-        Functions\when( 'get_users' )->justReturn( [ $existing_user ] );
-
-        Functions\expect( 'wp_insert_user' )->never();
-        Functions\expect( 'update_user_meta' )->times( 6 );
+        $this->wpdb->shouldReceive( 'replace' )->never();
 
         $importer = new OSM_Section_Importer( $this->api_client );
         $importer->import_section( 43105 );
         $this->assertTrue( true );
     }
 
-    public function test_member_with_missing_email_is_handled(): void {
+    public function test_member_with_missing_email_is_handled_gracefully(): void {
         $mock_members = [
             [
                 'member_id'    => 1001,
@@ -98,20 +99,19 @@ class OSM_Section_ImporterTest extends EMSTestCase {
                 'last_name'    => 'Alpha',
                 'email'        => '',
                 'parent_email' => '',
-                'patrol'       => 'Bears'
-            ]
+                'patrol'       => 'Bears',
+            ],
         ];
 
         $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( $mock_members );
 
-        Functions\expect( 'wp_insert_user' )
+        $this->wpdb->shouldReceive( 'replace' )
             ->once()
-            ->with( Mockery::on( function( $args ) {
-                return str_contains( $args['user_login'], 'scout_1001' );
-            } ) )
-            ->andReturn( 123 );
-        
-        Functions\when( 'update_user_meta' )->justReturn( true );
+            ->with(
+                'wp_ems_osm_explorers',
+                Mockery::on( fn( $data ) => $data['scout_id'] === 1001 && $data['email'] === '' ),
+                Mockery::any()
+            );
 
         $importer = new OSM_Section_Importer( $this->api_client );
         $importer->import_section( 43105 );

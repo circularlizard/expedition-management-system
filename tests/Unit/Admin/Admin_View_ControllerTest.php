@@ -16,6 +16,7 @@ class Admin_View_ControllerTest extends EMSTestCase {
     private $teams;
     private $team_members;
     private $tutor_client;
+    private $wpdb;
 
     protected function setUp(): void {
         parent::setUp();
@@ -23,6 +24,10 @@ class Admin_View_ControllerTest extends EMSTestCase {
         $this->teams        = Mockery::mock( Team_Repository::class );
         $this->team_members = Mockery::mock( Team_Member_Repository::class );
         $this->tutor_client = Mockery::mock( TutorLMS_Client::class );
+
+        $this->wpdb         = Mockery::mock( 'wpdb' );
+        $this->wpdb->prefix = 'wp_';
+        $GLOBALS['wpdb']    = $this->wpdb;
     }
 
     public function test_get_board_data_returns_hydrated_payload(): void {
@@ -43,9 +48,15 @@ class Admin_View_ControllerTest extends EMSTestCase {
             };
         } );
 
-        // Mock get_users for the all-explorers list
-        $user_alice = (object) [ 'ID' => 123 ];
-        Functions\when( 'get_users' )->justReturn( [ $user_alice ] );
+        // Mock ems_osm_explorers query
+        $explorer_row = [
+            'scout_id'   => 1001,
+            'wp_user_id' => 123,
+            'first_name' => 'Alice',
+            'last_name'  => 'Alpha',
+            'patrol'     => 'Bears',
+        ];
+        $this->wpdb->shouldReceive( 'get_results' )->andReturn( [ $explorer_row ] );
 
         // Mock TutorLMS
         $this->tutor_client->shouldReceive( 'get_all_courses' )->andReturn( [] );

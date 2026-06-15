@@ -66,16 +66,21 @@ class Admin_View_Controller {
             }
         }
 
-        // Fetch ALL explorers (anyone with a scout ID)
-        $explorer_users = get_users( [
-            'meta_key'     => 'ems_scout_id',
-            'meta_compare' => 'EXISTS',
-        ] );
+        // Fetch ALL explorers from the OSM reference table
+        global $wpdb;
+        $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+        $explorer_rows   = $wpdb->get_results( "SELECT * FROM {$explorers_table}", ARRAY_A ) ?? [];
 
         $all_explorers = [];
-        foreach ( $explorer_users as $user ) {
-            $explorer = [ 'user_id' => $user->ID ];
-            $this->hydrate_member_data( $explorer, $user->ID );
+        foreach ( $explorer_rows as $row ) {
+            $explorer = [
+                'user_id'    => (int) ( $row['wp_user_id'] ?? 0 ),
+                'first_name' => $row['first_name'] ?? '',
+                'last_name'  => $row['last_name'] ?? '',
+                'scout_id'   => (int) $row['scout_id'],
+                'unit'       => $row['patrol'] ?? '',
+                'training'   => $row['wp_user_id'] ? $this->get_user_training_summary( (int) $row['wp_user_id'] ) : [],
+            ];
             $all_explorers[] = $explorer;
         }
 
