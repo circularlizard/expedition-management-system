@@ -42,8 +42,6 @@ export interface BoardData {
 export interface BoardConfig {
     root_url: string;
     nonce: string;
-    sync_url: string;
-    sync_nonce: string;
 }
 
 declare global {
