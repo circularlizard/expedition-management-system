@@ -37,6 +37,24 @@ class Admin_View_Controller {
             'callback'            => [ $this, 'get_board_data' ],
             'permission_callback' => fn() => current_user_can( 'manage_options' ),
         ] );
+        register_rest_route( 'ems/v1', '/explorer/(?P<scout_id>\d+)', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'get_explorer_detail' ],
+            'permission_callback' => fn() => current_user_can( 'manage_options' ),
+            'args'                => [ 'scout_id' => [ 'type' => 'integer', 'required' => true ] ],
+        ] );
+        register_rest_route( 'ems/v1', '/team/(?P<team_id>\d+)', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'get_team_detail' ],
+            'permission_callback' => fn() => current_user_can( 'manage_options' ),
+            'args'                => [ 'team_id' => [ 'type' => 'integer', 'required' => true ] ],
+        ] );
+        register_rest_route( 'ems/v1', '/patrol/(?P<patrol>[^/]+)', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'get_patrol_detail' ],
+            'permission_callback' => fn() => current_user_can( 'manage_options' ),
+            'args'                => [ 'patrol' => [ 'type' => 'string', 'required' => true ] ],
+        ] );
     }
 
     /**
@@ -93,11 +111,126 @@ class Admin_View_Controller {
         ] );
     }
 
+    /**
+     * GET ems/v1/explorer/{scout_id}
+     */
+    public function get_explorer_detail( \WP_REST_Request $request ): \WP_REST_Response {
+        $scout_id = (int) $request->get_param( 'scout_id' );
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'ems_osm_explorers';
+        $row   = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE scout_id = %d",
+            $scout_id
+        ), ARRAY_A );
+
+        if ( ! $row ) {
+            return new \WP_REST_Response( [ 'error' => 'Explorer not found' ], 404 );
+        }
+
+        $wp_user_id = (int) ( $row['wp_user_id'] ?? 0 );
+
+        return new \WP_REST_Response( [
+            'scout_id'     => (int) $row['scout_id'],
+            'first_name'   => $row['first_name'] ?? '',
+            'last_name'    => $row['last_name']  ?? '',
+            'email'        => $row['email']       ?? '',
+            'patrol'       => $row['patrol']      ?? '',
+            'training'     => $wp_user_id > 0 ? $this->get_user_training_summary( $wp_user_id ) : [],
+            'last_synced'  => get_option( 'ems_osm_last_sync' ) ?: null,
+        ] );
+    }
+
+    /**
+     * GET ems/v1/team/{team_id}
+     */
+    public function get_team_detail( \WP_REST_Request $request ): \WP_REST_Response {
+        $team_id = (int) $request->get_param( 'team_id' );
+        $members = $this->team_members->list_by_team( $team_id );
+
+        global $wpdb;
+        $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+
+        $hydrated       = [];
+        $first_aid_count = 0;
+
+        foreach ( $members as $member ) {
+            $wp_user_id = (int) ( $member['user_id'] ?? 0 );
+            $row = $wp_user_id > 0
+                ? $wpdb->get_row( $wpdb->prepare(
+                    "SELECT * FROM {$explorers_table} WHERE wp_user_id = %d",
+                    $wp_user_id
+                ), ARRAY_A )
+                : null;
+
+            $training = [];
+            if ( $wp_user_id > 0 ) {
+                $training = $this->get_user_training_summary( $wp_user_id );
+                if ( ! empty( $row['first_aid'] ) ) {
+                    $first_aid_count++;
+                }
+            }
+
+            $hydrated[] = [
+                'user_id'    => $wp_user_id,
+                'scout_id'   => $row ? (int) $row['scout_id'] : 0,
+                'first_name' => $row['first_name'] ?? '',
+                'last_name'  => $row['last_name']  ?? '',
+                'patrol'     => $row['patrol']      ?? '',
+                'training'   => $training,
+            ];
+        }
+
+        return new \WP_REST_Response( [
+            'team_id'          => $team_id,
+            'members'          => $hydrated,
+            'first_aid_covered' => $first_aid_count > 0,
+            'last_synced'      => get_option( 'ems_osm_last_sync' ) ?: null,
+        ] );
+    }
+
+    /**
+     * GET ems/v1/patrol/{patrol}
+     */
+    public function get_patrol_detail( \WP_REST_Request $request ): \WP_REST_Response {
+        $patrol = sanitize_text_field( urldecode( $request->get_param( 'patrol' ) ) );
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'ems_osm_explorers';
+        $rows  = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE patrol = %s ORDER BY last_name, first_name",
+            $patrol
+        ), ARRAY_A );
+
+        $explorers = array_map( static function ( array $row ): array {
+            return [
+                'scout_id'   => (int) $row['scout_id'],
+                'first_name' => $row['first_name'] ?? '',
+                'last_name'  => $row['last_name']  ?? '',
+                'email'      => $row['email']       ?? '',
+                'patrol'     => $row['patrol']      ?? '',
+            ];
+        }, $rows ?? [] );
+
+        return new \WP_REST_Response( [
+            'patrol'      => $patrol,
+            'explorers'   => $explorers,
+            'last_synced' => get_option( 'ems_osm_last_sync' ) ?: null,
+        ] );
+    }
+
     private function hydrate_member_data( array &$member, int $user_id ): void {
-        $member['first_name'] = get_user_meta( $user_id, 'ems_first_name', true );
-        $member['last_name']  = get_user_meta( $user_id, 'ems_last_name', true );
-        $member['scout_id']   = get_user_meta( $user_id, 'ems_scout_id', true );
-        $member['unit']       = get_user_meta( $user_id, 'ems_unit', true );
+        global $wpdb;
+        $table = $wpdb->prefix . 'ems_osm_explorers';
+        $row   = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE wp_user_id = %d",
+            $user_id
+        ), ARRAY_A );
+
+        $member['first_name'] = $row['first_name'] ?? '';
+        $member['last_name']  = $row['last_name']  ?? '';
+        $member['scout_id']   = $row ? (int) $row['scout_id'] : 0;
+        $member['unit']       = $row['patrol']     ?? '';
         $member['training']   = $this->get_user_training_summary( $user_id );
     }
 
