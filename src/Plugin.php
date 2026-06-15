@@ -3,10 +3,12 @@ namespace EMS;
 
 use EMS\Admin\Admin_Page;
 use EMS\Admin\Diagnostic_Panel;
+use EMS\Admin\OSM_Reference_Page;
 use EMS\Admin\Settings_Page;
 use EMS\Admin\Training_Report_Page;
 use EMS\Core\CPT_Registry;
 use EMS\Core\Table_Installer;
+use EMS\Data\Expedition_Repository;
 use EMS\Integrations\Drivers\Live_Driver;
 use EMS\Integrations\Drivers\Mock_Driver;
 use EMS\Integrations\OSM_API_Client;
@@ -25,20 +27,25 @@ class Plugin {
     private function init_hooks(): void {
         add_action( 'init', [ $this->cpt_registry, 'register' ] );
 
-        $report_page = new Training_Report_Page( new TutorLMS_Client() );
-        add_action( 'admin_menu', [ $report_page, 'register' ] );
-
         $admin_page = new Admin_Page(
             new Diagnostic_Panel()
         );
-        add_action( 'admin_menu', [ $admin_page, 'register' ] );
+        add_action( 'admin_menu', [ $admin_page, 'register' ], 10 );
+
+        $reference_page = new OSM_Reference_Page( new Expedition_Repository() );
+        add_action( 'admin_menu', [ $reference_page, 'register' ], 12 );
+
+        $report_page = new Training_Report_Page( new TutorLMS_Client() );
+        add_action( 'admin_menu', [ $report_page, 'register' ], 14 );
+
+        add_action( 'admin_menu', [ $admin_page, 'register_mapper_menu' ], 16 );
 
         $api_mode   = get_option( 'ems_api_mode', 'mock' );
         $driver     = ( $api_mode === 'live' ) ? new Live_Driver() : new Mock_Driver();
         $osm_client = new OSM_API_Client( $driver, new OSM_Parser(), new Rate_Limiter( 10, 1.0 ) );
 
         $settings_page = new Settings_Page();
-        add_action( 'admin_menu', [ $settings_page, 'register' ] );
+        add_action( 'admin_menu', [ $settings_page, 'register' ], 18 );
 
         // REST API
         add_action( 'rest_api_init', function() use ( $osm_client ) {
