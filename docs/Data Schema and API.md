@@ -60,11 +60,11 @@ All endpoints prefixed with `/wp-json/ems/v1/`.
 - `POST /volunteer-signup`: Submit availability for an expedition or specific dates.
 
 ### 3.3 Administrative Endpoints (Admin/LiC)
-- `GET /reconciliation`: Pulls Gravity Forms vs. OSM comparison data.
-- `POST /sync-osm`: Triggers a manual sync for a section or event.
-- `GET /expedition-board`: Returns full dataset for the Team Builder UI.
-- `PATCH /update-team`: Move explorers between teams or expeditions.
-- `POST /route-feedback`: LiC submits approval or feedback for a team's route.
+- POST `/sync-osm`: Triggers a manual sync for a section or event.
+- GET `/expedition-board`: Returns full dataset for the Team Builder UI.
+- PATCH `/update-team`: Move explorers between teams or expeditions.
+- POST `/route-feedback`: LiC submits approval or feedback for a team's route.
+
 
 ## 4. Custom Database Tables
 Three custom tables are created on plugin activation (via `dbDelta()`). These are a definitive part of the data model (see ADR 011), not optional.
@@ -98,6 +98,37 @@ Stores the full version history of route submissions with LiC feedback per versi
 - `submitted_at`: datetime
 - `feedback`: text (nullable)
 - `status`: string (`pending` | `feedback_required` | `approved`)
+
+### 4.4 `ems_osm_explorers`
+Stores reference information for all section members synced from OSM.
+- `id`: BIGINT UNSIGNED (PK)
+- `scout_id`: BIGINT UNSIGNED (OSM member_id)
+- `wp_user_id`: BIGINT UNSIGNED (Nullable link to wp_users.id)
+- `section_id`: BIGINT UNSIGNED
+- `first_name`: VARCHAR(100)
+- `last_name`: VARCHAR(100)
+- `email`: VARCHAR(100)
+- `parent_email`: VARCHAR(100)
+- `patrol`: VARCHAR(100)
+- `synced_at`: DATETIME
+
+### 4.5 `ems_osm_events`
+Stores reference information for OSM events synced from OSM.
+- `id`: BIGINT UNSIGNED (PK)
+- `event_id`: BIGINT UNSIGNED
+- `section_id`: BIGINT UNSIGNED
+- `name`: VARCHAR(255)
+- `start_date`: DATETIME
+- `end_date`: DATETIME
+- `synced_at`: DATETIME
+
+### 4.6 `ems_osm_event_attendance`
+Tracks member status for specific events synced from OSM.
+- `id`: BIGINT UNSIGNED (PK)
+- `event_id`: BIGINT UNSIGNED
+- `scout_id`: BIGINT UNSIGNED
+- `status`: VARCHAR(50) (e.g., 'Accepted', 'Declined', 'Invited', 'Show in Parent Portal')
+- `synced_at`: DATETIME
 
 ## 5. WP Options: Reference & Configuration Data
 
@@ -141,18 +172,13 @@ Type: serialized array. Maps DofE level to Tutor LMS course ID for training acce
 ]
 ```
 
-### 5.4 `ems_service_account_tokens` *(encrypted)*
-Type: serialized array. Stores OAuth tokens for the EMS service account used for all push-back write operations. Managed by the service account auth flow (see ADR 010). Values stored encrypted at rest.
+### 5.4 `ems_osm_client_id`
+Type: string. The OSM OAuth application client ID. Used by `OSM_Sync_Auth_Handler` to build the authorization URL and perform the token exchange. Also used by the `login-with-google` plugin for OIDC user login. Set via `Admin\Settings_Page`.
 
-```php
-[
-    'access_token'  => '...',
-    'refresh_token' => '...',
-    'expires_at'    => 1780000000,  // Unix timestamp
-]
-```
+### 5.5 `ems_osm_client_secret` *(encrypted)*
+Type: string. The OSM OAuth application client secret. Stored encrypted at rest (AES-256-CBC, key derived from `AUTH_KEY` / `SECURE_AUTH_KEY` WP constants). Never exposed in the admin UI after initial entry (write-only field). Set via `Admin\Settings_Page`. Used only during the token exchange step; discarded immediately after.
 
-### 5.5 `ems_failed_pushback_queue`
+### 5.6 `ems_failed_pushback_queue`
 Type: serialized array. Persists failed `updateScout` / event-status write jobs for admin retry. Each entry contains the full POST payload required to re-dispatch the job.
 
 ```php

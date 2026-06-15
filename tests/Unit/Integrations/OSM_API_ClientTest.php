@@ -108,13 +108,26 @@ class OSM_API_ClientTest extends EMSTestCase {
             ->once()
             ->with( 99001 )
             ->andReturn( $raw_members );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
 
         $client       = new OSM_API_Client( $this->driver, $this->parser );
         $participants = $client->get_section_participants( 99001 );
 
         $this->assertCount( 2, $participants );
         $this->assertSame( 1001, $participants[0]['member_id'] );
-        $this->assertSame( 'John', $participants[0]['first_name'] );
+        $this->assertSame( 'Alice', $participants[0]['first_name'] );
+    }
+
+    public function test_set_access_token_delegates_to_driver(): void {
+        $this->driver->shouldReceive( 'set_access_token' )
+            ->once()
+            ->with( 'test-token' );
+
+        $client = new OSM_API_Client( $this->driver, $this->parser );
+        $client->set_access_token( 'test-token' );
+        $this->assertTrue( true );
     }
 
     public function test_get_section_events_returns_parsed_events(): void {
@@ -126,6 +139,9 @@ class OSM_API_ClientTest extends EMSTestCase {
             ->once()
             ->with( 99001 )
             ->andReturn( $raw_events );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
 
         $client = new OSM_API_Client( $this->driver, $this->parser );
         $events = $client->get_section_events( 99001 );
@@ -143,10 +159,32 @@ class OSM_API_ClientTest extends EMSTestCase {
             ->once()
             ->with( 'test-token' )
             ->andReturn( $raw_payload );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
 
         $client  = new OSM_API_Client( $this->driver, $this->parser );
         $payload = $client->get_data_payload( 'test-token' );
 
         $this->assertSame( $raw_payload, $payload );
+    }
+
+    public function test_header_aware_rate_limiting(): void {
+        $this->driver->shouldReceive( 'get_data_payload' )
+            ->andReturn( [] );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->andReturn( [
+                'x-ratelimit-limit'     => 100,
+                'x-ratelimit-remaining' => 0,
+                'x-ratelimit-reset'     => 2000000000,
+            ] );
+
+        $limiter = new Rate_Limiter( 10, 1.0 );
+        $client  = new OSM_API_Client( $this->driver, $this->parser, $limiter );
+
+        // Initial call should consume normally, then update from headers
+        $client->get_data_payload( 'token' );
+
+        $this->assertSame( 0.0, $limiter->get_token_count() );
     }
 }
