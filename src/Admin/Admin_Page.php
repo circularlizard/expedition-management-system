@@ -1,11 +1,6 @@
 <?php
 namespace EMS\Admin;
 
-use EMS\Integrations\Drivers\Mock_Driver;
-use EMS\Integrations\OSM_API_Client;
-use EMS\Integrations\OSM_Parser;
-use EMS\Integrations\Rate_Limiter;
-use EMS\Integrations\OSM_Reference_Sync;
 
 class Admin_Page {
     private Diagnostic_Panel $diagnostic;
@@ -15,7 +10,6 @@ class Admin_Page {
     }
 
     public function register(): void {
-        add_action( 'admin_init', [ $this, 'handle_sync_post' ] );
         add_action( 'admin_footer', [ $this, 'render_build_timestamp' ] );
 
         add_menu_page(
@@ -78,35 +72,12 @@ class Admin_Page {
         } );
     }
 
-    /**
-     * Handles the OSM sync POST request before any output is sent.
-     */
-    public function handle_sync_post(): void {
-        if ( ! isset( $_POST['ems_sync_osm'] ) ) {
-            return;
-        }
-
-        if ( ! check_admin_referer( 'ems_sync_osm' ) ) {
-            return;
-        }
-
-        $api_mode = get_option( 'ems_api_mode', 'mock' );
-        if ( $api_mode === 'mock' ) {
-            $this->do_mock_sync();
-        } else {
-            $handler = new OSM_Sync_Auth_Handler();
-            $handler->initiate();
-        }
-        exit;
-    }
 
     private function enqueue_dashboard_assets(): void {
         $this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
         wp_localize_script( 'ems-expedition-board', 'emsExpeditionBoard', [
-            'root_url'   => get_rest_url( null, 'ems/v1' ),
-            'nonce'      => wp_create_nonce( 'wp_rest' ),
-            'sync_url'   => admin_url( 'admin.php?page=ems' ),
-            'sync_nonce' => wp_create_nonce( 'ems_sync_osm' ),
+            'root_url' => get_rest_url( null, 'ems/v1' ),
+            'nonce'    => wp_create_nonce( 'wp_rest' ),
         ] );
     }
 
@@ -137,40 +108,30 @@ class Admin_Page {
         echo '</div>';
     }
 
-    private function do_mock_sync(): void {
-        $driver     = new Mock_Driver();
-        $parser     = new OSM_Parser();
-        $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
-
-        // Gather section IDs from the data payload + managed sections config
-        $payload     = $osm_client->get_data_payload( 'mock_token' );
-        $section_ids = $parser->parse_section_ids( $payload );
-
-        $managed_sections = (array) get_option( 'ems_managed_sections', [] );
-        $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
-        $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
-
-        $sync = new OSM_Reference_Sync( $osm_client, $parser );
-        $sync->sync( $all_ids );
-
-        wp_safe_redirect( admin_url( 'admin.php?page=ems&sync=success' ) );
-        exit;
-    }
 
     public function render_reference_page(): void {
         global $wpdb;
 
-        $sections = (array) get_option( 'ems_managed_sections', [] );
-
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'OSM Reference Data', 'ems-plugin' ) . '</h1>';
 
-        $last_sync = get_option( 'ems_osm_last_sync' );
-        if ( $last_sync ) {
-            echo '<p>' . esc_html( sprintf( __( 'Last synced: %s', 'ems-plugin' ), $last_sync ) ) . '</p>';
-        } else {
-            echo '<p>' . esc_html__( 'Never synced.', 'ems-plugin' ) . '</p>';
+        if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM data synced successfully.', 'ems-plugin' ) . '</p></div>';
         }
+
+        $last_sync = get_option( 'ems_osm_last_sync' );
+        echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;">';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        echo '<input type="hidden" name="action" value="ems_sync_osm" />';
+        wp_nonce_field( 'ems_sync_osm' );
+        echo '<button type="submit" class="button button-primary">' . esc_html__( 'Sync from OSM', 'ems-plugin' ) . '</button>';
+        echo '</form>';
+        if ( $last_sync ) {
+            echo '<span style="color:#666;">Last synced: ' . esc_html( $last_sync ) . '</span>';
+        } else {
+            echo '<span style="color:#999;">Never synced</span>';
+        }
+        echo '</div>';
 
         $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
         $explorers       = $wpdb->get_results( "SELECT * FROM {$explorers_table} ORDER BY last_name, first_name", ARRAY_A );
