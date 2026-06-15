@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'EMS_PLUGIN_FILE', __FILE__ );
-define( 'EMS_VERSION', '0.1.26' );
+define( 'EMS_VERSION', '0.1.30' );
 
 // Autoload classes
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
@@ -27,6 +27,7 @@ register_activation_hook( __FILE__, [ 'EMS\\Plugin', 'activate' ] );
 
 add_action( 'plugins_loaded', function() {
     if ( class_exists( 'EMS\\Plugin' ) ) {
+        EMS\Plugin::maybe_upgrade();
         new EMS\Plugin();
     }
 } );

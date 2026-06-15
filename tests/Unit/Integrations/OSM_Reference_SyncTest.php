@@ -29,25 +29,48 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         parent::tearDown();
     }
 
+    private function make_payload( int $section_id = 43105, int $term_id = 5001, string $start = '2026-01-01', string $end = '2026-12-31' ): array {
+        return [
+            'data' => [
+                'globals' => [
+                    'terms' => [
+                        (string) $section_id => [
+                            [
+                                'termid'    => (string) $term_id,
+                                'sectionid' => (string) $section_id,
+                                'name'      => 'Spring 2026',
+                                'startdate' => $start,
+                                'enddate'   => $end,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
     public function test_sync_upserts_members_into_explorers_table(): void {
         $members = [
             [
-                'member_id'    => 1001,
-                'first_name'   => 'Alice',
-                'last_name'    => 'Alpha',
-                'email'        => 'alice@example.com',
-                'parent_email' => 'p.alice@example.com',
-                'patrol'       => 'Bears',
+                'member_id'  => 1001,
+                'first_name' => 'Alice',
+                'last_name'  => 'Alpha',
+                'patrol'     => 'Bears',
             ],
         ];
 
         $this->api_client->shouldReceive( 'get_section_participants' )
-            ->with( 43105 )
+            ->with( 43105, 5001 )
             ->once()
             ->andReturn( $members );
 
+        $this->api_client->shouldReceive( 'get_member_detail' )
+            ->with( 43105, 1001, 5001 )
+            ->once()
+            ->andReturn( [ 'email' => 'alice@example.com', 'parent_email' => 'p.alice@example.com' ] );
+
         $this->api_client->shouldReceive( 'get_section_events' )
-            ->with( 43105 )
+            ->with( 43105, 5001 )
             ->once()
             ->andReturn( [] );
 
@@ -57,7 +80,9 @@ class OSM_Reference_SyncTest extends EMSTestCase {
             ->with(
                 'wp_ems_osm_explorers',
                 Mockery::on( function ( $data ) use ( &$replaced ) {
-                    $replaced = $data['scout_id'] === 1001 && $data['first_name'] === 'Alice';
+                    $replaced = $data['scout_id'] === 1001
+                        && $data['first_name'] === 'Alice'
+                        && $data['email'] === 'alice@example.com';
                     return true;
                 } ),
                 Mockery::any()
@@ -67,14 +92,14 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         Functions\when( 'update_option' )->justReturn( true );
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
-        $sync->sync( [ 43105 ] );
+        $sync->sync( [ 43105 ], $this->make_payload() );
 
         $this->assertTrue( $replaced, 'replace() was not called with correct explorer data' );
     }
 
     public function test_sync_upserts_events_into_events_table(): void {
         $this->api_client->shouldReceive( 'get_section_participants' )
-            ->with( 43105 )
+            ->with( 43105, 5001 )
             ->once()
             ->andReturn( [] );
 
@@ -89,7 +114,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         ];
 
         $this->api_client->shouldReceive( 'get_section_events' )
-            ->with( 43105 )
+            ->with( 43105, 5001 )
             ->once()
             ->andReturn( $events );
 
@@ -114,14 +139,14 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         Functions\when( 'update_option' )->justReturn( true );
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
-        $sync->sync( [ 43105 ] );
+        $sync->sync( [ 43105 ], $this->make_payload() );
 
         $this->assertTrue( $replaced, 'replace() was not called with correct event data' );
     }
 
     public function test_sync_upserts_attendance_into_attendance_table(): void {
         $this->api_client->shouldReceive( 'get_section_participants' )
-            ->with( 43105 )
+            ->with( 43105, 5001 )
             ->once()
             ->andReturn( [] );
 
@@ -130,7 +155,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         ];
 
         $this->api_client->shouldReceive( 'get_section_events' )
-            ->with( 43105 )
+            ->with( 43105, 5001 )
             ->once()
             ->andReturn( $events );
 
@@ -166,7 +191,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         Functions\when( 'update_option' )->justReturn( true );
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
-        $sync->sync( [ 43105 ] );
+        $sync->sync( [ 43105 ], $this->make_payload() );
 
         $this->assertCount( 2, $attendance_calls );
         $this->assertEquals( 1001, $attendance_calls[0]['scout_id'] );
@@ -177,7 +202,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
 
     public function test_sync_skips_member_with_zero_scout_id(): void {
         $members = [
-            [ 'member_id' => 0, 'first_name' => 'Bad', 'last_name' => 'Row', 'email' => '', 'parent_email' => '', 'patrol' => '' ],
+            [ 'member_id' => 0, 'first_name' => 'Bad', 'last_name' => 'Row', 'patrol' => '' ],
         ];
 
         $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( $members );
@@ -189,7 +214,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         Functions\when( 'update_option' )->justReturn( true );
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
-        $sync->sync( [ 43105 ] );
+        $sync->sync( [ 43105 ], $this->make_payload() );
 
         $this->assertTrue( true );
     }
@@ -198,7 +223,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( [] );
         $this->api_client->shouldReceive( 'get_section_events' )->andReturn( [] );
 
-        Functions\when( 'current_time' )->justReturn( '2026-06-15T08:00:00+00:00' );
+        Functions\when( 'current_time' )->justReturn( '2026-06-15 08:00:00' );
 
         $option_updated = false;
         Functions\when( 'update_option' )->alias( function ( $key ) use ( &$option_updated ) {
@@ -208,8 +233,24 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         } );
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
-        $sync->sync( [ 43105 ] );
+        $sync->sync( [ 43105 ], $this->make_payload() );
 
         $this->assertTrue( $option_updated, 'ems_osm_last_sync option was not updated' );
+    }
+
+    public function test_sync_skips_section_with_no_term(): void {
+        $this->api_client->shouldReceive( 'get_section_participants' )->never();
+        $this->api_client->shouldReceive( 'get_section_events' )->never();
+        $this->wpdb->shouldReceive( 'replace' )->never();
+
+        Functions\when( 'current_time' )->justReturn( '2026-06-15 08:00:00' );
+        Functions\when( 'update_option' )->justReturn( true );
+
+        $empty_payload = [ 'data' => [ 'globals' => [ 'terms' => [] ] ] ];
+
+        $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
+        $sync->sync( [ 43105 ], $empty_payload );
+
+        $this->assertTrue( true );
     }
 }
