@@ -96,6 +96,26 @@ class Meta_ValidatorTest extends EMSTestCase {
         $this->assertTrue(  $this->validator->validate_team( 'ems_team_code', 'SP1-1' ) );
     }
 
+   public function test_valid_route_received_statuses_are_accepted(): void {
+        foreach ( [ 'not_received', 'received' ] as $status ) {
+            $this->assertTrue( $this->validator->validate_expedition( 'ems_route_received', $status ) );
+        }
+    }
+
+    public function test_invalid_route_received_status_is_rejected(): void {
+        $this->assertFalse( $this->validator->validate_expedition( 'ems_route_received', 'in_progress' ) );
+    }
+
+    public function test_valid_route_approved_statuses_are_accepted(): void {
+        foreach ( [ 'pending', 'under_review', 'approved', 'changes_requested' ] as $status ) {
+            $this->assertTrue( $this->validator->validate_expedition( 'ems_route_approved', $status ) );
+        }
+    }
+
+    public function test_invalid_route_approved_status_is_rejected(): void {
+        $this->assertFalse( $this->validator->validate_expedition( 'ems_route_approved', 'rejected' ) );
+    }
+
     public function test_file_id_must_be_non_negative_integer(): void {
         $this->assertTrue(  $this->validator->validate_team( 'ems_gpx_file_id', 0 ) );
         $this->assertTrue(  $this->validator->validate_team( 'ems_gpx_file_id', 99 ) );

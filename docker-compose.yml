@@ -15,7 +15,6 @@ services:
       - "8080:80"
     volumes:
       - ./wordpress:/var/www/html
-      - .:/var/www/html/wp-content/plugins/ems-plugin
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
@@ -23,14 +22,27 @@ services:
       WORDPRESS_DB_NAME: wordpress
       WORDPRESS_CONFIG_EXTRA: |
         define( 'EMS_TEST_MODE', true );
+        define( 'WP_HOME', 'https://localhost' );
+        define( 'WP_SITEURL', 'https://localhost' );
+        define( 'FORCE_SSL_ADMIN', true );
     depends_on:
       - db
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - wordpress
 
   wpcli:
     image: wordpress:cli-php8.2
     volumes:
       - ./wordpress:/var/www/html
-      - .:/var/www/html/wp-content/plugins/ems-plugin
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
@@ -43,3 +55,5 @@ services:
 
 volumes:
   db_data:
+  caddy_data:
+  caddy_config:
