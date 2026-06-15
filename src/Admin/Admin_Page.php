@@ -36,6 +36,17 @@ class Admin_Page {
             [ $this, 'render_dashboard' ]
         );
 
+        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $dashboard_hook ) {
+            if ( $hook === $dashboard_hook ) {
+                $this->enqueue_dashboard_assets();
+            }
+        } );
+    }
+
+    /**
+     * Registers the Column Mapper submenu (called at a later priority for correct ordering).
+     */
+    public function register_mapper_menu(): void {
         $mapper_hook = add_submenu_page(
             'ems',
             __( 'Column Mapper', 'ems-plugin' ),
@@ -45,10 +56,8 @@ class Admin_Page {
             [ $this, 'render_column_mapper' ]
         );
 
-        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $dashboard_hook, $mapper_hook ) {
-            if ( $hook === $dashboard_hook ) {
-                $this->enqueue_dashboard_assets();
-            } elseif ( $hook === $mapper_hook ) {
+        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $mapper_hook ) {
+            if ( $hook === $mapper_hook ) {
                 $this->enqueue_mapper_assets();
             }
         } );
