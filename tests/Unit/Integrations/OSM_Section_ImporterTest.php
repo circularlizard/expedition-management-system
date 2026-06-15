@@ -48,7 +48,7 @@ class OSM_Section_ImporterTest extends EMSTestCase {
         ];
 
         $this->api_client->shouldReceive( 'get_section_participants' )
-            ->with( 43105 )
+            ->with( 43105, 0 )
             ->once()
             ->andReturn( $mock_members );
 
@@ -82,7 +82,7 @@ class OSM_Section_ImporterTest extends EMSTestCase {
             ],
         ];
 
-        $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( $mock_members );
+        $this->api_client->shouldReceive( 'get_section_participants' )->withAnyArgs()->andReturn( $mock_members );
 
         $this->wpdb->shouldReceive( 'replace' )->never();
 
@@ -103,7 +103,7 @@ class OSM_Section_ImporterTest extends EMSTestCase {
             ],
         ];
 
-        $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( $mock_members );
+        $this->api_client->shouldReceive( 'get_section_participants' )->withAnyArgs()->andReturn( $mock_members );
 
         $this->wpdb->shouldReceive( 'replace' )
             ->once()

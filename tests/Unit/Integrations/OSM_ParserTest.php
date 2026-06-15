@@ -27,7 +27,7 @@ class OSM_ParserTest extends EMSTestCase {
             true
         );
         $this->members_raw      = json_decode(
-            file_get_contents( __DIR__ . '/../../mocks/members.json' ),
+            file_get_contents( __DIR__ . '/../../mocks/osm-list-of-members.json' ),
             true
         );
     }
@@ -130,12 +130,76 @@ class OSM_ParserTest extends EMSTestCase {
         $this->assertArrayHasKey( 'member_id',  $member );
         $this->assertArrayHasKey( 'first_name', $member );
         $this->assertArrayHasKey( 'last_name',  $member );
-        $this->assertArrayHasKey( 'email',      $member );
+        $this->assertArrayHasKey( 'patrol',     $member );
+        $this->assertArrayHasKey( 'patrol_id',  $member );
+        $this->assertArrayNotHasKey( 'email', $member );
     }
 
     public function test_parse_members_casts_member_id_to_int(): void {
         $members = $this->parser->parse_members( $this->members_raw );
         $this->assertSame( 1001, $members[0]['member_id'] );
         $this->assertIsInt( $members[0]['member_id'] );
+    }
+
+    public function test_parse_terms_extracts_terms_by_section(): void {
+        $payload = [
+            'data' => [
+                'globals' => [
+                    'terms' => [
+                        '99001' => [
+                            [ 'termid' => '5001', 'sectionid' => '99001', 'name' => 'Spring 2026', 'startdate' => '2026-01-01', 'enddate' => '2026-07-31' ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+        $terms = $this->parser->parse_terms( $payload );
+        $this->assertArrayHasKey( 99001, $terms );
+        $this->assertSame( 5001, $terms[99001][0]['term_id'] );
+        $this->assertSame( '2026-01-01', $terms[99001][0]['start'] );
+    }
+
+    public function test_find_current_term_returns_active_term(): void {
+        $terms = [
+            99001 => [
+                [ 'term_id' => 4000, 'name' => 'Autumn 2025', 'start' => '2025-09-01', 'end' => '2025-12-31' ],
+                [ 'term_id' => 5001, 'name' => 'Spring 2026', 'start' => '2026-01-01', 'end' => '2026-07-31' ],
+            ],
+        ];
+        $term = $this->parser->find_current_term( $terms, 99001, '2026-03-15' );
+        $this->assertNotNull( $term );
+        $this->assertSame( 5001, $term['term_id'] );
+    }
+
+    public function test_find_current_term_falls_back_to_most_recent_past_term(): void {
+        $terms = [
+            99001 => [
+                [ 'term_id' => 4000, 'name' => 'Autumn 2025', 'start' => '2025-09-01', 'end' => '2025-12-31' ],
+            ],
+        ];
+        $term = $this->parser->find_current_term( $terms, 99001, '2026-06-01' );
+        $this->assertNotNull( $term );
+        $this->assertSame( 4000, $term['term_id'] );
+    }
+
+    public function test_find_current_term_returns_null_for_unknown_section(): void {
+        $term = $this->parser->find_current_term( [], 99001, '2026-06-01' );
+        $this->assertNull( $term );
+    }
+
+    public function test_parse_member_detail_extracts_emails_from_group6(): void {
+        $raw = json_decode(
+            file_get_contents( __DIR__ . '/../../mocks/osm-member-detail.json' ),
+            true
+        );
+        $detail = $this->parser->parse_member_detail( $raw );
+        $this->assertSame( 'alice@example.com', $detail['email'] );
+        $this->assertSame( 'parent.alice@example.com', $detail['parent_email'] );
+    }
+
+    public function test_parse_member_detail_returns_empty_strings_when_group6_absent(): void {
+        $detail = $this->parser->parse_member_detail( [ 'data' => [] ] );
+        $this->assertSame( '', $detail['email'] );
+        $this->assertSame( '', $detail['parent_email'] );
     }
 }

@@ -1,0 +1,26 @@
+{
+    "status": true,
+    "error": null,
+    "data": [
+        {
+            "group_id": 6,
+            "group_type": "grouped",
+            "identifier": "contact_primary_member",
+            "name": "Member",
+            "columns": [
+                {
+                    "column_id": 12,
+                    "varname": "email1",
+                    "label": "Email 1",
+                    "value": "alice@example.com"
+                },
+                {
+                    "column_id": 14,
+                    "varname": "email2",
+                    "label": "Email 2",
+                    "value": "parent.alice@example.com"
+                }
+            ]
+        }
+    ]
+}

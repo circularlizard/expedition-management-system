@@ -39,10 +39,10 @@ class OSM_Section_Importer {
     /**
      * Imports members for a specific section into ems_osm_explorers.
      */
-    public function import_section( int $section_id ): void {
+    public function import_section( int $section_id, int $term_id = 0 ): void {
         global $wpdb;
 
-        $members = $this->api_client->get_section_participants( $section_id );
+        $members = $this->api_client->get_section_participants( $section_id, $term_id );
         $table   = $wpdb->prefix . 'ems_osm_explorers';
         $now     = current_time( 'mysql' );
 

@@ -80,20 +80,108 @@ class OSM_Parser {
         return $date;
     }
 
+    /**
+     * Parses the full terms list from a getDataPayload response.
+     * Returns: [ section_id => [ ['term_id'=>int, 'name'=>str, 'start'=>str, 'end'=>str], ... ], ... ]
+     */
+    public function parse_terms( array $payload ): array {
+        $terms_raw = $payload['data']['globals']['terms'] ?? [];
+        $result    = [];
+        foreach ( $terms_raw as $section_id => $term_list ) {
+            $result[ (int) $section_id ] = array_map( static function ( array $t ): array {
+                return [
+                    'term_id' => (int) $t['termid'],
+                    'name'    => $t['name']      ?? '',
+                    'start'   => $t['startdate'] ?? '',
+                    'end'     => $t['enddate']   ?? '',
+                ];
+            }, $term_list );
+        }
+        return $result;
+    }
+
+    /**
+     * Finds the current term for a section: the term whose date range contains today.
+     * Falls back to the most recent past term if none is current.
+     * Returns null if no terms exist for the section.
+     *
+     * @param array $terms  Output of parse_terms() — keyed by section_id
+     * @param int   $section_id
+     * @param string $today  Y-m-d, defaults to today
+     * @return array|null  ['term_id'=>int, 'name'=>str, 'start'=>str, 'end'=>str]
+     */
+    public function find_current_term( array $terms, int $section_id, string $today = '' ): ?array {
+        if ( $today === '' ) {
+            $today = gmdate( 'Y-m-d' );
+        }
+        $section_terms = $terms[ $section_id ] ?? [];
+        if ( empty( $section_terms ) ) {
+            return null;
+        }
+
+        $current  = null;
+        $fallback = null;
+
+        foreach ( $section_terms as $term ) {
+            if ( $term['start'] <= $today && $today <= $term['end'] ) {
+                $current = $term;
+                break;
+            }
+            if ( $term['end'] < $today ) {
+                $fallback = $term;
+            }
+        }
+
+        return $current ?? $fallback;
+    }
+
+    /**
+     * Parses a getListOfMembers response into a normalised member array.
+     * Each item has: member_id, first_name, last_name, patrol, patrol_id.
+     * Email fields are NOT present — they require a separate getData call.
+     */
     public function parse_members( array $raw ): array {
+        $items = $raw['items'] ?? $raw;
         return array_map(
             static function ( array $item ): array {
                 return [
-                    'member_id'    => (int) ( $item['member_id'] ?? $item['scoutid'] ?? 0 ),
-                    'first_name'   => $item['first_name']   ?? $item['firstname'] ?? '',
-                    'last_name'    => $item['last_name']    ?? $item['lastname']  ?? '',
-                    'email'        => $item['email']        ?? '',
-                    'parent_email' => $item['parent_email'] ?? '',
-                    'dob'          => $item['dob']          ?? '',
-                    'patrol'       => $item['patrol']       ?? '',
+                    'member_id'  => (int) ( $item['scoutid']   ?? $item['member_id']  ?? 0 ),
+                    'first_name' => $item['firstname']  ?? $item['first_name'] ?? '',
+                    'last_name'  => $item['lastname']   ?? $item['last_name']  ?? '',
+                    'patrol'     => $item['patrol']     ?? '',
+                    'patrol_id'  => (int) ( $item['patrolid']  ?? 0 ),
                 ];
             },
-            $raw
+            $items
         );
+    }
+
+    /**
+     * Parses a getData (members-getData) response and extracts email addresses.
+     * group_id=6 (Member contact), column_id=12 (Email 1 / explorer email),
+     * column_id=14 (Email 2 / parent email).
+     *
+     * @return array ['email' => string, 'parent_email' => string]
+     */
+    public function parse_member_detail( array $raw ): array {
+        $email        = '';
+        $parent_email = '';
+
+        $groups = $raw['data'] ?? [];
+        foreach ( $groups as $group ) {
+            if ( (int) ( $group['group_id'] ?? 0 ) !== 6 ) {
+                continue;
+            }
+            foreach ( $group['columns'] ?? [] as $col ) {
+                $cid = (int) ( $col['column_id'] ?? 0 );
+                if ( $cid === 12 ) {
+                    $email = $col['value'] ?? '';
+                } elseif ( $cid === 14 ) {
+                    $parent_email = $col['value'] ?? '';
+                }
+            }
+        }
+
+        return [ 'email' => $email, 'parent_email' => $parent_email ];
     }
 }
