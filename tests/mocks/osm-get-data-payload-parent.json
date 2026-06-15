@@ -1,155 +1,1057 @@
 {
-    "status": true,
-    "error": null,
     "data": {
         "cdn": "https://oymcdn.co.uk/",
-        "resources": [],
-        "config_hash": "abc123synthetic",
+        "resources": [
+            "/built/postlogin-combined/postlogin-combined-d7f180311178d24f02f257190b6ff781.js",
+            "/built/global/global-594c3ccd21269f18b03d216735b5cd82.js",
+            "/built/style-main-purple/style-main-purple-f062943cfff1147244c6aea3cf1282a6.css",
+            "/sites/onlinescoutmanager.co.uk/built/language/scouts-scouts/20260612125353/en-GB-js.js?v=a58982899385a609d2bb3736e973616c",
+            "/built/highcharts/highcharts-2b679c898c02d04dfc364cac02a6d96b.js",
+            "/built/highcharts_drilldown/highcharts_drilldown-25693b09cb65bc064bed1a0e455322c8.js",
+            "/built/highcharts_accessibility/highcharts_accessibility-c87a66a1fd3a04b3249210d6247ab4a9.js",
+            "/built/socket/socket-be711fd3ced271b3ab2781197453188c.js",
+            "/built/vendors/vendors-507aff65c89ecc1b92ca1cd4b510dd11.js",
+            "/built/runtime/runtime-95440f5d2959cf6ae34a1a184aace1ce.js",
+            "/built/menu/menu-fb67d1c8e400dbe422e6ba0103d37df3.js",
+            "/built/dojo_built/dojo_built-73bc9a5b24b98bcce2f809dcf5fdcb3e.js"
+        ],
+        "config_hash": "3fe77ed4649f42a3f73085c7025290cb",
+        "required_cdn_built_files": {
+            "osm.js": "https://oymcdn.co.uk/built/osm/osm-9e1441583e389c4d517d633eae5abe4c.js",
+            "react.js": "https://oymcdn.co.uk/built/react/react-6b2bf66d36984a92adcc44fa1a6482ba.js"
+        },
+        "cache_bust": "v=9e1441583e389c4d517d633eae5abe4c6b2bf66d36984a92adcc44fa1a6482ba",
         "globals": {
             "post_login_action": false,
             "theme": "purple",
-            "userid": 20002,
-            "roles": false,
-            "active_user_member": false,
-            "associated_member_id": false,
-            "email": "sam.parent@example.com",
-            "firstname": "Sam",
-            "lastname": "Parent",
-            "fullname": "Sam Parent",
+            "userid": "20002",
+            "roles": [
+                {
+                    "sectionid": "99001",
+                    "section": "Explorers",
+                    "groupname": "Mock Scout Group",
+                    "roleclass": "Section",
+                    "rolename": "Section Leader"
+                }
+            ],
+            "active_user_member": "1",
+            "associated_member_id": "30001",
+            "email": "parent.mock@example-ems.test",
+            "firstname": "Parent",
+            "lastname": "Mock",
+            "fullname": "Parent Mock",
             "preferences": {
                 "date": "uk",
                 "calendarStartDayOfWeek": 1,
-                "logins": "10",
+                "logins": "1682",
+                "last_read_messages": "2026-05-15 09:06:25",
+                "gamification_disclaimer": true,
+                "saved_comms_prefs": true,
+                "mymember_noticeboards_seen": {
+                    "26580_2501201": {
+                        "hash": "b425f01c3e921a33458082bac60f47de",
+                        "date": "2024-09-28 13:12:23"
+                    },
+                    "37458_2690515": {
+                        "hash": "56cc43a40371a3da3ef4fd966cca0d1a",
+                        "date": "2026-01-04 11:23:25"
+                    },
+                    "17624_1587452": {
+                        "hash": "7a7ef817c6d0a3085ceb97a8ba42a512",
+                        "date": "2024-09-28 13:12:07"
+                    },
+                    "37458_2696696": {
+                        "hash": "154415586925692d7d1667d26a601fa0",
+                        "date": "2024-01-25 14:04:23"
+                    },
+                    "59520_2690515": {
+                        "hash": "d97623d172f087d9640da9acd38830ff",
+                        "date": "2024-03-06 16:12:53"
+                    },
+                    "64075_2696696": {
+                        "hash": "d97623d172f087d9640da9acd38830ff",
+                        "date": "2024-04-03 19:56:59"
+                    },
+                    "64075_2690515": {
+                        "hash": "d97623d172f087d9640da9acd38830ff",
+                        "date": "2024-04-03 19:57:15"
+                    },
+                    "25164_2690515": {
+                        "hash": "3704083dec180fd233b075e710d09d57",
+                        "date": "2024-09-28 13:29:28"
+                    },
+                    "43105_2690515": {
+                        "hash": "e0eabed7d16ebbd747a14ab5d6ad75a1",
+                        "date": "2025-06-04 05:50:48"
+                    },
+                    "17624_2690515": {
+                        "hash": "650da79568460ce38158a94b47aef9e9",
+                        "date": "2025-08-21 14:28:18"
+                    }
+                },
+                "behavioural": {
+                    "logins": "1593",
+                    "ts": 1777040342
+                },
+                "contextual_tips": {
+                    "badge_completion_wizard_search": true
+                },
+                "lastViewedSectionType": "explorers",
+                "groupdashboard": {
+                    "sections": {
+                        "37458": true,
+                        "59520": true
+                    }
+                },
+                "fromAddressName": {
+                    "37458": "Bore Stane Explorers Leaders <leaders@borestaneexplorers.org.uk>",
+                    "59520": "Pentland Scouts DofE <dofe@pentlandscouts.org.uk>",
+                    "43105": "SEEE (David Strachan) <expeditions@sesscouts.org.uk>"
+                },
+                "theme": "purple",
+                "tfa": "enabled",
+                "member_icon_sizes": {
+                    "badge-grid": "pictures",
+                    "shared-event-attendance-grid": "pictures"
+                },
+                "send_email_without_prompt": true,
+                "news": 1764720533,
+                "beta": true,
+                "beta_functions": [
+                    "recipes",
+                    "react_invoices",
+                    "react_giftaid"
+                ],
+                "beta_ts": 1779355830,
+                "programmeDisplayMode": "cards",
+                "disable_background_images": false,
+                "whatsnew_time": 1778159568,
+                "dueBadgesDisplayMode": "scout",
+                "panel_description_visibility": {
+                    "badge-info": true
+                },
+                "show_area_chooser": false,
+                "personal_details_download_fields": [
+                    "6:2903",
+                    "6:7538",
+                    "6:15208",
+                    "5:1317",
+                    "5:7583",
+                    "10:38481",
+                    "10:38476",
+                    "10:38475",
+                    "10:38478",
+                    "10:38474",
+                    "10:38479",
+                    "10:38473",
+                    "10:38477",
+                    "10:38480",
+                    "1:7426",
+                    "1:29508",
+                    "1:7470",
+                    "1:5563",
+                    "2:7426",
+                    "2:29509",
+                    "2:7471",
+                    "2:8500",
+                    "3:7426",
+                    "9:24259",
+                    "9:24260",
+                    "5:5330",
+                    "5:5332",
+                    "5:5336",
+                    "5:11382",
+                    "5:24485",
+                    "5:113",
+                    "5:5337",
+                    "5:35652",
+                    "5:2206",
+                    "5:383",
+                    "5:622",
+                    "5:3509",
+                    "5:680",
+                    "5:415",
+                    "5:4693",
+                    "5:7443",
+                    "5:124",
+                    "5:168",
+                    "5:251",
+                    "5:21535",
+                    "10:24265",
+                    "9:24256",
+                    "10:27580",
+                    "1:2",
+                    "1:3",
+                    "1:7",
+                    "1:8",
+                    "1:9",
+                    "1:10",
+                    "1:11",
+                    "1:12",
+                    "1:14",
+                    "1:18",
+                    "1:19",
+                    "1:20",
+                    "1:21",
+                    "1:44064",
+                    "2:2",
+                    "2:3",
+                    "2:7",
+                    "2:8",
+                    "2:9",
+                    "2:10",
+                    "2:11",
+                    "2:12",
+                    "2:14",
+                    "2:18",
+                    "2:19",
+                    "2:20",
+                    "2:21",
+                    "2:44064",
+                    "3:2",
+                    "3:3",
+                    "3:7",
+                    "3:8",
+                    "3:9",
+                    "3:10",
+                    "3:11",
+                    "3:12",
+                    "3:14",
+                    "3:18",
+                    "3:20",
+                    "4:2",
+                    "4:3",
+                    "4:54",
+                    "4:7",
+                    "4:8",
+                    "4:9",
+                    "4:10",
+                    "4:11",
+                    "4:18",
+                    "4:20",
+                    "6:7",
+                    "6:8",
+                    "6:9",
+                    "6:10",
+                    "6:11",
+                    "6:12",
+                    "6:14",
+                    "6:18",
+                    "6:19",
+                    "6:20",
+                    "6:21",
+                    "9:24253",
+                    "9:24254",
+                    "9:24255",
+                    "9:24257",
+                    "9:43256",
+                    "9:24267",
+                    "5:15199",
+                    "5:36750",
+                    "5:36751",
+                    "10:27579",
+                    "7:34",
+                    "other:date_of_birth",
+                    "other:patrol",
+                    "other:joined",
+                    "other:started"
+                ],
+                "last_failed_login": 1769606932,
                 "new_user": 0
             },
             "member_access": {
                 "99001": {
-                    "name": "Test District: Silver ESU",
-                    "group": "Test District",
-                    "section": "Silver ESU",
-                    "abbrv": "Silver ESU\nTest District",
-                    "type": "explorers",
-                    "label": "Explorers",
                     "members": {
                         "30001": {
-                            "first_name": "Alex",
-                            "last_name": "Explorer",
-                            "photo_guid": null,
-                            "abbrv_name": "Alex",
-                            "chat_rooms": [],
                             "access_type": "parent",
-                            "has_unread_chat_rooms": false,
-                            "abbrv": "Alex",
-                            "pane_abbrv": "Alex, Silver ESU - Test District",
-                            "permissions": true
+                            "first_name": "Child",
+                            "last_name": "One"
+                        },
+                        "30002": {
+                            "access_type": "parent",
+                            "first_name": "Child",
+                            "last_name": "Two"
                         }
-                    },
-                    "access": true,
-                    "config": {
-                        "badges": true,
-                        "programme": true,
-                        "emailbolton": true,
-                        "details": true,
-                        "events": true,
-                        "chat": false,
-                        "at_home": false,
-                        "email_address": "silver@testdistrict.example.com",
-                        "giftaid": false,
-                        "payments": true,
-                        "attachments": false,
-                        "photos": false
-                    },
-                    "noticeboard": true
+                    }
                 },
                 "99002": {
-                    "name": "Test District: Gold ESU",
-                    "group": "Test District",
-                    "section": "Gold ESU",
-                    "abbrv": "Gold ESU\nTest District",
-                    "type": "explorers",
-                    "label": "Explorers",
                     "members": {
                         "30001": {
-                            "first_name": "Alex",
-                            "last_name": "Explorer",
-                            "photo_guid": null,
-                            "abbrv_name": "Alex",
-                            "chat_rooms": [],
                             "access_type": "parent",
-                            "has_unread_chat_rooms": false,
-                            "abbrv": "Alex",
-                            "pane_abbrv": "Alex, Gold ESU - Test District",
-                            "permissions": true
+                            "first_name": "Child",
+                            "last_name": "One"
                         }
-                    },
-                    "access": true,
-                    "config": {
-                        "badges": false,
-                        "programme": false,
-                        "emailbolton": true,
-                        "details": true,
-                        "events": true,
-                        "chat": false,
-                        "at_home": false,
-                        "email_address": "gold@testdistrict.example.com",
-                        "giftaid": false,
-                        "payments": false,
-                        "attachments": false,
-                        "photos": false
-                    },
-                    "noticeboard": false
-                },
-                "99003": {
-                    "name": "Test District: Bronze Section",
-                    "group": "Test District",
-                    "section": "Bronze Section",
-                    "abbrv": "Bronze Section\nTest District",
-                    "type": "scouts",
-                    "label": "Scouts",
-                    "members": {
-                        "30002": {
-                            "first_name": "Jamie",
-                            "last_name": "Explorer",
-                            "photo_guid": null,
-                            "abbrv_name": "Jamie",
-                            "chat_rooms": [],
-                            "access_type": "parent",
-                            "has_unread_chat_rooms": false,
-                            "abbrv": "Jamie",
-                            "pane_abbrv": "Jamie, Bronze Section - Test District",
-                            "permissions": true
-                        }
-                    },
-                    "access": true,
-                    "config": {
-                        "badges": true,
-                        "programme": true,
-                        "emailbolton": true,
-                        "details": true,
-                        "events": true,
-                        "chat": false,
-                        "at_home": false,
-                        "email_address": "bronze@testdistrict.example.com",
-                        "giftaid": false,
-                        "payments": true,
-                        "attachments": false,
-                        "photos": false
-                    },
-                    "noticeboard": true
+                    }
                 }
             },
             "member_access_unactivated": false,
-            "terms": [],
+            "terms": {
+                "99001": [
+                    {
+                        "termid": "5001",
+                        "sectionid": "99001",
+                        "name": "Spring 2026",
+                        "startdate": "2026-01-01",
+                        "enddate": "2026-12-31",
+                        "master_term": null,
+                        "past": true
+                    }
+                ],
+                "99002": [
+                    {
+                        "termid": "5002",
+                        "sectionid": "99002",
+                        "name": "Spring 2026",
+                        "startdate": "2026-01-01",
+                        "enddate": "2026-12-31",
+                        "master_term": null,
+                        "past": true
+                    }
+                ]
+            },
             "global_roles": [],
-            "hasSectionAccess": false,
+            "hasSectionAccess": true,
             "notepads": [],
-            "sockets": "",
-            "user_socket": "20002-synthetictoken",
-            "session_id": "synthetic-session-parent-00000000000000000000000000000002",
-            "security_prompt": "none",
+            "sockets": "28752-14aee531b7a0d012997251085f69d330,37458-a275c4aba064715729ce8f533c68646b,43105-c2569378e50b6179417ff62020a9417a,59520-10e0efb7b389327f3ca7ece7922cc5df,82877-a1a5ae4f50c74a338f5f35383ca15f54,82879-c011934883703ec39576f74c1f883e74,83425-d1ebe753e4e24f5822a32d293078ece5",
+            "user_socket": "mock-user-socket",
+            "session_id": "mock-session-id",
+            "security_prompt": false,
             "user_has_image": false,
-            "language": "en-GB"
+            "user_hash": "mock-user-hash",
+            "user_hash_legacy": "mock-user-hash-legacy",
+            "language": "en-GB",
+            "gamification": {
+                "48": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 48
+                },
+                "56": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 56
+                },
+                "55": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 55
+                },
+                "54": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 54
+                },
+                "53": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 53
+                },
+                "52": {
+                    "total_steps": 4,
+                    "steps_completed": 1,
+                    "id": 52
+                },
+                "51": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 51
+                },
+                "50": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 50
+                },
+                "49": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 49
+                },
+                "57": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 57
+                },
+                "47": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 47
+                },
+                "46": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 46
+                },
+                "45": {
+                    "total_steps": 6,
+                    "steps_completed": 6,
+                    "id": 45
+                },
+                "44": {
+                    "total_steps": 3,
+                    "steps_completed": 2,
+                    "id": 44
+                },
+                "43": {
+                    "total_steps": 3,
+                    "steps_completed": 1,
+                    "id": 43
+                },
+                "41": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 41
+                },
+                "40": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 40
+                },
+                "39": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 39
+                },
+                "65": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 65
+                },
+                "73": {
+                    "total_steps": 2,
+                    "steps_completed": 1,
+                    "id": 73
+                },
+                "72": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 72
+                },
+                "71": {
+                    "total_steps": 3,
+                    "steps_completed": 2,
+                    "id": 71
+                },
+                "70": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 70
+                },
+                "69": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 69
+                },
+                "68": {
+                    "total_steps": 9,
+                    "steps_completed": 0,
+                    "id": 68
+                },
+                "67": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 67
+                },
+                "66": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 66
+                },
+                "37": {
+                    "total_steps": 3,
+                    "steps_completed": 1,
+                    "id": 37
+                },
+                "64": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 64
+                },
+                "63": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 63
+                },
+                "62": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 62
+                },
+                "61": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 61
+                },
+                "60": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 60
+                },
+                "59": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 59
+                },
+                "58": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 58
+                },
+                "36": {
+                    "total_steps": 3,
+                    "steps_completed": 3,
+                    "id": 36
+                },
+                "10": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 10
+                },
+                "12": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 12
+                },
+                "13": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 13
+                },
+                "14": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 14
+                },
+                "15": {
+                    "total_steps": 2,
+                    "steps_completed": 1,
+                    "id": 15
+                },
+                "16": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 16
+                },
+                "17": {
+                    "total_steps": 3,
+                    "steps_completed": 2,
+                    "id": 17
+                },
+                "18": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 18
+                },
+                "19": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 19
+                },
+                "20": {
+                    "total_steps": 1,
+                    "steps_completed": 0,
+                    "id": 20
+                },
+                "21": {
+                    "total_steps": 1,
+                    "steps_completed": 1,
+                    "id": 21
+                },
+                "22": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 22
+                },
+                "24": {
+                    "total_steps": 4,
+                    "steps_completed": 2,
+                    "id": 24
+                },
+                "35": {
+                    "total_steps": 2,
+                    "steps_completed": 1,
+                    "id": 35
+                },
+                "34": {
+                    "total_steps": 3,
+                    "steps_completed": 0,
+                    "id": 34
+                },
+                "33": {
+                    "total_steps": 3,
+                    "steps_completed": 1,
+                    "id": 33
+                },
+                "32": {
+                    "total_steps": 3,
+                    "steps_completed": 3,
+                    "id": 32
+                },
+                "30": {
+                    "total_steps": 8,
+                    "steps_completed": 7,
+                    "id": 30
+                },
+                "29": {
+                    "total_steps": 6,
+                    "steps_completed": 4,
+                    "id": 29
+                },
+                "28": {
+                    "total_steps": 2,
+                    "steps_completed": 1,
+                    "id": 28
+                },
+                "27": {
+                    "total_steps": 3,
+                    "steps_completed": 2,
+                    "id": 27
+                },
+                "26": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 26
+                },
+                "25": {
+                    "total_steps": 2,
+                    "steps_completed": 2,
+                    "id": 25
+                },
+                "23": {
+                    "total_steps": 3,
+                    "steps_completed": 3,
+                    "id": 23
+                },
+                "personaldetails": {
+                    "total_steps": 32,
+                    "steps_completed": 24,
+                    "id": 6
+                },
+                "attendance": {
+                    "total_steps": 10,
+                    "steps_completed": 6,
+                    "id": 7
+                },
+                "badges": {
+                    "total_steps": 36,
+                    "steps_completed": 22,
+                    "id": 4
+                },
+                "programme": {
+                    "total_steps": 25,
+                    "steps_completed": 16,
+                    "id": 5
+                },
+                "events": {
+                    "total_steps": 52,
+                    "steps_completed": 40,
+                    "id": 2
+                },
+                "invoices": {
+                    "total_steps": 15,
+                    "steps_completed": 10,
+                    "id": 1
+                },
+                "onlinepayments": {
+                    "total_steps": 21,
+                    "steps_completed": 15,
+                    "id": 3
+                },
+                "accounts": {
+                    "total_steps": 16,
+                    "steps_completed": 8,
+                    "id": 8
+                },
+                "user": {
+                    "total_steps": 13,
+                    "steps_completed": 10,
+                    "id": 9
+                }
+            },
+            "gamification_rank": 835,
+            "gamification_total": 633803,
+            "features_used": [
+                "accessed help centre",
+                "accessed help centre topic",
+                "added two factor device",
+                "added webauthn",
+                "answered a forum question correctly",
+                "changed section",
+                "commented on global chat room",
+                "confirmed personal details on parent portal",
+                "disabled beta function incident_logs",
+                "disabled beta function parent_portal_badges",
+                "disabled beta function parent_portal_payments",
+                "disabled beta function section_switcher",
+                "edited event attendance on parent portal",
+                "edited recipe price",
+                "edited to do task",
+                "enabled beta function custom_data",
+                "enabled beta function gilbert_upgrade",
+                "enabled beta function group_dashboard",
+                "enabled beta function group_predictor",
+                "enabled beta function incident_logs",
+                "enabled beta function parent_portal_badges",
+                "enabled beta function parent_portal_dashboard",
+                "enabled beta function parent_portal_events",
+                "enabled beta function parent_portal_payments",
+                "enabled beta function parent_portal_programme",
+                "enabled beta function react_badges",
+                "enabled beta function react_giftaid",
+                "enabled beta function react_invoices",
+                "enabled beta function react_payment_editor",
+                "enabled beta function recipes",
+                "enabled beta function retention",
+                "enabled beta function section_switcher",
+                "enabled beta function task_planner",
+                "enabled beta function your_programme",
+                "enabled beta mode",
+                "liked a comment",
+                "made gift aid declaration on parent portal",
+                "opened developer console",
+                "opened menu on mobile",
+                "opted in to offline use",
+                "parent clicked email_leader button",
+                "requested offline data",
+                "searched chat rooms",
+                "searched help centre",
+                "seen advert adsense",
+                "seen advert internal 2",
+                "seen advert internal 41",
+                "seen advert internal 51",
+                "seen advert internal 52",
+                "signed up to programme parent rota on parent portal",
+                "synchronised offline changes",
+                "tour: parent portal event card",
+                "used one tap login",
+                "viewed all emails on parent portal",
+                "viewed all events on parent portal",
+                "viewed all payment schedules on parent portal",
+                "viewed email on parent portal",
+                "viewed event calender feed on parent portal",
+                "viewed event on parent portal",
+                "viewed gamification",
+                "viewed gift aid on parent portal",
+                "viewed group dashboard",
+                "viewed noticeboard on parent portal",
+                "viewed parent portal",
+                "viewed parent portal access page",
+                "viewed parent portal badge requirement dialog",
+                "viewed parent portal badges page",
+                "viewed payment schedule on parent portal",
+                "viewed personal details on parent portal",
+                "viewed programme calender feed on parent portal",
+                "viewed programme on parent portal",
+                "viewed recipe",
+                "viewed recipes",
+                "voted for feature request",
+                "edited contact details",
+                "accessed",
+                "added badge to programme meeting",
+                "changed term",
+                "clicked register icon",
+                "downloaded badge",
+                "downloaded event",
+                "edited attendance register",
+                "edited attendance register retrospectively",
+                "edited attendance register with badges",
+                "edited attendance register with informed absence",
+                "edited event attendance",
+                "edited members for badge wizard",
+                "edited programme meeting",
+                "expanded advanced select",
+                "responded MaybeLater to ExpenseCardsUpsell",
+                "responded NotInterested to ExpenseCardsUpsell",
+                "returned member",
+                "risk assessment added to meeting",
+                "risk assessment added to programme",
+                "risk assessment reused for meeting",
+                "searched",
+                "searched activities by badge",
+                "searched activities by text",
+                "searched activities newest",
+                "sent email",
+                "tour: change due badges grouping",
+                "tour: click to award due badges",
+                "tour: clicking register icons",
+                "tour: tick due badges",
+                "tour: updating attendance in bulk",
+                "tour: updating badges from register",
+                "tour: use advanced select in due badges",
+                "updated attendance in bulk",
+                "updated badges from register",
+                "used beta dashboard",
+                "used section size planning",
+                "view event audit for member",
+                "viewed activity",
+                "viewed attendance register",
+                "viewed attendance register beta",
+                "viewed badge records",
+                "viewed badge wizard",
+                "viewed badges by person",
+                "viewed balanced programme checker",
+                "viewed beta online payments",
+                "viewed email campaign in template mode",
+                "viewed email campaigns",
+                "viewed email delivery reports",
+                "viewed event",
+                "viewed event beta",
+                "viewed events",
+                "viewed giftaid",
+                "viewed member",
+                "viewed online payment schedule",
+                "viewed online payments",
+                "viewed personal details changed by parents",
+                "viewed personal details grid view",
+                "viewed personal details simple view",
+                "viewed programme",
+                "viewed programme meeting",
+                "watched university ParentPortalContactForLeaders",
+                "viewed flexi-records",
+                "achievement unlocked",
+                "achievement unlocked view clicked",
+                "added accident_form",
+                "added badge to event",
+                "added bank account to accounting system",
+                "added bank transaction in accounting system",
+                "added budget to accounting system",
+                "added category to accounting system",
+                "added column for event",
+                "added column to badge",
+                "added email campaign block",
+                "added entry to cashbook from bank in accounting system",
+                "added entry to cashbook with item in accounting system",
+                "added equipment to event",
+                "added financial year to accounting system",
+                "added item to accounting system",
+                "added kit list collection",
+                "added kit list to event",
+                "added link to item in accounting system",
+                "added parent portal link to email",
+                "added payment to event",
+                "added term",
+                "added user to section",
+                "archived event",
+                "archived item from accounting system",
+                "archived online payment request",
+                "awarded badge",
+                "awarded due badges",
+                "billing reminder 28 - card expiring",
+                "billing reminder 28 - card ok",
+                "billing reminder 7 - card expired",
+                "billing reminder 7 - card ok",
+                "billing renewed",
+                "cancelled subscription for At Home",
+                "cancelled subscription for Badges",
+                "cancelled subscription for Email System",
+                "cancelled subscription for Events",
+                "cancelled subscription for Personal Details",
+                "cancelled subscription for Programme",
+                "changed badge records mode to grid",
+                "changed badge records mode to optimal",
+                "changed badge records mode to requirements",
+                "changed due badges grouping",
+                "changed parent portal setting emailAddress",
+                "changed parent portal setting eventIcs",
+                "changed parent portal setting eventPersonalDetailsConfirmation",
+                "changed parent portal setting eventRemindFrequency",
+                "changed parent portal setting photos",
+                "changed parent portal setting programmeSummary",
+                "cloned email campaign",
+                "copied event",
+                "copied member",
+                "created email campaign",
+                "created event",
+                "created flexi-record",
+                "created invoice",
+                "created invoice category",
+                "created invoice record",
+                "created member",
+                "created online payment schedule payment",
+                "created programme meeting",
+                "created qm list",
+                "deleted accident_form",
+                "deleted column for event",
+                "deleted event",
+                "deleted kit list item",
+                "deleted member",
+                "downloaded attendance register",
+                "downloaded camp contacts",
+                "downloaded due badge inserts",
+                "downloaded due badges",
+                "downloaded invoice",
+                "downloaded member spreadsheet",
+                "downloaded online payments pdf",
+                "downloaded online payments spreadsheet",
+                "downloaded qm list",
+                "downloaded record cards",
+                "edited attendance register for absent leaders in future",
+                "edited badge column name",
+                "edited badge record",
+                "edited badge record for partial completion",
+                "edited badge record in bulk",
+                "edited badge stock",
+                "edited budget in accounting system",
+                "edited column for event",
+                "edited data retention settings",
+                "edited email campaign block",
+                "edited entry in cashbook in accounting system",
+                "edited event location",
+                "edited event roll call",
+                "edited event structure",
+                "edited event timetable",
+                "edited flexi-record",
+                "edited giftaid",
+                "edited invoice category",
+                "edited invoice record",
+                "edited item in accounting system",
+                "edited kit list collection",
+                "edited kit list item",
+                "edited online payment request",
+                "edited online payment schedule",
+                "edited online payments for members",
+                "edited parent portal young person access setting",
+                "edited personal details parent changes notification",
+                "edited programme meeting parent rota",
+                "edited qm list item",
+                "event 1320312",
+                "event 1326179",
+                "finalised invoice",
+                "forwarded email",
+                "ics",
+                "ics generated for events",
+                "ics generated for programme",
+                "imported transactions in accounting system",
+                "invited member to event",
+                "invited member to event in bulk",
+                "opened sending email from address editor",
+                "overrode badge completion",
+                "pasted invalid text into email",
+                "purchased upgrade for Badges",
+                "purchased upgrade for Email System",
+                "purchased upgrade for Events",
+                "purchased upgrade for Increased File Storage Quota",
+                "purchased upgrade for Personal Details",
+                "purchased upgrade for Programme",
+                "removed member from online payments schedule",
+                "removed member from section",
+                "removed user from section",
+                "responded group to section size predictor",
+                "responded inform to section size predictor",
+                "responded Same to Beta Feedback group_dashboard",
+                "restored event",
+                "restored programme",
+                "returned member to section",
+                "risk assessment added to event",
+                "selected draft email",
+                "sent email campaign",
+                "sent email from event",
+                "sent email to parent portal details",
+                "sent email to parent portal events",
+                "sent email to parent portal payments",
+                "sent email to parent portal programme",
+                "sent email to shared event attendees",
+                "set eligible members for badge",
+                "setup online payments for members",
+                "shared event",
+                "shared member",
+                "show event in parent portal for member",
+                "show event in parent portal for member in bulk",
+                "ticked due badges",
+                "tour: campaign editor add block",
+                "tour: campaign editor copy",
+                "tour: campaign editor image",
+                "tour: campaign editor move block",
+                "tour: edit email from addresses",
+                "tour: edit email to addresses",
+                "tour: email attachments",
+                "tour: email templates",
+                "tour: gilbert email composer",
+                "tour: member avatar opens dialog",
+                "tour: parent portal invitations dropdown",
+                "tour: programme calendar",
+                "tour: programme create meeting",
+                "tour: programme display mode",
+                "tour: programme share",
+                "tour: select all for updating badges",
+                "tour: use badges at home",
+                "tour: view badge modes",
+                "tour: view badge modes v2",
+                "transferred member",
+                "unarchived event",
+                "unarchived online payment request",
+                "updated automatic online payments for member on event",
+                "updated badges from event",
+                "updated census",
+                "updated event column for member",
+                "updated event column for member in bulk",
+                "updated event notepad",
+                "updated event parent portal description",
+                "updated notepad",
+                "updated parent portal email settings",
+                "updated parent portal email system settings",
+                "updated parent portal email template",
+                "updated parent portal event settings",
+                "updated parent portal noticeboard",
+                "updated parent portal programme settings",
+                "uploaded attachment for event",
+                "uploaded attachment for programme meeting",
+                "uploaded photo for member",
+                "uploaded receipt for cashbook transaction",
+                "uploaded receipt for invoice",
+                "used advanced select in due badges",
+                "used myscout giftaid",
+                "used react badge records",
+                "view parent portal login history",
+                "viewed announcement 240",
+                "viewed announcement 253",
+                "viewed announcement 263",
+                "viewed announcement 266",
+                "viewed announcement 269",
+                "viewed announcement 276",
+                "viewed announcement 281",
+                "viewed announcement 284",
+                "viewed announcement undefined",
+                "viewed annual report in accounting system",
+                "viewed audit trail for member",
+                "viewed audit trail for section",
+                "viewed badge record summary",
+                "viewed badge records for another section type",
+                "viewed badge stock",
+                "viewed bank transactions in accounting system",
+                "viewed budgets in accounting system",
+                "viewed cashbook in accounting system",
+                "viewed census aggregates",
+                "viewed data retention settings",
+                "viewed due badges",
+                "viewed email campaign in email mode",
+                "viewed flexi-record",
+                "viewed invoice",
+                "viewed invoices",
+                "viewed online payments bank account details",
+                "viewed qm list",
+                "viewed qm lists",
+                "viewed section dropbox",
+                "viewed whatsnew",
+                "watched university Invoices",
+                "watched university SendEmail2",
+                "added to do task",
+                "added to do task to event",
+                "assigned to do task",
+                "responded NotInterested to AccountancyToolsUpsell",
+                "trial programme activated",
+                "responded Better to Beta Feedback section_switcher",
+                "trial badges activated",
+                "viewed announcement 287",
+                "responded Maybe Later to MyScoutDetails free trial",
+                "viewed upgrade dialog to eventdownload",
+                "viewed upgrade dialog to risk_assessments"
+            ],
+            "unread_message_count": 0,
+            "client_time": "1781380539200"
+        },
+        "dojo": {
+            "cacheBust": "v=9e1441583e389c4d517d633eae5abe4c6b2bf66d36984a92adcc44fa1a6482ba",
+            "locale": "en-gb"
         }
-    },
-    "meta": []
+    }
 }

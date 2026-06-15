@@ -1,0 +1,228 @@
+{
+    "patrols": [
+        {
+            "patrolid": "-2",
+            "sectionid": "99001",
+            "name": "Leaders",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99200",
+            "sectionid": "99001",
+            "name": "Castle",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99201",
+            "sectionid": "99001",
+            "name": "Summit",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99202",
+            "sectionid": "99001",
+            "name": "Glen",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99203",
+            "sectionid": "99001",
+            "name": "Cairn",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99204",
+            "sectionid": "99001",
+            "name": "Wildfire",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99205",
+            "sectionid": "99001",
+            "name": "Ridge",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99206",
+            "sectionid": "99001",
+            "name": "Braid",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99207",
+            "sectionid": "99001",
+            "name": "Edge",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99208",
+            "sectionid": "99001",
+            "name": "Castle",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99209",
+            "sectionid": "99001",
+            "name": "Summit",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99210",
+            "sectionid": "99001",
+            "name": "Glen",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99211",
+            "sectionid": "99001",
+            "name": "Cairn",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99212",
+            "sectionid": "99001",
+            "name": "Wildfire",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99213",
+            "sectionid": "99001",
+            "name": "Ridge",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99214",
+            "sectionid": "99001",
+            "name": "Braid",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99215",
+            "sectionid": "99001",
+            "name": "Edge",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99216",
+            "sectionid": "99001",
+            "name": "Castle",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99217",
+            "sectionid": "99001",
+            "name": "Summit",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99218",
+            "sectionid": "99001",
+            "name": "Glen",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99219",
+            "sectionid": "99001",
+            "name": "Cairn",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99220",
+            "sectionid": "99001",
+            "name": "Wildfire",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99221",
+            "sectionid": "99001",
+            "name": "Ridge",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99222",
+            "sectionid": "99001",
+            "name": "Braid",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99223",
+            "sectionid": "99001",
+            "name": "Edge",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99224",
+            "sectionid": "99001",
+            "name": "Castle",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99225",
+            "sectionid": "99001",
+            "name": "Summit",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        },
+        {
+            "patrolid": "99226",
+            "sectionid": "99001",
+            "name": "Glen",
+            "active": "1",
+            "points": "0",
+            "census_costs": false
+        }
+    ]
+}
