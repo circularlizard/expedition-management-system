@@ -68,7 +68,36 @@ class Plugin {
             $view_controller->register_routes();
         } );
 
-        // OSM Sync Callback
+        // OSM Reference page "Sync from OSM" form handler
+        add_action( 'admin_post_ems_sync_osm', function() {
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( 'Forbidden' );
+            }
+            check_admin_referer( 'ems_sync_osm' );
+
+            $api_mode = get_option( 'ems_api_mode', 'mock' );
+            if ( $api_mode !== 'live' ) {
+                $parser     = new OSM_Parser();
+                $driver     = new Mock_Driver();
+                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
+
+                $payload     = $osm_client->get_data_payload( 'mock_token' );
+                $section_ids = $parser->parse_section_ids( $payload );
+
+                $managed_sections = (array) get_option( 'ems_managed_sections', [] );
+                $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
+                $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
+
+                ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )->sync( $all_ids );
+                wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=success' ) );
+            } else {
+                $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
+                $handler->initiate();
+            }
+            exit;
+        } );
+
+        // OSM OAuth Callback
         add_action( 'admin_post_ems_osm_callback', function() {
             $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
             $handler->handle_callback( function( $token ) {

@@ -33,14 +33,8 @@ const ExpeditionBoard: React.FC = () => {
 
     return (
         <div className="ems-board">
-            <div className="ems-board-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div className="last-sync" style={{ color: '#666' }}>
-                    Last synced with OSM: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
-                </div>
-                <form action={config.sync_url} method="post">
-                    <input type="hidden" name="_wpnonce" value={config.sync_nonce} />
-                    <button type="submit" name="ems_sync_osm" className="button button-secondary">Sync from OSM</button>
-                </form>
+            <div className="ems-board-header" style={{ marginBottom: '20px', color: '#666', fontSize: '0.9em' }}>
+                Last synced with OSM: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
             </div>
 
             <nav className="nav-tab-wrapper">

@@ -6,8 +6,6 @@ import ExpeditionBoard from '../../resources/js/admin/expedition-board/Expeditio
 const mockConfig = {
     root_url: 'https://example.com/wp-json/ems/v1',
     nonce: 'test-nonce',
-    sync_url: 'https://example.com/wp-admin/admin.php?page=ems',
-    sync_nonce: 'sync-nonce'
 };
 
 global.window.emsExpeditionBoard = mockConfig;
