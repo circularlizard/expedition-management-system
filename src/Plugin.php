@@ -74,11 +74,19 @@ class Plugin {
             $handler->handle_callback( function( $token ) {
                 $api_mode   = get_option( 'ems_api_mode', 'mock' );
                 $driver     = ( $api_mode === 'live' ) ? new Live_Driver() : new Mock_Driver();
-                $osm_client = new OSM_API_Client( $driver, new OSM_Parser(), new Rate_Limiter( 10, 1.0 ) );
+                $parser     = new OSM_Parser();
+                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
                 $osm_client->set_access_token( $token );
 
-                $importer = new \EMS\Integrations\OSM_Section_Importer( $osm_client );
-                $importer->import_all();
+                $payload     = $osm_client->get_data_payload( $token );
+                $section_ids = $parser->parse_section_ids( $payload );
+
+                $managed_sections = (array) get_option( 'ems_managed_sections', [] );
+                $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
+                $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
+
+                $sync = new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser );
+                $sync->sync( $all_ids );
             } );
         } );
 
