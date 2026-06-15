@@ -16,6 +16,7 @@ class Admin_Page {
 
     public function register(): void {
         add_action( 'admin_init', [ $this, 'handle_sync_post' ] );
+        add_action( 'admin_footer', [ $this, 'render_build_timestamp' ] );
 
         add_menu_page(
             'EMS',
@@ -198,6 +199,35 @@ class Admin_Page {
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'Flexi-Record Column Mapper', 'ems-plugin' ) . '</h1>';
         echo '<div id="ems-column-mapper-root"></div>';
+        echo '</div>';
+    }
+
+    /**
+     * Renders a build timestamp footer on EMS admin pages.
+     */
+    public function render_build_timestamp(): void {
+        $screen = get_current_screen();
+        if ( ! $screen || strpos( $screen->id, 'ems' ) === false ) {
+            return;
+        }
+
+        $manifest_path = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/build-manifest.json';
+        $built_at      = '';
+
+        if ( file_exists( $manifest_path ) ) {
+            $data     = json_decode( file_get_contents( $manifest_path ), true );
+            $built_at = $data['built_at'] ?? '';
+        }
+
+        if ( ! $built_at ) {
+            return;
+        }
+
+        $dt      = new \DateTime( $built_at );
+        $display = $dt->format( 'j M Y H:i' ) . ' UTC';
+
+        echo '<div style="position:fixed;bottom:0;right:0;padding:4px 10px;font-size:11px;color:#999;background:rgba(255,255,255,.85);border-top-left-radius:4px;z-index:9999;">';
+        echo 'Build: ' . esc_html( $display );
         echo '</div>';
     }
 
