@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { BoardData, Expedition, Team, Member } from './types';
 
+function downloadCsv(filename: string, rows: string[][]): void {
+    const escape = (v: string | number) => {
+        const s = String(v ?? '');
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+            ? `"${s.replace(/"/g, '""')}"`
+            : s;
+    };
+    const csv = rows.map(r => r.map(escape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 const ExpeditionBoard: React.FC = () => {
     const config = window.emsExpeditionBoard;
     const [data, setData] = useState<BoardData | null>(null);
@@ -60,7 +77,7 @@ const ExpeditionBoard: React.FC = () => {
                     className={`nav-tab ${activeTab === 'units' ? 'nav-tab-active' : ''}`}
                     onClick={() => setActiveTab('units')}
                 >
-                    By Unit
+                    By Patrol
                 </button>
             </nav>
 
@@ -120,27 +137,42 @@ const TeamView: React.FC<{ data: BoardData }> = ({ data }) => {
         return <p>No teams created yet. Teams are created during the Flexi-Record import process.</p>;
     }
 
+    const handleCsv = () => {
+        const rows: string[][] = [
+            ['Team Code', 'Expedition', 'Member Count'],
+            ...allTeams.map(team => [
+                team.ems_team_code,
+                data.expeditions.find(e => e.ID === parseInt(team.ems_expedition_id))?.post_title ?? 'Unknown',
+                String((data.members[team.ID] || []).length),
+            ]),
+        ];
+        downloadCsv('teams.csv', rows);
+    };
+
     return (
-        <table className="widefat striped">
-            <thead>
-                <tr>
-                    <th>Team Code</th>
-                    <th>Expedition</th>
-                    <th>Members</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {allTeams.map(team => (
-                    <tr key={team.ID}>
-                        <td>{team.ems_team_code}</td>
-                        <td>{data.expeditions.find(e => e.ID === parseInt(team.ems_expedition_id))?.post_title || 'Unknown'}</td>
-                        <td>{(data.members[team.ID] || []).length} members</td>
-                        <td>Pending</td>
+        <div>
+            <button className="button" onClick={handleCsv} style={{ marginBottom: '10px' }}>Download CSV</button>
+            <table className="widefat striped">
+                <thead>
+                    <tr>
+                        <th>Team Code</th>
+                        <th>Expedition</th>
+                        <th>Members</th>
+                        <th>Status</th>
                     </tr>
-                ))}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {allTeams.map(team => (
+                        <tr key={team.ID}>
+                            <td>{team.ems_team_code}</td>
+                            <td>{data.expeditions.find(e => e.ID === parseInt(team.ems_expedition_id))?.post_title || 'Unknown'}</td>
+                            <td>{(data.members[team.ID] || []).length} members</td>
+                            <td>Pending</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
 };
 
@@ -149,32 +181,46 @@ const ExplorerView: React.FC<{ data: BoardData }> = ({ data }) => {
         return <p>No explorers synced yet. Click <strong>Sync from OSM</strong> to pull your member lists.</p>;
     }
 
+    const handleCsv = () => {
+        const rows: string[][] = [
+            ['First Name', 'Last Name', 'Scout ID', 'Patrol', 'Training %'],
+            ...data.explorers.map(m => [
+                m.first_name, m.last_name, m.scout_id, m.unit,
+                String(m.training?.percent ?? ''),
+            ]),
+        ];
+        downloadCsv('explorers.csv', rows);
+    };
+
     return (
-        <table className="widefat striped">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Scout ID</th>
-                    <th>Unit</th>
-                    <th>Training Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {data.explorers.map(m => (
-                    <tr key={m.user_id}>
-                        <td>{m.first_name} {m.last_name}</td>
-                        <td>{m.scout_id}</td>
-                        <td>{m.unit}</td>
-                        <td>
-                            <div style={{ width: '100px', background: '#eee', height: '10px', borderRadius: '5px' }}>
-                                <div style={{ width: `${m.training.percent}%`, background: m.training.percent === 100 ? '#46b450' : '#ffb900', height: '100%', borderRadius: '5px' }}></div>
-                            </div>
-                            <span style={{ fontSize: '0.8em' }}>{m.training.complete}/{m.training.total} courses</span>
-                        </td>
+        <div>
+            <button className="button" onClick={handleCsv} style={{ marginBottom: '10px' }}>Download CSV</button>
+            <table className="widefat striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Scout ID</th>
+                        <th>Patrol</th>
+                        <th>Training Status</th>
                     </tr>
-                ))}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {data.explorers.map(m => (
+                        <tr key={m.scout_id || m.user_id}>
+                            <td>{m.first_name} {m.last_name}</td>
+                            <td>{m.scout_id}</td>
+                            <td>{m.unit}</td>
+                            <td>
+                                <div style={{ width: '100px', background: '#eee', height: '10px', borderRadius: '5px' }}>
+                                    <div style={{ width: `${m.training?.percent ?? 0}%`, background: (m.training?.percent ?? 0) === 100 ? '#46b450' : '#ffb900', height: '100%', borderRadius: '5px' }}></div>
+                                </div>
+                                <span style={{ fontSize: '0.8em' }}>{m.training?.complete ?? 0}/{m.training?.total ?? 0} courses</span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
 };
 
@@ -184,20 +230,29 @@ const UnitView: React.FC<{ data: BoardData }> = ({ data }) => {
     }
 
     const units: Record<string, Member[]> = {};
-    
     data.explorers.forEach(m => {
-        if (!units[m.unit]) units[m.unit] = [];
-        units[m.unit].push(m);
+        const key = m.unit || 'Unassigned';
+        if (!units[key]) units[key] = [];
+        units[key].push(m);
     });
+
+    const handleCsv = () => {
+        const rows: string[][] = [ ['Patrol', 'First Name', 'Last Name', 'Scout ID'] ];
+        Object.entries(units).forEach(([unit, members]) => {
+            members.forEach(m => rows.push([unit, m.first_name, m.last_name, m.scout_id]));
+        });
+        downloadCsv('by-patrol.csv', rows);
+    };
 
     return (
         <div>
+            <button className="button" onClick={handleCsv} style={{ marginBottom: '10px' }}>Download CSV</button>
             {Object.entries(units).map(([unit, members]) => (
                 <div key={unit} style={{ marginBottom: '20px' }}>
-                    <h3>{unit || 'Unassigned Unit'} ({members.length})</h3>
+                    <h3>{unit} ({members.length})</h3>
                     <ul className="members-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
                         {members.map(m => (
-                            <li key={m.user_id} style={{ border: '1px solid #eee', padding: '5px' }}>
+                            <li key={m.scout_id || m.user_id} style={{ border: '1px solid #eee', padding: '5px' }}>
                                 {m.first_name} {m.last_name}
                             </li>
                         ))}
