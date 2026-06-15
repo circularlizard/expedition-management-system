@@ -132,14 +132,19 @@ class Flexi_Record_Importer {
     }
 
     private function find_user_by_scout_id( int $scout_id ): int {
-        $users = get_users( [
-            'meta_key'   => 'ems_scout_id',
-            'meta_value' => $scout_id,
-            'number'     => 1,
-            'fields'     => 'ID',
-        ] );
+        global $wpdb;
 
-        return ! empty( $users ) ? (int) $users[0] : 0;
+        $table = $wpdb->prefix . 'ems_osm_explorers';
+        $row   = $wpdb->get_row(
+            $wpdb->prepare( "SELECT id, wp_user_id FROM {$table} WHERE scout_id = %d LIMIT 1", $scout_id ),
+            ARRAY_A
+        );
+
+        if ( ! $row ) {
+            return 0;
+        }
+
+        return (int) ( $row['wp_user_id'] ?: $row['id'] );
     }
 
     private function get_or_create_expedition( string $code ): int {

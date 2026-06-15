@@ -1,0 +1,26 @@
+{
+    "identifier": "scoutid",
+    "items": [
+        {
+            "scoutid": "1001",
+            "firstname": "Alice",
+            "lastname": "Alpha",
+            "attending": "Yes",
+            "patrol": "Bears"
+        },
+        {
+            "scoutid": "1002",
+            "firstname": "Bob",
+            "lastname": "Bravo",
+            "attending": "No",
+            "patrol": "Wolves"
+        },
+        {
+            "scoutid": "1003",
+            "firstname": "Carol",
+            "lastname": "Charlie",
+            "attending": "Invited",
+            "patrol": "Bears"
+        }
+    ]
+}
