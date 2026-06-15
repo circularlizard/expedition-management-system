@@ -32,7 +32,7 @@ class OSM_Reference_Sync {
             $this->sync_events_and_attendance( $wpdb, (int) $section_id, $now );
         }
 
-        update_option( 'ems_osm_last_sync', current_time( 'iso' ) );
+        update_option( 'ems_osm_last_sync', current_time( 'mysql' ) );
     }
 
     /**
