@@ -2,7 +2,7 @@
 
 > This file archives the completed sections of `docs/Implementation Plan Phase 1.md`.
 > Moved here to keep the live plan focused on active and upcoming work.
-> Last updated: 15 June 2026.
+> Last updated: 16 June 2026.
 
 ---
 
@@ -201,3 +201,86 @@ rm ./caddy-local-ca.crt
 - Tests extend `EMS\Tests\EMSTestCase`; use `Brain\Monkey\Functions` for WP stubs; `Mockery` for interfaces
 - REST endpoints: `ems/v1/` prefix, `manage_options` permission_callback
 - Auto-upgrade: `Plugin::maybe_upgrade()` on `plugins_loaded` if `ems_db_version` != `EMS_VERSION`
+
+---
+
+## ✅ Step 0 — Anonymised Mock Data Generation *(complete — 15 Jun 2026)*
+
+`bin/generate-mock-data.py` written and validated. Regenerates all `tests/mocks/` files deterministically (`random.seed(42)`). Re-run at any time to refresh from `mockdata/`.
+
+**Files generated** (9 total):
+- `osm-list-of-members.json` — 127 members, Scottish fictitious names, scout IDs `3417257+`, patrol IDs `99200+`
+- `osm-member-detail.json` — keyed map `{scout_id: {email, parent_email}}`, `scout.{id}@example-ems.test`
+- `osm-patrols.json` — mock patrol IDs matching member list
+- `osm-events.json` — 2 events, IDs `40001/40002`
+- `osm-event-attendance.json` — all 127 members, varied `yes`/`no`/`""` attending
+- `osm-flexi-record-structure.json` — mock section `99001`, extraid `99848`
+- `osm-flexi-record-data.json` — all 127 members, varied `f_9`–`f_18` flexi fields
+- `osm-get-data-payload-explorer.json` — userid `20001`, `member_access` scout `30001` in sections `99001`/`99002`
+- `osm-get-data-payload-parent.json` — userid `20002`, children `30001`/`30002`
+
+**`Mock_Driver::get_member_detail()`** updated: looks up by `$scout_id` in keyed map, wraps in raw `getData` structure for `parse_member_detail`. 3 test files updated to use predictable email format. **162/162 tests green**.
+
+---
+
+## ✅ Stage 1.7 — Admin Read Views *(complete — 15 Jun 2026)*
+
+**`hydrate_member_data()` bug fixed**: now reads from `ems_osm_explorers` via `wp_user_id` instead of `wp_usermeta`.
+
+**Three new REST endpoints** added to `Admin_View_Controller`:
+- `GET ems/v1/explorer/{scout_id}` — name, patrol, email, training summary, `last_synced`
+- `GET ems/v1/team/{team_id}` — members hydrated from `ems_osm_explorers`, `first_aid_covered` flag, `last_synced`
+- `GET ems/v1/patrol/{patrol}` — all explorers in the patrol ordered by name, `last_synced`
+
+**PHP tests** (6 new): explorer found/404, team with/without first aid, patrol with results/empty.
+
+**React** (`ExpeditionBoard.tsx`): "By Unit" tab renamed to "By Patrol"; `downloadCsv()` utility added; Download CSV button on Explorer, Team, and Patrol tabs.
+
+**Vitest tests** (8 new): loading state, error state, never-synced, empty states per tab, CSV button presence on each tab.
+
+**168 PHP / 322 assertions. 16 JS Vitest.**
+
+---
+
+## ✅ Stage 1.8 — Diagnostics + Reference Data Display *(complete — 15 Jun 2026)*
+
+**`Diagnostic_Panel`** split into `get_system_html()` (always populated) and `get_user_html()` (OIDC users only); `get_html()` retained as backward-compat alias. System panel shows: API mode, client ID configured (yes/no), managed sections, last sync timestamp, DB row counts (explorers/events/attendance), rate limit headers.
+
+**`render_dashboard()`** cleaned up — diagnostic panel removed from Expedition Board page.
+
+**`render_reference_page()`** replaced with four WP nav-tabs (active tab via `?tab=` query param):
+- **Explorers** — existing table unchanged
+- **Patrols** — grouped summary (patrol name + member count)
+- **Events** — events + attendance count JOIN
+- **Diagnostics** — system panel + per-user OIDC section (when set)
+
+`ems_osm_events` schema updated to include `location` column; `OSM_Reference_Sync` updated to write it.
+
+**6 new PHP tests** (Diagnostic_Panel system diagnostics + backward-compat alias). **174 PHP / 332 assertions.**
+
+---
+
+## ✅ Stage 1.9 — Settings Page Tabs + Managed Sections Redesign *(complete — 16 Jun 2026)*
+
+**`Settings_Page`** rewritten with three nav-tabs (active tab via `?tab=` query param), Managed Sections first:
+- **Managed Sections** — checklist populated from `ems_available_sections` transient; "Fetch sections from OSM" button (works in all modes including mock); `ems_managed_sections` stored as `{id: {name}}` (no `extraid`); prompt shown if transient is empty; currently-managed summary table below
+- **General** — API mode (all four values: `mock`/`live`/`live-auth-only`/`live-limited`); `ems_sync_limit` field shown only when `live-limited` selected (JS toggle)
+- **OSM Connection** — client ID, client secret (encrypted), redirect URI (read-only), all OAuth URLs
+
+`save_settings()` retained as backward-compat routing shim. `OSM_Parser::parse_section_names()` added — builds `{id: {name}}` map from `roles` array in payload. `admin_post_ems_fetch_sections` action wired in `Plugin.php` (mock driver for now; TODO 1.10 for live OAuth).
+
+**Schema change:** `ems_managed_sections` simplified from `{id: {name, extraid}}` to `{id: {name}}`; `extraid` removed — flexi-record mapping moves to Column Mapper (1.14).
+
+**10 new PHP tests** (all four modes, sync_limit, sections checklist, extraid exclusion, routing). **184 PHP / 344 assertions.**
+
+---
+
+## Deferred Items — Resolved
+
+### ~~8.1 `hydrate_member_data()` inconsistency~~ ✅ Resolved (Stage 1.7)
+
+Fixed: now reads from `ems_osm_explorers` via `wp_user_id`.
+
+### ~~8.2 Mock data: distinct emails per member~~ ✅ Resolved (Step 0)
+
+Fixed: keyed map + `Mock_Driver` lookup by scout_id.
