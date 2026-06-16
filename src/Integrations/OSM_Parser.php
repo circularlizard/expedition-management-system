@@ -39,19 +39,22 @@ class OSM_Parser {
      * Returns a map of section_id => ['name' => section_name] sourced from the roles list.
      * Falls back to section ID as name if role data is missing.
      *
-     * @return array<int, array{name: string}>
+     * @return array<int, array{name: string, type: string}>
      */
     public function parse_section_names( array $payload ): array {
         $names = [];
         foreach ( $payload['data']['globals']['roles'] ?? [] as $role ) {
             $id = (int) ( $role['sectionid'] ?? 0 );
             if ( $id > 0 && ! isset( $names[ $id ] ) ) {
-                $names[ $id ] = [ 'name' => $role['sectionname'] ?? $role['section'] ?? (string) $id ];
+                $names[ $id ] = [
+                    'name' => $role['sectionname'] ?? $role['section'] ?? (string) $id,
+                    'type' => $role['section'] ?? '',
+                ];
             }
         }
         foreach ( $this->parse_section_ids( $payload ) as $id ) {
             if ( ! isset( $names[ $id ] ) ) {
-                $names[ $id ] = [ 'name' => (string) $id ];
+                $names[ $id ] = [ 'name' => (string) $id, 'type' => '' ];
             }
         }
         return $names;
