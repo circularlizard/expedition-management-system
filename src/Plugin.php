@@ -136,7 +136,7 @@ class Plugin {
                 $parser   = new OSM_Parser();
                 $driver   = new Live_Driver();
                 $logger   = new \EMS\Integrations\OSM_Sync_Logger();
-                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ), $logger );
+                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ), $logger );
                 $osm_client->set_access_token( $token );
 
                 $payload = $osm_client->get_data_payload();
