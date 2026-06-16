@@ -22,10 +22,14 @@ class OSM_Sync_Auth_Handler {
     }
 
     /**
-     * Redirects to OSM authorization page.
+     * Redirects to OSM authorization page, or uses a cached token if still valid.
+     * When a cached token exists and $on_success is provided, calls it directly
+     * without a browser redirect to OSM.
      * Callers must call exit after this returns to terminate the request.
+     *
+     * @param callable|null $on_success Invoked with token when cached token is used.
      */
-    public function initiate(): void {
+    public function initiate( ?callable $on_success = null ): void {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=forbidden' ) );
             return;
@@ -33,6 +37,12 @@ class OSM_Sync_Auth_Handler {
 
         if ( get_option( 'ems_api_blocked', false ) ) {
             wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=api_blocked' ) );
+            return;
+        }
+
+        $cached = $this->get_cached_token();
+        if ( $cached !== '' && $on_success !== null ) {
+            $on_success( $cached );
             return;
         }
 
@@ -98,9 +108,54 @@ class OSM_Sync_Auth_Handler {
             return;
         }
 
+        $this->cache_token( $access_token, (int) ( $token_data['expires_in'] ?? 3600 ) );
+
         $on_success( $access_token );
 
         wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=success' ) );
+    }
+
+    /**
+     * Returns a cached access token for the current user if one exists and hasn't expired.
+     * Returns empty string if no valid token is cached.
+     */
+    public function get_cached_token(): string {
+        $user_id = get_current_user_id();
+        if ( ! $user_id ) {
+            return '';
+        }
+        $expires = (int) get_user_meta( $user_id, '_ems_osm_token_expires', true );
+        if ( $expires < time() ) {
+            return '';
+        }
+        $encrypted = (string) get_user_meta( $user_id, '_ems_osm_token', true );
+        return Encryption::decrypt( $encrypted ) ?: '';
+    }
+
+    /**
+     * Stores the access token encrypted in current user meta with an expiry.
+     */
+    private function cache_token( string $token, int $expires_in ): void {
+        $user_id = get_current_user_id();
+        if ( ! $user_id ) {
+            return;
+        }
+        $encrypted = Encryption::encrypt( $token );
+        if ( $encrypted ) {
+            update_user_meta( $user_id, '_ems_osm_token', $encrypted );
+            update_user_meta( $user_id, '_ems_osm_token_expires', time() + max( 0, $expires_in - 300 ) );
+        }
+    }
+
+    /**
+     * Clears the cached token for the current user.
+     */
+    public function clear_cached_token(): void {
+        $user_id = get_current_user_id();
+        if ( $user_id ) {
+            delete_user_meta( $user_id, '_ems_osm_token' );
+            delete_user_meta( $user_id, '_ems_osm_token_expires' );
+        }
     }
 
     /**

@@ -108,7 +108,14 @@ class Plugin {
 
             if ( in_array( $api_mode, [ 'live', 'live-auth-only', 'live-limited' ], true ) ) {
                 $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
-                $handler->initiate();
+                $handler->initiate( function( string $token ) use ( $parser ) {
+                    $driver     = new Live_Driver();
+                    $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ) );
+                    $osm_client->set_access_token( $token );
+                    $payload = $osm_client->get_data_payload();
+                    set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
+                    wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&fetched=1' ) );
+                } );
             } else {
                 $driver     = new Mock_Driver();
                 $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
@@ -130,7 +137,30 @@ class Plugin {
             $api_mode = get_option( 'ems_api_mode', 'mock' );
 
             if ( in_array( $api_mode, [ 'live', 'live-auth-only', 'live-limited' ], true ) ) {
-                ( new \EMS\Admin\OSM_Sync_Auth_Handler() )->initiate();
+                ( new \EMS\Admin\OSM_Sync_Auth_Handler() )->initiate( function( string $token ) use ( $api_mode ) {
+                    $parser           = new OSM_Parser();
+                    $driver           = new Live_Driver();
+                    $osm_client       = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ) );
+                    $osm_client->set_access_token( $token );
+                    $payload          = $osm_client->get_data_payload();
+                    $section_ids      = $parser->parse_section_ids( $payload );
+                    $managed_sections = (array) get_option( 'ems_managed_sections', [] );
+                    $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
+                    $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
+                    $member_limit     = ( $api_mode === 'live-limited' ) ? max( 1, (int) get_option( 'ems_sync_limit', 5 ) ) : 0;
+                    $sync_ids         = ( $api_mode === 'live-limited' ) ? array_slice( $managed_ids ?: $all_ids, 0, 1 ) : $all_ids;
+                    set_transient( 'ems_pending_sync_job', [
+                        'token'        => $token,
+                        'payload'      => $payload,
+                        'sync_ids'     => $sync_ids,
+                        'api_mode'     => $api_mode,
+                        'member_limit' => $member_limit,
+                    ], 5 * MINUTE_IN_SECONDS );
+                    set_transient( 'ems_sync_status', [ 'state' => 'queued', 'queued_at' => gmdate( 'c' ) ], HOUR_IN_SECONDS );
+                    wp_schedule_single_event( time(), 'ems_run_osm_sync' );
+                    spawn_cron();
+                    wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=running' ) );
+                } );
             } else {
                 $parser     = new OSM_Parser();
                 $driver     = new Mock_Driver();
@@ -293,6 +323,11 @@ class Plugin {
             header( 'Content-Length: ' . strlen( $json ) );
             echo $json; // phpcs:ignore WordPress.Security.EscapeOutput
             exit;
+        } );
+
+        // Clear cached OSM token on WP logout
+        add_action( 'wp_logout', function() {
+            ( new \EMS\Admin\OSM_Sync_Auth_Handler() )->clear_cached_token();
         } );
 
         // Support for ES Modules in Admin
