@@ -136,6 +136,9 @@ class Settings_Page {
     private function render_general_tab(): void {
         $mode  = get_option( 'ems_api_mode', 'mock' );
         $limit = (int) get_option( 'ems_sync_limit', 5 );
+        if ( isset( $_GET['purged'] ) ) {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM reference data purged successfully.', 'ems-plugin' ) . '</p></div>';
+        }
         ?>
         <form method="post">
             <?php wp_nonce_field( 'ems_settings_general' ); ?>
@@ -171,6 +174,20 @@ class Settings_Page {
             });
         });
         </script>
+
+        <hr style="margin:2em 0" />
+        <h3 style="color:#b32d2e"><?php esc_html_e( 'Danger Zone', 'ems-plugin' ); ?></h3>
+        <p class="description"><?php esc_html_e( 'Deletes all synced OSM reference data from the database (explorers, events, attendance, patrols). This cannot be undone.', 'ems-plugin' ); ?></p>
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return document.getElementById('ems_purge_confirm').checked || (alert('Check the confirmation box first.'), false);">
+            <?php wp_nonce_field( 'ems_purge_osm_data' ); ?>
+            <input type="hidden" name="action" value="ems_purge_osm_data" />
+            <label>
+                <input type="checkbox" id="ems_purge_confirm" />
+                <?php esc_html_e( 'Yes, I want to permanently delete all synced OSM reference data.', 'ems-plugin' ); ?>
+            </label>
+            <br /><br />
+            <input type="submit" class="button button-link-delete" value="<?php esc_attr_e( 'Purge OSM Reference Data', 'ems-plugin' ); ?>" />
+        </form>
         <?php
     }
 
