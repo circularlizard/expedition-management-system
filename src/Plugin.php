@@ -139,7 +139,17 @@ class Plugin {
                 $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ), $logger );
                 $osm_client->set_access_token( $token );
 
-                $payload = $osm_client->get_data_payload();
+                try {
+                    $payload = $osm_client->get_data_payload();
+                } catch ( \EMS\Integrations\Exceptions\Api_Response_Exception $e ) {
+                    error_log( '[EMS] getDataPayload failed: ' . $e->getMessage() );
+                    wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=payload_failed&error_msg=' . rawurlencode( substr( $e->getMessage(), 0, 100 ) ) ) );
+                    return;
+                } catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception $e ) {
+                    update_option( 'ems_api_blocked', true );
+                    wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=api_blocked' ) );
+                    return;
+                }
 
                 set_transient( 'ems_last_payload_dump', $payload, HOUR_IN_SECONDS );
                 set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
