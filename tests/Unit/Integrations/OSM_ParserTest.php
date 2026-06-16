@@ -203,4 +203,27 @@ class OSM_ParserTest extends EMSTestCase {
         $this->assertSame( '', $detail['email'] );
         $this->assertSame( '', $detail['parent_email'] );
     }
+
+    public function test_parse_section_names_uses_sectionname_not_section_type(): void {
+        $payload = [
+            'data' => [
+                'globals' => [
+                    'roles' => [
+                        [
+                            'sectionid'   => '37458',
+                            'sectionname' => 'Bore Stane ESU',
+                            'section'     => 'explorers',
+                        ],
+                    ],
+                    'member_access' => [],
+                    'terms'         => [],
+                ],
+            ],
+        ];
+
+        $names = $this->parser->parse_section_names( $payload );
+
+        $this->assertSame( 'Bore Stane ESU', $names[37458]['name'] );
+        $this->assertNotSame( 'explorers', $names[37458]['name'] );
+    }
 }

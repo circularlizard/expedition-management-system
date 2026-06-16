@@ -46,7 +46,7 @@ class OSM_Parser {
         foreach ( $payload['data']['globals']['roles'] ?? [] as $role ) {
             $id = (int) ( $role['sectionid'] ?? 0 );
             if ( $id > 0 && ! isset( $names[ $id ] ) ) {
-                $names[ $id ] = [ 'name' => $role['section'] ?? (string) $id ];
+                $names[ $id ] = [ 'name' => $role['sectionname'] ?? $role['section'] ?? (string) $id ];
             }
         }
         foreach ( $this->parse_section_ids( $payload ) as $id ) {
