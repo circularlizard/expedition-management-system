@@ -25,6 +25,7 @@ class Live_Driver implements Driver_Interface {
             ] );
         }
 
+        $args['timeout'] = $args['timeout'] ?? 15;
         $response = wp_remote_get( $url, $args );
 
         if ( is_wp_error( $response ) ) {
