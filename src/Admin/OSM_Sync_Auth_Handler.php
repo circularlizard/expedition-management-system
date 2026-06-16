@@ -61,6 +61,11 @@ class OSM_Sync_Auth_Handler {
             return;
         }
 
+        if ( get_option( 'ems_api_blocked', false ) ) {
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=api_blocked' ) );
+            return;
+        }
+
         $state = $_GET['state'] ?? '';
         if ( ! wp_verify_nonce( $state, 'ems_osm_sync' ) ) {
             wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=invalid_state' ) );
