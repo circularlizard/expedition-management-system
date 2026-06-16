@@ -243,15 +243,35 @@ class OSM_API_ClientTest extends EMSTestCase {
             ->andReturn( [
                 'x-ratelimit-limit'     => 100,
                 'x-ratelimit-remaining' => 0,
-                'x-ratelimit-reset'     => 2000000000,
+                'x-ratelimit-reset'     => 3600,
             ] );
 
         $limiter = new Rate_Limiter( 10, 1.0 );
         $client  = new OSM_API_Client( $this->driver, $this->parser, $limiter );
 
-        // Initial call should consume normally, then update from headers
         $client->get_data_payload( 'token' );
 
         $this->assertSame( 0.0, $limiter->get_token_count() );
+    }
+
+    public function test_rate_limiter_update_from_headers_uses_reset_as_duration(): void {
+        $time    = 1000.0;
+        $limiter = new Rate_Limiter(
+            10, 1.0,
+            static function () use ( &$time ): float { return $time; }
+        );
+
+        $limiter->update_from_headers( [
+            'x-ratelimit-limit'     => 500,
+            'x-ratelimit-remaining' => 250,
+            'x-ratelimit-reset'     => 1800,
+        ] );
+
+        $this->assertSame( 250.0, $limiter->get_token_count() );
+        // refill_rate = 500 / 1800 ≈ 0.2778 tokens/sec
+        // advance 1800 seconds → should refill back to capacity
+        $time = 1000.0 + 1800.0;
+        $limiter->consume();
+        $this->assertSame( 499.0, $limiter->get_token_count() );
     }
 }

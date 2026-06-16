@@ -57,10 +57,8 @@ class Rate_Limiter {
         }
 
         if ( null !== $reset ) {
-            $now = ( $this->time_fn )();
-            $time_to_reset = (float) $reset - $now;
+            $time_to_reset = (float) $reset;
             if ( $time_to_reset > 0 && $this->capacity > 0 ) {
-                // Adjust refill rate to match when we'll be back at full capacity
                 $this->refill_rate = $this->capacity / $time_to_reset;
             }
         }
