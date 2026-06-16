@@ -46,10 +46,13 @@ class OSM_Reference_Sync {
         $now    = current_time( 'mysql' );
         $terms  = $this->parser->parse_terms( $payload );
 
+        $managed_sections = (array) get_option( 'ems_managed_sections', [] );
+
         try {
             foreach ( $section_ids as $section_id ) {
-                $section_id = (int) $section_id;
-                $term       = $this->parser->find_current_term( $terms, $section_id );
+                $section_id   = (int) $section_id;
+                $section_type = (string) ( $managed_sections[ $section_id ]['type'] ?? 'explorers' );
+                $term         = $this->parser->find_current_term( $terms, $section_id );
 
                 if ( $term === null ) {
                     $result->add_error( "No current term found for section {$section_id}" );
@@ -57,7 +60,7 @@ class OSM_Reference_Sync {
                 }
 
                 $term_id = $term['term_id'];
-                $this->sync_members( $wpdb, $section_id, $term_id, $now, $result, $member_limit );
+                $this->sync_members( $wpdb, $section_id, $term_id, $section_type, $now, $result, $member_limit );
                 $this->sync_events_and_attendance( $wpdb, $section_id, $term_id, $now, $result );
             }
 
@@ -106,8 +109,8 @@ class OSM_Reference_Sync {
      * Syncs members for a section into ems_osm_explorers.
      * Fetches basic list via getListOfMembers, then per-member getData for email addresses.
      */
-    private function sync_members( \wpdb $wpdb, int $section_id, int $term_id, string $now, Sync_Result $result, int $member_limit = 0 ): void {
-        $members = $this->api_client->get_section_participants( $section_id, $term_id );
+    private function sync_members( \wpdb $wpdb, int $section_id, int $term_id, string $section_type, string $now, Sync_Result $result, int $member_limit = 0 ): void {
+        $members = $this->api_client->get_section_participants( $section_id, $term_id, $section_type );
         $table   = $wpdb->prefix . 'ems_osm_explorers';
 
         if ( $member_limit > 0 ) {
@@ -180,7 +183,7 @@ class OSM_Reference_Sync {
                 $result->events_upserted++;
             }
 
-            $attendance = $this->api_client->get_event_attendance( $section_id, $event_id );
+            $attendance = $this->api_client->get_event_attendance( $event_id, $term_id );
             $items      = $attendance['items'] ?? [];
 
             foreach ( $items as $row ) {
