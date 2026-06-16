@@ -88,14 +88,14 @@ class Live_Driver implements Driver_Interface {
         return $this->request( $url );
     }
 
-    public function get_section_members( int $section_id, int $term_id ): array {
+    public function get_section_members( int $section_id, int $term_id, string $section_type = 'explorers' ): array {
         $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
         $url = add_query_arg( [
             'action'    => 'getListOfMembers',
             'sort'      => 'dob',
             'sectionid' => $section_id,
             'termid'    => $term_id,
-            'section'   => 'explorers',
+            'section'   => $section_type,
         ], $base . '/ext/members/contact/' );
 
         return $this->request( $url );
@@ -150,35 +150,44 @@ class Live_Driver implements Driver_Interface {
         return $this->request( $url );
     }
 
-    public function get_flexi_record_data( int $section_id, int $flexi_id ): array {
+    public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array {
         $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-        $url = add_query_arg( [
+        $args = [
             'action'    => 'getData',
-            'sectionid' => $section_id,
             'extraid'   => $flexi_id,
-        ], $base . '/ext/members/flexirecords/' );
+            'sectionid' => $section_id,
+            'nototal'   => '',
+        ];
+        if ( $term_id > 0 ) {
+            $args['termid'] = $term_id;
+        }
+        $url = add_query_arg( $args, $base . '/ext/members/flexirecords/' );
 
         return $this->request( $url );
     }
 
-    public function get_individual( int $section_id, int $member_id ): array {
+    public function get_individual( int $section_id, int $member_id, int $term_id = 0 ): array {
         $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-        $url = add_query_arg( [
+        $args = [
             'action'    => 'getIndividual',
             'sectionid' => $section_id,
             'scoutid'   => $member_id,
-        ], $base . '/ext/members/contact/' );
+            'context'   => 'members',
+        ];
+        if ( $term_id > 0 ) {
+            $args['termid'] = $term_id;
+        }
+        $url = add_query_arg( $args, $base . '/ext/members/contact/' );
 
         return $this->request( $url );
     }
 
-    public function get_event_attendance( int $section_id, int $event_id ): array {
+    public function get_event_attendance( int $event_id, int $term_id ): array {
         $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-        $url = add_query_arg( [
-            'action'    => 'getEventAttendance',
-            'sectionid' => $section_id,
-            'eventid'   => $event_id,
-        ], $base . '/ext/events/summary/' );
+        $url  = add_query_arg(
+            [ 'term_id' => $term_id ],
+            $base . '/v3/events/event/' . $event_id . '/members/attendance'
+        );
 
         return $this->request( $url );
     }

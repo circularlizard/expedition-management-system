@@ -43,11 +43,11 @@ class OSM_API_Client {
         return $data;
     }
 
-    public function get_section_participants( int $section_id, int $term_id ): array {
+    public function get_section_participants( int $section_id, int $term_id, string $section_type = 'explorers' ): array {
         $this->rate_limiter->consume();
         $start = microtime( true );
         try {
-            $raw = $this->driver->get_section_members( $section_id, $term_id );
+            $raw = $this->driver->get_section_members( $section_id, $term_id, $section_type );
         } finally {
             $this->after_call( 'get_section_members', $start );
         }
@@ -76,22 +76,22 @@ class OSM_API_Client {
         return $this->parser->parse_member_detail( $raw );
     }
 
-    public function get_flexi_record_data( int $section_id, int $flexi_id ): array {
+    public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array {
         $this->rate_limiter->consume();
         $start = microtime( true );
         try {
-            $data = $this->driver->get_flexi_record_data( $section_id, $flexi_id );
+            $data = $this->driver->get_flexi_record_data( $section_id, $flexi_id, $term_id );
         } finally {
             $this->after_call( 'get_flexi_record_data', $start );
         }
         return $data;
     }
 
-    public function get_event_attendance( int $section_id, int $event_id ): array {
+    public function get_event_attendance( int $event_id, int $term_id ): array {
         $this->rate_limiter->consume();
         $start = microtime( true );
         try {
-            $data = $this->driver->get_event_attendance( $section_id, $event_id );
+            $data = $this->driver->get_event_attendance( $event_id, $term_id );
         } finally {
             $this->after_call( 'get_event_attendance', $start );
         }

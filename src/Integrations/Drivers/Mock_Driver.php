@@ -33,7 +33,7 @@ class Mock_Driver implements Driver_Interface {
         return $this->load( $this->data_payload_file );
     }
 
-    public function get_section_members( int $section_id, int $term_id ): array {
+    public function get_section_members( int $section_id, int $term_id, string $section_type = 'explorers' ): array {
         return $this->load( 'osm-list-of-members.json' );
     }
 
@@ -68,15 +68,15 @@ class Mock_Driver implements Driver_Interface {
         return $this->load( 'osm-flexi-record-structure.json' );
     }
 
-    public function get_flexi_record_data( int $section_id, int $flexi_id ): array {
+    public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array {
         return $this->load( 'osm-flexi-record-data.json' );
     }
 
-    public function get_individual( int $section_id, int $member_id ): array {
+    public function get_individual( int $section_id, int $member_id, int $term_id = 0 ): array {
         return $this->load( 'osm-get-individual.json' );
     }
 
-    public function get_event_attendance( int $section_id, int $event_id ): array {
+    public function get_event_attendance( int $event_id, int $term_id ): array {
         return $this->load( 'osm-event-attendance.json' );
     }
 }
