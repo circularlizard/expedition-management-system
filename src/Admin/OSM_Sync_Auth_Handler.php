@@ -22,18 +22,26 @@ class OSM_Sync_Auth_Handler {
     }
 
     /**
-     * Initiates the OAuth flow by redirecting to OSM.
+     * Redirects to OSM authorization page.
+     * Callers must call exit after this returns to terminate the request.
      */
     public function initiate(): void {
         if ( ! current_user_can( 'manage_options' ) ) {
-            wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'ems-plugin' ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=forbidden' ) );
+            return;
         }
 
+        if ( get_option( 'ems_api_blocked', false ) ) {
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=api_blocked' ) );
+            return;
+        }
+
+        $scope = get_option( 'ems_osm_scope', 'section:member:read section:events:read section:flexirecord:read' );
         $state = wp_create_nonce( 'ems_osm_sync' );
         $query = http_build_query( [
             'client_id'     => $this->client_id,
             'response_type' => 'code',
-            'scope'         => 'section:member:read section:flexirecord:read',
+            'scope'         => $scope,
             'redirect_uri'  => $this->get_redirect_uri(),
             'state'         => $state,
         ] );
@@ -43,40 +51,44 @@ class OSM_Sync_Auth_Handler {
 
     /**
      * Handles the callback from OSM.
+     * Callers must call exit after this returns.
      *
      * @param callable $on_success Callback function to invoke with the access token.
      */
     public function handle_callback( callable $on_success ): void {
         if ( ! current_user_can( 'manage_options' ) ) {
-            wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'ems-plugin' ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=forbidden' ) );
+            return;
         }
 
         $state = $_GET['state'] ?? '';
         if ( ! wp_verify_nonce( $state, 'ems_osm_sync' ) ) {
-            wp_die( esc_html__( 'Invalid state parameter.', 'ems-plugin' ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=invalid_state' ) );
+            return;
         }
 
         $code = $_GET['code'] ?? '';
         if ( empty( $code ) ) {
-            wp_die( esc_html__( 'Authorization code missing.', 'ems-plugin' ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=missing_code' ) );
+            return;
         }
 
         $token_data = $this->exchange_code_for_token( $code );
 
         if ( is_wp_error( $token_data ) ) {
-            wp_die( esc_html( $token_data->get_error_message() ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=token_exchange&error_msg=' . rawurlencode( $token_data->get_error_message() ) ) );
+            return;
         }
 
         $access_token = $token_data['access_token'] ?? '';
         if ( empty( $access_token ) ) {
-            wp_die( esc_html__( 'Failed to retrieve access token.', 'ems-plugin' ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=no_access_token' ) );
+            return;
         }
 
-        // Invoke the sync callback
         $on_success( $access_token );
 
-        // Redirect back to dashboard with a success message
-        wp_redirect( admin_url( 'admin.php?page=ems&sync=success' ) );
+        wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=success' ) );
     }
 
     /**
