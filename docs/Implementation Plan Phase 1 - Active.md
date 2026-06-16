@@ -22,7 +22,7 @@
 | 1.13                  | Training Status Fallback                       | ❌ Not started        |
 | 1.14                  | Column Mapper repurpose (OSM write-back)       | ❌ Not started        |
 
-**Tests**: 227 PHP / 455 assertions green. 16 JS Vitest green.
+**Tests**: 229 PHP / 459 assertions green. 16 JS Vitest green.
 
 ---
 
