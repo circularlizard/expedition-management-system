@@ -66,6 +66,12 @@ class OSM_Sync_Auth_Handler {
             return;
         }
 
+        if ( ! empty( $_GET['error'] ) ) {
+            $osm_error = sanitize_key( $_GET['error'] );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=osm_' . $osm_error ) );
+            return;
+        }
+
         $state = $_GET['state'] ?? '';
         if ( ! wp_verify_nonce( $state, 'ems_osm_sync' ) ) {
             wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=invalid_state' ) );

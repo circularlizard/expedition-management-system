@@ -268,12 +268,14 @@ class Admin_Page {
 
     private function render_error_notices(): void {
         $error_map = [
-            'forbidden'       => __( 'You do not have permission to perform that action.', 'ems-plugin' ),
-            'invalid_state'   => __( 'Invalid OAuth state. Please try again.', 'ems-plugin' ),
-            'missing_code'    => __( 'Authorization code was missing from OSM callback.', 'ems-plugin' ),
-            'token_exchange'  => __( 'Failed to exchange authorization code for token.', 'ems-plugin' ),
-            'no_access_token' => __( 'OSM did not return an access token.', 'ems-plugin' ),
-            'api_blocked'     => __( 'Sync is disabled: this application has been blocked by OSM. Clear the block flag below before retrying.', 'ems-plugin' ),
+            'forbidden'          => __( 'You do not have permission to perform that action.', 'ems-plugin' ),
+            'invalid_state'      => __( 'Invalid OAuth state. Please try again.', 'ems-plugin' ),
+            'missing_code'       => __( 'Authorization code was missing from OSM callback.', 'ems-plugin' ),
+            'token_exchange'     => __( 'Failed to exchange authorization code for token.', 'ems-plugin' ),
+            'no_access_token'    => __( 'OSM did not return an access token.', 'ems-plugin' ),
+            'api_blocked'        => __( 'Sync is disabled: this application has been blocked by OSM. Clear the block flag below before retrying.', 'ems-plugin' ),
+            'osm_access_denied'  => __( 'OSM authorization was denied. Did you cancel the login or decline the permissions request?', 'ems-plugin' ),
+            'osm_invalid_client' => __( 'OSM rejected the client credentials. Check Client ID and Secret in Settings.', 'ems-plugin' ),
         ];
 
         if ( isset( $_GET['error'] ) ) {
