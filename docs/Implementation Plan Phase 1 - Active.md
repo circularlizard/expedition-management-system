@@ -16,13 +16,13 @@
 | 1.7                   | Admin Read Views                               | ✅ Done — 15 Jun 2026 |
 | 1.8                   | Diagnostics + Reference Data Display           | ✅ Done — 15 Jun 2026 |
 | 1.9                   | Settings page tabs + Managed Sections redesign | ✅ Done — 16 Jun 2026 |
-| 1.10                  | OSM Auth Test Modes + Sync Progress Feedback   | ❌ Not started        |
+| 1.10                  | OSM Auth Test Modes + Sync Progress Feedback   | ✅ Done — 16 Jun 2026 |
 | 1.11                  | Expedition Board deep review                   | ❌ Not started        |
 | 1.12                  | Expedition write logic + Explorer Assignment   | ❌ Not started        |
 | 1.13                  | Training Status Fallback                       | ❌ Not started        |
 | 1.14                  | Column Mapper repurpose (OSM write-back)       | ❌ Not started        |
 
-**Tests**: 184 PHP / 344 assertions green. 16 JS Vitest green.
+**Tests**: 202 PHP / 407 assertions green. 16 JS Vitest green.
 
 ---
 

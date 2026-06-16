@@ -76,7 +76,8 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
             $captured_token  = $token;
         };
 
-        Functions\expect( 'wp_redirect' )->once();
+        Functions\expect( 'wp_safe_redirect' )->once();
+        Functions\when( 'is_wp_error' )->justReturn( false );
 
         $handler = new OSM_Sync_Auth_Handler();
         $handler->handle_callback( $on_success );
@@ -85,17 +86,45 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
         $this->assertEquals( 'valid-token', $captured_token );
     }
 
-    public function test_handle_callback_fails_on_invalid_nonce(): void {
+    public function test_handle_callback_redirects_on_invalid_nonce(): void {
         Functions\expect( 'current_user_can' )->with( 'manage_options' )->andReturn( true );
         Functions\expect( 'wp_verify_nonce' )->andReturn( false );
+        Functions\expect( 'admin_url' )->andReturn( 'https://localhost/reference?error=invalid_state' );
 
         $_GET['state'] = 'bad-nonce';
 
+        $redirect_url = null;
+        Functions\expect( 'wp_safe_redirect' )->once()->andReturnUsing( function( $url ) use ( &$redirect_url ) {
+            $redirect_url = $url;
+        } );
+
         $handler = new OSM_Sync_Auth_Handler();
-        
-        $this->expectException( \Exception::class );
-        $this->expectExceptionMessage( 'Invalid state parameter.' );
-        
         $handler->handle_callback( function() {} );
+
+        $this->assertStringContainsString( 'invalid_state', $redirect_url );
+    }
+
+    public function test_initiate_includes_scope_in_auth_url(): void {
+        Functions\expect( 'current_user_can' )->with( 'manage_options' )->andReturn( true );
+        Functions\expect( 'wp_create_nonce' )->andReturn( 'nonce' );
+        Functions\expect( 'admin_url' )->with( 'admin-post.php?action=ems_osm_callback' )->andReturn( 'https://localhost/callback' );
+        Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
+            if ( $key === 'ems_osm_client_id' ) return 'test-client-id';
+            if ( $key === 'ems_osm_client_secret' ) return \EMS\Core\Encryption::encrypt( 'secret' );
+            if ( $key === 'ems_osm_auth_url' ) return 'https://example.com/auth';
+            if ( $key === 'ems_osm_token_url' ) return 'https://example.com/token';
+            if ( $key === 'ems_osm_scope' ) return 'section:member:read section:events:read';
+            return $default;
+        } );
+
+        $redirect_url = null;
+        Functions\expect( 'wp_safe_redirect' )->once()->andReturnUsing( function( $url ) use ( &$redirect_url ) {
+            $redirect_url = $url;
+        } );
+
+        $handler = new OSM_Sync_Auth_Handler();
+        $handler->initiate();
+
+        $this->assertStringContainsString( urlencode( 'section:member:read section:events:read' ), $redirect_url );
     }
 }

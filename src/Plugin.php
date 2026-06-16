@@ -68,74 +68,128 @@ class Plugin {
             $view_controller->register_routes();
         } );
 
-        // Settings page "Fetch sections from OSM" handler — works in all modes
+        // Settings page "Fetch sections from OSM" handler — mock mode only for now (live deferred to 1.10 OAuth callback)
         add_action( 'admin_post_ems_fetch_sections', function() {
             if ( ! current_user_can( 'manage_options' ) ) {
-                wp_die( 'Forbidden' );
+                wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&error=forbidden' ) );
+                exit;
             }
             check_admin_referer( 'ems_fetch_sections' );
 
             $api_mode = get_option( 'ems_api_mode', 'mock' );
             $parser   = new OSM_Parser();
 
-            // TODO 1.10: for live modes, perform OAuth flow and use Live_Driver
-            $driver     = new Mock_Driver();
-            $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
-            $payload    = $osm_client->get_data_payload( 'mock_token' );
-            set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
-            wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&fetched=1' ) );
+            if ( in_array( $api_mode, [ 'live', 'live-auth-only', 'live-limited' ], true ) ) {
+                $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
+                $handler->initiate();
+            } else {
+                $driver     = new Mock_Driver();
+                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
+                $payload    = $osm_client->get_data_payload( 'mock_token' );
+                set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
+                wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&fetched=1' ) );
+            }
             exit;
         } );
 
         // OSM Reference page "Sync from OSM" form handler
         add_action( 'admin_post_ems_sync_osm', function() {
             if ( ! current_user_can( 'manage_options' ) ) {
-                wp_die( 'Forbidden' );
+                wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=forbidden' ) );
+                exit;
             }
             check_admin_referer( 'ems_sync_osm' );
 
             $api_mode = get_option( 'ems_api_mode', 'mock' );
-            if ( $api_mode !== 'live' ) {
+
+            if ( in_array( $api_mode, [ 'live', 'live-auth-only', 'live-limited' ], true ) ) {
+                ( new \EMS\Admin\OSM_Sync_Auth_Handler() )->initiate();
+            } else {
                 $parser     = new OSM_Parser();
                 $driver     = new Mock_Driver();
-                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
+                $logger     = new \EMS\Integrations\OSM_Sync_Logger();
+                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ), $logger );
 
                 $payload     = $osm_client->get_data_payload( 'mock_token' );
                 $section_ids = $parser->parse_section_ids( $payload );
 
+                set_transient( 'ems_last_payload_dump', $payload, HOUR_IN_SECONDS );
+                set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
+
                 $managed_sections = (array) get_option( 'ems_managed_sections', [] );
                 $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
                 $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
 
-                ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )->sync( $all_ids, $payload );
+                ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
+                    ->sync( $all_ids, $payload, $api_mode, 0, $logger );
+
                 wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=success' ) );
-            } else {
-                $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
-                $handler->initiate();
             }
             exit;
         } );
 
-        // OSM OAuth Callback
+        // OSM OAuth Callback — handles live, live-auth-only, live-limited
         add_action( 'admin_post_ems_osm_callback', function() {
             $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
-            $handler->handle_callback( function( $token ) {
-                $api_mode   = get_option( 'ems_api_mode', 'mock' );
-                $driver     = ( $api_mode === 'live' ) ? new Live_Driver() : new Mock_Driver();
-                $parser     = new OSM_Parser();
-                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
+            $handler->handle_callback( function( string $token ) {
+                $api_mode = get_option( 'ems_api_mode', 'mock' );
+                $parser   = new OSM_Parser();
+                $driver   = new Live_Driver();
+                $logger   = new \EMS\Integrations\OSM_Sync_Logger();
+                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ), $logger );
                 $osm_client->set_access_token( $token );
 
-                $payload     = $osm_client->get_data_payload( $token );
-                $section_ids = $parser->parse_section_ids( $payload );
+                $payload = $osm_client->get_data_payload( $token );
 
+                set_transient( 'ems_last_payload_dump', $payload, HOUR_IN_SECONDS );
+                set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
+
+                if ( $api_mode === 'live-auth-only' ) {
+                    $logger->persist();
+                    return;
+                }
+
+                $section_ids      = $parser->parse_section_ids( $payload );
                 $managed_sections = (array) get_option( 'ems_managed_sections', [] );
                 $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
                 $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
 
-                $sync = new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser );
-                $sync->sync( $all_ids, $payload );
+                $member_limit = ( $api_mode === 'live-limited' )
+                    ? max( 1, (int) get_option( 'ems_sync_limit', 5 ) )
+                    : 0;
+
+                ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
+                    ->sync( $all_ids, $payload, $api_mode, $member_limit, $logger );
             } );
+        } );
+
+        // Clear API blocked flag
+        add_action( 'admin_post_ems_clear_api_block', function() {
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( 'Forbidden' );
+            }
+            check_admin_referer( 'ems_clear_api_block' );
+            delete_option( 'ems_api_blocked' );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&block_cleared=1' ) );
+            exit;
+        } );
+
+        // Sync log download handler
+        add_action( 'admin_post_ems_download_sync_log', function() {
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( 'Forbidden' );
+            }
+            check_admin_referer( 'ems_download_sync_log' );
+
+            $log  = get_transient( 'ems_last_sync_log' );
+            $json = wp_json_encode( $log ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+            $name = 'ems-sync-log-' . gmdate( 'Ymd-His' ) . '.json';
+
+            header( 'Content-Type: application/json; charset=utf-8' );
+            header( 'Content-Disposition: attachment; filename="' . $name . '"' );
+            header( 'Content-Length: ' . strlen( $json ) );
+            echo $json; // phpcs:ignore WordPress.Security.EscapeOutput
+            exit;
         } );
 
         // Support for ES Modules in Admin

@@ -1,6 +1,10 @@
 <?php
 namespace EMS\Integrations\Drivers;
 
+use EMS\Integrations\Exceptions\Api_Blocked_Exception;
+use EMS\Integrations\Exceptions\Api_Response_Exception;
+use EMS\Integrations\Exceptions\Rate_Limit_Exception;
+
 class Live_Driver implements Driver_Interface {
     private array $last_headers = [];
     private string $access_token = '';
@@ -9,6 +13,11 @@ class Live_Driver implements Driver_Interface {
         return get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk/api.php' );
     }
 
+    /**
+     * @throws Rate_Limit_Exception on HTTP 429
+     * @throws Api_Blocked_Exception on X-Blocked header
+     * @throws Api_Response_Exception on WP_Error or unparseable response
+     */
     private function request( string $url, array $args = [] ): array {
         if ( $this->access_token ) {
             $args['headers'] = array_merge( $args['headers'] ?? [], [
@@ -19,24 +28,46 @@ class Live_Driver implements Driver_Interface {
         $response = wp_remote_get( $url, $args );
 
         if ( is_wp_error( $response ) ) {
-            return [];
+            throw new Api_Response_Exception( $response->get_error_message(), $url );
         }
 
-        $this->last_headers = $this->parse_rate_limit_headers( wp_remote_retrieve_headers( $response ) );
-        
+        $http_status    = (int) wp_remote_retrieve_response_code( $response );
+        $headers        = wp_remote_retrieve_headers( $response );
+        $this->last_headers = $this->parse_all_headers( $headers, $http_status, $url );
+
+        if ( ! empty( $this->last_headers['x-blocked'] ) ) {
+            throw new Api_Blocked_Exception( (string) $this->last_headers['x-blocked'], $url );
+        }
+
+        if ( $http_status === 429 ) {
+            throw new Rate_Limit_Exception(
+                (int) ( $this->last_headers['retry-after'] ?? 0 ),
+                (int) ( $this->last_headers['x-ratelimit-reset'] ?? 0 ),
+                $url
+            );
+        }
+
         $body = wp_remote_retrieve_body( $response );
-        return json_decode( $body, true ) ?? [];
+        $data = json_decode( $body, true );
+
+        if ( ! is_array( $data ) ) {
+            throw new Api_Response_Exception( 'Response was not valid JSON', $url );
+        }
+
+        return $data;
     }
 
-    private function parse_rate_limit_headers( $headers ): array {
-        $parsed = [];
-        $keys   = [ 'x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset' ];
-
-        foreach ( $keys as $key ) {
-            if ( isset( $headers[ $key ] ) ) {
-                $parsed[ $key ] = $headers[ $key ];
-            }
-        }
+    private function parse_all_headers( $headers, int $http_status, string $url ): array {
+        $parsed = [
+            'http_status'          => $http_status,
+            'url'                  => $url,
+            'x-ratelimit-limit'    => isset( $headers['x-ratelimit-limit'] )    ? (int) $headers['x-ratelimit-limit']    : null,
+            'x-ratelimit-remaining'=> isset( $headers['x-ratelimit-remaining'] ) ? (int) $headers['x-ratelimit-remaining'] : null,
+            'x-ratelimit-reset'    => isset( $headers['x-ratelimit-reset'] )     ? (int) $headers['x-ratelimit-reset']     : null,
+            'retry-after'          => isset( $headers['retry-after'] )           ? (int) $headers['retry-after']           : null,
+            'x-deprecated'         => $headers['x-deprecated'] ?? null,
+            'x-blocked'            => $headers['x-blocked']    ?? null,
+        ];
 
         return $parsed;
     }

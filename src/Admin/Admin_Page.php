@@ -115,19 +115,22 @@ class Admin_Page {
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'OSM Reference Data', 'ems-plugin' ) . '</h1>';
 
-        if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM data synced successfully.', 'ems-plugin' ) . '</p></div>';
-        }
+        $this->render_error_notices();
+        $this->render_sync_result_panel();
 
-        $last_sync   = get_option( 'ems_osm_last_sync' );
-        $base_url    = admin_url( 'admin.php?page=ems-reference' );
+        $last_sync = get_option( 'ems_osm_last_sync' );
+        $base_url  = admin_url( 'admin.php?page=ems-reference' );
+
+        $is_blocked = (bool) get_option( 'ems_api_blocked', false );
 
         echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:10px;">';
-        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        echo '<input type="hidden" name="action" value="ems_sync_osm" />';
-        wp_nonce_field( 'ems_sync_osm' );
-        echo '<button type="submit" class="button button-primary">' . esc_html__( 'Sync from OSM', 'ems-plugin' ) . '</button>';
-        echo '</form>';
+        if ( ! $is_blocked ) {
+            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+            echo '<input type="hidden" name="action" value="ems_sync_osm" />';
+            wp_nonce_field( 'ems_sync_osm' );
+            echo '<button type="submit" class="button button-primary">' . esc_html__( 'Sync from OSM', 'ems-plugin' ) . '</button>';
+            echo '</form>';
+        }
         if ( $last_sync ) {
             echo '<span style="color:#666;">' . esc_html__( 'Last synced:', 'ems-plugin' ) . ' ' . esc_html( $last_sync ) . '</span>';
         } else {
@@ -262,6 +265,97 @@ class Admin_Page {
         echo '</tbody></table>';
     }
 
+    private function render_error_notices(): void {
+        $error_map = [
+            'forbidden'       => __( 'You do not have permission to perform that action.', 'ems-plugin' ),
+            'invalid_state'   => __( 'Invalid OAuth state. Please try again.', 'ems-plugin' ),
+            'missing_code'    => __( 'Authorization code was missing from OSM callback.', 'ems-plugin' ),
+            'token_exchange'  => __( 'Failed to exchange authorization code for token.', 'ems-plugin' ),
+            'no_access_token' => __( 'OSM did not return an access token.', 'ems-plugin' ),
+            'api_blocked'     => __( 'Sync is disabled: this application has been blocked by OSM. Clear the block flag below before retrying.', 'ems-plugin' ),
+        ];
+
+        if ( isset( $_GET['error'] ) ) {
+            $slug = sanitize_key( $_GET['error'] );
+            $msg  = $error_map[ $slug ] ?? esc_html__( 'An unknown error occurred during OSM authorization.', 'ems-plugin' );
+            if ( isset( $_GET['error_msg'] ) ) {
+                $msg .= ' ' . esc_html( sanitize_text_field( urldecode( $_GET['error_msg'] ) ) );
+            }
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
+        }
+
+        if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM sync complete.', 'ems-plugin' ) . '</p></div>';
+        }
+
+        if ( isset( $_GET['block_cleared'] ) ) {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'API block flag cleared. You may now attempt a sync.', 'ems-plugin' ) . '</p></div>';
+        }
+    }
+
+    private function render_sync_result_panel(): void {
+        if ( get_option( 'ems_api_blocked', false ) ) {
+            echo '<div class="notice notice-error">';
+            echo '<p><strong>' . esc_html__( 'OSM has permanently blocked this application.', 'ems-plugin' ) . '</strong> ';
+            echo esc_html__( 'No further sync attempts will be made. Contact OSM support to resolve the block, then clear the flag.', 'ems-plugin' ) . '</p>';
+            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+            echo '<input type="hidden" name="action" value="ems_clear_api_block" />';
+            wp_nonce_field( 'ems_clear_api_block' );
+            echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Clear block flag', 'ems-plugin' ) . '</button>';
+            echo '</form>';
+            echo '</div>';
+            return;
+        }
+
+        $result = get_transient( 'ems_last_sync_result' );
+        if ( empty( $result ) ) {
+            return;
+        }
+
+        if ( ! empty( $result['rate_limited'] ) ) {
+            $retry = (int) ( $result['retry_after_seconds'] ?? 0 );
+            $reset = (int) ( $result['rate_limit_reset_seconds'] ?? 0 );
+            echo '<div class="notice notice-warning is-dismissible"><p>';
+            echo '<strong>' . esc_html__( 'Sync stopped: OSM rate limit reached.', 'ems-plugin' ) . '</strong> ';
+            printf( esc_html__( 'Retry after: %ds (resets in %ds).', 'ems-plugin' ), $retry, $reset );
+            echo '</p></div>';
+        }
+
+        if ( ! empty( $result['deprecated_endpoints'] ) ) {
+            echo '<div class="notice notice-info is-dismissible"><p>';
+            echo esc_html__( 'Deprecated OSM endpoints detected: ', 'ems-plugin' );
+            echo esc_html( implode( ', ', (array) $result['deprecated_endpoints'] ) );
+            echo '</p></div>';
+        }
+
+        $mode      = esc_html( $result['mode'] ?? 'unknown' );
+        $started   = esc_html( $result['started_at'] ?? '' );
+        $m_ok      = (int) ( $result['members_upserted'] ?? 0 );
+        $m_fail    = (int) ( $result['members_failed']   ?? 0 );
+        $e_ok      = (int) ( $result['events_upserted']  ?? 0 );
+        $e_fail    = (int) ( $result['events_failed']    ?? 0 );
+        $err_count = count( (array) ( $result['errors'] ?? [] ) );
+
+        echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:12px 16px;margin-bottom:16px;border-radius:2px;">';
+        echo '<strong>' . esc_html__( 'Last Sync Result', 'ems-plugin' ) . '</strong>';
+        echo ' <span style="color:#666;font-size:12px;">(' . $mode . ' — ' . $started . ')</span>';
+        echo '<ul style="margin:.5em 0 0 1.5em;">';
+        echo '<li>' . sprintf( esc_html__( 'Members: %d upserted, %d failed', 'ems-plugin' ), $m_ok, $m_fail ) . '</li>';
+        echo '<li>' . sprintf( esc_html__( 'Events: %d upserted, %d failed', 'ems-plugin' ), $e_ok, $e_fail ) . '</li>';
+        if ( $err_count > 0 ) {
+            echo '<li>';
+            echo '<details><summary>' . sprintf( esc_html__( '%d error(s)', 'ems-plugin' ), $err_count ) . '</summary>';
+            echo '<ul style="margin:.5em 0 0 1.5em;">';
+            foreach ( (array) $result['errors'] as $err ) {
+                echo '<li>' . esc_html( $err ) . '</li>';
+            }
+            echo '</ul></details>';
+            echo '</li>';
+        }
+        echo '</ul>';
+        echo '</div>';
+    }
+
     private function render_diagnostics_tab(): void {
         $user_id = get_current_user_id();
 
@@ -272,6 +366,37 @@ class Admin_Page {
         if ( ! empty( $access_type ) && $access_type !== 'local' ) {
             echo '<h3 style="margin-top:20px;">' . esc_html__( 'Your OSM Account', 'ems-plugin' ) . '</h3>';
             echo $this->diagnostic->get_user_html( $user_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        }
+
+        $log = get_transient( 'ems_last_sync_log' );
+        if ( ! empty( $log ) ) {
+            echo '<h3 style="margin-top:20px;">' . esc_html__( 'Last Sync Log', 'ems-plugin' ) . '</h3>';
+            $log_json = wp_json_encode( $log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+            echo '<pre style="background:#f6f7f7;padding:10px;overflow:auto;max-height:300px;font-size:11px;">';
+            echo esc_html( $log_json );
+            echo '</pre>';
+            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+            echo '<input type="hidden" name="action" value="ems_download_sync_log" />';
+            wp_nonce_field( 'ems_download_sync_log' );
+            echo '<button type="submit" class="button">' . esc_html__( 'Download log (JSON)', 'ems-plugin' ) . '</button>';
+            echo '</form>';
+        }
+
+        $dump = get_transient( 'ems_last_payload_dump' );
+        if ( ! empty( $dump ) ) {
+            echo '<h3 style="margin-top:20px;">' . esc_html__( 'Last Payload Dump (get_data_payload)', 'ems-plugin' ) . '</h3>';
+            $roles       = $dump['data']['globals']['roles'] ?? [];
+            $role_labels = array_map( fn( $r ) => ( $r['section'] ?? '?' ) . ' @ ' . ( $r['groupname'] ?? '?' ), $roles );
+            $summary = [
+                'userid'      => $dump['data']['globals']['userid'] ?? null,
+                'email'       => $dump['data']['globals']['email'] ?? null,
+                'roles'       => $role_labels,
+                'section_ids' => array_keys( $dump['data']['globals']['member_access'] ?? [] ),
+                'term_count'  => count( $dump['data']['globals']['terms'] ?? [] ),
+            ];
+            echo '<pre style="background:#f6f7f7;padding:10px;font-size:11px;">';
+            echo esc_html( wp_json_encode( $summary, JSON_PRETTY_PRINT ) );
+            echo '</pre>';
         }
     }
 
