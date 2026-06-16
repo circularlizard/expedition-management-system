@@ -147,6 +147,8 @@ class Plugin {
                 $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
                 $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
 
+                delete_transient( 'ems_sync_status' );
+
                 ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
                     ->sync( $all_ids, $payload, $api_mode, 0, $logger );
 
