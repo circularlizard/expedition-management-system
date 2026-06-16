@@ -23,6 +23,13 @@ class ApiBlockedFlagTest extends EMSTestCase {
         $this->api_client = Mockery::mock( OSM_API_Client::class );
         $this->api_client->shouldReceive( 'set_sync_result' )->zeroOrMoreTimes();
 
+        Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+            if ( $key === 'ems_managed_sections' ) {
+                return [];
+            }
+            return $default;
+        } );
+
         $this->wpdb             = Mockery::mock( 'wpdb' );
         $this->wpdb->prefix     = 'wp_';
         $this->wpdb->last_error = '';

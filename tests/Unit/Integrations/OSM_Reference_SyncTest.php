@@ -20,6 +20,13 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'set_sync_result' )->zeroOrMoreTimes();
         $this->parser     = new OSM_Parser();
 
+        Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+            if ( $key === 'ems_managed_sections' ) {
+                return [];
+            }
+            return $default;
+        } );
+
         $this->wpdb = Mockery::mock( 'wpdb' );
         $this->wpdb->prefix     = 'wp_';
         $this->wpdb->last_error = '';
@@ -62,7 +69,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         ];
 
         $this->api_client->shouldReceive( 'get_section_participants' )
-            ->with( 43105, 5001 )
+            ->with( 43105, 5001, 'explorers' )
             ->once()
             ->andReturn( $members );
 
@@ -102,7 +109,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
 
     public function test_sync_upserts_events_into_events_table(): void {
         $this->api_client->shouldReceive( 'get_section_participants' )
-            ->with( 43105, 5001 )
+            ->with( 43105, 5001, 'explorers' )
             ->once()
             ->andReturn( [] );
 
@@ -122,7 +129,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
             ->andReturn( $events );
 
         $this->api_client->shouldReceive( 'get_event_attendance' )
-            ->with( 43105, 40001 )
+            ->with( 40001, 5001 )
             ->once()
             ->andReturn( [ 'items' => [] ] );
 
@@ -150,7 +157,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
 
     public function test_sync_upserts_attendance_into_attendance_table(): void {
         $this->api_client->shouldReceive( 'get_section_participants' )
-            ->with( 43105, 5001 )
+            ->with( 43105, 5001, 'explorers' )
             ->once()
             ->andReturn( [] );
 
@@ -171,7 +178,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         ];
 
         $this->api_client->shouldReceive( 'get_event_attendance' )
-            ->with( 43105, 40001 )
+            ->with( 40001, 5001 )
             ->once()
             ->andReturn( $attendance );
 

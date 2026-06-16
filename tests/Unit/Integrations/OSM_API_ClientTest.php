@@ -106,7 +106,7 @@ class OSM_API_ClientTest extends EMSTestCase {
         );
         $this->driver->shouldReceive( 'get_section_members' )
             ->once()
-            ->with( 99001, 5001 )
+            ->with( 99001, 5001, 'explorers' )
             ->andReturn( $raw_members );
         $this->driver->shouldReceive( 'get_last_response_headers' )
             ->once()
