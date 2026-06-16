@@ -15,11 +15,12 @@
 | Step 0 | Anonymised mock data generation | ✅ Done — 15 Jun 2026 |
 | 1.7 | Admin Read Views | ✅ Done — 15 Jun 2026 |
 | 1.8 | Diagnostics + Reference Data Display | ✅ Done — 15 Jun 2026 |
-| 1.9 | OSM Auth Test Modes + Sync Progress Feedback | ❌ Not started |
-| 1.10 | Expedition Board deep review | ❌ Not started |
-| 1.11 | Expedition write logic + Explorer Assignment | ❌ Not started |
-| 1.12 | Training Status Fallback | ❌ Not started |
-| 1.13 | Column Mapper repurpose (OSM write-back) | ❌ Not started |
+| 1.9 | Settings page tabs + Managed Sections redesign | ❌ Not started |
+| 1.10 | OSM Auth Test Modes + Sync Progress Feedback | ❌ Not started |
+| 1.11 | Expedition Board deep review | ❌ Not started |
+| 1.12 | Expedition write logic + Explorer Assignment | ❌ Not started |
+| 1.13 | Training Status Fallback | ❌ Not started |
+| 1.14 | Column Mapper repurpose (OSM write-back) | ❌ Not started |
 
 **Tests**: 174 PHP / 332 assertions green. 16 JS Vitest green.
 
@@ -83,7 +84,38 @@
 
 ---
 
-### Stage 1.9 — OSM Auth Test Modes + Sync Progress Feedback ❌
+### Stage 1.9 — Settings Page Tabs + Managed Sections Redesign ❌
+
+The Settings page is a single flat form. It needs restructuring, and the managed sections workflow needs to be redesigned to use live OSM data rather than manual entry.
+
+#### Tab layout
+
+Replace the flat form with WP admin nav-tabs (same pattern as the Reference page):
+
+- **General** — API mode dropdown (`mock` / `live` / `live-auth-only` / `live-limited`); `ems_sync_limit` integer field (shown only for `live-limited`)
+- **OSM Connection** — OAuth client ID, client secret, redirect URI (read-only), auth/token/resource URLs
+- **Managed Sections** — redesigned section picker (see below)
+
+Active tab persisted via `?tab=` query param. Each tab saves independently via its own submit button.
+
+#### Managed sections redesign
+
+Currently the admin manually enters section IDs, names, and flexi-record IDs in a table. This is fragile and requires the admin to look up IDs externally.
+
+**New flow:**
+1. Admin clicks **"Fetch sections from OSM"** button — triggers a `live-auth-only`-style OAuth flow that calls `get_data_payload()` and stores the section list as transient `ems_available_sections` (1h)
+2. The Managed Sections tab re-renders showing all sections the authenticated user has access to as a checklist: section name + section ID (read-only, sourced from payload)
+3. Admin ticks which sections to manage → saves as `ems_managed_sections` (keyed by section ID, value = `{name}`)
+4. Section IDs and names stored for reference; no flexi-record ID field here (moved to Column Mapper in 1.14)
+5. If no payload is cached yet, the tab shows a prompt: "Fetch sections from OSM to populate this list"
+
+**Schema change:** `ems_managed_sections` option simplifies from `{id: {name, extraid}}` to `{id: {name}}`. The `extraid` field is removed — flexi-record mapping is owned by the Column Mapper.
+
+**Complete when**: Settings page renders in tabs; managed sections populated from OSM payload; flexi-record field removed from section config; `ems_sync_limit` field conditionally shown.
+
+---
+
+### Stage 1.10 — OSM Auth Test Modes + Sync Progress Feedback ❌
 
 #### Live OSM auth — current state
 
@@ -131,7 +163,7 @@ Currently a silent round-trip with a single success/failure notice.
 
 ---
 
-### Stage 1.10 — Expedition Board Deep Review ❌
+### Stage 1.11 — Expedition Board Deep Review ❌
 
 The current board exists but needs a thorough review before building write functionality on top of it.
 
@@ -143,11 +175,11 @@ The current board exists but needs a thorough review before building write funct
 - Identify any data that should be on the board but isn't (e.g. expedition status, route deadline, LiC contact)
 - Identify missing empty-state handling
 
-**Complete when**: Board review notes captured; any blocking bugs fixed; UX gaps documented for 1.11.
+**Complete when**: Board review notes captured; any blocking bugs fixed; UX gaps documented for 1.12.
 
 ---
 
-### Stage 1.11 — Expedition Write Logic + Explorer Assignment ❌
+### Stage 1.12 — Expedition Write Logic + Explorer Assignment ❌
 
 **TDD Tasks:**
 - `Expedition_Admin_Controller` — create expedition (validates code format, rejects duplicate), edit (LiC, WhatsApp, route info, dates), assign explorer to expedition, reassign between teams
@@ -159,7 +191,7 @@ The current board exists but needs a thorough review before building write funct
 
 ---
 
-### Stage 1.12 — Training Status Fallback ❌
+### Stage 1.13 — Training Status Fallback ❌
 
 When a Tutor LMS record is linked to a parent `user_id` rather than the explorer's, fall back to `ems_scout_id` anchor.
 
@@ -169,34 +201,36 @@ When a Tutor LMS record is linked to a parent `user_id` rather than the explorer
 
 ---
 
-### Stage 1.13 — Column Mapper Repurpose (OSM Write-back) ❌
+### Stage 1.14 — Column Mapper Repurpose (OSM Write-back) ❌
 
-The Column Mapper was originally built for flexible import mapping (flexi-record columns → EMS fields). The write-back direction (EMS → OSM) is simpler: EMS fields are fixed; the OSM flexi-record column IDs just need to be configured once and persisted.
+The existing Column Mapper React component (drag-and-drop flexi-record import mapping) will be replaced with a simpler per-section configuration form for the EMS → OSM write-back direction. EMS fields are fixed; only the OSM flexi-record column IDs need to be configured once per section.
 
-**Decision:** The current drag-and-drop flexibility is likely overkill for write-back. Replace with a simpler configuration form:
-- Per managed section: select which flexi-record, then map each EMS field (expedition code, team code, event status, route info) to the corresponding column ID from the flexi-record structure
-- The mapper fetches the flexi-record structure via `GET ems/v1/flexi-structure/{section_id}` and presents the column names as a dropdown
+**Context from 1.9:** Managed sections are now stored without `extraid`. The flexi-record association is configured here instead.
+
+**Per-section config:**
+- Select which flexi-record applies to this section (fetched via `GET ems/v1/flexi-structure/{section_id}`)
+- Map each EMS write-back field (expedition code, team code, event status, route info) to the corresponding column ID — presented as a dropdown of column names from the flexi-record structure
 
 **Tasks:**
-- Decide whether to adapt the existing Column Mapper component or replace it
-- Implement `GET ems/v1/flexi-structure/{section_id}` REST endpoint
-- Build the simplified config form (React)
-- Persist the mapping as `ems_osm_field_map` option
-- Wire into the OSM write-back flow (Phase 2)
+- Replace existing Column Mapper component with new simplified form (React)
+- Implement `GET ems/v1/flexi-structure/{section_id}` REST endpoint (calls OSM API, requires auth token — determine flow)
+- Persist mapping as `ems_osm_field_map` option: `{section_id: {flexi_id, field_map: {ems_field: column_id}}}`
+- Wire into OSM write-back flow (Phase 2)
 
-**Complete when**: Mapping can be configured and saved; flexi-record structure endpoint tested.
+**Complete when**: Mapping can be configured and saved per section; flexi-record structure endpoint tested.
 
 ---
 
 ## Phase 1 Complete When
-- All 1.8–1.13 tests pass (`vendor/bin/phpunit`, `npm run test`)
+- All 1.8–1.14 tests pass (`vendor/bin/phpunit`, `npm run test`)
 - Diagnostic panel shows useful content for any admin login; moved to OSM Reference page (1.8)
 - Explorers / Patrols / Events visible as tabs on OSM Reference page (1.8)
-- `live-auth-only` and `live-limited` modes working against real OSM; sync result displayed (1.9)
-- Expedition board reviewed and any blocking bugs fixed (1.10)
-- Admin can create/edit expeditions and reassign explorers (1.11)
-- Training fallback logic tested and passing (1.12)
-- Column mapper repurposed for write-back config (1.13)
+- Settings page in tabs; managed sections populated from OSM payload (1.9)
+- `live-auth-only` and `live-limited` modes working against real OSM; sync result displayed (1.10)
+- Expedition board reviewed and any blocking bugs fixed (1.11)
+- Admin can create/edit expeditions and reassign explorers (1.12)
+- Training fallback logic tested and passing (1.13)
+- Column mapper repurposed for write-back config (1.14)
 
 ---
 
@@ -208,11 +242,12 @@ Files built in completed stages: see archive. New/modified files for remaining s
 |---|---|---|
 | `src/Admin/Diagnostic_Panel.php` | System-level diagnostics; relocate to OSM Reference page | 1.8 |
 | `src/Admin/Admin_Page.php` | Tabbed reference page (Explorers/Patrols/Events); move diagnostic | 1.8 |
-| `src/Admin/Settings_Page.php` | Add `live-auth-only`, `live-limited`, `ems_sync_limit` fields | 1.9 |
-| `src/Plugin.php` | Branches for new sync modes in callback handler | 1.9 |
-| `src/Integrations/OSM_Reference_Sync.php` | Return sync result struct; support member limit | 1.9 |
-| `src/Admin/Expedition_Admin_Controller.php` | Create/edit expeditions, assign explorers | 1.11 |
-| `resources/js/admin/expedition-board/ExpeditionBoard.tsx` | Board review + write-action UI | 1.10/1.11 |
+| `src/Admin/Settings_Page.php` | Tab layout; managed sections redesign; remove extraid field | 1.9 |
+| `src/Plugin.php` | Fetch-sections OAuth flow; branches for new sync modes | 1.9/1.10 |
+| `src/Integrations/OSM_Reference_Sync.php` | Return sync result struct; support member limit | 1.10 |
+| `src/Admin/Expedition_Admin_Controller.php` | Create/edit expeditions, assign explorers | 1.12 |
+| `resources/js/admin/expedition-board/ExpeditionBoard.tsx` | Board review + write-action UI | 1.11/1.12 |
+| `resources/js/admin/column-mapper/` | Replace with write-back config form | 1.14 |
 
 ---
 

@@ -102,9 +102,10 @@ class OSM_Reference_Sync {
                     'name'       => $event['name'] ?? '',
                     'start_date' => $event['start_date'] ?? null,
                     'end_date'   => $event['end_date'] ?? null,
+                    'location'   => $event['location'] ?? '',
                     'synced_at'  => $now,
                 ],
-                [ '%d', '%d', '%s', '%s', '%s', '%s' ]
+                [ '%d', '%d', '%s', '%s', '%s', '%s', '%s' ]
             );
 
             $attendance = $this->api_client->get_event_attendance( $section_id, $event_id );
