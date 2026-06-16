@@ -60,6 +60,7 @@ class OSM_Reference_Sync {
                 }
 
                 $term_id = $term['term_id'];
+                $this->sync_patrols( $wpdb, $section_id, $now, $result );
                 $this->sync_members( $wpdb, $section_id, $term_id, $section_type, $now, $result, $member_limit );
                 $this->sync_events_and_attendance( $wpdb, $section_id, $term_id, $now, $result );
             }
@@ -103,6 +104,37 @@ class OSM_Reference_Sync {
         set_transient( 'ems_last_sync_result', $result->to_array(), DAY_IN_SECONDS );
 
         return $result;
+    }
+
+    /**
+     * Syncs patrols for a section into ems_osm_patrols.
+     */
+    private function sync_patrols( \wpdb $wpdb, int $section_id, string $now, Sync_Result $result ): void {
+        $raw   = $this->api_client->get_patrols( $section_id );
+        $table = $wpdb->prefix . 'ems_osm_patrols';
+
+        foreach ( $raw['patrols'] ?? [] as $patrol ) {
+            $patrol_id = (int) ( $patrol['patrolid'] ?? 0 );
+            if ( ! $patrol_id ) {
+                continue;
+            }
+
+            $rows = $wpdb->replace(
+                $table,
+                [
+                    'patrol_id'  => $patrol_id,
+                    'section_id' => $section_id,
+                    'name'       => $patrol['name']   ?? '',
+                    'active'     => ( ( $patrol['active'] ?? '1' ) === '1' ) ? 1 : 0,
+                    'synced_at'  => $now,
+                ],
+                [ '%d', '%d', '%s', '%d', '%s' ]
+            );
+
+            if ( $rows === false ) {
+                $result->add_error( "Failed to upsert patrol {$patrol_id}: " . $wpdb->last_error );
+            }
+        }
     }
 
     /**

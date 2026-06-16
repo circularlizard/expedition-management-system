@@ -76,6 +76,17 @@ class OSM_API_Client {
         return $this->parser->parse_member_detail( $raw );
     }
 
+    public function get_patrols( int $section_id ): array {
+        $this->rate_limiter->consume();
+        $start = microtime( true );
+        try {
+            $data = $this->driver->get_patrols( $section_id );
+        } finally {
+            $this->after_call( 'get_patrols', $start );
+        }
+        return $data;
+    }
+
     public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array {
         $this->rate_limiter->consume();
         $start = microtime( true );
