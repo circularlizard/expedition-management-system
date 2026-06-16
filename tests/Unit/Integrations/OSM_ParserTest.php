@@ -225,5 +225,6 @@ class OSM_ParserTest extends EMSTestCase {
 
         $this->assertSame( 'Bore Stane ESU', $names[37458]['name'] );
         $this->assertNotSame( 'explorers', $names[37458]['name'] );
+        $this->assertSame( 'explorers', $names[37458]['type'] );
     }
 }
