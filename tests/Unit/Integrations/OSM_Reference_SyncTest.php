@@ -116,11 +116,14 @@ class OSM_Reference_SyncTest extends EMSTestCase {
 
         $events = [
             [
-                'event_id'   => 40001,
-                'name'       => 'Silver Practice',
-                'start_date' => '2026-08-01',
-                'end_date'   => '2026-08-03',
-                'location'   => 'Test Hills',
+                'event_id'    => 40001,
+                'name'        => 'Silver Practice',
+                'start_date'  => '2026-08-01',
+                'end_date'    => '2026-08-03',
+                'location'    => 'Test Hills',
+                'yes_members' => 11,
+                'yes_leaders' => 0,
+                'no'          => 9,
             ],
         ];
 
@@ -140,7 +143,10 @@ class OSM_Reference_SyncTest extends EMSTestCase {
             ->with(
                 'wp_ems_osm_events',
                 Mockery::on( function ( $data ) use ( &$replaced ) {
-                    $replaced = $data['event_id'] === 40001 && $data['name'] === 'Silver Practice';
+                    $replaced = $data['event_id'] === 40001
+                        && $data['name'] === 'Silver Practice'
+                        && $data['yes_members'] === 11
+                        && $data['no'] === 9;
                     return true;
                 } ),
                 Mockery::any()
@@ -163,7 +169,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
             ->andReturn( [] );
 
         $events = [
-            [ 'event_id' => 40001, 'name' => 'Silver Practice', 'start_date' => '2026-08-01', 'end_date' => '2026-08-03', 'location' => '' ],
+            [ 'event_id' => 40001, 'name' => 'Silver Practice', 'start_date' => '2026-08-01', 'end_date' => '2026-08-03', 'location' => '', 'yes_members' => 2, 'yes_leaders' => 0, 'no' => 1 ],
         ];
 
         $this->api_client->shouldReceive( 'get_section_events' )
@@ -173,8 +179,9 @@ class OSM_Reference_SyncTest extends EMSTestCase {
 
         $attendance = [
             'data' => [
-                [ 'member_id' => '1001', 'attending' => 'Yes' ],
-                [ 'member_id' => '1002', 'attending' => 'No' ],
+                [ 'member_id' => '1001', 'attending' => 'yes' ],
+                [ 'member_id' => '1002', 'attending' => 'no' ],
+                [ 'member_id' => '1003', 'attending' => '' ],
             ],
         ];
 
@@ -208,9 +215,9 @@ class OSM_Reference_SyncTest extends EMSTestCase {
 
         $this->assertCount( 2, $attendance_calls );
         $this->assertEquals( 1001, $attendance_calls[0]['scout_id'] );
-        $this->assertEquals( 'Yes', $attendance_calls[0]['status'] );
+        $this->assertEquals( 'yes', $attendance_calls[0]['status'] );
         $this->assertEquals( 1002, $attendance_calls[1]['scout_id'] );
-        $this->assertEquals( 'No', $attendance_calls[1]['status'] );
+        $this->assertEquals( 'no', $attendance_calls[1]['status'] );
     }
 
     public function test_sync_skips_member_with_zero_scout_id(): void {
@@ -280,7 +287,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'get_member_detail' )
             ->andReturn( [ 'email' => 'a@b.com', 'parent_email' => '' ] );
         $this->api_client->shouldReceive( 'get_section_events' )
-            ->andReturn( [ [ 'event_id' => 40001, 'name' => 'Ev', 'start_date' => '2026-08-01', 'end_date' => '2026-08-03', 'location' => '' ] ] );
+            ->andReturn( [ [ 'event_id' => 40001, 'name' => 'Ev', 'start_date' => '2026-08-01', 'end_date' => '2026-08-03', 'location' => '', 'yes_members' => 1, 'yes_leaders' => 0, 'no' => 0 ] ] );
         $this->api_client->shouldReceive( 'get_event_attendance' )
             ->andReturn( [ 'data' => [] ] );
         $this->wpdb->shouldReceive( 'replace' )->andReturn( 1 );

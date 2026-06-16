@@ -198,15 +198,18 @@ class OSM_Reference_Sync {
             $rows = $wpdb->replace(
                 $events_table,
                 [
-                    'event_id'   => $event_id,
-                    'section_id' => $section_id,
-                    'name'       => $event['name'] ?? '',
-                    'start_date' => $event['start_date'] ?? null,
-                    'end_date'   => $event['end_date'] ?? null,
-                    'location'   => $event['location'] ?? '',
-                    'synced_at'  => $now,
+                    'event_id'    => $event_id,
+                    'section_id'  => $section_id,
+                    'name'        => $event['name']        ?? '',
+                    'start_date'  => $event['start_date']  ?? null,
+                    'end_date'    => $event['end_date']     ?? null,
+                    'location'    => $event['location']    ?? '',
+                    'yes_members' => $event['yes_members'] ?? 0,
+                    'yes_leaders' => $event['yes_leaders'] ?? 0,
+                    'no'          => $event['no']          ?? 0,
+                    'synced_at'   => $now,
                 ],
-                [ '%d', '%d', '%s', '%s', '%s', '%s', '%s' ]
+                [ '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s' ]
             );
             if ( $rows === false ) {
                 $result->events_failed++;
@@ -220,7 +223,8 @@ class OSM_Reference_Sync {
 
             foreach ( $items as $row ) {
                 $scout_id = (int) ( $row['member_id'] ?? 0 );
-                if ( ! $scout_id ) {
+                $status   = $row['attending'] ?? '';
+                if ( ! $scout_id || $status === '' ) {
                     continue;
                 }
 
@@ -229,7 +233,7 @@ class OSM_Reference_Sync {
                     [
                         'event_id'  => $event_id,
                         'scout_id'  => $scout_id,
-                        'status'    => $row['attending'] ?? '',
+                        'status'    => $status,
                         'synced_at' => $now,
                     ],
                     [ '%d', '%d', '%s', '%s' ]
