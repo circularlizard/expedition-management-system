@@ -192,14 +192,14 @@ class OSM_API_ClientTest extends EMSTestCase {
         );
         $this->driver->shouldReceive( 'get_data_payload' )
             ->once()
-            ->with( 'test-token' )
+            ->withNoArgs()
             ->andReturn( $raw_payload );
         $this->driver->shouldReceive( 'get_last_response_headers' )
             ->once()
             ->andReturn( [] );
 
         $client  = new OSM_API_Client( $this->driver, $this->parser );
-        $payload = $client->get_data_payload( 'test-token' );
+        $payload = $client->get_data_payload();
 
         $this->assertSame( $raw_payload, $payload );
     }
@@ -249,7 +249,7 @@ class OSM_API_ClientTest extends EMSTestCase {
         $limiter = new Rate_Limiter( 10, 1.0 );
         $client  = new OSM_API_Client( $this->driver, $this->parser, $limiter );
 
-        $client->get_data_payload( 'token' );
+        $client->get_data_payload();
 
         $this->assertSame( 0.0, $limiter->get_token_count() );
     }

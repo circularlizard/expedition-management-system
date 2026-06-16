@@ -80,15 +80,13 @@ class Live_Driver implements Driver_Interface {
         $this->access_token = $token;
     }
 
-    public function get_data_payload( string $access_token ): array {
+    public function get_data_payload(): array {
         $url = add_query_arg( [
             'action'      => 'getDataPayload',
             'client_time' => time() * 1000,
         ], $this->get_base_url() );
 
-        return $this->request( $url, [
-            'headers' => [ 'Authorization' => 'Bearer ' . $access_token ],
-        ] );
+        return $this->request( $url );
     }
 
     public function get_section_members( int $section_id, int $term_id ): array {

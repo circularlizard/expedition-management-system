@@ -25,11 +25,11 @@ class OSM_API_Client {
         $this->driver->set_access_token( $token );
     }
 
-    public function get_data_payload( string $access_token ): array {
+    public function get_data_payload(): array {
         $this->rate_limiter->consume();
         $start = microtime( true );
         try {
-            $data = $this->driver->get_data_payload( $access_token );
+            $data = $this->driver->get_data_payload();
         } finally {
             $this->after_call( 'get_data_payload', $start );
         }
