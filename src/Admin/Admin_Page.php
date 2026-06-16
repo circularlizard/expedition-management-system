@@ -280,7 +280,7 @@ class Admin_Page {
 
         if ( isset( $_GET['error'] ) ) {
             $slug = sanitize_key( $_GET['error'] );
-            $msg  = $error_map[ $slug ] ?? esc_html__( 'An unknown error occurred during OSM authorization.', 'ems-plugin' );
+            $msg  = $error_map[ $slug ] ?? sprintf( __( 'OSM authorization error: %s', 'ems-plugin' ), $slug );
             if ( isset( $_GET['error_msg'] ) ) {
                 $msg .= ' ' . esc_html( sanitize_text_field( urldecode( $_GET['error_msg'] ) ) );
             }
