@@ -85,7 +85,7 @@ class Plugin {
             } else {
                 $driver     = new Mock_Driver();
                 $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
-                $payload    = $osm_client->get_data_payload( 'mock_token' );
+                $payload    = $osm_client->get_data_payload();
                 set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
                 wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&fetched=1' ) );
             }
@@ -110,7 +110,7 @@ class Plugin {
                 $logger     = new \EMS\Integrations\OSM_Sync_Logger();
                 $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ), $logger );
 
-                $payload     = $osm_client->get_data_payload( 'mock_token' );
+                $payload     = $osm_client->get_data_payload();
                 $section_ids = $parser->parse_section_ids( $payload );
 
                 set_transient( 'ems_last_payload_dump', $payload, HOUR_IN_SECONDS );
@@ -139,7 +139,7 @@ class Plugin {
                 $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ), $logger );
                 $osm_client->set_access_token( $token );
 
-                $payload = $osm_client->get_data_payload( $token );
+                $payload = $osm_client->get_data_payload();
 
                 set_transient( 'ems_last_payload_dump', $payload, HOUR_IN_SECONDS );
                 set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
@@ -158,8 +158,12 @@ class Plugin {
                     ? max( 1, (int) get_option( 'ems_sync_limit', 5 ) )
                     : 0;
 
+                $sync_ids = ( $api_mode === 'live-limited' )
+                    ? array_slice( $all_ids, 0, 1 )
+                    : $all_ids;
+
                 ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
-                    ->sync( $all_ids, $payload, $api_mode, $member_limit, $logger );
+                    ->sync( $sync_ids, $payload, $api_mode, $member_limit, $logger );
             } );
         } );
 
