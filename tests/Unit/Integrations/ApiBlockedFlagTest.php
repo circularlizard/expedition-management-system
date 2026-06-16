@@ -165,6 +165,8 @@ class ApiBlockedFlagTest extends EMSTestCase {
 
     public function test_initiate_proceeds_normally_when_flag_not_set(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_user_meta' )->justReturn( '' );
         Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
             if ( $key === 'ems_api_blocked' )     return false;
             if ( $key === 'ems_osm_client_id' )   return 'client-id';
