@@ -225,24 +225,24 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->assertTrue( true );
     }
 
-    public function test_sync_updates_last_sync_option(): void {
+    public function test_sync_writes_last_sync_result_transient(): void {
         $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( [] );
         $this->api_client->shouldReceive( 'get_section_events' )->andReturn( [] );
 
         Functions\when( 'current_time' )->justReturn( '2026-06-15 08:00:00' );
-        Functions\when( 'set_transient' )->justReturn( true );
+        Functions\when( 'update_option' )->justReturn( true );
 
-        $option_updated = false;
-        Functions\when( 'update_option' )->alias( function ( $key ) use ( &$option_updated ) {
-            if ( $key === 'ems_osm_last_sync' ) {
-                $option_updated = true;
+        $transient_written = false;
+        Functions\when( 'set_transient' )->alias( function ( $key ) use ( &$transient_written ) {
+            if ( $key === 'ems_last_sync_result' ) {
+                $transient_written = true;
             }
         } );
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
         $sync->sync( [ 43105 ], $this->make_payload() );
 
-        $this->assertTrue( $option_updated, 'ems_osm_last_sync option was not updated' );
+        $this->assertTrue( $transient_written, 'ems_last_sync_result transient was not written' );
     }
 
     public function test_sync_skips_section_with_no_term(): void {
