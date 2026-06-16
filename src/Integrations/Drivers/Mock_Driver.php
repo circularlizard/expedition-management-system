@@ -29,7 +29,7 @@ class Mock_Driver implements Driver_Interface {
         // Mock driver ignores token
     }
 
-    public function get_data_payload( string $access_token ): array {
+    public function get_data_payload(): array {
         return $this->load( $this->data_payload_file );
     }
 

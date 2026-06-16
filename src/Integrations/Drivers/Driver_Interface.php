@@ -2,7 +2,7 @@
 namespace EMS\Integrations\Drivers;
 
 interface Driver_Interface {
-    public function get_data_payload( string $access_token ): array;
+    public function get_data_payload(): array;
     public function get_section_members( int $section_id, int $term_id ): array;
     public function get_section_events( int $section_id, int $term_id ): array;
     public function get_member_detail( int $section_id, int $scout_id, int $term_id ): array;
