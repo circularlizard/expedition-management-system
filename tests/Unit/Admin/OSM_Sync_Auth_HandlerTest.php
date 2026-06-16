@@ -123,6 +123,39 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
         $this->assertFalse( $on_success_called, 'on_success must not fire on non-2xx token response' );
     }
 
+    public function test_handle_callback_rejects_http_token_url(): void {
+        Functions\expect( 'current_user_can' )->with( 'manage_options' )->andReturn( true );
+        Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
+            if ( $key === 'ems_api_blocked' )      return false;
+            if ( $key === 'ems_osm_client_id' )    return 'test-client-id';
+            if ( $key === 'ems_osm_client_secret' ) return \EMS\Core\Encryption::encrypt( 'secret' );
+            if ( $key === 'ems_osm_auth_url' )     return 'https://example.com/auth';
+            if ( $key === 'ems_osm_token_url' )    return 'http://example.com/token';
+            return $default;
+        } );
+        Functions\expect( 'wp_verify_nonce' )->andReturn( true );
+        Functions\expect( 'admin_url' )->andReturn( 'https://localhost/reference?error=token_exchange' );
+        Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+
+        $_GET['state'] = 'nonce';
+        $_GET['code']  = 'code';
+
+        $on_success_called = false;
+        $redirect_url      = null;
+        Functions\expect( 'wp_safe_redirect' )->once()->andReturnUsing( function( $url ) use ( &$redirect_url ) {
+            $redirect_url = $url;
+        } );
+        Functions\expect( 'wp_remote_post' )->never();
+
+        $handler = new OSM_Sync_Auth_Handler();
+        $handler->handle_callback( function() use ( &$on_success_called ) {
+            $on_success_called = true;
+        } );
+
+        $this->assertStringContainsString( 'token_exchange', $redirect_url );
+        $this->assertFalse( $on_success_called );
+    }
+
     public function test_handle_callback_redirects_on_invalid_nonce(): void {
         Functions\expect( 'current_user_can' )->with( 'manage_options' )->andReturn( true );
         Functions\expect( 'wp_verify_nonce' )->andReturn( false );
