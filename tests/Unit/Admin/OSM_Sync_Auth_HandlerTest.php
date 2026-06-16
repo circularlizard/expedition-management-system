@@ -67,6 +67,7 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
             'body' => json_encode( [ 'access_token' => 'valid-token' ] ),
             'response' => [ 'code' => 200 ]
         ] );
+        Functions\expect( 'wp_remote_retrieve_response_code' )->once()->andReturn( 200 );
         Functions\expect( 'wp_remote_retrieve_body' )->once()->andReturn( json_encode( [ 'access_token' => 'valid-token' ] ) );
 
         $callback_called = false;
@@ -84,6 +85,42 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
 
         $this->assertTrue( $callback_called );
         $this->assertEquals( 'valid-token', $captured_token );
+    }
+
+    public function test_handle_callback_treats_non_2xx_token_response_as_error(): void {
+        Functions\expect( 'current_user_can' )->with( 'manage_options' )->andReturn( true );
+        Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
+            if ( $key === 'ems_api_blocked' ) return false;
+            if ( $key === 'ems_osm_client_id' ) return 'test-client-id';
+            if ( $key === 'ems_osm_client_secret' ) return \EMS\Core\Encryption::encrypt( 'secret' );
+            if ( $key === 'ems_osm_auth_url' ) return 'https://example.com/auth';
+            if ( $key === 'ems_osm_token_url' ) return 'https://example.com/token';
+            return $default;
+        } );
+        Functions\expect( 'wp_verify_nonce' )->andReturn( true );
+        Functions\expect( 'admin_url' )->andReturn( 'https://localhost/reference?error=token_exchange' );
+
+        $_GET['state'] = 'test-nonce';
+        $_GET['code']  = 'test-code';
+
+        Functions\expect( 'wp_remote_post' )->once()->andReturn( [] );
+        Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof \WP_Error );
+        Functions\expect( 'wp_remote_retrieve_response_code' )->once()->andReturn( 401 );
+        Functions\expect( 'wp_remote_retrieve_body' )->once()->andReturn( '{"error":"invalid_client"}' );
+
+        $redirect_url      = null;
+        $on_success_called = false;
+        Functions\expect( 'wp_safe_redirect' )->once()->andReturnUsing( function( $url ) use ( &$redirect_url ) {
+            $redirect_url = $url;
+        } );
+
+        $handler = new OSM_Sync_Auth_Handler();
+        $handler->handle_callback( function() use ( &$on_success_called ) {
+            $on_success_called = true;
+        } );
+
+        $this->assertStringContainsString( 'token_exchange', $redirect_url );
+        $this->assertFalse( $on_success_called, 'on_success must not fire on non-2xx token response' );
     }
 
     public function test_handle_callback_redirects_on_invalid_nonce(): void {

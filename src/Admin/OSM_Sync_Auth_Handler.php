@@ -114,8 +114,14 @@ class OSM_Sync_Auth_Handler {
             return $response;
         }
 
-        $body = wp_remote_retrieve_body( $response );
-        $data = json_decode( $body, true );
+        $http_status = (int) wp_remote_retrieve_response_code( $response );
+        $body        = wp_remote_retrieve_body( $response );
+        $data        = json_decode( $body, true );
+
+        if ( $http_status < 200 || $http_status >= 300 ) {
+            $detail = is_array( $data ) ? ( $data['error_description'] ?? $data['error'] ?? '' ) : '';
+            return new \WP_Error( 'osm_token_error', trim( "HTTP {$http_status} from token endpoint. {$detail}" ) );
+        }
 
         if ( ! is_array( $data ) || isset( $data['error'] ) ) {
             return new \WP_Error( 'osm_token_error', $data['error_description'] ?? $data['error'] ?? 'Unknown error' );
