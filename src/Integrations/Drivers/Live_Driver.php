@@ -52,7 +52,8 @@ class Live_Driver implements Driver_Interface {
         $data = json_decode( $body, true );
 
         if ( ! is_array( $data ) ) {
-            throw new Api_Response_Exception( 'Response was not valid JSON', $url );
+            $preview = substr( $body, 0, 500 );
+            throw new Api_Response_Exception( 'Response was not valid JSON. HTTP ' . $http_status . '. Body: ' . $preview, $url );
         }
 
         return $data;
