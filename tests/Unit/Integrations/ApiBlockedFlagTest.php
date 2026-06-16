@@ -22,6 +22,7 @@ class ApiBlockedFlagTest extends EMSTestCase {
         parent::setUp();
         $this->api_client = Mockery::mock( OSM_API_Client::class );
         $this->api_client->shouldReceive( 'set_sync_result' )->zeroOrMoreTimes();
+        $this->api_client->shouldReceive( 'get_patrols' )->zeroOrMoreTimes()->andReturn( [ 'patrols' => [] ] );
 
         Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
             if ( $key === 'ems_managed_sections' ) {

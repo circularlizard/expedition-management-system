@@ -128,6 +128,16 @@ class Live_Driver implements Driver_Interface {
         return $this->request( $url );
     }
 
+    public function get_patrols( int $section_id ): array {
+        $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
+        $url  = add_query_arg( [
+            'action'    => 'get',
+            'sectionid' => $section_id,
+        ], $base . '/ext/settings/patrols/' );
+
+        return $this->request( $url );
+    }
+
     public function get_flexi_records( int $section_id ): array {
         $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
         $url = add_query_arg( [

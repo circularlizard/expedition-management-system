@@ -60,6 +60,10 @@ class Mock_Driver implements Driver_Interface {
         ];
     }
 
+    public function get_patrols( int $section_id ): array {
+        return $this->load( 'osm-patrols.json' );
+    }
+
     public function get_flexi_records( int $section_id ): array {
         return $this->load( 'osm-flexi-records.json' );
     }

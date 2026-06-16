@@ -98,6 +98,18 @@ class Table_Installer {
             KEY idx_scout_id (scout_id)
         ) {$charset};";
 
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_patrols (
+            id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            patrol_id  BIGINT          NOT NULL,
+            section_id BIGINT UNSIGNED NOT NULL,
+            name       VARCHAR(100)    NOT NULL DEFAULT '',
+            active     TINYINT(1)      NOT NULL DEFAULT 1,
+            synced_at  DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_patrol_section (patrol_id, section_id),
+            KEY idx_section_id (section_id)
+        ) {$charset};";
+
         return $sql;
     }
 
@@ -110,6 +122,7 @@ class Table_Installer {
             'osm_explorers'         => $wpdb->prefix . 'ems_osm_explorers',
             'osm_events'            => $wpdb->prefix . 'ems_osm_events',
             'osm_event_attendance'  => $wpdb->prefix . 'ems_osm_event_attendance',
+            'osm_patrols'           => $wpdb->prefix . 'ems_osm_patrols',
         ];
     }
 }
