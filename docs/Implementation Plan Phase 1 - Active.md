@@ -26,74 +26,7 @@
 
 ---
 
-## Immediate Next Steps (in order)
-
-### ✅ Step 0 — Anonymised Mock Data Generation *(complete — 15 Jun 2026)*
-
-`bin/generate-mock-data.py` written and validated. Regenerates all `tests/mocks/` files deterministically (`random.seed(42)`). Re-run at any time to refresh from `mockdata/`.
-
-**Files generated** (9 total):
-- `osm-list-of-members.json` — 127 members, Scottish fictitious names, scout IDs `3417257+`, patrol IDs `99200+`
-- `osm-member-detail.json` — keyed map `{scout_id: {email, parent_email}}`, `scout.{id}@example-ems.test`
-- `osm-patrols.json` — mock patrol IDs matching member list
-- `osm-events.json` — 2 events, IDs `40001/40002`
-- `osm-event-attendance.json` — all 127 members, varied `yes`/`no`/`""` attending
-- `osm-flexi-record-structure.json` — mock section `99001`, extraid `99848`
-- `osm-flexi-record-data.json` — all 127 members, varied `f_9`–`f_18` flexi fields
-- `osm-get-data-payload-explorer.json` — userid `20001`, `member_access` scout `30001` in sections `99001`/`99002`
-- `osm-get-data-payload-parent.json` — userid `20002`, children `30001`/`30002`
-
-**`Mock_Driver::get_member_detail()`** updated: looks up by `$scout_id` in keyed map, wraps in raw `getData` structure for `parse_member_detail`.
-
-**3 test files updated** to use predictable email format. **162/162 tests green**.
-
----
-
-### ✅ Stage 1.7 — Admin Read Views *(complete — 15 Jun 2026)*
-
-**`hydrate_member_data()` bug fixed**: now reads from `ems_osm_explorers` via `wp_user_id` instead of `wp_usermeta`.
-
-**Three new REST endpoints** added to `Admin_View_Controller`:
-- `GET ems/v1/explorer/{scout_id}` — name, patrol, email, training summary, `last_synced`
-- `GET ems/v1/team/{team_id}` — members hydrated from `ems_osm_explorers`, `first_aid_covered` flag, `last_synced`
-- `GET ems/v1/patrol/{patrol}` — all explorers in the patrol ordered by name, `last_synced`
-
-**PHP tests** (6 new): explorer found/404, team with/without first aid, patrol with results/empty.
-
-**React** (`ExpeditionBoard.tsx`): "By Unit" tab renamed to "By Patrol"; `downloadCsv()` utility added; Download CSV button on Explorer, Team, and Patrol tabs.
-
-**Vitest tests** (8 new): loading state, error state, never-synced, empty states per tab, CSV button presence on each tab.
-
-**168 PHP / 322 assertions. 16 JS Vitest.**
-
----
-
-### ✅ Stage 1.8 — Diagnostics + Reference Data Display *(complete — 15 Jun 2026)*
-
-**`Diagnostic_Panel`** split into `get_system_html()` (always populated) and `get_user_html()` (OIDC users only); `get_html()` retained as backward-compat alias. System panel shows: API mode, client ID configured (yes/no), managed sections, last sync timestamp, DB row counts (explorers/events/attendance), rate limit headers.
-
-**`render_dashboard()`** cleaned up — diagnostic panel removed from Expedition Board page.
-
-**`render_reference_page()`** replaced with four WP nav-tabs (active tab via `?tab=` query param):
-- **Explorers** — existing table unchanged
-- **Patrols** — grouped summary (patrol name + member count)
-- **Events** — events + attendance count JOIN
-- **Diagnostics** — system panel + per-user OIDC section (when set)
-
-**6 new PHP tests** (Diagnostic_Panel system diagnostics + backward-compat alias). **174 PHP / 332 assertions.**
-
----
-
-### ✅ Stage 1.9 — Settings Page Tabs + Managed Sections Redesign *(complete — 16 Jun 2026)*
-
-**`Settings_Page`** rewritten with three nav-tabs (active tab via `?tab=` query param), each with its own save button and nonce:
-- **General** — API mode (all four values: `mock`/`live`/`live-auth-only`/`live-limited`); `ems_sync_limit` field shown only when `live-limited` selected (JS toggle)
-- **OSM Connection** — client ID, client secret (encrypted), redirect URI (read-only), all OAuth URLs
-- **Managed Sections** — checklist populated from `ems_available_sections` transient; `ems_managed_sections` stored as `{id: {name}}` (no `extraid`); prompt shown if transient is empty
-
-`save_settings()` retained as backward-compat routing shim. **10 new PHP tests** (all four modes, sync_limit, sections checklist, extraid exclusion, routing). **184 PHP / 344 assertions.**
-
----
+## Active Stages
 
 ### Stage 1.10 — OSM Auth Test Modes + Sync Progress Feedback ❌
 
@@ -108,7 +41,7 @@
 
 #### Settings additions (OSM Connection tab)
 
-- **OAuth Scope** — new text field `ems_osm_scope` (default `section:member:read section:programme:read`); value passed as `scope` parameter in the OAuth2 authorization URL. Admin can adjust if OSM adds new scopes or access is denied.
+- **OAuth Scope** — new text field `ems_osm_scope` (default `section:member:read section:events:read section:flexirecord:read`); value passed as `scope` parameter in the OAuth2 authorization URL. Admin can adjust if OSM adds new scopes or access is denied.
 
 #### UI parity principle
 
@@ -139,21 +72,45 @@ Two modes for incremental live testing, both using the same OAuth2 flow as `live
 - Produces the same sync summary panel and log as all other modes
 - Purpose: decouple auth verification from sync testing; run sync only when ready
 
-#### HTTP 429 hard stop (rate limiting)
+#### Rate limiting — full compliance (OSM spec)
 
-`Live_Driver` (and by extension `OSM_API_Client`) **must** treat HTTP 429 as an unrecoverable error for the current sync run:
+OSM will **permanently block** applications that are frequently blocked. Every rule below is mandatory:
 
-- On receiving a 429 response, immediately throw a `Rate_Limit_Exception` (new class)
-- `OSM_Reference_Sync::sync()` catches `Rate_Limit_Exception` at the top level — records it in the result struct and **stops all further API calls immediately**
-- The exception must propagate upward without triggering any retry logic — no backoff, no retry
-- `ems_last_sync_log` and `ems_last_sync_result` are written with `rate_limited: true` before the handler exits
+**Per-response header logging** — `Live_Driver` reads and passes these headers back with every API response:
+- `X-RateLimit-Limit` — total requests per hour for this user
+- `X-RateLimit-Remaining` — requests left before block
+- `X-RateLimit-Reset` — seconds until limit resets (not a timestamp)
+- `Retry-After` — seconds to wait (only present on 429 responses)
+- `X-Deprecated` — if present, log a warning with the deprecation date; do not suppress
+- `X-Blocked` — if present, **immediately stop all requests and treat as permanent**; log prominently; surface a critical admin notice. Continuing after `X-Blocked` escalates to a permanent block.
+
+**HTTP 429 hard stop:**
+- `Live_Driver` throws `Rate_Limit_Exception` immediately on 429, carrying `retry_after` seconds from the `Retry-After` header
+- `OSM_Reference_Sync::sync()` catches it at the top level — **stops all further API calls, no retry, no backoff**
+- Writes `ems_last_sync_log` and `ems_last_sync_result` with `rate_limited: true` before exiting
+- UI notice: *"Sync stopped: OSM rate limit reached. Retry after: Xs (resets in Ys)."*
+
+**X-Blocked hard stop:**
+- `Live_Driver` throws `Api_Blocked_Exception` immediately on receiving `X-Blocked` header (any response)
+- Same immediate stop as 429 — no further requests under any circumstances
+- UI notice (error level, not dismissible): *"OSM has blocked this application. No further API calls will be made. Check the sync log and contact OSM support."*
+
+**Response validation:**
+- `Live_Driver` validates every response before returning: checks HTTP status, confirms response is parseable JSON, checks for unexpected structure
+- Malformed or unexpected responses throw `Api_Response_Exception` — sync stops, error recorded in log and result struct
+- Purpose: OSM blocks applications that frequently send invalid follow-up requests based on bad data
+
+**Internal rate limiter (`Rate_Limiter`):**
+- Already exists; must be kept active on all live API calls
+- Must enforce a conservative limit well below the OSM per-hour cap to leave headroom
 
 #### Sync log (`ems_last_sync_log`)
 
 - **Overwritten** (not appended) each time a new sync starts — prevents unbounded growth
-- Each entry: `{timestamp, call_type, url, http_status, rate_limit_remaining, rate_limit_reset, duration_ms}`
-- Rate-limit headers logged per-call: `X-RateLimit-Remaining`, `X-RateLimit-Reset` (or OSM equivalents); mock driver writes `null` for these fields
-- If sync terminated by 429: final log entry records `{call_type: "rate_limited", http_status: 429, ...}`
+- Each entry: `{timestamp, call_type, url, http_status, rate_limit_limit, rate_limit_remaining, rate_limit_reset_seconds, retry_after, deprecated_header, blocked_header, duration_ms}`
+- Mock driver writes `null` for all rate-limit header fields (same log structure)
+- Terminal entries on 429: `{call_type: "rate_limited", http_status: 429, retry_after: N, ...}`
+- Terminal entries on `X-Blocked`: `{call_type: "api_blocked", ...}`
 - Diagnostics tab: **Download log** button (JSON) — always shown when a log exists, regardless of mode
 
 #### Sync result (`ems_last_sync_result`)
@@ -166,17 +123,22 @@ Two modes for incremental live testing, both using the same OAuth2 flow as `live
   events_upserted, events_failed,
   errors[],
   rate_limited: bool,
+  retry_after_seconds: int|null,
   rate_limit_remaining: int|null,
-  rate_limit_reset: timestamp|null
+  rate_limit_reset_seconds: int|null,
+  api_blocked: bool,
+  deprecated_endpoints: string[]
 }
 ```
 
 #### Error handling
 
 - Replace all `wp_die()` OAuth error paths with redirects to the reference page with `?error=<slug>` and a dismissible admin notice
-- 429 errors surface as a prominent warning notice: "Sync stopped: OSM rate limit reached. Remaining: 0. Resets at: \<time\>."
+- 429: prominent warning notice with retry-after time
+- `X-Blocked`: non-dismissible error notice; no sync button shown until mode is reset
+- `X-Deprecated` warnings: logged + shown as a low-priority admin notice listing affected endpoints
 
-**Complete when**: mock sync produces full summary panel + log; `live-auth-only` completes OAuth and displays payload dump on Diagnostics tab; `live-limited` does the same then allows manual sync trigger (capped) with full feedback; 429 terminates sync immediately with log + notice; log overwrites on each new sync; Download log button available; full `live` sync stores and displays result summary; all `wp_die()` OAuth error paths replaced.
+**Complete when**: mock sync produces full summary panel + log; `live-auth-only` completes OAuth and displays payload dump on Diagnostics tab; `live-limited` does the same then allows manual sync trigger (capped) with full feedback; 429 terminates sync immediately with `Retry-After` in log + notice; `X-Blocked` terminates and surfaces non-dismissible error; `X-Deprecated` logged and noticed; response validation stops sync on bad data; log overwrites on each new sync; Download log button available; full `live` sync stores and displays result summary; all `wp_die()` OAuth error paths replaced.
 
 ---
 
@@ -239,10 +201,7 @@ The existing Column Mapper React component (drag-and-drop flexi-record import ma
 ---
 
 ## Phase 1 Complete When
-- All 1.8–1.14 tests pass (`vendor/bin/phpunit`, `npm run test`)
-- Diagnostic panel shows useful content for any admin login; moved to OSM Reference page (1.8)
-- Explorers / Patrols / Events visible as tabs on OSM Reference page (1.8)
-- Settings page in tabs; managed sections populated from OSM payload (1.9)
+- All 1.10–1.14 tests pass (`vendor/bin/phpunit`, `npm run test`)
 - `live-auth-only` and `live-limited` modes working against real OSM; sync result displayed (1.10)
 - Expedition board reviewed and any blocking bugs fixed (1.11)
 - Admin can create/edit expeditions and reassign explorers (1.12)
@@ -257,10 +216,7 @@ Files built in completed stages: see archive. New/modified files for remaining s
 
 | File | Class/Purpose | Stage |
 |---|---|---|
-| `src/Admin/Diagnostic_Panel.php` | System-level diagnostics; relocate to OSM Reference page | 1.8 |
-| `src/Admin/Admin_Page.php` | Tabbed reference page (Explorers/Patrols/Events); move diagnostic | 1.8 |
-| `src/Admin/Settings_Page.php` | Tab layout; managed sections redesign; remove extraid field | 1.9 |
-| `src/Plugin.php` | Fetch-sections OAuth flow; branches for new sync modes | 1.9/1.10 |
+| `src/Plugin.php` | Fetch-sections live OAuth; branches for new sync modes; 429/blocked handling | 1.10 |
 | `src/Integrations/OSM_Reference_Sync.php` | Return sync result struct; support member limit | 1.10 |
 | `src/Admin/Expedition_Admin_Controller.php` | Create/edit expeditions, assign explorers | 1.12 |
 | `resources/js/admin/expedition-board/ExpeditionBoard.tsx` | Board review + write-action UI | 1.11/1.12 |
@@ -269,14 +225,6 @@ Files built in completed stages: see archive. New/modified files for remaining s
 ---
 
 ## §8 Deferred Items
-
-### ~~8.1 `hydrate_member_data()` inconsistency~~ ✅ Resolved (Stage 1.7)
-
-Fixed: now reads from `ems_osm_explorers` via `wp_user_id`.
-
-### ~~8.2 Mock data: distinct emails per member~~ ✅ Resolved (Step 0)
-
-Fixed: keyed map + `Mock_Driver` lookup by scout_id.
 
 ### 8.3 Event/attendance upsert tests *(implemented, untested)*
 
