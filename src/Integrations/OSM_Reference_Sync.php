@@ -42,6 +42,7 @@ class OSM_Reference_Sync {
         global $wpdb;
 
         $result = new Sync_Result( $mode );
+        $this->api_client->set_sync_result( $result );
         $now    = current_time( 'mysql' );
         $terms  = $this->parser->parse_terms( $payload );
 

@@ -17,6 +17,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
     protected function setUp(): void {
         parent::setUp();
         $this->api_client = Mockery::mock( OSM_API_Client::class );
+        $this->api_client->shouldReceive( 'set_sync_result' )->zeroOrMoreTimes();
         $this->parser     = new OSM_Parser();
 
         $this->wpdb = Mockery::mock( 'wpdb' );

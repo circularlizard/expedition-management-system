@@ -8,21 +8,28 @@ class OSM_API_Client {
     private OSM_Parser $parser;
     private Rate_Limiter $rate_limiter;
     private ?OSM_Sync_Logger $logger;
+    private ?Sync_Result $sync_result;
 
     public function __construct(
         Driver_Interface $driver,
         OSM_Parser $parser,
         ?Rate_Limiter $rate_limiter = null,
-        ?OSM_Sync_Logger $logger = null
+        ?OSM_Sync_Logger $logger = null,
+        ?Sync_Result $sync_result = null
     ) {
         $this->driver       = $driver;
         $this->parser       = $parser;
         $this->rate_limiter = $rate_limiter ?? new Rate_Limiter( 10, 1.0 );
         $this->logger       = $logger;
+        $this->sync_result  = $sync_result;
     }
 
     public function set_access_token( string $token ): void {
         $this->driver->set_access_token( $token );
+    }
+
+    public function set_sync_result( Sync_Result $result ): void {
+        $this->sync_result = $result;
     }
 
     public function get_data_payload(): array {
@@ -120,6 +127,9 @@ class OSM_API_Client {
                     'endpoint'   => $url,
                     'deprecated' => $headers['x-deprecated'],
                 ] );
+                if ( $this->sync_result ) {
+                    $this->sync_result->deprecated_endpoints[] = $url;
+                }
             }
         }
     }
