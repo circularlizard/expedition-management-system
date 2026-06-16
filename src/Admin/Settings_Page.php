@@ -3,6 +3,8 @@ namespace EMS\Admin;
 
 class Settings_Page {
 
+    private const VALID_MODES = [ 'mock', 'live', 'live-auth-only', 'live-limited' ];
+
     public function register(): void {
         add_submenu_page(
             'ems',
@@ -14,41 +16,35 @@ class Settings_Page {
         );
     }
 
-    public function save_settings( array $post_data ): void {
-        $mode = in_array( $post_data['ems_api_mode'] ?? '', [ 'mock', 'live' ], true )
+    public function save_general( array $post_data ): void {
+        $mode = in_array( $post_data['ems_api_mode'] ?? '', self::VALID_MODES, true )
             ? $post_data['ems_api_mode']
             : 'mock';
         update_option( 'ems_api_mode', $mode );
 
+        $limit = max( 1, (int) ( $post_data['ems_sync_limit'] ?? 5 ) );
+        update_option( 'ems_sync_limit', $limit );
+    }
+
+    public function save_connection( array $post_data ): void {
         $raw_url = $post_data['ems_osm_api_base_url'] ?? '';
         $url     = esc_url_raw( $raw_url );
         if ( $url !== '' && filter_var( $url, FILTER_VALIDATE_URL ) && str_starts_with( $url, 'https://' ) ) {
             update_option( 'ems_osm_api_base_url', $url );
         }
 
-        // OAuth Endpoints
-        $auth_url = esc_url_raw( $post_data['ems_osm_auth_url'] ?? '' );
-        if ( $auth_url ) {
-            update_option( 'ems_osm_auth_url', $auth_url );
+        foreach ( [ 'ems_osm_auth_url', 'ems_osm_token_url', 'ems_osm_resource_url' ] as $key ) {
+            $val = esc_url_raw( $post_data[ $key ] ?? '' );
+            if ( $val ) {
+                update_option( $key, $val );
+            }
         }
 
-        $token_url = esc_url_raw( $post_data['ems_osm_token_url'] ?? '' );
-        if ( $token_url ) {
-            update_option( 'ems_osm_token_url', $token_url );
-        }
-
-        $resource_url = esc_url_raw( $post_data['ems_osm_resource_url'] ?? '' );
-        if ( $resource_url ) {
-            update_option( 'ems_osm_resource_url', $resource_url );
-        }
-
-        // Client ID
         $client_id = sanitize_text_field( $post_data['ems_osm_client_id'] ?? '' );
         if ( $client_id ) {
             update_option( 'ems_osm_client_id', $client_id );
         }
 
-        // Client Secret (Encrypted)
         $client_secret = $post_data['ems_osm_client_secret'] ?? '';
         if ( $client_secret ) {
             $encrypted = \EMS\Core\Encryption::encrypt( $client_secret );
@@ -56,174 +52,245 @@ class Settings_Page {
                 update_option( 'ems_osm_client_secret', $encrypted );
             }
         }
+    }
 
-        // Managed Sections
-        $sections_raw = $post_data['ems_sections'] ?? [];
-        $sections     = [];
-        if ( is_array( $sections_raw ) ) {
-            foreach ( $sections_raw as $id => $data ) {
-                $id = (int) $id;
-                if ( $id > 0 && ! empty( $data['name'] ) ) {
-                    $sections[ $id ] = [
-                        'name'    => sanitize_text_field( $data['name'] ),
-                        'extraid' => sanitize_text_field( $data['extraid'] ?? '' ),
-                    ];
-                }
+    public function save_sections( array $post_data ): void {
+        $available   = (array) get_transient( 'ems_available_sections' );
+        $checked_ids = array_map( 'intval', (array) ( $post_data['ems_managed_section_ids'] ?? [] ) );
+
+        $sections = [];
+        foreach ( $checked_ids as $id ) {
+            if ( isset( $available[ $id ] ) ) {
+                $sections[ $id ] = [ 'name' => sanitize_text_field( $available[ $id ]['name'] ?? '' ) ];
             }
         }
         update_option( 'ems_managed_sections', $sections );
     }
 
+    /**
+     * Legacy entry-point used by existing callers (Plugin.php etc.).
+     * Routes to the appropriate per-tab save based on which submit button was pressed.
+     */
+    public function save_settings( array $post_data ): void {
+        if ( isset( $post_data['ems_save_general'] ) ) {
+            $this->save_general( $post_data );
+        } elseif ( isset( $post_data['ems_save_connection'] ) ) {
+            $this->save_connection( $post_data );
+        } elseif ( isset( $post_data['ems_save_sections'] ) ) {
+            $this->save_sections( $post_data );
+        } else {
+            $this->save_general( $post_data );
+        }
+    }
+
     public function render(): void {
-        if ( isset( $_POST['ems_settings_submit'] ) && check_admin_referer( 'ems_settings' ) ) {
-            $this->save_settings( $_POST );
+        if ( isset( $_POST['ems_save_general'] ) && check_admin_referer( 'ems_settings_general' ) ) {
+            $this->save_general( $_POST );
+        } elseif ( isset( $_POST['ems_save_connection'] ) && check_admin_referer( 'ems_settings_connection' ) ) {
+            $this->save_connection( $_POST );
+        } elseif ( isset( $_POST['ems_save_sections'] ) && check_admin_referer( 'ems_settings_sections' ) ) {
+            $this->save_sections( $_POST );
         }
 
-        $mode          = get_option( 'ems_api_mode', 'mock' );
-        $api_url       = get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk/api.php' );
-        $auth_url      = get_option( 'ems_osm_auth_url', 'https://www.onlinescoutmanager.co.uk/oauth/authorize' );
-        $token_url     = get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
-        $resource_url  = get_option( 'ems_osm_resource_url', 'https://www.onlinescoutmanager.co.uk/oauth/resource' );
-        $client_id     = get_option( 'ems_osm_client_id', '' );
-        $has_secret    = ! empty( get_option( 'ems_osm_client_secret' ) );
-        $redirect_uri  = admin_url( 'admin-post.php?action=ems_osm_callback' );
-        $sections      = (array) get_option( 'ems_managed_sections', [] );
+        $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'sections';
+        $page_url   = admin_url( 'admin.php?page=ems-settings' );
         ?>
         <div class="wrap">
             <h1><?php esc_html_e( 'EMS Settings', 'ems-plugin' ); ?></h1>
-            <form method="post">
-                <?php wp_nonce_field( 'ems_settings' ); ?>
-                <table class="form-table">
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'API Mode', 'ems-plugin' ); ?></th>
-                        <td>
-                            <select name="ems_api_mode">
-                                <option value="mock" <?php selected( $mode, 'mock' ); ?>><?php esc_html_e( 'Mock', 'ems-plugin' ); ?></option>
-                                <option value="live" <?php selected( $mode, 'live' ); ?>><?php esc_html_e( 'Live', 'ems-plugin' ); ?></option>
-                            </select>
-                            <p class="description"><?php esc_html_e( 'Use Mock to test locally without a live OSM connection.', 'ems-plugin' ); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'OSM API Base URL', 'ems-plugin' ); ?></th>
-                        <td>
-                            <input type="url" name="ems_osm_api_base_url" value="<?php echo esc_attr( $api_url ); ?>" class="regular-text" />
-                            <p class="description"><?php esc_html_e( 'Main OSM API endpoint (api.php).', 'ems-plugin' ); ?></p>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th scope="row" colspan="2"><h3><?php esc_html_e( 'Managed Sections', 'ems-plugin' ); ?></h3></th>
-                    </tr>
-                    <tr>
-                        <td colspan="2">
-                            <table class="widefat striped" id="ems-sections-table">
-                                <thead>
-                                    <tr>
-                                        <th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
-                                        <th><?php esc_html_e( 'Name', 'ems-plugin' ); ?></th>
-                                        <th><?php esc_html_e( 'Flexi-Record ID (extraid)', 'ems-plugin' ); ?></th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ( $sections as $id => $data ) : ?>
-                                        <tr>
-                                            <td><input type="number" name="ems_sections[<?php echo (int) $id; ?>][id]" value="<?php echo (int) $id; ?>" readonly /></td>
-                                            <td><input type="text" name="ems_sections[<?php echo (int) $id; ?>][name]" value="<?php echo esc_attr( $data['name'] ); ?>" /></td>
-                                            <td><input type="text" name="ems_sections[<?php echo (int) $id; ?>][extraid]" value="<?php echo esc_attr( $data['extraid'] ); ?>" /></td>
-                                            <td><button type="button" class="button ems-remove-section"><?php esc_html_e( 'Remove', 'ems-plugin' ); ?></button></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                    <tr class="ems-new-section-row">
-                                        <td><input type="number" id="ems-new-section-id" placeholder="e.g. 43105" /></td>
-                                        <td><input type="text" id="ems-new-section-name" placeholder="e.g. Silver ESU" /></td>
-                                        <td><input type="text" id="ems-new-section-extraid" placeholder="e.g. 73848" /></td>
-                                        <td><button type="button" class="button" id="ems-add-section"><?php esc_html_e( 'Add Section', 'ems-plugin' ); ?></button></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <script>
-                                jQuery(document).ready(function($) {
-                                    $('#ems-add-section').on('click', function() {
-                                        var id = $('#ems-new-section-id').val();
-                                        var name = $('#ems-new-section-name').val();
-                                        var extraid = $('#ems-new-section-extraid').val();
-                                        if (!id || !name) return;
-                                        
-                                        var row = '<tr>' +
-                                            '<td><input type="number" name="ems_sections['+id+'][id]" value="'+id+'" readonly /></td>' +
-                                            '<td><input type="text" name="ems_sections['+id+'][name]" value="'+name+'" /></td>' +
-                                            '<td><input type="text" name="ems_sections['+id+'][extraid]" value="'+extraid+'" /></td>' +
-                                            '<td><button type="button" class="button ems-remove-section">Remove</button></td>' +
-                                            '</tr>';
-                                        $('.ems-new-section-row').before(row);
-                                        $('#ems-new-section-id, #ems-new-section-name, #ems-new-section-extraid').val('');
-                                    });
-                                    $(document).on('click', '.ems-remove-section', function() {
-                                        $(this).closest('tr').remove();
-                                    });
-                                });
-                            </script>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th scope="row" colspan="2"><h3><?php esc_html_e( 'OAuth Configuration', 'ems-plugin' ); ?></h3></th>
-                    </tr>
-
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'Redirect URI (Callback)', 'ems-plugin' ); ?></th>
-                        <td>
-                            <code><?php echo esc_html( $redirect_uri ); ?></code>
-                            <p class="description"><?php esc_html_e( 'Copy this URL and paste it into the "Redirect URL" field in your OSM OAuth application settings.', 'ems-plugin' ); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'OSM Authorization URL', 'ems-plugin' ); ?></th>
-                        <td>
-                            <input type="url" name="ems_osm_auth_url" value="<?php echo esc_attr( $auth_url ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'OSM Token URL', 'ems-plugin' ); ?></th>
-                        <td>
-                            <input type="url" name="ems_osm_token_url" value="<?php echo esc_attr( $token_url ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'OSM Resource Owner URL', 'ems-plugin' ); ?></th>
-                        <td>
-                            <input type="url" name="ems_osm_resource_url" value="<?php echo esc_attr( $resource_url ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'OSM Client ID', 'ems-plugin' ); ?></th>
-                        <td>
-                            <input type="text" name="ems_osm_client_id" value="<?php echo esc_attr( $client_id ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'OSM Client Secret', 'ems-plugin' ); ?></th>
-                        <td>
-                            <input type="password" name="ems_osm_client_secret" value="" class="regular-text" placeholder="<?php echo $has_secret ? '********' : ''; ?>" />
-                            <p class="description">
-                                <?php 
-                                if ( $has_secret ) {
-                                    esc_html_e( 'Secret is set. Leave blank to keep current secret.', 'ems-plugin' );
-                                } else {
-                                    esc_html_e( 'Enter your OSM OAuth client secret. It will be stored encrypted.', 'ems-plugin' );
-                                }
-                                ?>
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-                <p class="submit">
-                    <input type="submit" name="ems_settings_submit" class="button-primary" value="<?php esc_attr_e( 'Save Settings', 'ems-plugin' ); ?>" />
-                </p>
-            </form>
+            <nav class="nav-tab-wrapper">
+                <a href="<?php echo esc_url( $page_url . '&tab=sections' ); ?>"
+                   class="nav-tab<?php echo $active_tab === 'sections' ? ' nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Managed Sections', 'ems-plugin' ); ?>
+                </a>
+                <a href="<?php echo esc_url( $page_url . '&tab=general' ); ?>"
+                   class="nav-tab<?php echo $active_tab === 'general' ? ' nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'General', 'ems-plugin' ); ?>
+                </a>
+                <a href="<?php echo esc_url( $page_url . '&tab=connection' ); ?>"
+                   class="nav-tab<?php echo $active_tab === 'connection' ? ' nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'OSM Connection', 'ems-plugin' ); ?>
+                </a>
+            </nav>
+            <?php
+            if ( $active_tab === 'general' ) {
+                $this->render_general_tab();
+            } elseif ( $active_tab === 'connection' ) {
+                $this->render_connection_tab();
+            } else {
+                $this->render_sections_tab();
+            }
+            ?>
         </div>
+        <?php
+    }
+
+    private function render_general_tab(): void {
+        $mode  = get_option( 'ems_api_mode', 'mock' );
+        $limit = (int) get_option( 'ems_sync_limit', 5 );
+        ?>
+        <form method="post">
+            <?php wp_nonce_field( 'ems_settings_general' ); ?>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'API Mode', 'ems-plugin' ); ?></th>
+                    <td>
+                        <select name="ems_api_mode" id="ems_api_mode">
+                            <option value="mock"           <?php selected( $mode, 'mock' ); ?>><?php esc_html_e( 'Mock', 'ems-plugin' ); ?></option>
+                            <option value="live"           <?php selected( $mode, 'live' ); ?>><?php esc_html_e( 'Live', 'ems-plugin' ); ?></option>
+                            <option value="live-auth-only" <?php selected( $mode, 'live-auth-only' ); ?>><?php esc_html_e( 'Live — Auth + payload only', 'ems-plugin' ); ?></option>
+                            <option value="live-limited"   <?php selected( $mode, 'live-limited' ); ?>><?php esc_html_e( 'Live — Limited sync (testing)', 'ems-plugin' ); ?></option>
+                        </select>
+                        <p class="description"><?php esc_html_e( 'Use Mock to test locally. Live-auth-only and Live-limited are for incremental live testing.', 'ems-plugin' ); ?></p>
+                    </td>
+                </tr>
+                <tr id="ems-sync-limit-row" <?php echo $mode !== 'live-limited' ? 'style="display:none"' : ''; ?>>
+                    <th scope="row"><?php esc_html_e( 'Sync Limit', 'ems-plugin' ); ?></th>
+                    <td>
+                        <input type="number" name="ems_sync_limit" value="<?php echo esc_attr( $limit ); ?>" min="1" max="100" class="small-text" />
+                        <p class="description"><?php esc_html_e( 'Maximum members to sync per section in live-limited mode.', 'ems-plugin' ); ?></p>
+                    </td>
+                </tr>
+            </table>
+            <p class="submit">
+                <input type="submit" name="ems_save_general" class="button-primary" value="<?php esc_attr_e( 'Save General Settings', 'ems-plugin' ); ?>" />
+            </p>
+        </form>
+        <script>
+        jQuery(document).ready(function($) {
+            $('#ems_api_mode').on('change', function() {
+                $('#ems-sync-limit-row').toggle($(this).val() === 'live-limited');
+            });
+        });
+        </script>
+        <?php
+    }
+
+    private function render_connection_tab(): void {
+        $api_url      = get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk/api.php' );
+        $auth_url     = get_option( 'ems_osm_auth_url', 'https://www.onlinescoutmanager.co.uk/oauth/authorize' );
+        $token_url    = get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
+        $resource_url = get_option( 'ems_osm_resource_url', 'https://www.onlinescoutmanager.co.uk/oauth/resource' );
+        $client_id    = get_option( 'ems_osm_client_id', '' );
+        $has_secret   = ! empty( get_option( 'ems_osm_client_secret' ) );
+        $redirect_uri = admin_url( 'admin-post.php?action=ems_osm_callback' );
+        ?>
+        <form method="post">
+            <?php wp_nonce_field( 'ems_settings_connection' ); ?>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Redirect URI (Callback)', 'ems-plugin' ); ?></th>
+                    <td>
+                        <code><?php echo esc_html( $redirect_uri ); ?></code>
+                        <p class="description"><?php esc_html_e( 'Copy this into the Redirect URL field in your OSM OAuth application.', 'ems-plugin' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'OSM Client ID', 'ems-plugin' ); ?></th>
+                    <td><input type="text" name="ems_osm_client_id" value="<?php echo esc_attr( $client_id ); ?>" class="regular-text" /></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'OSM Client Secret', 'ems-plugin' ); ?></th>
+                    <td>
+                        <input type="password" name="ems_osm_client_secret" value="" class="regular-text" placeholder="<?php echo $has_secret ? '••••••••' : ''; ?>" />
+                        <p class="description">
+                            <?php echo $has_secret
+                                ? esc_html__( 'Secret is set. Leave blank to keep current value.', 'ems-plugin' )
+                                : esc_html__( 'Enter your OSM OAuth client secret. Stored encrypted.', 'ems-plugin' ); ?>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'OSM API Base URL', 'ems-plugin' ); ?></th>
+                    <td>
+                        <input type="url" name="ems_osm_api_base_url" value="<?php echo esc_attr( $api_url ); ?>" class="regular-text" />
+                        <p class="description"><?php esc_html_e( 'Main OSM API endpoint (api.php).', 'ems-plugin' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Authorization URL', 'ems-plugin' ); ?></th>
+                    <td><input type="url" name="ems_osm_auth_url" value="<?php echo esc_attr( $auth_url ); ?>" class="regular-text" /></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Token URL', 'ems-plugin' ); ?></th>
+                    <td><input type="url" name="ems_osm_token_url" value="<?php echo esc_attr( $token_url ); ?>" class="regular-text" /></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Resource Owner URL', 'ems-plugin' ); ?></th>
+                    <td><input type="url" name="ems_osm_resource_url" value="<?php echo esc_attr( $resource_url ); ?>" class="regular-text" /></td>
+                </tr>
+            </table>
+            <p class="submit">
+                <input type="submit" name="ems_save_connection" class="button-primary" value="<?php esc_attr_e( 'Save Connection Settings', 'ems-plugin' ); ?>" />
+            </p>
+        </form>
+        <?php
+    }
+
+    private function render_sections_tab(): void {
+        $available = (array) get_transient( 'ems_available_sections' );
+        $managed   = (array) get_option( 'ems_managed_sections', [] );
+        if ( isset( $_GET['fetched'] ) ) {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Section list refreshed from OSM.', 'ems-plugin' ) . '</p></div>';
+        }
+        ?>
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:1em 0">
+            <?php wp_nonce_field( 'ems_fetch_sections' ); ?>
+            <input type="hidden" name="action" value="ems_fetch_sections" />
+            <button type="submit" class="button"><?php esc_html_e( 'Fetch sections from OSM', 'ems-plugin' ); ?></button>
+            <span class="description" style="margin-left:.5em"><?php esc_html_e( 'Retrieves the section list from OSM (or mock data) and caches it for 1 hour.', 'ems-plugin' ); ?></span>
+        </form>
+        <?php if ( empty( $available ) ) : ?>
+            <div class="notice notice-info inline"><p>
+                <?php esc_html_e( 'No section list cached yet. Click "Fetch sections from OSM" above to populate this list.', 'ems-plugin' ); ?>
+            </p></div>
+        <?php else : ?>
+        <form method="post">
+            <?php wp_nonce_field( 'ems_settings_sections' ); ?>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th style="width:40px"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
+                        <th><?php esc_html_e( 'Section Name', 'ems-plugin' ); ?></th>
+                        <th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $available as $id => $data ) :
+                        $id      = (int) $id;
+                        $checked = isset( $managed[ $id ] );
+                        $name    = esc_html( $data['name'] ?? '' );
+                    ?>
+                    <tr>
+                        <td><input type="checkbox" name="ems_managed_section_ids[]" value="<?php echo $id; ?>" <?php checked( $checked ); ?> /></td>
+                        <td><?php echo $name; ?></td>
+                        <td><code><?php echo $id; ?></code></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <p class="submit">
+                <input type="submit" name="ems_save_sections" class="button-primary" value="<?php esc_attr_e( 'Save Managed Sections', 'ems-plugin' ); ?>" />
+            </p>
+        </form>
+        <?php endif; ?>
+        <hr />
+        <?php if ( ! empty( $managed ) ) : ?>
+        <h3><?php esc_html_e( 'Currently Managed', 'ems-plugin' ); ?></h3>
+        <table class="wp-list-table widefat fixed striped">
+            <thead><tr>
+                <th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
+                <th><?php esc_html_e( 'Name', 'ems-plugin' ); ?></th>
+            </tr></thead>
+            <tbody>
+                <?php foreach ( $managed as $id => $data ) : ?>
+                <tr>
+                    <td><code><?php echo (int) $id; ?></code></td>
+                    <td><?php echo esc_html( $data['name'] ?? '' ); ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
         <?php
     }
 }

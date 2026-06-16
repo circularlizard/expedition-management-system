@@ -15,14 +15,14 @@
 | Step 0 | Anonymised mock data generation | ✅ Done — 15 Jun 2026 |
 | 1.7 | Admin Read Views | ✅ Done — 15 Jun 2026 |
 | 1.8 | Diagnostics + Reference Data Display | ✅ Done — 15 Jun 2026 |
-| 1.9 | Settings page tabs + Managed Sections redesign | ❌ Not started |
+| 1.9 | Settings page tabs + Managed Sections redesign | ✅ Done — 16 Jun 2026 |
 | 1.10 | OSM Auth Test Modes + Sync Progress Feedback | ❌ Not started |
 | 1.11 | Expedition Board deep review | ❌ Not started |
 | 1.12 | Expedition write logic + Explorer Assignment | ❌ Not started |
 | 1.13 | Training Status Fallback | ❌ Not started |
 | 1.14 | Column Mapper repurpose (OSM write-back) | ❌ Not started |
 
-**Tests**: 174 PHP / 332 assertions green. 16 JS Vitest green.
+**Tests**: 184 PHP / 344 assertions green. 16 JS Vitest green.
 
 ---
 
@@ -84,34 +84,14 @@
 
 ---
 
-### Stage 1.9 — Settings Page Tabs + Managed Sections Redesign ❌
+### ✅ Stage 1.9 — Settings Page Tabs + Managed Sections Redesign *(complete — 16 Jun 2026)*
 
-The Settings page is a single flat form. It needs restructuring, and the managed sections workflow needs to be redesigned to use live OSM data rather than manual entry.
+**`Settings_Page`** rewritten with three nav-tabs (active tab via `?tab=` query param), each with its own save button and nonce:
+- **General** — API mode (all four values: `mock`/`live`/`live-auth-only`/`live-limited`); `ems_sync_limit` field shown only when `live-limited` selected (JS toggle)
+- **OSM Connection** — client ID, client secret (encrypted), redirect URI (read-only), all OAuth URLs
+- **Managed Sections** — checklist populated from `ems_available_sections` transient; `ems_managed_sections` stored as `{id: {name}}` (no `extraid`); prompt shown if transient is empty
 
-#### Tab layout
-
-Replace the flat form with WP admin nav-tabs (same pattern as the Reference page):
-
-- **General** — API mode dropdown (`mock` / `live` / `live-auth-only` / `live-limited`); `ems_sync_limit` integer field (shown only for `live-limited`)
-- **OSM Connection** — OAuth client ID, client secret, redirect URI (read-only), auth/token/resource URLs
-- **Managed Sections** — redesigned section picker (see below)
-
-Active tab persisted via `?tab=` query param. Each tab saves independently via its own submit button.
-
-#### Managed sections redesign
-
-Currently the admin manually enters section IDs, names, and flexi-record IDs in a table. This is fragile and requires the admin to look up IDs externally.
-
-**New flow:**
-1. Admin clicks **"Fetch sections from OSM"** button — triggers a `live-auth-only`-style OAuth flow that calls `get_data_payload()` and stores the section list as transient `ems_available_sections` (1h)
-2. The Managed Sections tab re-renders showing all sections the authenticated user has access to as a checklist: section name + section ID (read-only, sourced from payload)
-3. Admin ticks which sections to manage → saves as `ems_managed_sections` (keyed by section ID, value = `{name}`)
-4. Section IDs and names stored for reference; no flexi-record ID field here (moved to Column Mapper in 1.14)
-5. If no payload is cached yet, the tab shows a prompt: "Fetch sections from OSM to populate this list"
-
-**Schema change:** `ems_managed_sections` option simplifies from `{id: {name, extraid}}` to `{id: {name}}`. The `extraid` field is removed — flexi-record mapping is owned by the Column Mapper.
-
-**Complete when**: Settings page renders in tabs; managed sections populated from OSM payload; flexi-record field removed from section config; `ems_sync_limit` field conditionally shown.
+`save_settings()` retained as backward-compat routing shim. **10 new PHP tests** (all four modes, sync_limit, sections checklist, extraid exclusion, routing). **184 PHP / 344 assertions.**
 
 ---
 
