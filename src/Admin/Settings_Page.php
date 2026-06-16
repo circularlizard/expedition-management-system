@@ -28,7 +28,8 @@ class Settings_Page {
 
     public function save_connection( array $post_data ): void {
         $raw_url = $post_data['ems_osm_api_base_url'] ?? '';
-        $url     = esc_url_raw( $raw_url );
+        $url     = esc_url_raw( rtrim( $raw_url, '/' ) );
+        $url     = preg_replace( '#/api\.php$#', '', $url );
         if ( $url !== '' && filter_var( $url, FILTER_VALIDATE_URL ) && str_starts_with( $url, 'https://' ) ) {
             update_option( 'ems_osm_api_base_url', $url );
         }
@@ -171,7 +172,7 @@ class Settings_Page {
     }
 
     private function render_connection_tab(): void {
-        $api_url      = get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk/api.php' );
+        $api_url      = get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' );
         $auth_url     = get_option( 'ems_osm_auth_url', 'https://www.onlinescoutmanager.co.uk/oauth/authorize' );
         $token_url    = get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
         $resource_url = get_option( 'ems_osm_resource_url', 'https://www.onlinescoutmanager.co.uk/oauth/resource' );
@@ -209,7 +210,7 @@ class Settings_Page {
                     <th scope="row"><?php esc_html_e( 'OSM API Base URL', 'ems-plugin' ); ?></th>
                     <td>
                         <input type="url" name="ems_osm_api_base_url" value="<?php echo esc_attr( $api_url ); ?>" class="regular-text" />
-                        <p class="description"><?php esc_html_e( 'Main OSM API endpoint (api.php).', 'ems-plugin' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'OSM base URL (origin only, no trailing slash). Endpoint paths are appended automatically.', 'ems-plugin' ); ?></p>
                     </td>
                 </tr>
                 <tr>
