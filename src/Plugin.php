@@ -188,6 +188,32 @@ class Plugin {
             exit;
         } );
 
+        // Purge OSM reference data
+        add_action( 'admin_post_ems_purge_osm_data', function() {
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( 'Forbidden' );
+            }
+            check_admin_referer( 'ems_purge_osm_data' );
+
+            global $wpdb;
+            foreach ( [
+                'ems_osm_event_attendance',
+                'ems_osm_events',
+                'ems_osm_patrols',
+                'ems_osm_explorers',
+            ] as $table ) {
+                $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}{$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL
+            }
+
+            delete_transient( 'ems_last_sync_result' );
+            delete_transient( 'ems_last_sync_log' );
+            delete_transient( 'ems_last_payload_dump' );
+            delete_transient( 'ems_available_sections' );
+
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=general&purged=1' ) );
+            exit;
+        } );
+
         // Sync log download handler
         add_action( 'admin_post_ems_download_sync_log', function() {
             if ( ! current_user_can( 'manage_options' ) ) {
