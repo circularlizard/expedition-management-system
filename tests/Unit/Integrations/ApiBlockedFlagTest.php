@@ -170,7 +170,7 @@ class ApiBlockedFlagTest extends EMSTestCase {
         Functions\when( 'admin_url' )->justReturn( 'https://localhost/callback' );
 
         $redirect_url = null;
-        Functions\when( 'wp_safe_redirect' )->alias( function( $url ) use ( &$redirect_url ) {
+        Functions\when( 'wp_redirect' )->alias( function( $url ) use ( &$redirect_url ) {
             $redirect_url = $url;
         } );
 

@@ -42,7 +42,7 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
         Functions\expect( 'wp_create_nonce' )->with( 'ems_osm_sync' )->andReturn( 'test-nonce' );
         Functions\expect( 'admin_url' )->with( 'admin-post.php?action=ems_osm_callback' )->andReturn( 'https://localhost/callback' );
         
-        Functions\expect( 'wp_safe_redirect' )->with( Mockery::on( function( $url ) {
+        Functions\expect( 'wp_redirect' )->with( Mockery::on( function( $url ) {
             return str_contains( $url, 'https://example.com/auth' ) &&
                    str_contains( $url, 'client_id=test-client-id' ) &&
                    str_contains( $url, 'state=test-nonce' ) &&
@@ -188,7 +188,7 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
         } );
 
         $redirect_url = null;
-        Functions\expect( 'wp_safe_redirect' )->once()->andReturnUsing( function( $url ) use ( &$redirect_url ) {
+        Functions\expect( 'wp_redirect' )->once()->andReturnUsing( function( $url ) use ( &$redirect_url ) {
             $redirect_url = $url;
         } );
 
