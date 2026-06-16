@@ -18,6 +18,11 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
             define( 'SECURE_AUTH_KEY', 'test-secure-auth-key' );
         }
 
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_user_meta' )->justReturn( '' );
+        Functions\when( 'update_user_meta' )->justReturn( true );
+        Functions\when( 'delete_user_meta' )->justReturn( true );
+
         // Mock get_option for credentials
         Functions\when( 'get_option' )->alias( function( $key, $default = '' ) {
             if ( $key === 'ems_osm_client_id' ) {
