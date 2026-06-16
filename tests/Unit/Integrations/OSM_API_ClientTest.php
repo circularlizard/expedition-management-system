@@ -204,6 +204,38 @@ class OSM_API_ClientTest extends EMSTestCase {
         $this->assertSame( $raw_payload, $payload );
     }
 
+    public function test_after_call_fires_even_when_driver_throws(): void {
+        $this->driver->shouldReceive( 'get_section_members' )
+            ->andThrow( new \EMS\Integrations\Exceptions\Rate_Limit_Exception( 60, 3600, 'https://osm.example' ) );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [
+                'http_status'           => 429,
+                'x-ratelimit-limit'     => 500,
+                'x-ratelimit-remaining' => 0,
+                'x-ratelimit-reset'     => null,
+                'retry-after'           => 60,
+            ] );
+
+        $logger_entries = [];
+        $logger = Mockery::mock( \EMS\Integrations\OSM_Sync_Logger::class );
+        $logger->shouldReceive( 'log' )->once()->andReturnUsing( function() use ( &$logger_entries ) {
+            $logger_entries[] = func_get_args();
+        } );
+
+        $limiter = new Rate_Limiter( 10, 1.0 );
+        $client  = new OSM_API_Client( $this->driver, $this->parser, $limiter, $logger );
+
+        try {
+            $client->get_section_participants( 99001, 5001 );
+        } catch ( \EMS\Integrations\Exceptions\Rate_Limit_Exception $e ) {
+            // expected
+        }
+
+        $this->assertSame( 0.0, $limiter->get_token_count(), 'Rate limiter should be updated from headers even on exception' );
+        $this->assertCount( 1, $logger_entries, 'Logger should record the failing call' );
+    }
+
     public function test_header_aware_rate_limiting(): void {
         $this->driver->shouldReceive( 'get_data_payload' )
             ->andReturn( [] );
