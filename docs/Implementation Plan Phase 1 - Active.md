@@ -7,7 +7,7 @@
 
 ---
 
-## Current Status — 15 June 2026
+## Current Status — 16 June 2026
 
 | Stage                 | Description                                    | Status               |
 | -----------------------| ------------------------------------------------| ----------------------|
@@ -22,123 +22,15 @@
 | 1.13                  | Training Status Fallback                       | ❌ Not started        |
 | 1.14                  | Column Mapper repurpose (OSM write-back)       | ❌ Not started        |
 
-**Tests**: 202 PHP / 407 assertions green. 16 JS Vitest green.
+**Tests**: 227 PHP / 455 assertions green. 16 JS Vitest green.
 
 ---
 
 ## Active Stages
 
-### Stage 1.10 — OSM Auth Test Modes + Sync Progress Feedback ❌
+### Stage 1.10 — OSM Auth Test Modes + Sync Progress Feedback ✅ Done — 16 Jun 2026
 
-#### Live OSM auth — current state
-
-`OSM_Sync_Auth_Handler` is **fully built**: initiates OAuth2 code flow → exchanges code for token → fires sync callback → redirects back. Wired in `Plugin.php`: `ems_api_mode=live` uses it; `mock` bypasses it.
-
-**Before live auth works in production:**
-- OAuth credentials (`ems_osm_client_id` / `ems_osm_client_secret`) must be configured in Settings → OSM Connection
-- Redirect URI `admin-post.php?action=ems_osm_callback` must be whitelisted in OSM developer portal
-- `wp_die()` error paths in `handle_callback()` should redirect gracefully instead
-
-#### Settings additions (OSM Connection tab)
-
-- **OAuth Scope** — new text field `ems_osm_scope` (default `section:member:read section:events:read section:flexirecord:read`); value passed as `scope` parameter in the OAuth2 authorization URL. Admin can adjust if OSM adds new scopes or access is denied.
-
-#### UI parity principle
-
-**The UI must behave identically regardless of API mode.** Mock mode exists so the full UI flow can be exercised without a live OSM connection. Every panel, notice, log, and summary that appears after a live sync must also appear after a mock sync, populated from mock data. Mode differences are purely in the data source, never in what the UI renders.
-
-#### Sync progress feedback (all modes: mock, live, live-auth-only, live-limited)
-
-Currently sync is a silent round-trip with a single success/failure notice. All modes must produce full feedback:
-
-- `OSM_Reference_Sync::sync()` returns a result struct and **always** writes `ems_last_sync_result` (transient, 24h) and `ems_last_sync_log` (transient, 24h)
-- `render_reference_page()` displays a **sync summary panel** above the tabs whenever `ems_last_sync_result` exists: member count upserted/failed, event count upserted/failed, error count, rate-limit warning if applicable, collapsible error list
-- The Diagnostics tab always shows the full per-call log from `ems_last_sync_log` with a **Download log** button (JSON) — shown whenever a log exists, regardless of mode
-
-#### OSM auth test modes
-
-Two modes for incremental live testing, both using the same OAuth2 flow as `live`:
-
-**Mode: `live-auth-only`**
-- Full OAuth2 flow → `get_data_payload()` only — no member/event sync
-- Stores payload as transient `ems_last_payload_dump` (1h); also populates `ems_available_sections` transient via `parse_section_names()`
-- Redirects to OSM Reference page → Diagnostics tab displays `ems_last_payload_dump`: `userid`, `access_type`, `section_ids`, `terms`, `member_access` summary
-- Purpose: verify credentials, confirm section IDs, check access scope
-
-**Mode: `live-limited`**
-- Behaves identically to `live-auth-only` after OAuth (payload dump + section list stored)
-- Sync is **not** triggered automatically — admin manually clicks "Sync from OSM" on the Reference page as a separate step
-- When sync runs in `live-limited` mode: capped to first managed section only, first N members (`ems_sync_limit`, default 5)
-- Produces the same sync summary panel and log as all other modes
-- Purpose: decouple auth verification from sync testing; run sync only when ready
-
-#### Rate limiting — full compliance (OSM spec)
-
-OSM will **permanently block** applications that are frequently blocked. Every rule below is mandatory:
-
-**Per-response header logging** — `Live_Driver` reads and passes these headers back with every API response:
-- `X-RateLimit-Limit` — total requests per hour for this user
-- `X-RateLimit-Remaining` — requests left before block
-- `X-RateLimit-Reset` — seconds until limit resets (not a timestamp)
-- `Retry-After` — seconds to wait (only present on 429 responses)
-- `X-Deprecated` — if present, log a warning with the deprecation date; do not suppress
-- `X-Blocked` — if present, **immediately stop all requests and treat as permanent**; log prominently; surface a critical admin notice. Continuing after `X-Blocked` escalates to a permanent block.
-
-**HTTP 429 hard stop:**
-- `Live_Driver` throws `Rate_Limit_Exception` immediately on 429, carrying `retry_after` seconds from the `Retry-After` header
-- `OSM_Reference_Sync::sync()` catches it at the top level — **stops all further API calls, no retry, no backoff**
-- Writes `ems_last_sync_log` and `ems_last_sync_result` with `rate_limited: true` before exiting
-- UI notice: *"Sync stopped: OSM rate limit reached. Retry after: Xs (resets in Ys)."*
-
-**X-Blocked hard stop:**
-- `Live_Driver` throws `Api_Blocked_Exception` immediately on receiving `X-Blocked` header (any response)
-- Same immediate stop as 429 — no further requests under any circumstances
-- UI notice (error level, not dismissible): *"OSM has blocked this application. No further API calls will be made. Check the sync log and contact OSM support."*
-
-**Response validation:**
-- `Live_Driver` validates every response before returning: checks HTTP status, confirms response is parseable JSON, checks for unexpected structure
-- Malformed or unexpected responses throw `Api_Response_Exception` — sync stops, error recorded in log and result struct
-- Purpose: OSM blocks applications that frequently send invalid follow-up requests based on bad data
-
-**Internal rate limiter (`Rate_Limiter`):**
-- Already exists; must be kept active on all live API calls
-- Must enforce a conservative limit well below the OSM per-hour cap to leave headroom
-
-#### Sync log (`ems_last_sync_log`)
-
-- **Overwritten** (not appended) each time a new sync starts — prevents unbounded growth
-- Each entry: `{timestamp, call_type, url, http_status, rate_limit_limit, rate_limit_remaining, rate_limit_reset_seconds, retry_after, deprecated_header, blocked_header, duration_ms}`
-- Mock driver writes `null` for all rate-limit header fields (same log structure)
-- Terminal entries on 429: `{call_type: "rate_limited", http_status: 429, retry_after: N, ...}`
-- Terminal entries on `X-Blocked`: `{call_type: "api_blocked", ...}`
-- Diagnostics tab: **Download log** button (JSON) — always shown when a log exists, regardless of mode
-
-#### Sync result (`ems_last_sync_result`)
-
-```
-{
-  mode,
-  started_at,
-  members_upserted, members_failed,
-  events_upserted, events_failed,
-  errors[],
-  rate_limited: bool,
-  retry_after_seconds: int|null,
-  rate_limit_remaining: int|null,
-  rate_limit_reset_seconds: int|null,
-  api_blocked: bool,
-  deprecated_endpoints: string[]
-}
-```
-
-#### Error handling
-
-- Replace all `wp_die()` OAuth error paths with redirects to the reference page with `?error=<slug>` and a dismissible admin notice
-- 429: prominent warning notice with retry-after time
-- `X-Blocked`: non-dismissible error notice; no sync button shown until mode is reset
-- `X-Deprecated` warnings: logged + shown as a low-priority admin notice listing affected endpoints
-
-**Complete when**: mock sync produces full summary panel + log; `live-auth-only` completes OAuth and displays payload dump on Diagnostics tab; `live-limited` does the same then allows manual sync trigger (capped) with full feedback; 429 terminates sync immediately with `Retry-After` in log + notice; `X-Blocked` terminates and surfaces non-dismissible error; `X-Deprecated` logged and noticed; response validation stops sync on bad data; log overwrites on each new sync; Download log button available; full `live` sync stores and displays result summary; all `wp_die()` OAuth error paths replaced.
+Archived. See `docs/archive/Implementation Plan Phase 1 - Completed.md` for full spec.
 
 ---
 
