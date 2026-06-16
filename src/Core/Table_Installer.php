@@ -73,14 +73,17 @@ class Table_Installer {
         ) {$charset};";
 
         $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_events (
-            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            event_id    BIGINT UNSIGNED NOT NULL,
-            section_id  BIGINT UNSIGNED NOT NULL,
-            name        VARCHAR(255)    NOT NULL DEFAULT '',
-            start_date  DATETIME                 DEFAULT NULL,
-            end_date    DATETIME                 DEFAULT NULL,
-            location    VARCHAR(255)    NOT NULL DEFAULT '',
-            synced_at   DATETIME        NOT NULL,
+            id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            event_id     BIGINT UNSIGNED NOT NULL,
+            section_id   BIGINT UNSIGNED NOT NULL,
+            name         VARCHAR(255)    NOT NULL DEFAULT '',
+            start_date   DATETIME                 DEFAULT NULL,
+            end_date     DATETIME                 DEFAULT NULL,
+            location     VARCHAR(255)    NOT NULL DEFAULT '',
+            yes_members  INT             NOT NULL DEFAULT 0,
+            yes_leaders  INT             NOT NULL DEFAULT 0,
+            no           INT             NOT NULL DEFAULT 0,
+            synced_at    DATETIME        NOT NULL,
             PRIMARY KEY (id),
             UNIQUE KEY idx_event_section (event_id, section_id),
             KEY idx_section_id (section_id)
