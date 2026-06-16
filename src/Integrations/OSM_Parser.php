@@ -87,11 +87,14 @@ class OSM_Parser {
         return array_map(
             static function ( array $item ): array {
                 return [
-                    'event_id'   => (int) $item['eventid'],
-                    'name'       => $item['name']       ?? '',
-                    'start_date' => $item['startdate_g'] ?? '',
-                    'end_date'   => self::uk_to_iso( $item['enddate'] ?? '' ),
-                    'location'   => $item['location']   ?? '',
+                    'event_id'    => (int) $item['eventid'],
+                    'name'        => $item['name']        ?? '',
+                    'start_date'  => $item['startdate_g'] ?? '',
+                    'end_date'    => self::uk_to_iso( $item['enddate'] ?? '' ),
+                    'location'    => $item['location']    ?? '',
+                    'yes_members' => (int) ( $item['yes_members'] ?? 0 ),
+                    'yes_leaders' => (int) ( $item['yes_leaders'] ?? 0 ),
+                    'no'          => (int) ( $item['no']          ?? 0 ),
                 ];
             },
             $raw['items'] ?? []
