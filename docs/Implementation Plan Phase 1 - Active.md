@@ -22,7 +22,9 @@
 | 1.13                  | Training Status Fallback                       | ❌ Not started        |
 | 1.14                  | Column Mapper repurpose (OSM write-back)       | ❌ Not started        |
 
-**Tests**: 229 PHP / 459 assertions green. 16 JS Vitest green.
+**Tests**: 231 PHP / 463 assertions green. 16 JS Vitest green.
+
+**Live OAuth status**: Working end-to-end as of 16 Jun 2026. Fixes this session: `wp_redirect()` for external OAuth redirect; correct `ext/` API endpoint paths; `sectionname` property for display names; section `type` stored and displayed; error handling for OSM error params and `getDataPayload` failures.
 
 ---
 
