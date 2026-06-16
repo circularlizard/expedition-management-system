@@ -216,10 +216,10 @@ class OSM_Reference_Sync {
             }
 
             $attendance = $this->api_client->get_event_attendance( $event_id, $term_id );
-            $items      = $attendance['items'] ?? [];
+            $items      = $attendance['data'] ?? [];
 
             foreach ( $items as $row ) {
-                $scout_id = (int) ( $row['scoutid'] ?? 0 );
+                $scout_id = (int) ( $row['member_id'] ?? 0 );
                 if ( ! $scout_id ) {
                     continue;
                 }
