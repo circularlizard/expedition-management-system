@@ -118,10 +118,11 @@ class Admin_Page {
         $this->render_error_notices();
         $this->render_sync_result_panel();
 
-        $last_sync = get_option( 'ems_osm_last_sync' );
         $base_url  = admin_url( 'admin.php?page=ems-reference' );
 
-        $is_blocked = (bool) get_option( 'ems_api_blocked', false );
+        $is_blocked    = (bool) get_option( 'ems_api_blocked', false );
+        $last_result   = get_transient( 'ems_last_sync_result' );
+        $last_sync     = $last_result['started_at'] ?? null;
 
         echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:10px;">';
         if ( ! $is_blocked ) {
