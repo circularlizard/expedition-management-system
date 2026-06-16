@@ -132,7 +132,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'get_event_attendance' )
             ->with( 40001, 5001 )
             ->once()
-            ->andReturn( [ 'items' => [] ] );
+            ->andReturn( [ 'data' => [] ] );
 
         $replaced = false;
         $this->wpdb->shouldReceive( 'replace' )
@@ -172,9 +172,9 @@ class OSM_Reference_SyncTest extends EMSTestCase {
             ->andReturn( $events );
 
         $attendance = [
-            'items' => [
-                [ 'scoutid' => '1001', 'attending' => 'Yes' ],
-                [ 'scoutid' => '1002', 'attending' => 'No' ],
+            'data' => [
+                [ 'member_id' => '1001', 'attending' => 'Yes' ],
+                [ 'member_id' => '1002', 'attending' => 'No' ],
             ],
         ];
 
@@ -282,7 +282,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'get_section_events' )
             ->andReturn( [ [ 'event_id' => 40001, 'name' => 'Ev', 'start_date' => '2026-08-01', 'end_date' => '2026-08-03', 'location' => '' ] ] );
         $this->api_client->shouldReceive( 'get_event_attendance' )
-            ->andReturn( [ 'items' => [] ] );
+            ->andReturn( [ 'data' => [] ] );
         $this->wpdb->shouldReceive( 'replace' )->andReturn( 1 );
 
         Functions\when( 'current_time' )->justReturn( '2026-06-15 08:00:00' );
