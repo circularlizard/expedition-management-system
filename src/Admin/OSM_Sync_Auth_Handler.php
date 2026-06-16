@@ -81,7 +81,8 @@ class OSM_Sync_Auth_Handler {
         $token_data = $this->exchange_code_for_token( $code );
 
         if ( is_wp_error( $token_data ) ) {
-            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=token_exchange&error_msg=' . rawurlencode( $token_data->get_error_message() ) ) );
+            $safe_msg = substr( $token_data->get_error_message(), 0, 100 );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=token_exchange&error_msg=' . rawurlencode( $safe_msg ) ) );
             return;
         }
 
