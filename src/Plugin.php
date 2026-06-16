@@ -66,6 +66,33 @@ class Plugin {
                 new \EMS\Integrations\TutorLMS_Client()
             );
             $view_controller->register_routes();
+
+            register_rest_route( 'ems/v1', '/sync-status', [
+                'methods'             => 'GET',
+                'callback'            => function() {
+                    $status = get_transient( 'ems_sync_status' ) ?: [ 'state' => 'idle' ];
+                    $result = get_transient( 'ems_last_sync_result' ) ?: [];
+                    $state  = $status['state'] ?? 'idle';
+                    return rest_ensure_response( [
+                        'state'            => $state,
+                        'queued_at'        => $status['queued_at']   ?? null,
+                        'started_at'       => $status['started_at']  ?? null,
+                        'completed_at'     => $status['completed_at'] ?? null,
+                        'members_upserted' => $state === 'running'
+                            ? (int) ( $status['members_upserted'] ?? 0 )
+                            : (int) ( $result['members_upserted'] ?? 0 ),
+                        'members_failed'   => (int) ( $result['members_failed']  ?? 0 ),
+                        'events_upserted'  => $state === 'running'
+                            ? (int) ( $status['events_upserted'] ?? 0 )
+                            : (int) ( $result['events_upserted'] ?? 0 ),
+                        'events_failed'    => (int) ( $result['events_failed']   ?? 0 ),
+                        'error_count'      => count( $result['errors'] ?? [] ),
+                    ] );
+                },
+                'permission_callback' => function() {
+                    return current_user_can( 'manage_options' );
+                },
+            ] );
         } );
 
         // Settings page "Fetch sections from OSM" handler — mock mode only for now (live deferred to 1.10 OAuth callback)
@@ -128,15 +155,14 @@ class Plugin {
             exit;
         } );
 
-        // OSM OAuth Callback — handles live, live-auth-only, live-limited
+        // OSM OAuth Callback — stores job, redirects immediately, cron runs sync
         add_action( 'admin_post_ems_osm_callback', function() {
             $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
             $handler->handle_callback( function( string $token ) {
                 $api_mode = get_option( 'ems_api_mode', 'mock' );
                 $parser   = new OSM_Parser();
                 $driver   = new Live_Driver();
-                $logger   = new \EMS\Integrations\OSM_Sync_Logger();
-                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ), $logger );
+                $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ) );
                 $osm_client->set_access_token( $token );
 
                 try {
@@ -155,7 +181,8 @@ class Plugin {
                 set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
 
                 if ( $api_mode === 'live-auth-only' ) {
-                    $logger->persist();
+                    ( new \EMS\Integrations\OSM_Sync_Logger() )->persist();
+                    wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=auth_only' ) );
                     return;
                 }
 
@@ -172,9 +199,43 @@ class Plugin {
                     ? array_slice( $managed_ids ?: $all_ids, 0, 1 )
                     : $all_ids;
 
-                ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
-                    ->sync( $sync_ids, $payload, $api_mode, $member_limit, $logger );
+                set_transient( 'ems_pending_sync_job', [
+                    'token'        => $token,
+                    'payload'      => $payload,
+                    'sync_ids'     => $sync_ids,
+                    'api_mode'     => $api_mode,
+                    'member_limit' => $member_limit,
+                ], 5 * MINUTE_IN_SECONDS );
+
+                set_transient( 'ems_sync_status', [ 'state' => 'queued', 'queued_at' => gmdate( 'c' ) ], HOUR_IN_SECONDS );
+
+                wp_schedule_single_event( time(), 'ems_run_osm_sync' );
+                spawn_cron();
+
+                wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=running' ) );
             } );
+        } );
+
+        // Background cron: run the actual sync job
+        add_action( 'ems_run_osm_sync', function() {
+            $job = get_transient( 'ems_pending_sync_job' );
+            if ( empty( $job ) ) {
+                return;
+            }
+            delete_transient( 'ems_pending_sync_job' );
+
+            set_transient( 'ems_sync_status', [ 'state' => 'running', 'started_at' => gmdate( 'c' ) ], HOUR_IN_SECONDS );
+
+            $parser     = new OSM_Parser();
+            $driver     = new Live_Driver();
+            $logger     = new \EMS\Integrations\OSM_Sync_Logger();
+            $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ), $logger );
+            $osm_client->set_access_token( $job['token'] );
+
+            $result = ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
+                ->sync( $job['sync_ids'], $job['payload'], $job['api_mode'], $job['member_limit'], $logger );
+
+            set_transient( 'ems_sync_status', [ 'state' => 'done', 'completed_at' => gmdate( 'c' ) ], HOUR_IN_SECONDS );
         } );
 
         // Clear API blocked flag

@@ -116,7 +116,16 @@ class Admin_Page {
         echo '<h1>' . esc_html__( 'OSM Reference Data', 'ems-plugin' ) . '</h1>';
 
         $this->render_error_notices();
-        $this->render_sync_result_panel();
+
+        $sync_status   = get_transient( 'ems_sync_status' );
+        $sync_running  = in_array( $sync_status['state'] ?? '', [ 'queued', 'running' ], true );
+        $sync_param    = isset( $_GET['sync'] ) ? sanitize_key( $_GET['sync'] ) : '';
+
+        if ( $sync_running || $sync_param === 'running' ) {
+            $this->render_sync_progress_banner();
+        } else {
+            $this->render_sync_result_panel();
+        }
 
         $base_url  = admin_url( 'admin.php?page=ems-reference' );
 
@@ -125,7 +134,7 @@ class Admin_Page {
         $last_sync     = $last_result['started_at'] ?? null;
 
         echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:10px;">';
-        if ( ! $is_blocked ) {
+        if ( ! $is_blocked && ! $sync_running ) {
             echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
             echo '<input type="hidden" name="action" value="ems_sync_osm" />';
             wp_nonce_field( 'ems_sync_osm' );
@@ -295,6 +304,58 @@ class Admin_Page {
         if ( isset( $_GET['block_cleared'] ) ) {
             echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'API block flag cleared. You may now attempt a sync.', 'ems-plugin' ) . '</p></div>';
         }
+    }
+
+    private function render_sync_progress_banner(): void {
+        $status_url = esc_js( rest_url( 'ems/v1/sync-status' ) );
+        $nonce      = wp_create_nonce( 'wp_rest' );
+        $reload_url = esc_js( admin_url( 'admin.php?page=ems-reference' ) );
+        ?>
+        <div id="ems-sync-progress" style="background:#fff;border:1px solid #2271b1;border-left:4px solid #2271b1;padding:14px 16px;margin-bottom:16px;border-radius:2px;">
+            <p style="margin:0 0 10px;font-weight:600;">
+                <span id="ems-sync-spinner" class="spinner is-active" style="float:none;margin:0 6px 0 0;vertical-align:middle;"></span>
+                <span id="ems-sync-state-label"><?php esc_html_e( 'Sync queued…', 'ems-plugin' ); ?></span>
+            </p>
+            <ul style="margin:.3em 0 0 1.5em;" id="ems-sync-counts">
+                <li><?php esc_html_e( 'Members synced: ', 'ems-plugin' ); ?><strong id="ems-count-members">—</strong></li>
+                <li><?php esc_html_e( 'Events synced: ', 'ems-plugin' ); ?><strong id="ems-count-events">—</strong></li>
+            </ul>
+        </div>
+        <script>
+        (function() {
+            var statusUrl  = '<?php echo $status_url; ?>',
+                nonce      = '<?php echo $nonce; ?>',
+                reloadUrl  = '<?php echo $reload_url; ?>',
+                interval;
+
+            function updateLabel( state ) {
+                var labels = { queued: 'Sync queued — waiting for background process…', running: 'Sync running…', done: 'Sync complete — reloading…' };
+                document.getElementById('ems-sync-state-label').textContent = labels[state] || state;
+            }
+
+            function poll() {
+                fetch( statusUrl, { headers: { 'X-WP-Nonce': nonce } } )
+                    .then( function(r) { return r.json(); } )
+                    .then( function(data) {
+                        updateLabel( data.state );
+                        if ( data.state === 'running' || data.state === 'done' ) {
+                            document.getElementById('ems-count-members').textContent = data.members_upserted;
+                            document.getElementById('ems-count-events').textContent  = data.events_upserted;
+                        }
+                        if ( data.state === 'done' ) {
+                            clearInterval( interval );
+                            document.getElementById('ems-sync-spinner').classList.remove('is-active');
+                            setTimeout( function() { window.location.href = reloadUrl; }, 1500 );
+                        }
+                    } )
+                    .catch( function() {} );
+            }
+
+            poll();
+            interval = setInterval( poll, 3000 );
+        })();
+        </script>
+        <?php
     }
 
     private function render_sync_result_panel(): void {
