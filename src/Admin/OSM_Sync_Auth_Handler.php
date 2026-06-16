@@ -100,6 +100,10 @@ class OSM_Sync_Auth_Handler {
      * Exchanges the authorization code for an access token.
      */
     private function exchange_code_for_token( string $code ) {
+        if ( ! str_starts_with( $this->token_url, 'https://' ) ) {
+            return new \WP_Error( 'osm_token_error', 'Token URL must use HTTPS to protect client credentials.' );
+        }
+
         $response = wp_remote_post( $this->token_url, [
             'body' => [
                 'grant_type'    => 'authorization_code',
