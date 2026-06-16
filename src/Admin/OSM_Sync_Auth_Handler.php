@@ -46,7 +46,7 @@ class OSM_Sync_Auth_Handler {
             'state'         => $state,
         ] );
 
-        wp_safe_redirect( $this->auth_url . '?' . $query );
+        wp_redirect( $this->auth_url . '?' . $query ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- intentional external redirect to OSM OAuth
     }
 
     /**
