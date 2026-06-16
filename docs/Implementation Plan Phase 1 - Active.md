@@ -14,14 +14,14 @@
 | Foundations + 1.1–1.6 | All completed | ✅ See archive |
 | Step 0 | Anonymised mock data generation | ✅ Done — 15 Jun 2026 |
 | 1.7 | Admin Read Views | ✅ Done — 15 Jun 2026 |
-| 1.8 | Diagnostics + Reference Data Display | ❌ Not started |
+| 1.8 | Diagnostics + Reference Data Display | ✅ Done — 15 Jun 2026 |
 | 1.9 | OSM Auth Test Modes + Sync Progress Feedback | ❌ Not started |
 | 1.10 | Expedition Board deep review | ❌ Not started |
 | 1.11 | Expedition write logic + Explorer Assignment | ❌ Not started |
 | 1.12 | Training Status Fallback | ❌ Not started |
 | 1.13 | Column Mapper repurpose (OSM write-back) | ❌ Not started |
 
-**Tests**: 168 PHP / 322 assertions green. 16 JS Vitest green.
+**Tests**: 174 PHP / 332 assertions green. 16 JS Vitest green.
 
 ---
 
@@ -67,35 +67,19 @@
 
 ---
 
-### Stage 1.8 — Diagnostics + Reference Data Display ❌
+### ✅ Stage 1.8 — Diagnostics + Reference Data Display *(complete — 15 Jun 2026)*
 
-#### Diagnostic panel — fix and relocate
+**`Diagnostic_Panel`** split into `get_system_html()` (always populated) and `get_user_html()` (OIDC users only); `get_html()` retained as backward-compat alias. System panel shows: API mode, client ID configured (yes/no), managed sections, last sync timestamp, DB row counts (explorers/events/attendance), rate limit headers.
 
-`Diagnostic_Panel` is **blank for all local admin accounts** because it only shows content when `ems_access_type` user meta is set — which only happens via OIDC login, not via the admin sync OAuth flow.
+**`render_dashboard()`** cleaned up — diagnostic panel removed from Expedition Board page.
 
-**Tasks:**
-- Add system-level diagnostics that are always populated regardless of who is logged in:
-  - `ems_api_mode` (mock/live)
-  - `ems_osm_client_id` configured? (yes/no, don't show value)
-  - `ems_managed_sections` list
-  - `ems_osm_last_sync` timestamp
-  - `ems_last_sync_result` summary (from transient, populated in 1.9)
-  - OSM rate limit headers (already rendered, just conditionally hidden)
-  - DB row counts for each EMS table (explorers, events, attendance)
-- Move diagnostic panel from Expedition Board page to the OSM Reference page where it belongs
-- Keep current per-user OIDC section (access type, scout IDs, section IDs) — show only when `ems_access_type` is set
+**`render_reference_page()`** replaced with four WP nav-tabs (active tab via `?tab=` query param):
+- **Explorers** — existing table unchanged
+- **Patrols** — grouped summary (patrol name + member count)
+- **Events** — events + attendance count JOIN
+- **Diagnostics** — system panel + per-user OIDC section (when set)
 
-#### Reference data display — tabs for explorers, patrols, events
-
-`render_reference_page()` currently shows a single explorers table. Replace with a tabbed layout using WP admin nav-tabs:
-
-- **Explorers tab** — existing table (scout ID, name, patrol, email); unchanged
-- **Patrols tab** — group `ems_osm_explorers` by `patrol`, show patrol name + member count as a summary table
-- **Events tab** — query `ems_osm_events` with attendance count (JOIN `ems_osm_event_attendance`); show event name, start date, end date, location, attendance count
-- All tabs show "No data — run a sync first" when empty
-- Active tab persisted via `?tab=` query param so a redirect back to the page lands on the right tab
-
-**Complete when**: diagnostic panel shows useful content for any admin login; three tabs render correctly; panel relocated from Expedition Board page.
+**6 new PHP tests** (Diagnostic_Panel system diagnostics + backward-compat alias). **174 PHP / 332 assertions.**
 
 ---
 
