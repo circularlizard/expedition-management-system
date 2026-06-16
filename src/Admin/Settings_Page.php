@@ -52,6 +52,11 @@ class Settings_Page {
                 update_option( 'ems_osm_client_secret', $encrypted );
             }
         }
+
+        $scope = sanitize_text_field( $post_data['ems_osm_scope'] ?? '' );
+        if ( $scope !== '' ) {
+            update_option( 'ems_osm_scope', $scope );
+        }
     }
 
     public function save_sections( array $post_data ): void {
@@ -171,6 +176,7 @@ class Settings_Page {
         $token_url    = get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
         $resource_url = get_option( 'ems_osm_resource_url', 'https://www.onlinescoutmanager.co.uk/oauth/resource' );
         $client_id    = get_option( 'ems_osm_client_id', '' );
+        $scope        = get_option( 'ems_osm_scope', 'section:member:read section:events:read section:flexirecord:read' );
         $has_secret   = ! empty( get_option( 'ems_osm_client_secret' ) );
         $redirect_uri = admin_url( 'admin-post.php?action=ems_osm_callback' );
         ?>
@@ -217,6 +223,13 @@ class Settings_Page {
                 <tr>
                     <th scope="row"><?php esc_html_e( 'Resource Owner URL', 'ems-plugin' ); ?></th>
                     <td><input type="url" name="ems_osm_resource_url" value="<?php echo esc_attr( $resource_url ); ?>" class="regular-text" /></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'OAuth Scope', 'ems-plugin' ); ?></th>
+                    <td>
+                        <input type="text" name="ems_osm_scope" value="<?php echo esc_attr( $scope ); ?>" class="large-text" />
+                        <p class="description"><?php esc_html_e( 'Space-separated OAuth scopes requested during authorization.', 'ems-plugin' ); ?></p>
+                    </td>
                 </tr>
             </table>
             <p class="submit">
