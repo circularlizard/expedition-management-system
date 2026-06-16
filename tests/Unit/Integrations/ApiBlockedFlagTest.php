@@ -21,6 +21,7 @@ class ApiBlockedFlagTest extends EMSTestCase {
     protected function setUp(): void {
         parent::setUp();
         $this->api_client = Mockery::mock( OSM_API_Client::class );
+        $this->api_client->shouldReceive( 'set_sync_result' )->zeroOrMoreTimes();
 
         $this->wpdb             = Mockery::mock( 'wpdb' );
         $this->wpdb->prefix     = 'wp_';
