@@ -79,6 +79,7 @@ class Table_Installer {
             name        VARCHAR(255)    NOT NULL DEFAULT '',
             start_date  DATETIME                 DEFAULT NULL,
             end_date    DATETIME                 DEFAULT NULL,
+            location    VARCHAR(255)    NOT NULL DEFAULT '',
             synced_at   DATETIME        NOT NULL,
             PRIMARY KEY (id),
             UNIQUE KEY idx_event_section (event_id, section_id),
