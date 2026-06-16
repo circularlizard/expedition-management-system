@@ -91,8 +91,6 @@ class Admin_Page {
     }
 
     public function render_dashboard(): void {
-        $user_id = get_current_user_id();
-
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'Expedition Board', 'ems-plugin' ) . '</h1>';
 
@@ -101,16 +99,18 @@ class Admin_Page {
         }
 
         echo '<div id="ems-expedition-board-root"></div>';
-
-        echo '<hr />';
-        echo '<h2>' . esc_html__( 'OSM Account Diagnostic', 'ems-plugin' ) . '</h2>';
-        $this->diagnostic->render( $user_id );
         echo '</div>';
     }
 
 
     public function render_reference_page(): void {
         global $wpdb;
+
+        $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'explorers';
+        $valid_tabs = [ 'explorers', 'patrols', 'events', 'diagnostics' ];
+        if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
+            $active_tab = 'explorers';
+        }
 
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__( 'OSM Reference Data', 'ems-plugin' ) . '</h1>';
@@ -119,45 +119,160 @@ class Admin_Page {
             echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM data synced successfully.', 'ems-plugin' ) . '</p></div>';
         }
 
-        $last_sync = get_option( 'ems_osm_last_sync' );
-        echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;">';
+        $last_sync   = get_option( 'ems_osm_last_sync' );
+        $base_url    = admin_url( 'admin.php?page=ems-reference' );
+
+        echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:10px;">';
         echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
         echo '<input type="hidden" name="action" value="ems_sync_osm" />';
         wp_nonce_field( 'ems_sync_osm' );
         echo '<button type="submit" class="button button-primary">' . esc_html__( 'Sync from OSM', 'ems-plugin' ) . '</button>';
         echo '</form>';
         if ( $last_sync ) {
-            echo '<span style="color:#666;">Last synced: ' . esc_html( $last_sync ) . '</span>';
+            echo '<span style="color:#666;">' . esc_html__( 'Last synced:', 'ems-plugin' ) . ' ' . esc_html( $last_sync ) . '</span>';
         } else {
-            echo '<span style="color:#999;">Never synced</span>';
+            echo '<span style="color:#999;">' . esc_html__( 'Never synced', 'ems-plugin' ) . '</span>';
         }
         echo '</div>';
 
-        $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
-        $explorers       = $wpdb->get_results( "SELECT * FROM {$explorers_table} ORDER BY last_name, first_name", ARRAY_A );
+        $tab_labels = [
+            'explorers'   => __( 'Explorers', 'ems-plugin' ),
+            'patrols'     => __( 'Patrols', 'ems-plugin' ),
+            'events'      => __( 'Events', 'ems-plugin' ),
+            'diagnostics' => __( 'Diagnostics', 'ems-plugin' ),
+        ];
+
+        echo '<nav class="nav-tab-wrapper" style="margin-bottom:0;">';
+        foreach ( $tab_labels as $slug => $label ) {
+            $class = ( $slug === $active_tab ) ? 'nav-tab nav-tab-active' : 'nav-tab';
+            echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
+        }
+        echo '</nav>';
+        echo '<div style="border:1px solid #ccd0d4;border-top:none;background:#fff;padding:20px;margin-bottom:20px;">';
+
+        if ( $active_tab === 'explorers' ) {
+            $this->render_explorers_tab( $wpdb );
+        } elseif ( $active_tab === 'patrols' ) {
+            $this->render_patrols_tab( $wpdb );
+        } elseif ( $active_tab === 'events' ) {
+            $this->render_events_tab( $wpdb );
+        } elseif ( $active_tab === 'diagnostics' ) {
+            $this->render_diagnostics_tab();
+        }
+
+        echo '</div>';
+        echo '</div>';
+    }
+
+    private function render_explorers_tab( $wpdb ): void {
+        $table     = $wpdb->prefix . 'ems_osm_explorers';
+        $explorers = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY last_name, first_name", ARRAY_A );
 
         if ( $wpdb->last_error ) {
-            echo '<div class="notice notice-error"><p><strong>Database error:</strong> ' . esc_html( $wpdb->last_error ) . '</p></div>';
+            echo '<div class="notice notice-error inline"><p><strong>DB error:</strong> ' . esc_html( $wpdb->last_error ) . '</p></div>';
+            return;
         }
 
-        echo '<h2>' . esc_html__( 'Explorers', 'ems-plugin' ) . ' <span style="font-size:0.7em;font-weight:normal;color:#666;">(' . (int) count( (array) $explorers ) . ')</span></h2>';
-        if ( ! empty( $explorers ) ) {
-            echo '<table class="wp-list-table widefat fixed striped">';
-            echo '<thead><tr><th>' . esc_html__( 'Scout ID', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th><th>' . esc_html__( 'Email', 'ems-plugin' ) . '</th></tr></thead><tbody>';
-            foreach ( $explorers as $row ) {
-                echo '<tr>';
-                echo '<td>' . esc_html( $row['scout_id'] ) . '</td>';
-                echo '<td>' . esc_html( $row['first_name'] . ' ' . $row['last_name'] ) . '</td>';
-                echo '<td>' . esc_html( $row['patrol'] ) . '</td>';
-                echo '<td>' . esc_html( $row['email'] ) . '</td>';
-                echo '</tr>';
-            }
-            echo '</tbody></table>';
-        } else {
+        if ( empty( $explorers ) ) {
             echo '<p>' . esc_html__( 'No explorer data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
+            return;
         }
 
-        echo '</div>';
+        echo '<p style="color:#666;">' . sprintf( esc_html__( '%d explorers', 'ems-plugin' ), count( $explorers ) ) . '</p>';
+        echo '<table class="wp-list-table widefat fixed striped">';
+        echo '<thead><tr>';
+        echo '<th>' . esc_html__( 'Scout ID', 'ems-plugin' ) . '</th>';
+        echo '<th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th>';
+        echo '<th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th>';
+        echo '<th>' . esc_html__( 'Email', 'ems-plugin' ) . '</th>';
+        echo '</tr></thead><tbody>';
+        foreach ( $explorers as $row ) {
+            echo '<tr>';
+            echo '<td>' . esc_html( $row['scout_id'] ) . '</td>';
+            echo '<td>' . esc_html( $row['first_name'] . ' ' . $row['last_name'] ) . '</td>';
+            echo '<td>' . esc_html( $row['patrol'] ) . '</td>';
+            echo '<td>' . esc_html( $row['email'] ) . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+    }
+
+    private function render_patrols_tab( $wpdb ): void {
+        $table  = $wpdb->prefix . 'ems_osm_explorers';
+        $rows   = $wpdb->get_results(
+            "SELECT patrol, COUNT(*) AS member_count FROM {$table} GROUP BY patrol ORDER BY patrol",
+            ARRAY_A
+        );
+
+        if ( empty( $rows ) ) {
+            echo '<p>' . esc_html__( 'No patrol data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
+            return;
+        }
+
+        echo '<table class="wp-list-table widefat fixed striped">';
+        echo '<thead><tr>';
+        echo '<th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th>';
+        echo '<th>' . esc_html__( 'Members', 'ems-plugin' ) . '</th>';
+        echo '</tr></thead><tbody>';
+        foreach ( $rows as $row ) {
+            echo '<tr>';
+            echo '<td>' . esc_html( $row['patrol'] ?: __( '(none)', 'ems-plugin' ) ) . '</td>';
+            echo '<td>' . (int) $row['member_count'] . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+    }
+
+    private function render_events_tab( $wpdb ): void {
+        $events_table     = $wpdb->prefix . 'ems_osm_events';
+        $attendance_table = $wpdb->prefix . 'ems_osm_event_attendance';
+
+        $rows = $wpdb->get_results(
+            "SELECT e.event_id, e.name, e.start_date, e.end_date, e.location,
+                    COUNT(a.id) AS attendance_count
+             FROM {$events_table} e
+             LEFT JOIN {$attendance_table} a ON a.event_id = e.event_id
+             GROUP BY e.event_id
+             ORDER BY e.start_date DESC",
+            ARRAY_A
+        );
+
+        if ( empty( $rows ) ) {
+            echo '<p>' . esc_html__( 'No event data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
+            return;
+        }
+
+        echo '<table class="wp-list-table widefat fixed striped">';
+        echo '<thead><tr>';
+        echo '<th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th>';
+        echo '<th>' . esc_html__( 'Start', 'ems-plugin' ) . '</th>';
+        echo '<th>' . esc_html__( 'End', 'ems-plugin' ) . '</th>';
+        echo '<th>' . esc_html__( 'Location', 'ems-plugin' ) . '</th>';
+        echo '<th>' . esc_html__( 'Attendance', 'ems-plugin' ) . '</th>';
+        echo '</tr></thead><tbody>';
+        foreach ( $rows as $row ) {
+            echo '<tr>';
+            echo '<td>' . esc_html( $row['name'] ) . '</td>';
+            echo '<td>' . esc_html( $row['start_date'] ) . '</td>';
+            echo '<td>' . esc_html( $row['end_date'] ) . '</td>';
+            echo '<td>' . esc_html( $row['location'] ) . '</td>';
+            echo '<td>' . (int) $row['attendance_count'] . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+    }
+
+    private function render_diagnostics_tab(): void {
+        $user_id = get_current_user_id();
+
+        echo '<h3>' . esc_html__( 'System', 'ems-plugin' ) . '</h3>';
+        echo $this->diagnostic->get_system_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+        $access_type = get_user_meta( $user_id, 'ems_access_type', true );
+        if ( ! empty( $access_type ) && $access_type !== 'local' ) {
+            echo '<h3 style="margin-top:20px;">' . esc_html__( 'Your OSM Account', 'ems-plugin' ) . '</h3>';
+            echo $this->diagnostic->get_user_html( $user_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        }
     }
 
     public function render_column_mapper(): void {
