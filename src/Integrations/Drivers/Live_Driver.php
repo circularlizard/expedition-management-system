@@ -89,28 +89,31 @@ class Live_Driver implements Driver_Interface {
     }
 
     public function get_section_members( int $section_id, int $term_id ): array {
+        $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
         $url = add_query_arg( [
             'action'    => 'getListOfMembers',
             'sort'      => 'dob',
             'sectionid' => $section_id,
             'termid'    => $term_id,
             'section'   => 'explorers',
-        ], 'https://www.onlinescoutmanager.co.uk/ext/members/contact/' );
+        ], $base . '/ext/members/contact/' );
 
         return $this->request( $url );
     }
 
     public function get_section_events( int $section_id, int $term_id ): array {
+        $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
         $url = add_query_arg( [
             'action'    => 'get',
             'sectionid' => $section_id,
             'termid'    => $term_id,
-        ], 'https://www.onlinescoutmanager.co.uk/ext/events/summary/' );
+        ], $base . '/ext/events/summary/' );
 
         return $this->request( $url );
     }
 
     public function get_member_detail( int $section_id, int $scout_id, int $term_id ): array {
+        $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
         $url = add_query_arg( [
             'action'               => 'getData',
             'section_id'          => $section_id,
@@ -120,7 +123,7 @@ class Live_Driver implements Driver_Interface {
             'varname_filter'      => 'null',
             'context'             => 'members',
             'group_order'         => 'section',
-        ], 'https://www.onlinescoutmanager.co.uk/ext/customdata/' );
+        ], $base . '/ext/customdata/' );
 
         return $this->request( $url );
     }

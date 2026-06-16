@@ -103,10 +103,22 @@ class Settings_PageTest extends EMSTestCase {
         Functions\when( 'esc_url_raw' )->alias( static fn( $v ) => $v );
 
         ( new Settings_Page() )->save_connection( [
+            'ems_osm_api_base_url' => 'https://www.onlinescoutmanager.co.uk',
+        ] );
+
+        $this->assertSame( 'https://www.onlinescoutmanager.co.uk', $stored['ems_osm_api_base_url'] );
+    }
+
+    public function test_save_connection_strips_legacy_api_php_suffix(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+        Functions\when( 'esc_url_raw' )->alias( static fn( $v ) => $v );
+
+        ( new Settings_Page() )->save_connection( [
             'ems_osm_api_base_url' => 'https://www.onlinescoutmanager.co.uk/api.php',
         ] );
 
-        $this->assertSame( 'https://www.onlinescoutmanager.co.uk/api.php', $stored['ems_osm_api_base_url'] );
+        $this->assertSame( 'https://www.onlinescoutmanager.co.uk', $stored['ems_osm_api_base_url'] );
     }
 
     public function test_save_connection_rejects_non_https_base_url(): void {
@@ -223,6 +235,6 @@ class Settings_PageTest extends EMSTestCase {
             'ems_osm_api_base_url' => 'https://www.onlinescoutmanager.co.uk/api.php',
         ] );
 
-        $this->assertSame( 'https://www.onlinescoutmanager.co.uk/api.php', $stored['ems_osm_api_base_url'] );
+        $this->assertSame( 'https://www.onlinescoutmanager.co.uk', $stored['ems_osm_api_base_url'] );
     }
 }
