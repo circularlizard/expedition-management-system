@@ -63,6 +63,12 @@ class OSM_Reference_Sync {
                 $this->sync_patrols( $wpdb, $section_id, $now, $result );
                 $this->sync_members( $wpdb, $section_id, $term_id, $section_type, $now, $result, $member_limit );
                 $this->sync_events_and_attendance( $wpdb, $section_id, $term_id, $now, $result );
+
+                set_transient( 'ems_sync_status', [
+                    'state'            => 'running',
+                    'members_upserted' => $result->members_upserted,
+                    'events_upserted'  => $result->events_upserted,
+                ], HOUR_IN_SECONDS );
             }
 
         } catch ( Rate_Limit_Exception $e ) {
