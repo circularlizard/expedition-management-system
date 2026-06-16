@@ -28,7 +28,8 @@ class OSM_Auth_Integration {
         update_user_meta( $user->ID, 'ems_unit', $data['patrol'] ?? '' );
 
         if ( ! empty( $data['access_token'] ) ) {
-            $payload = $this->api_client->get_data_payload( $data['access_token'] );
+            $this->api_client->set_access_token( $data['access_token'] );
+            $payload = $this->api_client->get_data_payload();
 
             if ( ! empty( $payload ) ) {
                 update_user_meta( $user->ID, 'ems_access_type', $this->parser->parse_access_type( $payload ) );

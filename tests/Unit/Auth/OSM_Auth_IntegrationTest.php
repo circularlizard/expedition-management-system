@@ -30,9 +30,10 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
     public function test_handle_osm_login_does_not_store_access_token_in_session(): void {
         Functions\stubs( [ 'update_user_meta' ] );
 
+        $this->api_client->shouldReceive( 'set_access_token' )->once()->with( 'secret-token' );
         $this->api_client->shouldReceive( 'get_data_payload' )
             ->once()
-            ->with( 'secret-token' )
+            ->withNoArgs()
             ->andReturn( [] );
 
         $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
@@ -62,7 +63,8 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             return true;
         } );
 
-        $this->api_client->shouldReceive( 'get_data_payload' )->andReturn( [] );
+        $this->api_client->shouldReceive( 'set_access_token' )->andReturn();
+        $this->api_client->shouldReceive( 'get_data_payload' )->withNoArgs()->andReturn( [] );
 
         $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
         $integration->handle_osm_login( $this->user, [
@@ -84,9 +86,10 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             return true;
         } );
 
+        $this->api_client->shouldReceive( 'set_access_token' )->once()->with( 'parent-token' );
         $this->api_client->shouldReceive( 'get_data_payload' )
             ->once()
-            ->with( 'parent-token' )
+            ->withNoArgs()
             ->andReturn( $raw_payload );
 
         $real_parser = new OSM_Parser();
@@ -110,9 +113,10 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             return true;
         } );
 
+        $this->api_client->shouldReceive( 'set_access_token' )->once()->with( 'explorer-token' );
         $this->api_client->shouldReceive( 'get_data_payload' )
             ->once()
-            ->with( 'explorer-token' )
+            ->withNoArgs()
             ->andReturn( $raw_payload );
 
         $integration = new OSM_Auth_Integration( $this->api_client, new OSM_Parser() );

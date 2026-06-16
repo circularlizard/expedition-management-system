@@ -56,7 +56,7 @@ class Live_DriverTest extends EMSTestCase {
         $body   = json_encode( [ 'data' => [ 'globals' => [ 'userid' => '123' ] ] ] );
         $this->stub_request( 200, [], $body );
 
-        $result = $driver->get_data_payload( 'test-token' );
+        $result = $driver->get_data_payload();
         $this->assertSame( '123', $result['data']['globals']['userid'] );
     }
 
@@ -78,7 +78,7 @@ class Live_DriverTest extends EMSTestCase {
 
         $driver = new Live_Driver();
         $driver->set_access_token( 'my-secret-token' );
-        $driver->get_data_payload( 'my-secret-token' );
+        $driver->get_data_payload();
 
         $this->assertSame( 'Bearer my-secret-token', $captured_args['headers']['Authorization'] );
     }
@@ -93,7 +93,7 @@ class Live_DriverTest extends EMSTestCase {
 
         $this->expectException( Api_Response_Exception::class );
         $this->expectExceptionMessageMatches( '/Could not resolve host/' );
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
     }
 
     // -------------------------------------------------------------------
@@ -110,7 +110,7 @@ class Live_DriverTest extends EMSTestCase {
         ], '' );
 
         $this->expectException( Rate_Limit_Exception::class );
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
     }
 
     public function test_429_exception_carries_retry_after(): void {
@@ -121,7 +121,7 @@ class Live_DriverTest extends EMSTestCase {
         ], '' );
 
         try {
-            $driver->get_data_payload( 'token' );
+            $driver->get_data_payload();
             $this->fail( 'Expected Rate_Limit_Exception' );
         } catch ( Rate_Limit_Exception $e ) {
             $this->assertSame( 120, $e->get_retry_after() );
@@ -139,7 +139,7 @@ class Live_DriverTest extends EMSTestCase {
         ], '' );
 
         try {
-            $driver->get_data_payload( 'token' );
+            $driver->get_data_payload();
         } catch ( Rate_Limit_Exception $e ) {
             // Expected
         }
@@ -163,7 +163,7 @@ class Live_DriverTest extends EMSTestCase {
         ], '{}' );
 
         $this->expectException( Api_Blocked_Exception::class );
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
     }
 
     public function test_x_blocked_exception_carries_header_value(): void {
@@ -173,7 +173,7 @@ class Live_DriverTest extends EMSTestCase {
         ], '{}' );
 
         try {
-            $driver->get_data_payload( 'token' );
+            $driver->get_data_payload();
             $this->fail( 'Expected Api_Blocked_Exception' );
         } catch ( Api_Blocked_Exception $e ) {
             $this->assertSame( 'abuse', $e->get_blocked_header() );
@@ -188,7 +188,7 @@ class Live_DriverTest extends EMSTestCase {
         ], '' );
 
         $this->expectException( Api_Blocked_Exception::class );
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
     }
 
     // -------------------------------------------------------------------
@@ -200,7 +200,7 @@ class Live_DriverTest extends EMSTestCase {
         $this->stub_request( 200, [], '<html>Error page</html>' );
 
         $this->expectException( Api_Response_Exception::class );
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
     }
 
     public function test_json_scalar_body_throws_api_response_exception(): void {
@@ -208,7 +208,7 @@ class Live_DriverTest extends EMSTestCase {
         $this->stub_request( 200, [], '"just a string"' );
 
         $this->expectException( Api_Response_Exception::class );
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
     }
 
     public function test_empty_body_throws_api_response_exception(): void {
@@ -216,7 +216,7 @@ class Live_DriverTest extends EMSTestCase {
         $this->stub_request( 200, [], '' );
 
         $this->expectException( Api_Response_Exception::class );
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
     }
 
     // -------------------------------------------------------------------
@@ -231,7 +231,7 @@ class Live_DriverTest extends EMSTestCase {
             'x-ratelimit-reset'     => '1800',
         ], '{"ok":true}' );
 
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
         $h = $driver->get_last_response_headers();
 
         $this->assertSame( 200, $h['http_status'] );
@@ -249,7 +249,7 @@ class Live_DriverTest extends EMSTestCase {
             'x-deprecated' => 'This endpoint will be removed on 2027-01-01',
         ], '{"ok":true}' );
 
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
         $h = $driver->get_last_response_headers();
 
         $this->assertSame( 'This endpoint will be removed on 2027-01-01', $h['x-deprecated'] );
@@ -259,7 +259,7 @@ class Live_DriverTest extends EMSTestCase {
         $driver = $this->make_driver();
         $this->stub_request( 200, [], '{"ok":true}' );
 
-        $driver->get_data_payload( 'token' );
+        $driver->get_data_payload();
         $h = $driver->get_last_response_headers();
 
         $this->assertNull( $h['x-ratelimit-limit'] );
