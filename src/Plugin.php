@@ -68,6 +68,25 @@ class Plugin {
             $view_controller->register_routes();
         } );
 
+        // Settings page "Fetch sections from OSM" handler — works in all modes
+        add_action( 'admin_post_ems_fetch_sections', function() {
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( 'Forbidden' );
+            }
+            check_admin_referer( 'ems_fetch_sections' );
+
+            $api_mode = get_option( 'ems_api_mode', 'mock' );
+            $parser   = new OSM_Parser();
+
+            // TODO 1.10: for live modes, perform OAuth flow and use Live_Driver
+            $driver     = new Mock_Driver();
+            $osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
+            $payload    = $osm_client->get_data_payload( 'mock_token' );
+            set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&fetched=1' ) );
+            exit;
+        } );
+
         // OSM Reference page "Sync from OSM" form handler
         add_action( 'admin_post_ems_sync_osm', function() {
             if ( ! current_user_can( 'manage_options' ) ) {
