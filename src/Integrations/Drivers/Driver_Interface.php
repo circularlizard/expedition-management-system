@@ -6,6 +6,7 @@ interface Driver_Interface {
     public function get_section_members( int $section_id, int $term_id, string $section_type = 'explorers' ): array;
     public function get_section_events( int $section_id, int $term_id ): array;
     public function get_member_detail( int $section_id, int $scout_id, int $term_id ): array;
+    public function get_patrols( int $section_id ): array;
     public function get_flexi_records( int $section_id ): array;
     public function get_flexi_record_structure( int $section_id, int $flexi_id ): array;
     public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array;

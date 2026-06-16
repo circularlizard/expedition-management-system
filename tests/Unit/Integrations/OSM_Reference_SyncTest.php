@@ -18,6 +18,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         parent::setUp();
         $this->api_client = Mockery::mock( OSM_API_Client::class );
         $this->api_client->shouldReceive( 'set_sync_result' )->zeroOrMoreTimes();
+        $this->api_client->shouldReceive( 'get_patrols' )->zeroOrMoreTimes()->andReturn( [ 'patrols' => [] ] );
         $this->parser     = new OSM_Parser();
 
         Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
