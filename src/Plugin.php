@@ -169,7 +169,7 @@ class Plugin {
                     : 0;
 
                 $sync_ids = ( $api_mode === 'live-limited' )
-                    ? array_slice( $all_ids, 0, 1 )
+                    ? array_slice( $managed_ids ?: $all_ids, 0, 1 )
                     : $all_ids;
 
                 ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
