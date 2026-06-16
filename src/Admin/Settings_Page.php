@@ -67,7 +67,10 @@ class Settings_Page {
         $sections = [];
         foreach ( $checked_ids as $id ) {
             if ( isset( $available[ $id ] ) ) {
-                $sections[ $id ] = [ 'name' => sanitize_text_field( $available[ $id ]['name'] ?? '' ) ];
+                $sections[ $id ] = [
+                    'name' => sanitize_text_field( $available[ $id ]['name'] ?? '' ),
+                    'type' => sanitize_text_field( $available[ $id ]['type'] ?? '' ),
+                ];
             }
         }
         update_option( 'ems_managed_sections', $sections );
@@ -265,6 +268,7 @@ class Settings_Page {
                     <tr>
                         <th style="width:40px"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
                         <th><?php esc_html_e( 'Section Name', 'ems-plugin' ); ?></th>
+                        <th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
                         <th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
                     </tr>
                 </thead>
@@ -273,10 +277,12 @@ class Settings_Page {
                         $id      = (int) $id;
                         $checked = isset( $managed[ $id ] );
                         $name    = esc_html( $data['name'] ?? '' );
+                        $type    = esc_html( $data['type'] ?? '' );
                     ?>
                     <tr>
                         <td><input type="checkbox" name="ems_managed_section_ids[]" value="<?php echo $id; ?>" <?php checked( $checked ); ?> /></td>
                         <td><?php echo $name; ?></td>
+                        <td><?php echo $type; ?></td>
                         <td><code><?php echo $id; ?></code></td>
                     </tr>
                     <?php endforeach; ?>
@@ -294,12 +300,14 @@ class Settings_Page {
             <thead><tr>
                 <th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
                 <th><?php esc_html_e( 'Name', 'ems-plugin' ); ?></th>
+                <th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
             </tr></thead>
             <tbody>
                 <?php foreach ( $managed as $id => $data ) : ?>
                 <tr>
                     <td><code><?php echo (int) $id; ?></code></td>
                     <td><?php echo esc_html( $data['name'] ?? '' ); ?></td>
+                    <td><?php echo esc_html( $data['type'] ?? '' ); ?></td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
