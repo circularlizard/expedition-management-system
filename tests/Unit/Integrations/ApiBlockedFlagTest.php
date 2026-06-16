@@ -125,6 +125,35 @@ class ApiBlockedFlagTest extends EMSTestCase {
         $this->assertStringContainsString( 'error=api_blocked', $redirect_url );
     }
 
+    public function test_handle_callback_redirects_with_api_blocked_error_when_flag_set(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+            if ( $key === 'ems_api_blocked' )     return true;
+            if ( $key === 'ems_osm_client_id' )   return 'client-id';
+            if ( $key === 'ems_osm_client_secret' ) return \EMS\Core\Encryption::encrypt( 'secret' );
+            if ( $key === 'ems_osm_auth_url' )    return 'https://osm.example/auth';
+            if ( $key === 'ems_osm_token_url' )   return 'https://osm.example/token';
+            return $default;
+        } );
+        Functions\when( 'admin_url' )->alias( function( $path ) {
+            return 'https://localhost/wp-admin/' . ltrim( $path, '/' );
+        } );
+
+        $redirect_url = null;
+        Functions\when( 'wp_safe_redirect' )->alias( function( $url ) use ( &$redirect_url ) {
+            $redirect_url = $url;
+        } );
+
+        $on_success_called = false;
+        $handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
+        $handler->handle_callback( function() use ( &$on_success_called ) {
+            $on_success_called = true;
+        } );
+
+        $this->assertStringContainsString( 'error=api_blocked', $redirect_url );
+        $this->assertFalse( $on_success_called, 'on_success must not be called when API is blocked' );
+    }
+
     public function test_initiate_proceeds_normally_when_flag_not_set(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
         Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
