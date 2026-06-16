@@ -61,8 +61,6 @@ class OSM_Reference_Sync {
                 $this->sync_events_and_attendance( $wpdb, $section_id, $term_id, $now, $result );
             }
 
-            update_option( 'ems_osm_last_sync', current_time( 'mysql' ) );
-
         } catch ( Rate_Limit_Exception $e ) {
             $result->rate_limited           = true;
             $result->retry_after_seconds    = $e->get_retry_after();
