@@ -267,7 +267,7 @@ class Plugin {
             $result = ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
                 ->sync( $job['sync_ids'], $job['payload'], $job['api_mode'], $job['member_limit'], $logger );
 
-            set_transient( 'ems_sync_status', [ 'state' => 'done', 'completed_at' => gmdate( 'c' ) ], HOUR_IN_SECONDS );
+            delete_transient( 'ems_sync_status' );
         } );
 
         // Clear API blocked flag
