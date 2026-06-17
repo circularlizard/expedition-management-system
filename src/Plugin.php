@@ -156,7 +156,7 @@ class Plugin {
                         'api_mode'     => $api_mode,
                         'member_limit' => $member_limit,
                     ], 5 * MINUTE_IN_SECONDS );
-                    set_transient( 'ems_sync_status', [ 'state' => 'queued', 'queued_at' => gmdate( 'c' ) ], HOUR_IN_SECONDS );
+                    set_transient( 'ems_sync_status', [ 'state' => 'queued', 'queued_at' => time() ], HOUR_IN_SECONDS );
                     wp_schedule_single_event( time(), 'ems_run_osm_sync' );
                     spawn_cron();
                     wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=running' ) );
@@ -239,7 +239,7 @@ class Plugin {
                     'member_limit' => $member_limit,
                 ], 5 * MINUTE_IN_SECONDS );
 
-                set_transient( 'ems_sync_status', [ 'state' => 'queued', 'queued_at' => gmdate( 'c' ) ], HOUR_IN_SECONDS );
+                set_transient( 'ems_sync_status', [ 'state' => 'queued', 'queued_at' => time() ], HOUR_IN_SECONDS );
 
                 wp_schedule_single_event( time(), 'ems_run_osm_sync' );
                 spawn_cron();
@@ -268,6 +268,18 @@ class Plugin {
                 ->sync( $job['sync_ids'], $job['payload'], $job['api_mode'], $job['member_limit'], $logger );
 
             delete_transient( 'ems_sync_status' );
+        } );
+
+        // Cancel a stuck/queued sync
+        add_action( 'admin_post_ems_cancel_sync', function() {
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( 'Forbidden' );
+            }
+            check_admin_referer( 'ems_cancel_sync' );
+            delete_transient( 'ems_sync_status' );
+            delete_transient( 'ems_pending_sync_job' );
+            wp_safe_redirect( admin_url( 'admin.php?page=ems-reference' ) );
+            exit;
         } );
 
         // Clear API blocked flag
