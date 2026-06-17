@@ -117,11 +117,10 @@ class Admin_Page {
 
         $this->render_error_notices();
 
-        $sync_status   = get_transient( 'ems_sync_status' );
-        $sync_running  = in_array( $sync_status['state'] ?? '', [ 'queued', 'running' ], true );
-        $sync_param    = isset( $_GET['sync'] ) ? sanitize_key( $_GET['sync'] ) : '';
+        $sync_status  = get_transient( 'ems_sync_status' );
+        $sync_running = in_array( $sync_status['state'] ?? '', [ 'queued', 'running' ], true );
 
-        if ( $sync_running || $sync_param === 'running' ) {
+        if ( $sync_running ) {
             $this->render_sync_progress_banner();
         } else {
             $this->render_sync_result_panel();
@@ -342,7 +341,7 @@ class Admin_Page {
                             document.getElementById('ems-count-members').textContent = data.members_upserted;
                             document.getElementById('ems-count-events').textContent  = data.events_upserted;
                         }
-                        if ( data.state === 'done' ) {
+                        if ( data.state === 'done' || data.state === 'idle' ) {
                             clearInterval( interval );
                             document.getElementById('ems-sync-spinner').classList.remove('is-active');
                             setTimeout( function() { window.location.href = reloadUrl; }, 1500 );
