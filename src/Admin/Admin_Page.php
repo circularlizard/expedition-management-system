@@ -315,18 +315,24 @@ class Admin_Page {
     }
 
     private function render_sync_progress_banner(): void {
-        $status_url = esc_js( rest_url( 'ems/v1/sync-status' ) );
-        $nonce      = wp_create_nonce( 'wp_rest' );
-        $reload_url = esc_js( admin_url( 'admin.php?page=ems-reference' ) );
+        $status_url  = esc_js( rest_url( 'ems/v1/sync-status' ) );
+        $nonce       = wp_create_nonce( 'wp_rest' );
+        $reload_url  = esc_js( admin_url( 'admin.php?page=ems-reference' ) );
+        $handler     = new \EMS\Admin\OSM_Sync_Auth_Handler();
+        $has_token   = $handler->get_cached_token() !== '';
+        $token_label = $has_token
+            ? '<span style="color:#00a32a;">&#10003; Authenticated with OSM</span>'
+            : '<span style="color:#dba617;">&#9888; No cached OSM session — a new login will be required for the next sync</span>';
         ?>
         <div id="ems-sync-progress" style="background:#fff;border:1px solid #2271b1;border-left:4px solid #2271b1;padding:14px 16px;margin-bottom:16px;border-radius:2px;">
-            <p style="margin:0 0 10px;font-weight:600;display:flex;align-items:center;gap:12px;">
+            <p style="margin:0 0 6px;font-weight:600;display:flex;align-items:center;gap:12px;">
                 <span>
                     <span id="ems-sync-spinner" class="spinner is-active" style="float:none;margin:0 6px 0 0;vertical-align:middle;"></span>
                     <span id="ems-sync-state-label"><?php esc_html_e( 'Sync queued…', 'ems-plugin' ); ?></span>
                 </span>
                 <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ems_cancel_sync' ), 'ems_cancel_sync' ) ); ?>" style="font-weight:normal;font-size:12px;"><?php esc_html_e( 'Cancel', 'ems-plugin' ); ?></a>
             </p>
+            <p style="margin:0 0 8px;font-size:13px;font-weight:normal;"><?php echo $token_label; // phpcs:ignore WordPress.Security.EscapeOutput ?></p>
             <ul style="margin:.3em 0 0 1.5em;" id="ems-sync-counts">
                 <li><?php esc_html_e( 'Members synced: ', 'ems-plugin' ); ?><strong id="ems-count-members">—</strong></li>
                 <li><?php esc_html_e( 'Events synced: ', 'ems-plugin' ); ?><strong id="ems-count-events">—</strong></li>
