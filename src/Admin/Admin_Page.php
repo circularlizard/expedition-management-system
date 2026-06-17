@@ -339,15 +339,41 @@ class Admin_Page {
                 reloadUrl  = '<?php echo $reload_url; ?>',
                 interval;
 
+            var queuedSince = null;
+
             function updateLabel( state ) {
-                var labels = { queued: 'Sync queued — waiting for background process…', running: 'Sync running…', done: 'Sync complete — reloading…' };
+                var labels = {
+                    queued:  'Sync queued — waiting for background process…',
+                    running: 'Sync running…',
+                    done:    'Sync complete — reloading…',
+                    idle:    'Sync complete — reloading…'
+                };
                 document.getElementById('ems-sync-state-label').textContent = labels[state] || state;
+            }
+
+            function markStuck() {
+                clearInterval( interval );
+                document.getElementById('ems-sync-spinner').classList.remove('is-active');
+                document.getElementById('ems-sync-state-label').textContent = 'Background process did not start.';
+                var counts = document.getElementById('ems-sync-counts');
+                counts.innerHTML = '<li style="color:#d63638;">WP-Cron may not be running in this environment. '
+                    + '<a href="' + reloadUrl + '">Reload</a> to check again, or run '
+                    + '<code>wp cron event run ems_run_osm_sync</code> manually, then reload.</li>';
             }
 
             function poll() {
                 fetch( statusUrl, { headers: { 'X-WP-Nonce': nonce } } )
                     .then( function(r) { return r.json(); } )
                     .then( function(data) {
+                        if ( data.state === 'queued' ) {
+                            if ( ! queuedSince ) { queuedSince = Date.now(); }
+                            if ( Date.now() - queuedSince > 30000 ) {
+                                markStuck();
+                                return;
+                            }
+                        } else {
+                            queuedSince = null;
+                        }
                         updateLabel( data.state );
                         if ( data.state === 'running' || data.state === 'done' ) {
                             document.getElementById('ems-count-members').textContent = data.members_upserted;

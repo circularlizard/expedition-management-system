@@ -55,6 +55,21 @@ services:
       - wordpress
     entrypoint: ["wp", "--allow-root"]
 
+  wpcron:
+    image: wordpress:cli-php8.2
+    volumes:
+      - ./wordpress:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    depends_on:
+      - db
+      - wordpress
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "while true; do wp cron event run --due-now --allow-root 2>/dev/null; sleep 30; done"]
+
 volumes:
   db_data:
   caddy_data:
