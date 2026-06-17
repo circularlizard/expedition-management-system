@@ -120,9 +120,10 @@ class Admin_Page {
         $sync_status  = get_transient( 'ems_sync_status' );
         $sync_state   = $sync_status['state'] ?? '';
         if ( $sync_state === 'queued' && ! empty( $sync_status['queued_at'] ) ) {
-            $queued_age = time() - strtotime( $sync_status['queued_at'] );
+            $queued_age = time() - (int) $sync_status['queued_at'];
             if ( $queued_age > 5 * MINUTE_IN_SECONDS ) {
                 delete_transient( 'ems_sync_status' );
+                delete_transient( 'ems_pending_sync_job' );
                 $sync_state = '';
             }
         }
@@ -319,9 +320,12 @@ class Admin_Page {
         $reload_url = esc_js( admin_url( 'admin.php?page=ems-reference' ) );
         ?>
         <div id="ems-sync-progress" style="background:#fff;border:1px solid #2271b1;border-left:4px solid #2271b1;padding:14px 16px;margin-bottom:16px;border-radius:2px;">
-            <p style="margin:0 0 10px;font-weight:600;">
-                <span id="ems-sync-spinner" class="spinner is-active" style="float:none;margin:0 6px 0 0;vertical-align:middle;"></span>
-                <span id="ems-sync-state-label"><?php esc_html_e( 'Sync queued…', 'ems-plugin' ); ?></span>
+            <p style="margin:0 0 10px;font-weight:600;display:flex;align-items:center;gap:12px;">
+                <span>
+                    <span id="ems-sync-spinner" class="spinner is-active" style="float:none;margin:0 6px 0 0;vertical-align:middle;"></span>
+                    <span id="ems-sync-state-label"><?php esc_html_e( 'Sync queued…', 'ems-plugin' ); ?></span>
+                </span>
+                <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ems_cancel_sync' ), 'ems_cancel_sync' ) ); ?>" style="font-weight:normal;font-size:12px;"><?php esc_html_e( 'Cancel', 'ems-plugin' ); ?></a>
             </p>
             <ul style="margin:.3em 0 0 1.5em;" id="ems-sync-counts">
                 <li><?php esc_html_e( 'Members synced: ', 'ems-plugin' ); ?><strong id="ems-count-members">—</strong></li>
