@@ -4,28 +4,46 @@ This document defines the metadata, relationships, and API endpoints for the Exp
 
 ## 1. Custom Post Types (CPTs)
 
-### 1.1 `expedition`
-Used to manage individual expedition events.
-- **Title**: e.g., "Silver Practice - Pentland Hills"
+### 1.0 `season`
+Top-level container for a flight of events (training, practice, qualifying) within an academic year.
+- **Title**: e.g., "2026–27 Season"
 - **Meta Fields**:
+    - `ems_season_year`: string (e.g. `2026-27`)
+    - `ems_season_status`: string (`active` | `archived`)
+
+### 1.1 `expedition` *(admin-facing label: "Event")*
+Used to manage individual training events, practice expeditions, and qualifying expeditions within a season. Admin UI refers to these as **events** to match the user spec; the CPT slug remains `expedition` for backwards compatibility.
+- **Title**: e.g., "Hillwalking Silver Practice 1"
+- **Post Parent**: ID of the associated `season` CPT record.
+- **Meta Fields**:
+    - `ems_event_code`: string — manually assigned short code, unique within a season (e.g. `H-SP1` for Hillwalking Silver Practice 1). Replaces the former `ems_expedition_code`; used to auto-generate team codes (`H-SP1-1`, `H-SP1-2`, …).
+    - `ems_type`: string (`training` | `practice` | `qualifying`)
+    - `ems_transport`: string (`hillwalking` | `biking` | `paddling`)
     - `ems_level`: string (`bronze` | `silver` | `gold`)
-    - `ems_type`: string (`practice` | `qualifying`)
-    - `ems_expedition_code`: string (manually assigned short code, e.g. `SP1` for Silver Practice 1 — used to auto-generate team codes)
-    - `ems_start_date`: string (ISO 8601)
-    - `ems_end_date`: string (ISO 8601)
-    - `ems_location_name`: string
-    - `ems_location_coordinates`: string (optional)
-    - `ems_lic_id`: integer (WP User ID of the Leader in Charge)
-    - `ems_route_deadline`: string (ISO 8601)
-    - `ems_osm_event_id`: integer (Link to OSM Event)
+    - `ems_lic_name`: string (Leader in Charge display name — may be blank/TBC)
+    - `ems_lic_email`: string (Leader in Charge email — may be blank/TBC)
+    - `ems_lic_phone`: string (Leader in Charge phone — may be blank/TBC)
+    - `ems_lic_id`: integer (WP User ID of the Leader in Charge, if they have a WP account — optional)
+    - `ems_start_location`: string (free text — may be blank/TBC)
+    - `ems_end_location`: string (free text — may be blank/TBC)
+    - `ems_start_date`: string (ISO 8601 date)
+    - `ems_start_time`: string (HH:MM, optional)
+    - `ems_end_date`: string (ISO 8601 date)
+    - `ems_end_time`: string (HH:MM, optional)
+    - `ems_osm_event_id`: integer (Link to OSM event record synced in `ems_osm_events` — may be blank/TBC)
+    - `ems_route_info`: string (rich text / HTML — route planning notes, map links, etc.)
+    - `ems_route_deadline`: string (ISO 8601 date)
     - `ems_status`: string (`planning` | `open` | `confirmed` | `completed`)
 
+> **Deprecated field**: `ems_expedition_code` is replaced by `ems_event_code`. Any migration needed when this field is first introduced.
+
 ### 1.2 `team`
-Used to group participants within an expedition.
-- **Title**: e.g., "Team 1"
-- **Post Parent**: ID of the associated `expedition`.
+Used to group participants within an event.
+- **Title**: e.g., "H-SP1-1"
+- **Post Parent**: ID of the associated `expedition` CPT record (the event).
 - **Meta Fields**:
-    - `ems_team_code`: string (e.g., `SP1-1`, `GQ2-3` — auto-generated from the parent expedition's `ems_expedition_code` with an auto-incremented team number)
+    - `ems_team_code`: string (e.g., `H-SP1-1` — auto-generated from the parent event's `ems_event_code` with a sequential suffix; numbers must be contiguous within an event)
+    - `ems_team_number`: integer (the numeric suffix; enforced sequential within the event)
     - `ems_route_status`: string (`pending` | `feedback_required` | `approved`) — current state shortcut field
     - `ems_route_feedback`: string (Most recent LiC feedback — current state shortcut field)
     - `ems_gpx_file_id`: integer (WP Media ID of current approved/latest GPX)
@@ -33,6 +51,7 @@ Used to group participants within an expedition.
 - **Relationships** (stored in custom tables, not Post Meta):
     - Participants: see `ems_team_members` table (§4)
     - Submission history: see `ems_route_submissions` table (§4)
+- **Validation**: Team size of 4–7 is the official range. Sizes outside this range generate an admin warning but are not hard-blocked. Teams with zero members are deleted automatically.
 
 ## 2. User Metadata
 Extending standard WP User records.
@@ -61,8 +80,18 @@ All endpoints prefixed with `/wp-json/ems/v1/`.
 
 ### 3.3 Administrative Endpoints (Admin/LiC)
 - POST `/sync-osm`: Triggers a manual sync for a section or event.
-- GET `/expedition-board`: Returns full dataset for the Team Builder UI.
-- PATCH `/update-team`: Move explorers between teams or expeditions.
+- GET `/expedition-board`: Returns full dataset for the Season Dashboard / Team Builder UI.
+- POST `/seasons`: Create a new season.
+- POST `/events`: Create a new event within a season.
+- PATCH `/events/{id}`: Update event details (LiC, locations, dates, OSM link, route info).
+- DELETE `/events/{id}`: Delete an event (only if it has no teams).
+- POST `/events/{id}/teams`: Create a new team in an event (auto-generates next sequential team code).
+- DELETE `/teams/{id}`: Delete a team (only if it has no members, or as part of last-member-removed cascade).
+- POST `/teams/{id}/members`: Add an explorer to a team.
+- DELETE `/teams/{id}/members/{scout_id}`: Remove an explorer from a team.
+- PATCH `/teams/{id}/move`: Move a team to a different event of the same type (re-codes the team).
+- POST `/teams/{id}/duplicate`: Duplicate a team's membership to another event (new team created in target event).
+- PATCH `/explorers/{scout_id}/move-team`: Move an explorer between teams (within or across events of same type).
 - POST `/route-feedback`: LiC submits approval or feedback for a team's route.
 
 

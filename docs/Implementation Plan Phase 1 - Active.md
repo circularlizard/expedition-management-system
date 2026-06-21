@@ -7,6 +7,34 @@
 
 ---
 
+## TDD Workflow — Gherkin First
+
+All remaining stages follow this sequence **without exception**:
+
+1. **Write Gherkin scenarios** (`tests/features/*.feature`) covering the behaviour to be implemented — happy path, edge cases, validation failures, and guard conditions.
+2. **Review scenarios** with the user before any code is written. Scenarios are the specification.
+3. **Write failing tests** (PHPUnit / Vitest) that implement the scenarios — confirm they fail (red).
+4. **Implement the production code** until all tests pass (green).
+5. **Refactor** as needed, keeping tests green.
+
+### What Gherkin covers
+
+Gherkin is for **observable behaviour** — things a user or API caller causes and observes. Use it for:
+
+- **Business logic** — validation rules, guard conditions, sequential numbering, cascade deletes
+- **REST API** — request/response shape, auth checks, error codes
+- **UI behaviour** — component rendering, form validation, empty states (Vitest)
+
+### What Gherkin does NOT cover
+
+**CPT registration and meta field configuration are structural/wiring concerns**, not behaviour. These are tested directly in PHPUnit using Brain Monkey stubs (asserting `register_post_type()` and `register_meta()` are called with the correct args) — the same pattern already used in `tests/Unit/Core/CPT_RegistryTest.php`. Do not write Gherkin for these.
+
+Likewise, **table schema** is tested directly in PHPUnit against `Table_Installer`, not via Gherkin.
+
+Feature files live in `tests/features/` and are organised by stage (e.g. `tests/features/1.12-events.feature`).
+
+---
+
 ## Current Status — 16 June 2026
 
 | Stage                 | Description                                    | Status               |
@@ -36,31 +64,73 @@ Archived. See `docs/archive/Implementation Plan Phase 1 - Completed.md` for full
 
 ---
 
-### Stage 1.11 — Expedition Board Deep Review ❌
+### Stage 1.11 — Expedition Board & Data Model Review ❌
 
-The current board exists but needs a thorough review before building write functionality on top of it.
+The current board and data model must be reviewed and updated to match the Expedition Planner spec (see PRD §4.1 and Data Schema §1) before write functionality is built on top.
 
-**Review tasks:**
-- Verify all four tab views render correctly with real post-sync data (not just mock)
-- Confirm `ems_team_members.user_id` → `ems_osm_explorers.wp_user_id` join works end-to-end (is `wp_user_id` actually populated after OIDC logins?)
-- Assess whether the expedition/team data model (custom post types) is the right fit or needs revisiting
-- Review UX: is the expedition board layout clear and usable? What's missing?
-- Identify any data that should be on the board but isn't (e.g. expedition status, route deadline, LiC contact)
-- Identify missing empty-state handling
+**Step 1a — Extend PHPUnit tests** for structural wiring (`tests/Unit/Core/CPT_RegistryTest.php`):
+- `season` CPT: `register_post_type()` called with correct args and all meta fields registered
+- `expedition` CPT: all new meta fields registered (`ems_event_code`, `ems_transport`, `ems_lic_name/email/phone`, `ems_start_location`, `ems_end_location`, `ems_start_time`, `ems_end_time`, `ems_route_info`)
+- `ems_type` enum includes `training`
+- `team` CPT: `ems_team_number` and `ems_team_code` registered
 
-**Complete when**: Board review notes captured; any blocking bugs fixed; UX gaps documented for 1.12.
+**Step 1b — Write Gherkin scenarios** (`tests/features/1.11-board.feature`) for observable behaviour:
+- Expedition board REST endpoint returns data shaped for the season/event/team hierarchy
+- Board returns empty-season state when no events exist
+
+**Step 2 — Review + validate scenarios with user**
+
+**Step 3 — Write failing tests** (PHPUnit for board REST endpoint)
+
+**Step 4 — Implement**:
+- Register `season` CPT; update `expedition` and `team` meta in `CPT_Registry`
+- `ems_type` enum extended to include `training`
+- Fix any blocking bugs found during board review
+
+**Step 5 — Board review checks** (once tests green):
+- Verify all current board tab views render with real post-sync data
+- Confirm `ems_team_members.user_id` → `ems_osm_explorers.wp_user_id` join works end-to-end
+- Assess UX gaps for 1.12; document missing empty-state handling
+
+**Complete when**: All 1.11 Gherkin scenarios pass; CPTs registered with new meta; review notes captured; UX gaps documented.
 
 ---
 
-### Stage 1.12 — Expedition Write Logic + Explorer Assignment ❌
+### Stage 1.12 — Expedition Planner Write Logic ❌
 
-**TDD Tasks:**
-- `Expedition_Admin_Controller` — create expedition (validates code format, rejects duplicate), edit (LiC, WhatsApp, route info, dates), assign explorer to expedition, reassign between teams
-- REST endpoints for the above (with tests)
-- React "Create/Edit Expedition" form — validation, submission, edit pre-population
-- React "Explorer Assignment" view — move explorers from unassigned pool into teams
+Implements full CRUD for seasons, events, and teams plus all assignment operations specified in PRD §4.1.
 
-**Complete when**: Controller tests pass; form component tests pass; assignment component tests pass.
+**Step 1 — Write Gherkin scenarios** before any code. Feature files:
+- `tests/features/1.12-seasons.feature` — season CRUD, archiving
+- `tests/features/1.12-events.feature` — event creation (code validation, uniqueness within season), edit all fields, delete guard (no teams), OSM event linking
+- `tests/features/1.12-teams.feature` — team creation (auto-generated sequential code), delete cascade (last member triggers team deletion), sequential numbering enforcement (no gaps), team size warning (outside 4–7)
+- `tests/features/1.12-members.feature` — add member to team, remove member, move member between teams within event, move member between events of same type
+- `tests/features/1.12-team-operations.feature` — move team between events (re-codes), duplicate team to another event (new codes), populate qualifier from practice
+- `tests/features/1.12-api.feature` — REST endpoint request/response shape, auth requirements, error codes for all endpoints in Data Schema §3.3
+- `tests/features/1.12-ui-season-dashboard.feature` — Dashboard shows all events grouped by level; event shows team count and member count; clicking an event expands to show teams; team shows member list with first aid indicators; size-warning badge on teams outside 4–7; empty season shows prompt to create first event
+- `tests/features/1.12-ui-event-form.feature` — Create form validates required fields (code, dates); duplicate event code shows inline error; OSM event selector lists synced events; optional fields (LiC, locations, times) can be left blank; saved event appears in dashboard
+- `tests/features/1.12-ui-cross-event-view.feature` — Selecting a team shows same members' appearances in other events of same type/level; member with no other assignments shown as "not yet assigned elsewhere"; update assignment in another event reflects immediately
+- `tests/features/1.12-ui-explorer-move.feature` — Moving explorer from one team to another updates both team member counts; moving last member from a team removes the team from the view; moving explorer between events of same type works; moving between different types is blocked
+- `tests/features/1.12-ui-team-move.feature` — Moving team to another event re-codes team and shows preview before confirm; duplicating team creates new team in target event with same members; populate-from-practice copies all practice teams into qualifier event
+
+**Step 2 — Review + validate scenarios with user**
+
+**Step 3 — Implement via OpenCode RALPH loop** (Qwen3-27B, 64k context). One session per group below — feed `AGENTS.md` + the feature file(s) + only the source files directly in scope:
+
+| Session | Feature files | Classes in scope |
+|---|---|---|
+| A | `1.12-seasons.feature` + `1.12-events.feature` | `Season_Repository`, `Expedition_Admin_Controller` |
+| B | `1.12-teams.feature` + `1.12-members.feature` | `Team_Repository`, `Team_Member_Repository` |
+| C | `1.12-team-operations.feature` | `Team_Repository` extensions (move/duplicate/renumber) |
+| D | `1.12-api.feature` | REST endpoint tests for all Data Schema §3.3 endpoints |
+| E | `1.12-ui-season-dashboard.feature` + `1.12-ui-event-form.feature` | `SeasonDashboard`, `EventForm` |
+| F | `1.12-ui-cross-event-view.feature` + `1.12-ui-explorer-move.feature` + `1.12-ui-team-move.feature` | `CrossEventTeamView`, `ExplorerMovePanel`, `TeamMovePanel` |
+
+Session preamble for each: *"Read AGENTS.md. Implement failing tests then production code for [feature file]. Run `docker compose run --rm wordpress vendor/bin/phpunit` (or `npm run test`) after each change. Stop when all tests pass."*
+
+**Step 4 — Refactor** keeping all tests green.
+
+**Complete when**: All Gherkin scenarios implemented and green (PHPUnit + Vitest); Season Dashboard renders full season/event/team/member hierarchy; all assignment operations work end-to-end.
 
 ---
 
@@ -68,29 +138,46 @@ The current board exists but needs a thorough review before building write funct
 
 When a Tutor LMS record is linked to a parent `user_id` rather than the explorer's, fall back to `ems_scout_id` anchor.
 
-**TDD Tasks**: match found via fallback; no record found returns `null`.
+**Step 1 — Write Gherkin scenarios** (`tests/features/1.13-training-fallback.feature`):
+- Explorer record found via direct `user_id` match — returns status
+- Explorer record not found via `user_id`; found via `ems_scout_id` fallback — returns status
+- Explorer record not found via either path — returns `null`
+- Admin view displays correct status for parent-trained explorers
 
-**Complete when**: Both fallback paths tested; admin view shows correct status for parent-trained explorers.
+**Step 2 — Review + validate scenarios with user**
+
+**Step 3 — Write failing tests** (PHPUnit)
+
+**Step 4 — Implement** fallback logic in `TutorLMS_Client`
+
+**Complete when**: All three Gherkin paths green; admin view shows correct status.
 
 ---
 
 ### Stage 1.14 — Column Mapper Repurpose (OSM Write-back) ❌
 
-The existing Column Mapper React component (drag-and-drop flexi-record import mapping) will be replaced with a simpler per-section configuration form for the EMS → OSM write-back direction. EMS fields are fixed; only the OSM flexi-record column IDs need to be configured once per section.
+The existing Column Mapper React component will be replaced with a simpler per-section configuration form for the EMS → OSM write-back direction.
 
 **Context from 1.9:** Managed sections are now stored without `extraid`. The flexi-record association is configured here instead.
 
-**Per-section config:**
-- Select which flexi-record applies to this section (fetched via `GET ems/v1/flexi-structure/{section_id}`)
-- Map each EMS write-back field (expedition code, team code, event status, route info) to the corresponding column ID — presented as a dropdown of column names from the flexi-record structure
+**Step 1 — Write Gherkin scenarios** (`tests/features/1.14-flexi-mapper.feature`):
+- `GET ems/v1/flexi-structure/{section_id}` returns flexi-record columns for a section
+- Endpoint requires admin authentication; returns 403 otherwise
+- Mapping saved per section as `ems_osm_field_map` option with correct structure
+- Saving with a missing required field returns a validation error
+- Config form renders column dropdowns populated from flexi-record structure
+- Saved mapping is pre-populated on revisit
 
-**Tasks:**
-- Replace existing Column Mapper component with new simplified form (React)
-- Implement `GET ems/v1/flexi-structure/{section_id}` REST endpoint (calls OSM API, requires auth token — determine flow)
+**Step 2 — Review + validate scenarios with user**
+
+**Step 3 — Write failing tests** (PHPUnit for endpoint; Vitest for form component)
+
+**Step 4 — Implement**:
+- Replace existing Column Mapper component with simplified per-section form (React)
+- Implement `GET ems/v1/flexi-structure/{section_id}` REST endpoint
 - Persist mapping as `ems_osm_field_map` option: `{section_id: {flexi_id, field_map: {ems_field: column_id}}}`
-- Wire into OSM write-back flow (Phase 2)
 
-**Complete when**: Mapping can be configured and saved per section; flexi-record structure endpoint tested.
+**Complete when**: All Gherkin scenarios green; mapping configurable and saved per section.
 
 ---
 
@@ -112,8 +199,17 @@ Files built in completed stages: see archive. New/modified files for remaining s
 |---|---|---|
 | `src/Plugin.php` | Fetch-sections live OAuth; branches for new sync modes; 429/blocked handling | 1.10 |
 | `src/Integrations/OSM_Reference_Sync.php` | Return sync result struct; support member limit | 1.10 |
-| `src/Admin/Expedition_Admin_Controller.php` | Create/edit expeditions, assign explorers | 1.12 |
-| `resources/js/admin/expedition-board/ExpeditionBoard.tsx` | Board review + write-action UI | 1.11/1.12 |
+| `src/Core/CPT_Registry.php` | Register `season` CPT; update `expedition` and `team` meta registration | 1.11 |
+| `src/Data/Season_Repository.php` | Create/list/archive seasons | 1.12 |
+| `src/Admin/Expedition_Admin_Controller.php` | Create/edit/delete events, manage unassigned pool | 1.12 |
+| `src/Data/Team_Repository.php` | Sequential team code logic, move/duplicate team | 1.12 |
+| `src/Data/Team_Member_Repository.php` | Add/remove/move members, cascade delete empty team | 1.12 |
+| `resources/js/admin/expedition-board/ExpeditionBoard.tsx` | Board review + Season Dashboard entry point | 1.11/1.12 |
+| `resources/js/admin/expedition-board/SeasonDashboard.tsx` | Compact at-a-glance season view | 1.12 |
+| `resources/js/admin/expedition-board/EventForm.tsx` | Create/edit event form | 1.12 |
+| `resources/js/admin/expedition-board/CrossEventTeamView.tsx` | Cross-event team/member view | 1.12 |
+| `resources/js/admin/expedition-board/ExplorerMovePanel.tsx` | Move explorer between teams | 1.12 |
+| `resources/js/admin/expedition-board/TeamMovePanel.tsx` | Move/duplicate team between events | 1.12 |
 | `resources/js/admin/column-mapper/` | Replace with write-back config form | 1.14 |
 
 ---

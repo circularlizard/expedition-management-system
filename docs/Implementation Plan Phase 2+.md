@@ -2,9 +2,23 @@
 
 This document outlines the environment, testing, and incremental rollout plan for the Expedition Management System.
 
-> **Note**: The original phased plan (Phases 0–5) has been archived to `docs/archive/Development and Deployment - v1-original.md`. This document reflects the revised phasing from `docs/NewPhases/Phases.md`, starting from the current state of the application.
+> **Note**: The original phased plan (Phases 0–5) has been archived to `docs/archive/Development and Deployment - v1-original.md`. The early phase outline notes are archived to `docs/archive/Phases.md`. This document is the authoritative phased plan from Phase 2 onwards.
 
 > **Agent coding conventions**: Namespace/file patterns, PHP test anatomy (`EMSTestCase`, Brain Monkey, Mockery), authoritative WP User Meta keys, `OSM_API_Client` surface, mock file registry, and `Table_Installer` status are all documented in `docs/Implementation Plan Phase 1.md §7`. Read that section before implementing any Phase 2–6 class.
+
+## TDD Workflow — Gherkin First
+
+All stages in all phases follow this sequence:
+
+1. **Write Gherkin scenarios** (`tests/features/*.feature`) covering happy path, edge cases, validation, and guard conditions.
+2. **Review scenarios** with the user before any code is written.
+3. **Write failing tests** (PHPUnit / Vitest step definitions) — confirm red.
+4. **Implement production code** until all tests pass — green.
+5. **Refactor** keeping tests green.
+
+Gherkin covers **observable behaviour**: business logic, REST API shape/auth, and UI behaviour. CPT registration, meta field wiring, and table schema are tested directly in PHPUnit (Brain Monkey stubs) — not via Gherkin. Feature files are named by stage (e.g. `tests/features/2.1-explorer-portal.feature`).
+
+---
 
 ## 1. Development Environment
 ### 1.1 Local Development (Docker)
