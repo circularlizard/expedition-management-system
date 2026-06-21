@@ -63,17 +63,65 @@ sequenceDiagram
 
 ## 4. Functional Requirements
 
-### 4.1 Expedition & Team Management
-- **Pre-Season Planning**: Admins define a calendar of possible dates for all expedition levels.
+### 4.1 Expedition Planner — Season, Event & Team Management
+
+#### 4.1.1 Seasons
+A **season** is the top-level container for a flight of training events, practice expeditions, and qualifying expeditions. Admins create a season before defining any events within it.
+
+#### 4.1.2 Events
+An **event** is the EMS term for a training event, practice expedition, or qualifying expedition within a season. Each event has:
+- **Type**: `training` | `practice` | `qualifying`
+- **Mode of transport**: `hillwalking` | `biking` | `paddling`
+- **Level**: `bronze` | `silver` | `gold`
+- **Short code**: manually assigned by admin (e.g. `H-SP1` for Hillwalking Silver Practice 1). Must be unique within the season.
+- **Leader in charge**: name, email, and phone number — may be blank/TBC at creation
+- **Start location**: free text — may be blank/TBC at creation
+- **End location**: free text — may be blank/TBC at creation
+- **Start date/time**: date required; time optional
+- **End date/time**: date required; time optional
+- **OSM event link**: OSM event ID — may be blank/TBC at creation; selectable from OSM reference events already synced
+- **Route planning information**: rich text field (map links, key notes, etc.)
+
+> **Terminology note**: The EMS internal CPT is named `expedition`; the admin-facing label is **event** for individual training/practice/qualifying instances, and the broader planning concept maps directly to a season's collection of events. See Data Schema §1 for the CPT definition.
+
+#### 4.1.3 Teams
+- Each event can be associated with one or more **teams**, each being a list of explorers.
+- **Team size**: officially 4–7 members. If a team falls outside this range a validation warning is flagged to the admin (not a hard block).
+- Not all explorers attending an event need to be in a team.
+- Explorers can be added to an event's unassigned pool or directly into a named team.
+- Each team has a **short code** auto-generated from the event code with a sequential suffix (e.g. `H-SP1-1`, `H-SP1-2`). No two teams in the same event may share a code.
+- Team numbers must remain **sequential** — gaps are not permitted (e.g. an event cannot have `H-SP1-1` and `H-SP1-4` without `H-SP1-2` and `H-SP1-3`).
+- A team with no members ceases to exist (is deleted or archived automatically).
+
+#### 4.1.4 Explorer & Team Assignment Operations
+- **Move explorer** between teams within the same event, or between events of the same type/level.
+- **Move team** between events of the same type, or **duplicate** a team to another event. The team code designation is updated to match the target event's code.
+- **Populate from practice** — duplicate team assignments from a practice event to a qualifying event (or between any two event types).
+
+#### 4.1.5 Importing & Linking
+- **Step 1: OSM Reference Sync**: Pull full participant lists, events, and attendance statuses from specific OSM sections. This data is stored in local reference tables and is the source of truth for all planning.
+- **Step 2: Flexi-Record Import**: Load team and expedition assignments from OSM Flexi-records. This populates the Team View and does not require local WordPress User records.
+- EMS event records must be explicitly linked to an OSM Event record.
+
+#### 4.1.6 Team Builder Views
+- **Season Dashboard**: Compact at-a-glance view of all events, teams, and explorer assignments for the season. Layout must be innovative and space-efficient to support quick scanning.
+- **Cross-event team view**: Select a team, see which other events/teams the same members appear in, with controls to update assignments in those other events.
+- **Explorer move**: Move a person between teams (within an event or between events of the same type) with minimal clicks.
+- **Team move/duplicate**: Move or duplicate a whole team between events of the same type; or duplicate to a different type (e.g. practice → qualifier).
+
+#### 4.1.7 Pre-Season Planning
+- Admins define a season and populate it with events before assigning explorers.
 - **Importing & Linking**: 
     - **Step 1: OSM Reference Sync**: Pull full participant lists, events, and attendance statuses from specific OSM sections. This data is stored in local reference tables and is the source of truth for all planning.
     - **Step 2: Flexi-Record Import**: Load team and expedition assignments from OSM Flexi-records. This populates the "Team View" and does not require local WordPress User records.
     - EMS records must be explicitly linked to an OSM Event record.
-- **Team Composition**: 
-    - Participants grouped into teams (4–7 people).
-    - **Teammate Preferences**: When building teams, Admins must be able to view preferences submitted by Explorers during signup.
-- **Team Code Generation**: Each expedition is assigned a short **expedition code** manually by an Admin (e.g., `SP1` for Silver Practice 1, `GQ2` for Gold Qualifying 2). Team codes are then **auto-incremented** from this code (`SP1-1`, `SP1-2`, ...) as teams are created in the Team Builder.
+- **Teammate Preferences**: When building teams, Admins must be able to view preferences submitted by Explorers during signup.
 - **Unit Tracking**: Participant units are retrieved from the OSM "patrol" field.
+
+#### Non-Functionals
+- Menu entry under EMS admin menu.
+- Slick and modern UI using existing React/Tailwind stack.
+- Minimise clicks — primary view is the expedition/team summary dashboard.
 
 ### 4.2 First Aid & Safety
 - **Declaration**: At signup (via Gravity Forms), participants declare their first aid status:
