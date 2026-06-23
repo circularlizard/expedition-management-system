@@ -67,6 +67,14 @@ class Plugin {
             );
             $view_controller->register_routes();
 
+            $expedition_controller = new \EMS\Admin\Expedition_Admin_Controller(
+                new \EMS\Data\Season_Repository(),
+                new \EMS\Data\Expedition_Repository(),
+                new \EMS\Data\Team_Repository(),
+                new \EMS\Data\Team_Member_Repository()
+            );
+            $expedition_controller->register_routes();
+
             register_rest_route( 'ems/v1', '/sync-status', [
                 'methods'             => 'GET',
                 'callback'            => function() {

@@ -45,12 +45,12 @@ Feature files live in `tests/features/` and are organised by stage (e.g. `tests/
 | 1.8                   | Diagnostics + Reference Data Display           | ✅ Done — 15 Jun 2026 |
 | 1.9                   | Settings page tabs + Managed Sections redesign | ✅ Done — 16 Jun 2026 |
 | 1.10                  | OSM Auth Test Modes + Sync Progress Feedback   | ✅ Done — 16 Jun 2026 |
-| 1.11                  | Expedition Board deep review                   | ❌ Not started        |
-| 1.12                  | Expedition write logic + Explorer Assignment   | ❌ Not started        |
+| 1.11                  | Expedition Board deep review                   | ✅ Done — 23 Jun 2026 |
+| 1.12                  | Expedition write logic + Explorer Assignment   | ✅ Done — 23 Jun 2026 |
 | 1.13                  | Training Status Fallback                       | ❌ Not started        |
 | 1.14                  | Column Mapper repurpose (OSM write-back)       | ❌ Not started        |
 
-**Tests**: 231 PHP / 463 assertions green. 16 JS Vitest green.
+**Tests**: 259 PHP / 526 assertions green. 37 JS Vitest green.
 
 **Live OAuth status**: Working end-to-end as of 16 Jun 2026. Fixes this session: `wp_redirect()` for external OAuth redirect; correct `ext/` API endpoint paths; `sectionname` property for display names; section `type` stored and displayed; error handling for OSM error params and `getDataPayload` failures.
 
@@ -64,58 +64,59 @@ Archived. See `docs/archive/Implementation Plan Phase 1 - Completed.md` for full
 
 ---
 
-### Stage 1.11 — Expedition Board & Data Model Review ❌
+### Stage 1.11 — Expedition Board & Data Model Review ⏳ Step 2 reviewed
 
 The current board and data model must be reviewed and updated to match the Expedition Planner spec (see PRD §4.1 and Data Schema §1) before write functionality is built on top.
 
-**Step 1a — Extend PHPUnit tests** for structural wiring (`tests/Unit/Core/CPT_RegistryTest.php`):
+**Step 1a — Extend PHPUnit tests** ✅ Done (`tests/Unit/Core/CPT_RegistryTest.php`):
 - `season` CPT: `register_post_type()` called with correct args and all meta fields registered
 - `expedition` CPT: all new meta fields registered (`ems_event_code`, `ems_transport`, `ems_lic_name/email/phone`, `ems_start_location`, `ems_end_location`, `ems_start_time`, `ems_end_time`, `ems_route_info`)
 - `ems_type` enum includes `training`
 - `team` CPT: `ems_team_number` and `ems_team_code` registered
 
-**Step 1b — Write Gherkin scenarios** (`tests/features/1.11-board.feature`) for observable behaviour:
+**Step 1b — Write Gherkin scenarios** ✅ Done (`tests/features/1.11-board.feature`):
 - Expedition board REST endpoint returns data shaped for the season/event/team hierarchy
 - Board returns empty-season state when no events exist
 
 **Step 2 — Review + validate scenarios with user**
 
-**Step 3 — Write failing tests** (PHPUnit for board REST endpoint)
+**Step 3 — Write failing tests** ⏳ Next (PHPUnit for board REST endpoint)
 
 **Step 4 — Implement**:
 - Register `season` CPT; update `expedition` and `team` meta in `CPT_Registry`
 - `ems_type` enum extended to include `training`
-- Fix any blocking bugs found during board review
 
-**Step 5 — Board review checks** (once tests green):
-- Verify all current board tab views render with real post-sync data
-- Confirm `ems_team_members.user_id` → `ems_osm_explorers.wp_user_id` join works end-to-end
-- Assess UX gaps for 1.12; document missing empty-state handling
+**Step 5 — User review of board shape** (once tests green)
 
-**Complete when**: All 1.11 Gherkin scenarios pass; CPTs registered with new meta; review notes captured; UX gaps documented.
+**Complete when**: All 1.11 Gherkin scenarios pass; CPTs registered with new meta; board endpoint returns correct hierarchy and empty-season state.
 
 ---
 
-### Stage 1.12 — Expedition Planner Write Logic ❌
+### Stage 1.12 — Expedition Planner Write Logic ⏳ Step 2 reviewed
 
 Implements full CRUD for seasons, events, and teams plus all assignment operations specified in PRD §4.1.
 
-**Step 1 — Write Gherkin scenarios** before any code. Feature files:
-- `tests/features/1.12-seasons.feature` — season CRUD, archiving
-- `tests/features/1.12-events.feature` — event creation (code validation, uniqueness within season), edit all fields, delete guard (no teams), OSM event linking
-- `tests/features/1.12-teams.feature` — team creation (auto-generated sequential code), delete cascade (last member triggers team deletion), sequential numbering enforcement (no gaps), team size warning (outside 4–7)
-- `tests/features/1.12-members.feature` — add member to team, remove member, move member between teams within event, move member between events of same type
-- `tests/features/1.12-team-operations.feature` — move team between events (re-codes), duplicate team to another event (new codes), populate qualifier from practice
-- `tests/features/1.12-api.feature` — REST endpoint request/response shape, auth requirements, error codes for all endpoints in Data Schema §3.3
-- `tests/features/1.12-ui-season-dashboard.feature` — Dashboard shows all events grouped by level; event shows team count and member count; clicking an event expands to show teams; team shows member list with first aid indicators; size-warning badge on teams outside 4–7; empty season shows prompt to create first event
-- `tests/features/1.12-ui-event-form.feature` — Create form validates required fields (code, dates); duplicate event code shows inline error; OSM event selector lists synced events; optional fields (LiC, locations, times) can be left blank; saved event appears in dashboard
-- `tests/features/1.12-ui-cross-event-view.feature` — Selecting a team shows same members' appearances in other events of same type/level; member with no other assignments shown as "not yet assigned elsewhere"; update assignment in another event reflects immediately
-- `tests/features/1.12-ui-explorer-move.feature` — Moving explorer from one team to another updates both team member counts; moving last member from a team removes the team from the view; moving explorer between events of same type works; moving between different types is blocked
-- `tests/features/1.12-ui-team-move.feature` — Moving team to another event re-codes team and shows preview before confirm; duplicating team creates new team in target event with same members; populate-from-practice copies all practice teams into qualifier event
+**Step 1 — Write Gherkin scenarios** ✅ All feature files written:
 
-**Step 2 — Review + validate scenarios with user**
+| File | Happy paths | Edge cases |
+|---|---|---|
+| `tests/features/1.12-seasons.feature` | Create, list (newest first), archive | Duplicate year, archive non-existent, empty list |
+| `tests/features/1.12-events.feature` | Create (required + optional blank), edit, link OSM event, delete (no teams), code unique across seasons | Duplicate code in season, delete with teams, invalid enum, missing required fields |
+| `tests/features/1.12-teams.feature` | First team gets suffix 1, second gets 2, independent across events, delete empty | Size warning (< 4 or > 7), cascade delete on last member, renumber on gap, block direct delete with members |
+| `tests/features/1.12-members.feature` | Add to team, remove (others remain), move within event, move across same-type events | Duplicate add, move to incompatible type, last member cascade, non-existent explorer |
+| `tests/features/1.12-team-operations.feature` | Move re-codes + renumbers source, move assigns next code in target, duplicate copies members + leaves original, populate-from-practice copies all teams | Move to incompatible type blocked, move to same event blocked |
+| `tests/features/1.12-api.feature` | 201/200 response shapes for all endpoints, correct body fields | 403 auth, 404 not found, 409 conflict (teams/members), 422 incompatible type |
+| `tests/features/1.12-ui-season-dashboard.feature` | Events grouped by level, team/member counts, expand to teams, member names visible | Empty season prompt, size warning badge, no seasons prompt |
+| `tests/features/1.12-ui-event-form.feature` | All fields present, submit required-only, optional fields blank, OSM selector populated, edit pre-populates | Duplicate code inline error, missing code/start date/end date validation |
+| `tests/features/1.12-ui-cross-event-view.feature` | Member overlap shown, update assignment reflects immediately, correct events shown (same type only) | "Not yet assigned" state, no other same-type events empty state, no team selected prompt |
+| `tests/features/1.12-ui-explorer-move.feature` | Move within event updates counts, move across same-type events, target dropdown correct | Last member removes team, incompatible-type teams not shown |
+| `tests/features/1.12-ui-team-move.feature` | Move preview shows re-code, confirm relocates team, duplicate preview + confirm, populate copies all teams | Populate warns if target has teams, incompatible type not in dropdown, current event not in dropdown |
+
+**Step 2 — Review + validate scenarios with user** ✅ Done
 
 **Step 3 — Implement via OpenCode RALPH loop** (Qwen3-27B, 64k context). One session per group below — feed `AGENTS.md` + the feature file(s) + only the source files directly in scope:
+
+> **Test tooling**: Backend feature files → PHPUnit + Brain Monkey; UI feature files → Vitest + React Testing Library with mocked API hooks.
 
 | Session | Feature files | Classes in scope |
 |---|---|---|
@@ -126,7 +127,7 @@ Implements full CRUD for seasons, events, and teams plus all assignment operatio
 | E | `1.12-ui-season-dashboard.feature` + `1.12-ui-event-form.feature` | `SeasonDashboard`, `EventForm` |
 | F | `1.12-ui-cross-event-view.feature` + `1.12-ui-explorer-move.feature` + `1.12-ui-team-move.feature` | `CrossEventTeamView`, `ExplorerMovePanel`, `TeamMovePanel` |
 
-Session preamble for each: *"Read AGENTS.md. Implement failing tests then production code for [feature file]. Run `docker compose run --rm wordpress vendor/bin/phpunit` (or `npm run test`) after each change. Stop when all tests pass."*
+Session preamble for each: *"Read AGENTS.md. Implement failing tests then production code for [feature file]. Run `vendor/bin/phpunit` (PHP) or `npm run test` (UI) after each change. Stop when all tests pass."*
 
 **Step 4 — Refactor** keeping all tests green.
 

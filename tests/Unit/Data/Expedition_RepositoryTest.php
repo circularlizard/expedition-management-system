@@ -22,12 +22,12 @@ class Expedition_RepositoryTest extends EMSTestCase {
 
         $repo = new Expedition_Repository();
         $id = $repo->create( [
-            'post_title'          => 'Pentland Hills',
-            'ems_expedition_code' => 'SP1',
-            'ems_level'           => 'silver',
-            'ems_type'            => 'qualifying',
-            'ems_start_date'      => '2026-08-01',
-            'ems_end_date'        => '2026-08-03',
+            'post_title'     => 'Pentland Hills',
+            'ems_event_code' => 'SP1',
+            'ems_level'      => 'silver',
+            'ems_type'       => 'qualifying',
+            'ems_start_date' => '2026-08-01',
+            'ems_end_date'   => '2026-08-03',
         ] );
 
         $this->assertEquals( 10, $id );
@@ -40,7 +40,7 @@ class Expedition_RepositoryTest extends EMSTestCase {
         $repo = new Expedition_Repository();
 
         $this->expectException( \InvalidArgumentException::class );
-        $this->expectExceptionMessageMatches( '/expedition code/i' );
+        $this->expectExceptionMessageMatches( '/ems_event_code/i' );
 
         $repo->create( [
             'post_title' => 'No Code',
@@ -64,8 +64,9 @@ class Expedition_RepositoryTest extends EMSTestCase {
         $this->expectExceptionMessageMatches( '/duplicate.*code/i' );
 
         $repo->create( [
-            'post_title'          => 'Duplicate',
-            'ems_expedition_code' => 'SP1',
+            'post_title'     => 'Duplicate',
+            'ems_event_code' => 'SP1',
+            'season_id'      => 5,
         ] );
     }
 
@@ -83,8 +84,8 @@ class Expedition_RepositoryTest extends EMSTestCase {
         Functions\when( 'get_post_meta' )->alias(
             static function ( $id, $key, $single ) {
                 $meta = [
-                    'ems_expedition_code' => 'SP1',
-                    'ems_level'           => 'silver',
+                    'ems_event_code' => 'SP1',
+                    'ems_level'      => 'silver',
                 ];
                 return $single && isset( $meta[$key] ) ? $meta[$key] : '';
             }
@@ -95,7 +96,7 @@ class Expedition_RepositoryTest extends EMSTestCase {
 
         $this->assertNotNull( $expedition );
         $this->assertEquals( 10, $expedition['ID'] );
-        $this->assertEquals( 'SP1', $expedition['ems_expedition_code'] );
+        $this->assertEquals( 'SP1', $expedition['ems_event_code'] );
     }
 
     public function test_get_by_id_returns_null_for_missing(): void {

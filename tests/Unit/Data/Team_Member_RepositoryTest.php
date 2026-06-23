@@ -32,6 +32,7 @@ class Team_Member_RepositoryTest extends EMSTestCase {
 
     public function test_assign_explorer_to_team(): void {
         $wpdb = $this->mock_wpdb();
+        $wpdb->insert_id = 1;
         $wpdb->shouldReceive( 'get_var' )->andReturn( null );
         $wpdb->shouldReceive( 'insert' )->andReturn( 1 );
 
