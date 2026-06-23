@@ -64,7 +64,7 @@ Archived. See `docs/archive/Implementation Plan Phase 1 - Completed.md` for full
 
 ---
 
-### Stage 1.11 — Expedition Board & Data Model Review ⏳ Step 2 reviewed
+### Stage 1.11 — Expedition Board & Data Model Review ✅ Done — 23 Jun 2026
 
 The current board and data model must be reviewed and updated to match the Expedition Planner spec (see PRD §4.1 and Data Schema §1) before write functionality is built on top.
 
@@ -78,21 +78,22 @@ The current board and data model must be reviewed and updated to match the Exped
 - Expedition board REST endpoint returns data shaped for the season/event/team hierarchy
 - Board returns empty-season state when no events exist
 
-**Step 2 — Review + validate scenarios with user**
+**Step 2 — Review + validate scenarios with user** ✅ Done
 
-**Step 3 — Write failing tests** ⏳ Next (PHPUnit for board REST endpoint)
+**Step 3 — Write failing tests** ✅ Done — board hierarchy + empty-season covered by `Expedition_Admin_ControllerTest::test_get_board_*`
 
-**Step 4 — Implement**:
-- Register `season` CPT; update `expedition` and `team` meta in `CPT_Registry`
+**Step 4 — Implement** ✅ Done:
+- `season` CPT registered; `expedition` and `team` meta updated in `CPT_Registry` (`ems_event_code`, `ems_team_number`, etc.)
 - `ems_type` enum extended to include `training`
+- `get_board()` in `Expedition_Admin_Controller` returns the `seasons → events → teams → members` hierarchy with `member_count` and `size_warning`
 
-**Step 5 — User review of board shape** (once tests green)
+**Step 5 — User review of board shape** ✅ Done
 
-**Complete when**: All 1.11 Gherkin scenarios pass; CPTs registered with new meta; board endpoint returns correct hierarchy and empty-season state.
+**Complete when**: All 1.11 Gherkin scenarios pass; CPTs registered with new meta; board endpoint returns correct hierarchy and empty-season state. ✅ All met.
 
 ---
 
-### Stage 1.12 — Expedition Planner Write Logic ⏳ Step 2 reviewed
+### Stage 1.12 — Expedition Planner Write Logic ✅ Done — 23 Jun 2026
 
 Implements full CRUD for seasons, events, and teams plus all assignment operations specified in PRD §4.1.
 
@@ -114,24 +115,25 @@ Implements full CRUD for seasons, events, and teams plus all assignment operatio
 
 **Step 2 — Review + validate scenarios with user** ✅ Done
 
-**Step 3 — Implement via OpenCode RALPH loop** (Qwen3-27B, 64k context). One session per group below — feed `AGENTS.md` + the feature file(s) + only the source files directly in scope:
+**Step 3 — Implement** ✅ Done. Sessions A–F all complete:
 
-> **Test tooling**: Backend feature files → PHPUnit + Brain Monkey; UI feature files → Vitest + React Testing Library with mocked API hooks.
+> **Test tooling**: Backend feature files → PHPUnit + Brain Monkey; UI feature files → Vitest + React Testing Library with mocked API hooks (no Playwright E2E this stage).
 
-| Session | Feature files | Classes in scope |
+| Session | Status | Classes delivered |
 |---|---|---|
-| A | `1.12-seasons.feature` + `1.12-events.feature` | `Season_Repository`, `Expedition_Admin_Controller` |
-| B | `1.12-teams.feature` + `1.12-members.feature` | `Team_Repository`, `Team_Member_Repository` |
-| C | `1.12-team-operations.feature` | `Team_Repository` extensions (move/duplicate/renumber) |
-| D | `1.12-api.feature` | REST endpoint tests for all Data Schema §3.3 endpoints |
-| E | `1.12-ui-season-dashboard.feature` + `1.12-ui-event-form.feature` | `SeasonDashboard`, `EventForm` |
-| F | `1.12-ui-cross-event-view.feature` + `1.12-ui-explorer-move.feature` + `1.12-ui-team-move.feature` | `CrossEventTeamView`, `ExplorerMovePanel`, `TeamMovePanel` |
+| A | ✅ | `Season_Repository`, `Expedition_Admin_Controller` (seasons + events endpoints) |
+| B | ✅ | `Team_Repository`, `Team_Member_Repository` (sequential numbering, add/remove/cascade) |
+| C | ✅ | `Team_Repository` `move()` / `duplicate()` / `renumber_event()` / `populate_from_event()` |
+| D | ✅ | `Expedition_Admin_ControllerTest` — 201/200/400/404/409/422 across all §3.3 endpoints |
+| E | ✅ | `SeasonDashboard.tsx`, `EventForm.tsx` + `useBoard.ts` hook |
+| F | ✅ | `CrossEventTeamView.tsx`, `ExplorerMovePanel.tsx`, `TeamMovePanel.tsx` + `boardUtils.ts` |
 
-Session preamble for each: *"Read AGENTS.md. Implement failing tests then production code for [feature file]. Run `vendor/bin/phpunit` (PHP) or `npm run test` (UI) after each change. Stop when all tests pass."*
+**Step 4 — Refactor + wiring** ✅ Done:
+- `ExpeditionBoard.tsx` rewired to the new `seasons` payload via `useBoard`; mounts `SeasonDashboard` + the three management panels as tabs. Legacy explorer/patrol/CSV views removed.
+- `Expedition_Admin_Controller` registered in `Plugin.php`; `OSM_Explorer_Repository` added for explorer identity lookups.
+- `WP_REST_Request` stub added to `tests/bootstrap.php`.
 
-**Step 4 — Refactor** keeping all tests green.
-
-**Complete when**: All Gherkin scenarios implemented and green (PHPUnit + Vitest); Season Dashboard renders full season/event/team/member hierarchy; all assignment operations work end-to-end.
+**Complete when**: All Gherkin scenarios implemented and green (PHPUnit + Vitest); Season Dashboard renders full season/event/team/member hierarchy; all assignment operations work end-to-end. ✅ All met — 259 PHP / 526 assertions, 37 Vitest green; `tsc --noEmit` clean.
 
 ---
 
@@ -202,6 +204,7 @@ Files built in completed stages: see archive. New/modified files for remaining s
 | `src/Integrations/OSM_Reference_Sync.php` | Return sync result struct; support member limit | 1.10 |
 | `src/Core/CPT_Registry.php` | Register `season` CPT; update `expedition` and `team` meta registration | 1.11 |
 | `src/Data/Season_Repository.php` | Create/list/archive seasons | 1.12 |
+| `src/Data/OSM_Explorer_Repository.php` | Explorer identity lookups (scout_id / wp_user_id) | 1.12 |
 | `src/Admin/Expedition_Admin_Controller.php` | Create/edit/delete events, manage unassigned pool | 1.12 |
 | `src/Data/Team_Repository.php` | Sequential team code logic, move/duplicate team | 1.12 |
 | `src/Data/Team_Member_Repository.php` | Add/remove/move members, cascade delete empty team | 1.12 |
@@ -211,6 +214,8 @@ Files built in completed stages: see archive. New/modified files for remaining s
 | `resources/js/admin/expedition-board/CrossEventTeamView.tsx` | Cross-event team/member view | 1.12 |
 | `resources/js/admin/expedition-board/ExplorerMovePanel.tsx` | Move explorer between teams | 1.12 |
 | `resources/js/admin/expedition-board/TeamMovePanel.tsx` | Move/duplicate team between events | 1.12 |
+| `resources/js/admin/expedition-board/useBoard.ts` | Board data-fetch hook (mocked in Vitest) | 1.12 |
+| `resources/js/admin/expedition-board/boardUtils.ts` | Cross-event helpers (same-type filter, member lookup, code preview) | 1.12 |
 | `resources/js/admin/column-mapper/` | Replace with write-back config form | 1.14 |
 
 ---
