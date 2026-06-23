@@ -2,10 +2,24 @@
 namespace EMS\Tests\Unit\Data;
 
 use EMS\Data\Team_Repository;
+use EMS\Data\Team_Member_Repository;
 use EMS\Tests\EMSTestCase;
 use Brain\Monkey\Functions;
 
 class Team_RepositoryTest extends EMSTestCase {
+    private function mock_team_members(): Team_Member_Repository {
+        $wpdb = \Mockery::mock( 'stdClass' );
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+            static function ( $q, ...$args ) {
+                $i = 0;
+                return preg_replace_callback( '/%d/', static function () use ( &$args, &$i ) { return $args[$i++] ?? 0; }, $q );
+            }
+        );
+        $wpdb->shouldReceive( 'get_results' )->andReturn( [] );
+        $wpdb->shouldReceive( 'get_var' )->andReturn( null );
+        return new Team_Member_Repository( $wpdb );
+    }
     public function test_create_team_linked_to_expedition(): void {
         Functions\when( 'wp_insert_post' )->alias(
             static function ( $post ) {
@@ -15,7 +29,7 @@ class Team_RepositoryTest extends EMSTestCase {
         Functions\when( 'update_post_meta' )->justReturn( true );
         Functions\when( 'get_posts' )->justReturn( [] );
 
-        $repo = new Team_Repository();
+        $repo = new Team_Repository( $this->mock_team_members() );
         $id = $repo->create( 10, 'SP1' );
 
         $this->assertEquals( 20, $id );
@@ -30,24 +44,11 @@ class Team_RepositoryTest extends EMSTestCase {
         Functions\when( 'update_post_meta' )->justReturn( true );
         Functions\when( 'get_posts' )->alias(
             static function ( $args ) {
-                if ( isset( $args['meta_query'] ) ) {
-                    return [];
-                }
-                return [
-                    (object) [ 'ID' => 20, 'post_title' => 'Team 1', 'post_status' => 'publish', 'post_type' => 'team' ],
-                ];
-            }
-        );
-        Functions\when( 'get_post_meta' )->alias(
-            static function ( $id, $key, $single ) {
-                if ( $key === 'ems_team_code' ) {
-                    return 'SP1-1';
-                }
-                return '';
+                return [];
             }
         );
 
-        $repo = new Team_Repository();
+        $repo = new Team_Repository( $this->mock_team_members() );
         $id = $repo->create( 10, 'SP1' );
 
         $this->assertEquals( 21, $id );
@@ -65,7 +66,7 @@ class Team_RepositoryTest extends EMSTestCase {
             }
         );
 
-        $repo = new Team_Repository();
+        $repo = new Team_Repository( $this->mock_team_members() );
 
         $this->expectException( \InvalidArgumentException::class );
         $this->expectExceptionMessageMatches( '/duplicate.*code/i' );
@@ -81,6 +82,7 @@ class Team_RepositoryTest extends EMSTestCase {
                 $post->post_title  = 'Team A';
                 $post->post_status = 'publish';
                 $post->post_type   = 'team';
+                $post->post_parent = 10;
                 return $post;
             }
         );
@@ -88,18 +90,19 @@ class Team_RepositoryTest extends EMSTestCase {
             static function ( $id, $key, $single ) {
                 $meta = [
                     'ems_team_code'    => 'SP1-1',
-                    'ems_expedition_id'=> 10,
+                    'ems_team_number'  => 1,
                 ];
                 return $single && isset( $meta[$key] ) ? $meta[$key] : '';
             }
         );
 
-        $repo = new Team_Repository();
+        $repo = new Team_Repository( $this->mock_team_members() );
         $team = $repo->get_by_id( 20 );
 
         $this->assertNotNull( $team );
         $this->assertEquals( 20, $team['ID'] );
         $this->assertEquals( 'SP1-1', $team['ems_team_code'] );
+        $this->assertEquals( 10, $team['event_id'] );
     }
 
     public function test_get_by_id_returns_null_for_wrong_type(): void {
@@ -112,7 +115,7 @@ class Team_RepositoryTest extends EMSTestCase {
             }
         );
 
-        $repo = new Team_Repository();
+        $repo = new Team_Repository( $this->mock_team_members() );
         $result = $repo->get_by_id( 20 );
 
         $this->assertNull( $result );
@@ -122,14 +125,14 @@ class Team_RepositoryTest extends EMSTestCase {
         Functions\when( 'get_posts' )->alias(
             static function ( $args ) {
                 return [
-                    (object) [ 'ID' => 20, 'post_title' => 'Team A', 'post_status' => 'publish', 'post_type' => 'team' ],
-                    (object) [ 'ID' => 21, 'post_title' => 'Team B', 'post_status' => 'publish', 'post_type' => 'team' ],
+                    (object) [ 'ID' => 20, 'post_title' => 'Team A', 'post_status' => 'publish', 'post_type' => 'team', 'post_parent' => 10 ],
+                    (object) [ 'ID' => 21, 'post_title' => 'Team B', 'post_status' => 'publish', 'post_type' => 'team', 'post_parent' => 10 ],
                 ];
             }
         );
         Functions\when( 'get_post_meta' )->justReturn( '' );
 
-        $repo = new Team_Repository();
+        $repo = new Team_Repository( $this->mock_team_members() );
         $teams = $repo->list_by_expedition( 10 );
 
         $this->assertCount( 2, $teams );

@@ -184,15 +184,19 @@ Written by `OSM_Auth_Integration` on OIDC login:
 ## 12. Running Tests
 
 ```bash
-# PHP
-docker compose run --rm wordpress vendor/bin/phpunit
+# PHP (runs on host, not inside container)
+vendor/bin/phpunit
 
 # JS
 npm run test
 
 # Single PHP test file
-docker compose run --rm wordpress vendor/bin/phpunit tests/Unit/Data/Team_RepositoryTest.php
+vendor/bin/phpunit tests/Unit/Data/Team_RepositoryTest.php
 ```
+
+### UI feature tests
+
+Gherkin UI scenarios are implemented with **Vitest + React Testing Library**. The UI component uses a data-fetch hook (e.g. `useExpeditionBoard`) that calls the REST API in production. In Vitest, the API hook is mocked with `vi.mock()` or inline mocked data so the component can render states and respond to interactions without a WordPress server. Full browser E2E tests (Playwright) are reserved for staging smoke tests.
 
 ---
 
