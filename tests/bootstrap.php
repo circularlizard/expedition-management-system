@@ -44,6 +44,26 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
     }
 }
 
+if ( ! class_exists( 'WP_REST_Request' ) ) {
+    class WP_REST_Request {
+        private array $params = [];
+        private array $body   = [];
+        public function set_param( string $key, $value ): void {
+            $this->params[ $key ] = $value;
+        }
+        public function get_param( string $key ) {
+            return $this->params[ $key ] ?? null;
+        }
+        public function set_body_params( array $body ): void {
+            $this->body = $body;
+        }
+        public function get_json_params(): array {
+            return $this->body;
+        }
+        public function set_header( string $key, string $value ): void {}
+    }
+}
+
 if ( ! class_exists( 'WP_Error' ) ) {
     class WP_Error {
         private string $code;
