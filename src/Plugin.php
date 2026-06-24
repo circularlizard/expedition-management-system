@@ -156,7 +156,7 @@ class Plugin {
                     $managed_ids      = array_map( 'intval', array_keys( $managed_sections ) );
                     $all_ids          = array_unique( array_merge( $section_ids, $managed_ids ) );
                     $member_limit     = ( $api_mode === 'live-limited' ) ? max( 1, (int) get_option( 'ems_sync_limit', 5 ) ) : 0;
-                    $sync_ids         = ( $api_mode === 'live-limited' ) ? array_slice( $managed_ids ?: $all_ids, 0, 1 ) : $all_ids;
+                    $sync_ids         = ( $api_mode === 'live-limited' ) ? array_slice( $managed_ids ?: $all_ids, 0, 1 ) : ( $managed_ids ?: $all_ids );
                     set_transient( 'ems_pending_sync_job', [
                         'token'        => $token,
                         'payload'      => $payload,
@@ -237,7 +237,7 @@ class Plugin {
 
                 $sync_ids = ( $api_mode === 'live-limited' )
                     ? array_slice( $managed_ids ?: $all_ids, 0, 1 )
-                    : $all_ids;
+                    : ( $managed_ids ?: $all_ids );
 
                 set_transient( 'ems_pending_sync_job', [
                     'token'        => $token,
