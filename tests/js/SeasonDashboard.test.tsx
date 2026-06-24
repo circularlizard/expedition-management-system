@@ -532,4 +532,42 @@ describe('SeasonDashboard', () => {
         fireEvent.click(screen.getByTestId('event-header-10'));
         expect(screen.getByText(/First aid requirement not met/)).toBeInTheDocument();
     });
+
+    it('shows a size alert banner for teams outside the 4–7 range', () => {
+        const data: BoardData = {
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    teams: [{ ...mockBoard.seasons[0].events[0].teams[0], member_count: 3, size_warning: true }],
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        expect(screen.getByText(/Team size requirement not met/)).toBeInTheDocument();
+    });
+
+    it('sorts the add-explorer dropdown alphabetically by last name', () => {
+        const data: BoardData = {
+            ...mockBoard,
+            explorers: [
+                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', patrol: 'Eagles' },
+                { scout_id: 30002, first_name: 'Bob', last_name: 'Andrews', patrol: 'Hawks' },
+            ],
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    teams: [{ ...mockBoard.seasons[0].events[0].teams[0], members: [], member_count: 0 }],
+                    member_count: 0,
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        const select = screen.getByLabelText('Add explorer to H-SP1-1') as HTMLSelectElement;
+        const options = Array.from(select.options).map((option) => option.textContent).filter((text) => text !== 'Add…');
+        expect(options).toEqual(['Bob Andrews (Hawks)', 'Alice MacLeod (Eagles)']);
+    });
 });

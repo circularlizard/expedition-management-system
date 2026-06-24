@@ -1,5 +1,13 @@
 import { Season, Expedition, Team, Member } from './types';
 
+export function sortByName<T extends { first_name?: string; last_name?: string }>(items: T[]): T[] {
+    return [...items].sort((a, b) => {
+        const aName = `${a.last_name ?? ''}, ${a.first_name ?? ''}`;
+        const bName = `${b.last_name ?? ''}, ${b.first_name ?? ''}`;
+        return aName.localeCompare(bName);
+    });
+}
+
 export function memberKey(member: Member): string {
     return String(member.scout_id ?? member.user_id);
 }
