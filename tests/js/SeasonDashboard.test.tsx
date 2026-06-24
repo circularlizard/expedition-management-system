@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SeasonDashboard } from '../../resources/js/admin/expedition-board/SeasonDashboard';
-import { BoardData, Expedition } from '../../resources/js/admin/expedition-board/types';
+import { BoardData, Expedition, Team } from '../../resources/js/admin/expedition-board/types';
 
 beforeEach(() => {
     (global as any).window.emsExpeditionBoard = { root_url: 'http://test/wp-json/ems/v1', nonce: 'test-nonce' };
@@ -402,5 +402,94 @@ describe('SeasonDashboard', () => {
         fireEvent.click(screen.getByTestId('event-header-10'));
         const options = screen.getAllByRole('option', { name: /Bob Andrews/ });
         expect(options).toHaveLength(1);
+    });
+
+    it('opens the move team dialog and calls the API', async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ moved: true }) });
+        const secondEvent: Expedition = {
+            ...mockBoard.seasons[0].events[0],
+            ID: 11,
+            post_title: 'Hill Practice 2',
+            ems_event_code: 'H-SP2',
+            teams: [],
+            member_count: 0,
+        };
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [mockBoard.seasons[0].events[0], secondEvent],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        fireEvent.click(screen.getByRole('button', { name: /Move team H-SP1-1 to another event/ }));
+        fireEvent.change(screen.getByDisplayValue('— Select event —'), { target: { value: '11' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Move' }));
+
+        await waitFor(() => expect(screen.queryByText('Will be re-coded to')).not.toBeInTheDocument());
+        const [url, opts] = (global.fetch as any).mock.calls[0];
+        expect(url).toBe('http://test/wp-json/ems/v1/teams/20/move');
+        expect(JSON.parse(opts.body)).toEqual({ target_event_id: 11 });
+    });
+
+    it('opens the duplicate team dialog and calls the API', async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ duplicated: true }) });
+        const secondEvent: Expedition = {
+            ...mockBoard.seasons[0].events[0],
+            ID: 11,
+            post_title: 'Hill Practice 2',
+            ems_event_code: 'H-SP2',
+            teams: [],
+            member_count: 0,
+        };
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [mockBoard.seasons[0].events[0], secondEvent],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        fireEvent.click(screen.getByRole('button', { name: /Duplicate team H-SP1-1 to another event/ }));
+        fireEvent.change(screen.getByDisplayValue('— Select event —'), { target: { value: '11' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }));
+
+        await waitFor(() => expect(screen.queryByText('New team will be coded')).not.toBeInTheDocument());
+        const [url, opts] = (global.fetch as any).mock.calls[0];
+        expect(url).toBe('http://test/wp-json/ems/v1/teams/20/duplicate');
+        expect(JSON.parse(opts.body)).toEqual({ target_event_id: 11 });
+    });
+
+    it('opens the move explorer dialog and calls the API', async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ moved: true }) });
+        const secondTeam: Team = {
+            ...mockBoard.seasons[0].events[0].teams[0],
+            ID: 101,
+            ems_team_code: 'H-SP1-2',
+            members: [],
+            member_count: 0,
+        };
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    teams: [mockBoard.seasons[0].events[0].teams[0], secondTeam],
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        fireEvent.click(screen.getByRole('button', { name: /Move Alice MacLeod to another team/ }));
+        fireEvent.change(screen.getByDisplayValue('— Select team —'), { target: { value: '101' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Move' }));
+
+        await waitFor(() => expect(screen.queryByText('Move Alice MacLeod to team')).not.toBeInTheDocument());
+        const [url, opts] = (global.fetch as any).mock.calls[0];
+        expect(url).toBe('http://test/wp-json/ems/v1/explorers/30001/move-team');
+        expect(JSON.parse(opts.body)).toEqual({ target_team_id: 101 });
     });
 });

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { BoardData, Season, Expedition, Team, Member, Explorer } from './types';
 import { EventForm } from './EventForm';
+import { sameTypeEvents, findEventOfTeam, previewTeamCode, nextTeamNumber, memberKey } from './boardUtils';
 
 async function postJson(path: string, body?: unknown): Promise<Response> {
     const config = window.emsExpeditionBoard;
@@ -209,6 +210,7 @@ const SeasonCard: React.FC<{
                 filteredEvents.map((event) => (
                     <EventCard
                         key={event.ID}
+                        season={season}
                         event={event}
                         explorers={explorers}
                         expanded={expandedEvents.has(event.ID)}
@@ -221,7 +223,7 @@ const SeasonCard: React.FC<{
     );
 };
 
-const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: boolean; onToggle: () => void; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ event, explorers, expanded, onToggle, updateBoard }) => {
+const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explorer[]; expanded: boolean; onToggle: () => void; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ season, event, explorers, expanded, onToggle, updateBoard }) => {
     const [busy, setBusy] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
@@ -388,7 +390,7 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
                     ) : (
                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                             {event.teams.map((team) => (
-                                <TeamColumn key={team.ID} team={team} event={event} explorers={explorers} updateBoard={updateBoard} />
+                                <TeamColumn key={team.ID} team={team} event={event} season={season} explorers={explorers} updateBoard={updateBoard} />
                             ))}
                         </div>
                     )}
@@ -398,9 +400,13 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
     );
 };
 
-const TeamColumn: React.FC<{ team: Team; event: Expedition; explorers: Explorer[]; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ team, event, explorers, updateBoard }) => {
+const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; explorers: Explorer[]; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ team, event, season, explorers, updateBoard }) => {
     const [selected, setSelected] = useState('');
     const [busy, setBusy] = useState(false);
+    const [dialog, setDialog] = useState<'moveTeam' | 'duplicateTeam' | 'moveExplorer' | null>(null);
+    const [targetEventId, setTargetEventId] = useState('');
+    const [targetTeamId, setTargetTeamId] = useState('');
+    const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
     const members: Member[] = team.members ?? [];
     const assigned = new Set(
@@ -415,6 +421,13 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; explorers: Explorer[
         const bName = `${b.last_name ?? ''}, ${b.first_name ?? ''}`;
         return aName.localeCompare(bName);
     });
+
+    const closeDialog = () => {
+        setDialog(null);
+        setTargetEventId('');
+        setTargetTeamId('');
+        setSelectedMember(null);
+    };
 
     const addMember = async () => {
         if (!selected) return;
@@ -511,17 +524,159 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; explorers: Explorer[
         }
     };
 
+    const moveTargets = sameTypeEvents(season, event);
+    const duplicateTargets = season.events.filter((e) => e.ID !== event.ID);
+    const targetEvents = dialog === 'moveTeam' ? moveTargets : dialog === 'duplicateTeam' ? duplicateTargets : [];
+    const targetEvent = targetEvents.find((e) => e.ID === Number(targetEventId));
+    const preview = targetEvent ? previewTeamCode(targetEvent) : null;
+
+    const explorerTargetTeams = (() => {
+        if (dialog !== 'moveExplorer' || !selectedMember) return [];
+        const sameEventTeams = event.teams.filter((t) => t.ID !== team.ID);
+        const otherEventTeams = sameTypeEvents(season, event).flatMap((e) => e.teams);
+        return [...sameEventTeams, ...otherEventTeams];
+    })();
+
+    const moveTeam = async () => {
+        if (!targetEvent) return;
+        setBusy(true);
+        try {
+            const response = await postJson(`/teams/${team.ID}/move`, { target_event_id: targetEvent.ID });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const newCode = previewTeamCode(targetEvent);
+            const newNumber = nextTeamNumber(targetEvent);
+            updateBoard((b) => {
+                const srcEv = findEvent(b, event.ID);
+                const tgtEv = findEvent(b, targetEvent.ID);
+                if (srcEv && tgtEv) {
+                    const moving = srcEv.teams.find((t) => t.ID === team.ID);
+                    if (moving) {
+                        srcEv.teams = srcEv.teams.filter((t) => t.ID !== team.ID);
+                        moving.ems_team_code = newCode;
+                        moving.ems_team_number = newNumber;
+                        moving.event_id = targetEvent.ID;
+                        tgtEv.teams.push(moving);
+                        srcEv.member_count = srcEv.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
+                        tgtEv.member_count = tgtEv.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
+                    }
+                }
+            });
+            closeDialog();
+        } catch (e) {
+            console.error('Failed to move team:', e);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const duplicateTeam = async () => {
+        if (!targetEvent) return;
+        setBusy(true);
+        try {
+            const response = await postJson(`/teams/${team.ID}/duplicate`, { target_event_id: targetEvent.ID });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const newCode = previewTeamCode(targetEvent);
+            const newNumber = nextTeamNumber(targetEvent);
+            const newId = Date.now();
+            updateBoard((b) => {
+                const tgtEv = findEvent(b, targetEvent.ID);
+                if (tgtEv) {
+                    const copy: Team = {
+                        ...team,
+                        ID: newId,
+                        ems_team_code: newCode,
+                        ems_team_number: newNumber,
+                        event_id: targetEvent.ID,
+                        members: (team.members ?? []).map((m) => ({ ...m })),
+                        member_count: (team.members ?? []).length,
+                    };
+                    tgtEv.teams.push(copy);
+                    tgtEv.member_count = (tgtEv.member_count ?? 0) + (copy.member_count ?? 0);
+                }
+            });
+            closeDialog();
+        } catch (e) {
+            console.error('Failed to duplicate team:', e);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const moveExplorer = async () => {
+        if (!selectedMember || !targetTeamId) return;
+        const memberId = memberKey(selectedMember);
+        const destTeamId = Number(targetTeamId);
+        setBusy(true);
+        try {
+            const response = await postJson(`/explorers/${memberId}/move-team`, { target_team_id: destTeamId });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            updateBoard((b) => {
+                const srcTeam = findTeam(b, team.ID);
+                if (srcTeam) {
+                    const moved = srcTeam.members?.find((m) => memberKey(m) === memberId);
+                    srcTeam.members = (srcTeam.members ?? []).filter((m) => memberKey(m) !== memberId);
+                    srcTeam.member_count = srcTeam.members.length;
+                    srcTeam.size_warning = srcTeam.member_count < 4 || srcTeam.member_count > 7;
+                    const srcEv = findParentEvent(b, team.ID);
+                    if (srcEv) {
+                        if (srcTeam.member_count === 0) {
+                            srcEv.teams = srcEv.teams.filter((t) => t.ID !== team.ID);
+                        }
+                        srcEv.member_count = srcEv.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
+                    }
+                    const destTeam = findTeam(b, destTeamId);
+                    if (destTeam && moved) {
+                        destTeam.members = [...(destTeam.members ?? []), moved];
+                        destTeam.member_count = destTeam.members.length;
+                        destTeam.size_warning = destTeam.member_count < 4 || destTeam.member_count > 7;
+                        const destEv = findParentEvent(b, destTeamId);
+                        if (destEv) {
+                            destEv.member_count = destEv.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
+                        }
+                    }
+                }
+            });
+            closeDialog();
+        } catch (e) {
+            console.error('Failed to move explorer:', e);
+        } finally {
+            setBusy(false);
+        }
+    };
+
     return (
         <div className="ems-team-column" style={{ flex: '1 1 200px', minWidth: '180px', maxWidth: '260px', border: '1px solid #eee', background: '#fafafa' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#f0f0f0', borderBottom: '1px solid #eee', fontWeight: 600 }}>
                 <span>{team.ems_team_code}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {members.length}
                     {team.size_warning && (
                         <span className="ems-size-warning" title="Team size outside 4–7" style={{ color: '#d63638', fontWeight: 'bold' }}>
                             !
                         </span>
                     )}
+                    <button
+                        type="button"
+                        className="button-link"
+                        style={{ fontSize: '14px', lineHeight: 1, padding: '0 3px' }}
+                        title="Move team to another event"
+                        aria-label={`Move team ${team.ems_team_code} to another event`}
+                        onClick={() => { setDialog('moveTeam'); setTargetEventId(''); }}
+                        disabled={busy}
+                    >
+                        ↗
+                    </button>
+                    <button
+                        type="button"
+                        className="button-link"
+                        style={{ fontSize: '14px', lineHeight: 1, padding: '0 3px' }}
+                        title="Duplicate team to another event"
+                        aria-label={`Duplicate team ${team.ems_team_code} to another event`}
+                        onClick={() => { setDialog('duplicateTeam'); setTargetEventId(''); }}
+                        disabled={busy}
+                    >
+                        ⧺
+                    </button>
                     {members.length === 0 && (
                         <button type="button" className="button-link" style={{ color: '#d63638', fontSize: '12px' }} onClick={deleteTeam} disabled={busy} aria-label={`Delete team ${team.ems_team_code}`}>
                             ×
@@ -537,16 +692,29 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; explorers: Explorer[
                                 {member.first_name} {member.last_name}
                                 {member.patrol && <span style={{ fontSize: '11px', color: '#888', marginLeft: '4px' }}>({member.patrol})</span>}
                             </span>
-                            <button
-                                type="button"
-                                className="button-link"
-                                style={{ color: '#d63638', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}
-                                aria-label={`Remove ${member.first_name} ${member.last_name}`}
-                                onClick={() => removeMember(member.scout_id ?? 0)}
-                                disabled={busy}
-                            >
-                                ×
-                            </button>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                <button
+                                    type="button"
+                                    className="button-link"
+                                    style={{ color: '#666', fontSize: '14px', lineHeight: 1, padding: '0 3px' }}
+                                    title="Move explorer to another team"
+                                    aria-label={`Move ${member.first_name} ${member.last_name} to another team`}
+                                    onClick={() => { setSelectedMember(member); setDialog('moveExplorer'); setTargetTeamId(''); }}
+                                    disabled={busy}
+                                >
+                                    ↗
+                                </button>
+                                <button
+                                    type="button"
+                                    className="button-link"
+                                    style={{ color: '#d63638', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}
+                                    aria-label={`Remove ${member.first_name} ${member.last_name}`}
+                                    onClick={() => removeMember(member.scout_id ?? 0)}
+                                    disabled={busy}
+                                >
+                                    ×
+                                </button>
+                            </span>
                         </li>
                     ))}
                 </ul>
@@ -566,6 +734,58 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; explorers: Explorer[
                     </select>
                     <button type="button" className="button" onClick={addMember} disabled={busy || !selected}>Add</button>
                 </div>
+
+                {dialog && (
+                    <div className="ems-team-dialog" style={{ marginTop: '12px', padding: '10px', border: '1px solid #ddd', background: '#fff' }}>
+                        {dialog === 'moveTeam' && (
+                            <>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>
+                                    Move {team.ems_team_code} to event
+                                    <select value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)} style={{ display: 'block', marginTop: '4px', maxWidth: '100%' }}>
+                                        <option value="">— Select event —</option>
+                                        {targetEvents.map((e) => (<option key={e.ID} value={e.ID}>{e.ems_event_code}</option>))}
+                                    </select>
+                                </label>
+                                {preview && <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Will be re-coded to {preview}</p>}
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button type="button" className="button button-primary" onClick={moveTeam} disabled={busy || !targetEvent}>Move</button>
+                                    <button type="button" className="button" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                </div>
+                            </>
+                        )}
+                        {dialog === 'duplicateTeam' && (
+                            <>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>
+                                    Duplicate {team.ems_team_code} to event
+                                    <select value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)} style={{ display: 'block', marginTop: '4px', maxWidth: '100%' }}>
+                                        <option value="">— Select event —</option>
+                                        {targetEvents.map((e) => (<option key={e.ID} value={e.ID}>{e.ems_event_code}</option>))}
+                                    </select>
+                                </label>
+                                {preview && <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>New team will be coded {preview}</p>}
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button type="button" className="button button-primary" onClick={duplicateTeam} disabled={busy || !targetEvent}>Duplicate</button>
+                                    <button type="button" className="button" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                </div>
+                            </>
+                        )}
+                        {dialog === 'moveExplorer' && selectedMember && (
+                            <>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>
+                                    Move {selectedMember.first_name} {selectedMember.last_name} to team
+                                    <select value={targetTeamId} onChange={(e) => setTargetTeamId(e.target.value)} style={{ display: 'block', marginTop: '4px', maxWidth: '100%' }}>
+                                        <option value="">— Select team —</option>
+                                        {explorerTargetTeams.map((t) => (<option key={t.ID} value={t.ID}>{t.ems_team_code}</option>))}
+                                    </select>
+                                </label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button type="button" className="button button-primary" onClick={moveExplorer} disabled={busy || !targetTeamId}>Move</button>
+                                    <button type="button" className="button" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
