@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Expedition } from './types';
-
-interface OSMEvent {
-    id: number;
-    name: string;
-}
+import { Expedition, OSMEvent } from './types';
 
 interface EventFormProps {
     seasonId: number;
@@ -17,6 +12,7 @@ interface EventFormProps {
 export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, osmEvents = [], onSaved, onCancel }) => {
     const config = window.emsExpeditionBoard;
     const [formData, setFormData] = useState<Record<string, string>>({
+        post_title: '',
         ems_event_code: '',
         ems_type: 'practice',
         ems_transport: 'hillwalking',
@@ -27,9 +23,14 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         ems_start_time: '',
         ems_end_time: '',
         ems_lic_name: '',
+        ems_lic_email: '',
+        ems_lic_phone: '',
+        ems_lic_id: '',
         ems_start_location: '',
         ems_end_location: '',
         ems_route_info: '',
+        ems_route_deadline: '',
+        ems_status: '',
         ems_osm_event_id: '',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -38,6 +39,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
     useEffect(() => {
         if (initialEvent) {
             setFormData({
+                post_title: initialEvent.post_title || '',
                 ems_event_code: initialEvent.ems_event_code || '',
                 ems_type: initialEvent.ems_type || 'practice',
                 ems_transport: initialEvent.ems_transport || 'hillwalking',
@@ -48,9 +50,14 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 ems_start_time: initialEvent.ems_start_time || '',
                 ems_end_time: initialEvent.ems_end_time || '',
                 ems_lic_name: initialEvent.ems_lic_name || '',
+                ems_lic_email: initialEvent.ems_lic_email || '',
+                ems_lic_phone: initialEvent.ems_lic_phone || '',
+                ems_lic_id: initialEvent.ems_lic_id || '',
                 ems_start_location: initialEvent.ems_start_location || '',
                 ems_end_location: initialEvent.ems_end_location || '',
                 ems_route_info: initialEvent.ems_route_info || '',
+                ems_route_deadline: initialEvent.ems_route_deadline || '',
+                ems_status: initialEvent.ems_status || '',
                 ems_osm_event_id: String(initialEvent.ems_osm_event_id || ''),
             });
         }
@@ -163,6 +170,11 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 <div style={sectionLabelStyle}>Identification</div>
 
                 <label style={fieldStyle}>
+                    Expedition Title
+                    <input name="post_title" value={formData.post_title} onChange={handleChange} style={inputStyle} />
+                </label>
+
+                <label style={fieldStyle}>
                     Event Code *
                     <input name="ems_event_code" value={formData.ems_event_code} onChange={handleChange} style={inputStyle} />
                     {errors.ems_event_code && <span className="ems-field-error" style={{ color: '#d63638', fontSize: '13px' }}>{errors.ems_event_code}</span>}
@@ -256,6 +268,23 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                     Leader in Charge Name
                     <input name="ems_lic_name" value={formData.ems_lic_name} onChange={handleChange} style={inputStyle} />
                 </label>
+
+                <div style={grid2Style}>
+                    <label style={fieldStyle}>
+                        Leader Email
+                        <input type="email" name="ems_lic_email" value={formData.ems_lic_email} onChange={handleChange} style={inputStyle} />
+                    </label>
+
+                    <label style={fieldStyle}>
+                        Leader Phone
+                        <input type="tel" name="ems_lic_phone" value={formData.ems_lic_phone} onChange={handleChange} style={inputStyle} />
+                    </label>
+                </div>
+
+                <label style={fieldStyle}>
+                    Leader ID
+                    <input name="ems_lic_id" value={formData.ems_lic_id} onChange={handleChange} style={inputStyle} />
+                </label>
             </div>
 
             <div style={sectionStyle}>
@@ -274,6 +303,18 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
 
             <div style={sectionStyle}>
                 <div style={sectionLabelStyle}>Route Planning</div>
+
+                <div style={grid2Style}>
+                    <label style={fieldStyle}>
+                        Status
+                        <input name="ems_status" value={formData.ems_status} onChange={handleChange} style={inputStyle} />
+                    </label>
+
+                    <label style={fieldStyle}>
+                        Route Deadline
+                        <input type="date" name="ems_route_deadline" value={formData.ems_route_deadline} onChange={handleChange} style={inputStyle} />
+                    </label>
+                </div>
 
                 <label style={fieldStyle}>
                     Notes

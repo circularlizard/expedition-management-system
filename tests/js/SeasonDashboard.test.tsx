@@ -251,8 +251,8 @@ describe('SeasonDashboard', () => {
         };
         render(<SeasonDashboard data={data} />);
         fireEvent.change(screen.getByLabelText('Filter by type'), { target: { value: 'training' } });
-        expect(screen.queryByText('Hill Practice 1')).not.toBeInTheDocument();
-        expect(screen.getByText('Training Day')).toBeInTheDocument();
+        expect(screen.queryByText(/Hill Practice 1/)).not.toBeInTheDocument();
+        expect(screen.getByText(/Training Day/)).toBeInTheDocument();
     });
 
     it('sorts team members alphabetically by last name', () => {
