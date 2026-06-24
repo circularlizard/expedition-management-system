@@ -32,11 +32,12 @@ class Admin_View_Controller {
      * Registers REST routes for the admin views.
      */
     public function register_routes(): void {
-        register_rest_route( 'ems/v1', '/expedition-board', [
-            'methods'             => \WP_REST_Server::READABLE,
-            'callback'            => [ $this, 'get_board_data' ],
-            'permission_callback' => fn() => current_user_can( 'manage_options' ),
-        ] );
+        // NOTE: The `/expedition-board` route is intentionally NOT registered here.
+        // It is served by Expedition_Admin_Controller::get_board() (Stage 1.12), which
+        // returns the season → event → team hierarchy the current React board expects.
+        // Registering it here as well caused a route collision where this legacy
+        // handler's payload shape ({expeditions, teams, ...}) shadowed the new one,
+        // leaving the board blank because `data.seasons` was undefined.
         register_rest_route( 'ems/v1', '/explorer/(?P<scout_id>\d+)', [
             'methods'             => \WP_REST_Server::READABLE,
             'callback'            => [ $this, 'get_explorer_detail' ],

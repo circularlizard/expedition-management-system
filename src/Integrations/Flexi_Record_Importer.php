@@ -82,7 +82,12 @@ class Flexi_Record_Importer {
 
                 // 3. Assign Member (idempotency handled by repository)
                 try {
-                    $this->team_members->assign( $team_id, (int) $row['_user_id'], get_current_user_id() );
+                    $this->team_members->assign(
+                        $team_id,
+                        (int) $row['participant_scout_id'],
+                        get_current_user_id(),
+                        (int) ( $row['_user_id'] ?? 0 )
+                    );
                 } catch ( \InvalidArgumentException $e ) {
                     // Already assigned, ignore
                 }

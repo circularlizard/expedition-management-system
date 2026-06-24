@@ -12,6 +12,35 @@ class Table_Installer {
         foreach ( $sql as $statement ) {
             dbDelta( $statement );
         }
+
+        $this->run_migrations( $wpdb );
+    }
+
+    /**
+     * Idempotent column/index migrations for tables that already existed before
+     * a schema change. dbDelta is unreliable at ALTERing existing tables, so we
+     * apply additive changes explicitly here.
+     */
+    private function run_migrations( object $wpdb ): void {
+        $table = $wpdb->prefix . 'ems_team_members';
+
+        if ( ! $this->column_exists( $wpdb, $table, 'scout_id' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN scout_id BIGINT UNSIGNED NOT NULL DEFAULT 0 AFTER team_post_id" );
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$table} ADD KEY idx_scout_id (scout_id)" );
+        }
+    }
+
+    private function column_exists( object $wpdb, string $table, string $column ): bool {
+        $found = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+            $table,
+            $column
+        ) );
+
+        return ! empty( $found );
     }
 
     public function generate_sql( string $prefix = '', string $charset = '' ): array {
@@ -20,11 +49,13 @@ class Table_Installer {
         $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_team_members (
             id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             team_post_id BIGINT UNSIGNED NOT NULL,
-            user_id     BIGINT UNSIGNED NOT NULL,
+            scout_id    BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            user_id     BIGINT UNSIGNED NOT NULL DEFAULT 0,
             added_by    BIGINT UNSIGNED NOT NULL,
             added_at    DATETIME        NOT NULL,
             PRIMARY KEY (id),
             KEY idx_team_post_id (team_post_id),
+            KEY idx_scout_id (scout_id),
             KEY idx_user_id (user_id)
         ) {$charset};";
 

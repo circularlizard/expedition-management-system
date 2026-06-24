@@ -18,19 +18,19 @@ class Team_Member_Repository {
         return $this->wpdb;
     }
 
-    public function assign( int $team_post_id, int $user_id, int $added_by ): int {
+    public function assign( int $team_post_id, int $scout_id, int $added_by, int $user_id = 0 ): int {
         $wpdb  = $this->get_wpdb();
         $table = $wpdb->prefix . 'ems_team_members';
 
         $existing = $wpdb->get_var( $wpdb->prepare(
-            "SELECT id FROM {$table} WHERE team_post_id = %d AND user_id = %d",
+            "SELECT id FROM {$table} WHERE team_post_id = %d AND scout_id = %d",
             $team_post_id,
-            $user_id
+            $scout_id
         ) );
 
         if ( $existing ) {
             throw new \InvalidArgumentException(
-                "User {$user_id} is already assigned to team {$team_post_id}."
+                "Explorer {$scout_id} is already assigned to team {$team_post_id}."
             );
         }
 
@@ -40,28 +40,29 @@ class Team_Member_Repository {
             $table,
             [
                 'team_post_id' => $team_post_id,
+                'scout_id'     => $scout_id,
                 'user_id'      => $user_id,
                 'added_by'     => $added_by,
                 'added_at'     => $added_at,
             ],
-            [ '%d', '%d', '%d', '%s' ]
+            [ '%d', '%d', '%d', '%d', '%s' ]
         );
 
         if ( $id === false ) {
-            throw new \RuntimeException( "Failed to assign user to team: " . $wpdb->last_error );
+            throw new \RuntimeException( "Failed to assign explorer to team: " . $wpdb->last_error );
         }
 
         return (int) $wpdb->insert_id;
     }
 
-    public function remove( int $team_post_id, int $user_id ): bool {
+    public function remove( int $team_post_id, int $scout_id ): bool {
         $wpdb  = $this->get_wpdb();
         $table = $wpdb->prefix . 'ems_team_members';
 
         $deleted = $wpdb->query( $wpdb->prepare(
-            "DELETE FROM {$table} WHERE team_post_id = %d AND user_id = %d",
+            "DELETE FROM {$table} WHERE team_post_id = %d AND scout_id = %d",
             $team_post_id,
-            $user_id
+            $scout_id
         ) );
 
         if ( $deleted === false ) {
@@ -80,23 +81,23 @@ class Team_Member_Repository {
         return true;
     }
 
-    public function move( int $user_id, int $source_team_id, int $target_team_id, int $added_by ): bool {
+    public function move( int $scout_id, int $source_team_id, int $target_team_id, int $added_by, int $user_id = 0 ): bool {
         if ( $source_team_id === $target_team_id ) {
             return true;
         }
 
-        $this->remove( $source_team_id, $user_id );
-        $this->assign( $target_team_id, $user_id, $added_by );
+        $this->remove( $source_team_id, $scout_id );
+        $this->assign( $target_team_id, $scout_id, $added_by, $user_id );
         return true;
     }
 
-    public function get_by_user( int $user_id, int $team_post_id ): ?array {
+    public function get_by_scout( int $scout_id, int $team_post_id ): ?array {
         $wpdb  = $this->get_wpdb();
         $table = $wpdb->prefix . 'ems_team_members';
         $row   = $wpdb->get_row( $wpdb->prepare(
-            "SELECT id, team_post_id, user_id, added_by, added_at FROM {$table} WHERE team_post_id = %d AND user_id = %d",
+            "SELECT id, team_post_id, scout_id, user_id, added_by, added_at FROM {$table} WHERE team_post_id = %d AND scout_id = %d",
             $team_post_id,
-            $user_id
+            $scout_id
         ), ARRAY_A );
         return $row ?: null;
     }
@@ -106,7 +107,7 @@ class Team_Member_Repository {
         $table = $wpdb->prefix . 'ems_team_members';
 
         $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, team_post_id, user_id, added_by, added_at FROM {$table} WHERE team_post_id = %d ORDER BY id",
+            "SELECT id, team_post_id, scout_id, user_id, added_by, added_at FROM {$table} WHERE team_post_id = %d ORDER BY id",
             $team_post_id
         ), ARRAY_A );
 
@@ -132,7 +133,7 @@ class Team_Member_Repository {
         $placeholders = implode( ', ', array_fill( 0, count( $team_ids ), '%d' ) );
 
         $rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT tm.id, tm.team_post_id, tm.user_id, tm.added_by, tm.added_at
+            "SELECT tm.id, tm.team_post_id, tm.scout_id, tm.user_id, tm.added_by, tm.added_at
              FROM {$table} tm
              WHERE tm.team_post_id IN ({$placeholders})
              ORDER BY tm.team_post_id, tm.id",

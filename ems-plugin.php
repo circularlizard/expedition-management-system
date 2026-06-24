@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'EMS_PLUGIN_FILE', __FILE__ );
-define( 'EMS_VERSION', '0.1.30' );
+define( 'EMS_VERSION', '0.1.31' );
 
 // Autoload classes
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {

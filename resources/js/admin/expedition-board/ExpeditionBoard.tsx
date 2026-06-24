@@ -5,17 +5,25 @@ import { SeasonDashboard } from './SeasonDashboard';
 import { CrossEventTeamView } from './CrossEventTeamView';
 import { ExplorerMovePanel } from './ExplorerMovePanel';
 import { TeamMovePanel } from './TeamMovePanel';
+import { SeasonForm } from './SeasonForm';
 
 type BoardTab = 'dashboard' | 'cross-event' | 'move-explorer' | 'move-team';
 
 const ExpeditionBoard: React.FC = () => {
-    const { data, loading, error } = useBoard();
+    const { data, loading, error, refetch } = useBoard();
     const [activeTab, setActiveTab] = useState<BoardTab>('dashboard');
     const [activeSeasonId, setActiveSeasonId] = useState<number | null>(null);
+    const [showSeasonForm, setShowSeasonForm] = useState(false);
 
     if (loading) return <p>Loading board...</p>;
     if (error) return <div className="notice notice-error"><p>{error}</p></div>;
-    if (!data || !Array.isArray(data.seasons)) return null;
+    if (!data || !Array.isArray(data.seasons)) {
+        return (
+            <div className="notice notice-error">
+                <p>The expedition board could not be displayed: the server returned an unexpected response shape (no <code>seasons</code> data). Please reload, and if the problem persists check the REST endpoint <code>ems/v1/expedition-board</code>.</p>
+            </div>
+        );
+    }
 
     const seasons = data.seasons;
     const activeSeason: Season | null =
@@ -23,9 +31,25 @@ const ExpeditionBoard: React.FC = () => {
 
     return (
         <div className="ems-board">
-            <div className="ems-board-header" style={{ marginBottom: '20px', color: '#666', fontSize: '0.9em' }}>
-                Last synced with OSM: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
+            <div className="ems-board-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <span style={{ color: '#666', fontSize: '0.9em' }}>
+                    Last synced with OSM: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
+                </span>
+                <button
+                    type="button"
+                    className="button button-primary"
+                    onClick={() => setShowSeasonForm((v) => !v)}
+                >
+                    {showSeasonForm ? 'Close' : 'Create Season'}
+                </button>
             </div>
+
+            {showSeasonForm && (
+                <SeasonForm
+                    onSaved={() => { setShowSeasonForm(false); refetch(); }}
+                    onCancel={() => setShowSeasonForm(false)}
+                />
+            )}
 
             {seasons.length > 1 && (
                 <label className="ems-season-picker" style={{ display: 'block', marginBottom: '16px' }}>
@@ -58,7 +82,7 @@ const ExpeditionBoard: React.FC = () => {
             </nav>
 
             <div className="tab-content" style={{ marginTop: '20px' }}>
-                {activeTab === 'dashboard' && <SeasonDashboard data={data} />}
+                {activeTab === 'dashboard' && <SeasonDashboard data={data} onChanged={refetch} />}
                 {activeTab === 'cross-event' && activeSeason && <CrossEventTeamView season={activeSeason} />}
                 {activeTab === 'move-explorer' && activeSeason && <ExplorerMovePanel season={activeSeason} />}
                 {activeTab === 'move-team' && activeSeason && <TeamMovePanel season={activeSeason} />}
