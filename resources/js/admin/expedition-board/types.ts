@@ -40,6 +40,7 @@ export interface Expedition {
     ems_start_time?: string;
     ems_end_time?: string;
     ems_lic_name?: string;
+    ems_lic_phone?: string;
     ems_start_location?: string;
     ems_end_location?: string;
     ems_route_info?: string;

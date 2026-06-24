@@ -320,4 +320,87 @@ describe('SeasonDashboard', () => {
         fireEvent.click(screen.getByTestId('event-header-10'));
         expect(screen.getByText('(Eagles)')).toBeInTheDocument();
     });
+
+    it('displays leader name and phone in metadata', () => {
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    ems_lic_name: 'Sarah Connor',
+                    ems_lic_phone: '07700 900123',
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        expect(screen.getByText('Leader: Sarah Connor (07700 900123)')).toBeInTheDocument();
+    });
+
+    it('prevents assigning an explorer already in another team of the same expedition', () => {
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    teams: [
+                        {
+                            ...mockBoard.seasons[0].events[0].teams[0],
+                            members: [{ user_id: 1, scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod' }],
+                        },
+                        {
+                            ...mockBoard.seasons[0].events[0].teams[0],
+                            ID: 101,
+                            ems_team_code: 'H-SP1-2',
+                            members: [],
+                            member_count: 0,
+                        },
+                    ],
+                    member_count: 1,
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        const secondTeamSelect = screen.getByLabelText('Add explorer to H-SP1-2');
+        expect(screen.queryByRole('option', { name: /Alice MacLeod/ })).not.toBeInTheDocument();
+    });
+
+    it('shows an expand/collapse indicator on the event header', () => {
+        render(<SeasonDashboard data={mockBoard} />);
+        const header = screen.getByTestId('event-header-10');
+        expect(header).toHaveAttribute('aria-expanded', 'false');
+        expect(header.textContent).toContain('▸');
+        fireEvent.click(header);
+        expect(header).toHaveAttribute('aria-expanded', 'true');
+        expect(header.textContent).toContain('▾');
+    });
+
+    it('deduplicates explorers in the add-explorer dropdown', () => {
+        const data: BoardData = {
+            ...mockBoard,
+            explorers: [
+                ...(mockBoard.explorers ?? []),
+                { scout_id: 30002, first_name: 'Bob', last_name: 'Andrews', patrol: 'Hawks' },
+                { scout_id: 30002, first_name: 'Bob', last_name: 'Andrews', patrol: 'Hawks' },
+            ],
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    teams: [{
+                        ...mockBoard.seasons[0].events[0].teams[0],
+                        members: [],
+                        member_count: 0,
+                    }],
+                    member_count: 0,
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        const options = screen.getAllByRole('option', { name: /Bob Andrews/ });
+        expect(options).toHaveLength(1);
+    });
 });

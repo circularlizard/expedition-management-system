@@ -149,12 +149,11 @@ const SeasonCard: React.FC<{
         if (filters.level && event.ems_level !== filters.level) return false;
         return true;
     });
-    const eventsByLevel = groupByLevel(filteredEvents);
     const canDeleteSeason = season.events.length === 0;
 
     return (
         <div className="ems-season-card" style={{ marginBottom: '24px', border: '1px solid #ddd', padding: '16px', background: '#fff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2 style={{ margin: 0 }}>{seasonTitle(season)}</h2>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     {canDeleteSeason && (
@@ -207,20 +206,15 @@ const SeasonCard: React.FC<{
             ) : filteredEvents.length === 0 ? (
                 <p>No expeditions match the current filters.</p>
             ) : (
-                Object.entries(eventsByLevel).map(([level, events]) => (
-                    <div key={level} className="ems-level-group" style={{ marginBottom: '16px' }}>
-                        <h3>{capitalize(level)}</h3>
-                        {events.map((event) => (
-                            <EventCard
-                                key={event.ID}
-                                event={event}
-                                explorers={explorers}
-                                expanded={expandedEvents.has(event.ID)}
-                                onToggle={() => toggleEvent(event.ID)}
-                                updateBoard={updateBoard}
-                            />
-                        ))}
-                    </div>
+                filteredEvents.map((event) => (
+                    <EventCard
+                        key={event.ID}
+                        event={event}
+                        explorers={explorers}
+                        expanded={expandedEvents.has(event.ID)}
+                        onToggle={() => toggleEvent(event.ID)}
+                        updateBoard={updateBoard}
+                    />
                 ))
             )}
         </div>
@@ -298,6 +292,7 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
         event.ems_start_location ? `Start: ${event.ems_start_location}` : '',
         event.ems_end_location ? `End: ${event.ems_end_location}` : '',
         event.ems_start_time ? `Time: ${event.ems_start_time}${event.ems_end_time ? ` — ${event.ems_end_time}` : ''}` : '',
+        event.ems_lic_name ? `Leader: ${event.ems_lic_name}${event.ems_lic_phone ? ` (${event.ems_lic_phone})` : ''}` : '',
         event.ems_status ? `Status: ${event.ems_status}` : '',
         event.ems_route_deadline ? `Route deadline: ${formatShortDate(event.ems_route_deadline)}` : '',
     ].filter(Boolean);
@@ -309,20 +304,26 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
                 onClick={onToggle}
                 style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', padding: '10px 12px', margin: '-12px -12px 12px -12px', background: '#f7f7f7', borderBottom: '1px solid #eee' }}
                 data-testid={`event-header-${event.ID}`}
+                aria-expanded={expanded}
             >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: '17px' }}>{event.ems_event_code}</strong>
-                        {dateRange && (
-                            <span style={{ fontSize: '15px', color: '#333', fontWeight: 500 }}>
-                                {dateRange}
-                            </span>
-                        )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '13px', color: '#666' }}>
-                        {event.post_title && <span>{event.post_title}</span>}
-                        <span>{typeIcon(event.ems_type)} · {transportIcon(event.ems_transport)} · {levelIcon(event.ems_level)}</span>
-                        <span>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}, {event.member_count ?? 0} member{(event.member_count ?? 0) !== 1 ? 's' : ''}</span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: '1', minWidth: 0 }}>
+                    <span style={{ fontSize: '14px', color: '#666', marginTop: '3px', flexShrink: 0 }} aria-hidden="true">
+                        {expanded ? '▾' : '▸'}
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+                            <strong style={{ fontSize: '17px' }}>{event.ems_event_code}</strong>
+                            {dateRange && (
+                                <span style={{ fontSize: '15px', color: '#333', fontWeight: 500 }}>
+                                    {dateRange}
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '13px', color: '#666' }}>
+                            {event.post_title && <span>{event.post_title}</span>}
+                            <span>{typeIcon(event.ems_type)} · {transportIcon(event.ems_transport)} · {levelIcon(event.ems_level)}</span>
+                            <span>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}, {event.member_count ?? 0} member{(event.member_count ?? 0) !== 1 ? 's' : ''}</span>
+                        </div>
                     </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -387,7 +388,7 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
                     ) : (
                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                             {event.teams.map((team) => (
-                                <TeamColumn key={team.ID} team={team} explorers={explorers} updateBoard={updateBoard} />
+                                <TeamColumn key={team.ID} team={team} event={event} explorers={explorers} updateBoard={updateBoard} />
                             ))}
                         </div>
                     )}
@@ -397,13 +398,18 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
     );
 };
 
-const TeamColumn: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ team, explorers, updateBoard }) => {
+const TeamColumn: React.FC<{ team: Team; event: Expedition; explorers: Explorer[]; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ team, event, explorers, updateBoard }) => {
     const [selected, setSelected] = useState('');
     const [busy, setBusy] = useState(false);
 
     const members: Member[] = team.members ?? [];
-    const assigned = new Set(members.map((m) => m.scout_id));
-    const available = explorers.filter((e) => !assigned.has(e.scout_id));
+    const assigned = new Set(
+        event.teams.flatMap((t) => t.members?.map((m) => m.scout_id).filter((id): id is number => id !== undefined) ?? [])
+    );
+    const uniqueExplorers = explorers.filter((e, index, self) =>
+        self.findIndex((ex) => ex.scout_id === e.scout_id) === index
+    );
+    const available = uniqueExplorers.filter((e) => !assigned.has(e.scout_id));
     const sortedMembers = [...members].sort((a, b) => {
         const aName = `${a.last_name ?? ''}, ${a.first_name ?? ''}`;
         const bName = `${b.last_name ?? ''}, ${b.first_name ?? ''}`;
@@ -594,16 +600,6 @@ function findParentEvent(b: BoardData, teamId: number): Expedition | null {
         }
     }
     return null;
-}
-
-function groupByLevel(events: Expedition[]): Record<string, Expedition[]> {
-    const groups: Record<string, Expedition[]> = {};
-    events.forEach((event) => {
-        const level = event.ems_level || 'Unknown';
-        if (!groups[level]) groups[level] = [];
-        groups[level].push(event);
-    });
-    return groups;
 }
 
 function capitalize(value: string): string {
