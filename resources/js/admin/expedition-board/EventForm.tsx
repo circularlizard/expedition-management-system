@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Expedition, OSMEvent } from './types';
+import { RichTextEditor } from './RichTextEditor';
 
 interface EventFormProps {
     seasonId: number;
@@ -74,6 +75,9 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         if (!formData.ems_event_code.trim()) next.ems_event_code = 'Event code is required';
         if (!formData.ems_start_date) next.ems_start_date = 'Start date is required';
         if (!formData.ems_end_date) next.ems_end_date = 'End date is required';
+        if (formData.ems_lic_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.ems_lic_email)) {
+            next.ems_lic_email = 'Enter a valid email address';
+        }
         setErrors(next);
         return Object.keys(next).length === 0;
     };
@@ -148,6 +152,13 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         marginBottom: '16px',
     };
 
+    const grid3Style: React.CSSProperties = {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: '16px',
+        marginBottom: '16px',
+    };
+
     const sectionStyle: React.CSSProperties = {
         marginBottom: '24px',
         paddingBottom: '16px',
@@ -163,7 +174,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
     };
 
     return (
-        <form onSubmit={handleSubmit} className="ems-event-form" style={{ padding: '20px', background: '#fff' }}>
+        <form onSubmit={handleSubmit} noValidate className="ems-event-form" style={{ padding: '20px', background: '#fff' }}>
             {errors.form && <div className="notice notice-error"><p>{errors.form}</p></div>}
 
             <div style={sectionStyle}>
@@ -222,7 +233,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
             <div style={sectionStyle}>
                 <div style={sectionLabelStyle}>Schedule</div>
 
-                <div style={grid2Style}>
+                <div style={gridStyle}>
                     <label style={fieldStyle}>
                         Start Date *
                         <input type="date" name="ems_start_date" value={formData.ems_start_date} onChange={handleChange} style={inputStyle} />
@@ -230,16 +241,14 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                     </label>
 
                     <label style={fieldStyle}>
+                        Start Time
+                        <input type="time" name="ems_start_time" value={formData.ems_start_time} onChange={handleChange} style={inputStyle} />
+                    </label>
+
+                    <label style={fieldStyle}>
                         End Date *
                         <input type="date" name="ems_end_date" value={formData.ems_end_date} onChange={handleChange} style={inputStyle} />
                         {errors.ems_end_date && <span className="ems-field-error" style={{ color: '#d63638', fontSize: '13px' }}>{errors.ems_end_date}</span>}
-                    </label>
-                </div>
-
-                <div style={grid2Style}>
-                    <label style={fieldStyle}>
-                        Start Time
-                        <input type="time" name="ems_start_time" value={formData.ems_start_time} onChange={handleChange} style={inputStyle} />
                     </label>
 
                     <label style={fieldStyle}>
@@ -269,22 +278,23 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                     <input name="ems_lic_name" value={formData.ems_lic_name} onChange={handleChange} style={inputStyle} />
                 </label>
 
-                <div style={grid2Style}>
+                <div style={grid3Style}>
                     <label style={fieldStyle}>
                         Leader Email
                         <input type="email" name="ems_lic_email" value={formData.ems_lic_email} onChange={handleChange} style={inputStyle} />
+                        {errors.ems_lic_email && <span className="ems-field-error" style={{ color: '#d63638', fontSize: '13px' }}>{errors.ems_lic_email}</span>}
                     </label>
 
                     <label style={fieldStyle}>
                         Leader Phone
                         <input type="tel" name="ems_lic_phone" value={formData.ems_lic_phone} onChange={handleChange} style={inputStyle} />
                     </label>
-                </div>
 
-                <label style={fieldStyle}>
-                    Leader ID
-                    <input name="ems_lic_id" value={formData.ems_lic_id} onChange={handleChange} style={inputStyle} />
-                </label>
+                    <label style={fieldStyle}>
+                        Leader ID
+                        <input name="ems_lic_id" value={formData.ems_lic_id} onChange={handleChange} style={inputStyle} />
+                    </label>
+                </div>
             </div>
 
             <div style={sectionStyle}>
@@ -307,7 +317,11 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 <div style={grid2Style}>
                     <label style={fieldStyle}>
                         Status
-                        <input name="ems_status" value={formData.ems_status} onChange={handleChange} style={inputStyle} />
+                        <select name="ems_status" value={formData.ems_status} onChange={handleChange} style={inputStyle}>
+                            <option value="">— Select —</option>
+                            <option value="draft">Draft</option>
+                            <option value="confirmed">Confirmed</option>
+                        </select>
                     </label>
 
                     <label style={fieldStyle}>
@@ -318,7 +332,13 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
 
                 <label style={fieldStyle}>
                     Notes
-                    <textarea name="ems_route_info" value={formData.ems_route_info} onChange={handleChange} style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} />
+                    <RichTextEditor
+                        value={formData.ems_route_info}
+                        ariaLabel="Notes"
+                        onChange={(value) => {
+                            setFormData((prev) => ({ ...prev, ems_route_info: value }));
+                        }}
+                    />
                 </label>
             </div>
 
