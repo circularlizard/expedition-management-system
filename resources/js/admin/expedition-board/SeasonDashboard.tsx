@@ -26,6 +26,9 @@ interface SeasonDashboardProps {
 export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data }) => {
     const [board, setBoard] = useState<BoardData>(data);
     const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
+    const [filterType, setFilterType] = useState<string>('');
+    const [filterTransport, setFilterTransport] = useState<string>('');
+    const [filterLevel, setFilterLevel] = useState<string>('');
 
     const updateBoard = useCallback((updater: (b: BoardData) => void) => {
         setBoard((prev) => {
@@ -35,12 +38,46 @@ export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data }) => {
         });
     }, []);
 
+    const clearFilters = () => {
+        setFilterType('');
+        setFilterTransport('');
+        setFilterLevel('');
+    };
+
+    const hasFilters = filterType || filterTransport || filterLevel;
+
     if (!board.seasons || board.seasons.length === 0) {
         return <div className="notice notice-info">Create your first season to begin planning expeditions.</div>;
     }
 
     return (
         <div className="ems-season-dashboard">
+            <div className="ems-board-filters" style={{ marginBottom: '16px', padding: '12px', background: '#fff', border: '1px solid #ddd', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <label style={{ fontWeight: 600 }}>Filter expeditions:</label>
+                <select aria-label="Filter by type" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+                    <option value="">All types</option>
+                    <option value="training">Training</option>
+                    <option value="practice">Practice</option>
+                    <option value="qualifying">Qualifying</option>
+                </select>
+                <select aria-label="Filter by transport" value={filterTransport} onChange={(e) => setFilterTransport(e.target.value)}>
+                    <option value="">All transport</option>
+                    <option value="hillwalking">Hillwalking</option>
+                    <option value="biking">Biking</option>
+                    <option value="paddling">Paddling</option>
+                </select>
+                <select aria-label="Filter by level" value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
+                    <option value="">All levels</option>
+                    <option value="bronze">Bronze</option>
+                    <option value="silver">Silver</option>
+                    <option value="gold">Gold</option>
+                </select>
+                {hasFilters && (
+                    <button type="button" className="button-link" onClick={clearFilters}>
+                        Clear filters
+                    </button>
+                )}
+            </div>
             {board.seasons.map((season) => (
                 <SeasonCard
                     key={season.ID}
@@ -49,6 +86,7 @@ export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data }) => {
                     expandedEvents={expandedEvents}
                     setExpandedEvents={setExpandedEvents}
                     updateBoard={updateBoard}
+                    filters={{ type: filterType, transport: filterTransport, level: filterLevel }}
                 />
             ))}
         </div>
@@ -61,14 +99,22 @@ function seasonTitle(season: Season): string {
     return `Season #${season.ID}`;
 }
 
+interface EventFilters {
+    type: string;
+    transport: string;
+    level: string;
+}
+
 const SeasonCard: React.FC<{
     season: Season;
     explorers: Explorer[];
     expandedEvents: Set<number>;
     setExpandedEvents: React.Dispatch<React.SetStateAction<Set<number>>>;
     updateBoard: (updater: (b: BoardData) => void) => void;
-}> = ({ season, explorers, expandedEvents, setExpandedEvents, updateBoard }) => {
+    filters: EventFilters;
+}> = ({ season, explorers, expandedEvents, setExpandedEvents, updateBoard, filters }) => {
     const [showEventForm, setShowEventForm] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const toggleEvent = (eventId: number) => {
         setExpandedEvents((prev) => {
             const next = new Set(prev);
@@ -81,19 +127,56 @@ const SeasonCard: React.FC<{
         });
     };
 
-    const eventsByLevel = groupByLevel(season.events);
+    const deleteSeason = async () => {
+        if (!confirm(`Delete season "${seasonTitle(season)}"? This cannot be undone.`)) return;
+        setDeleting(true);
+        try {
+            const response = await del(`/seasons/${season.ID}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            updateBoard((b) => {
+                b.seasons = (b.seasons ?? []).filter((s) => s.ID !== season.ID);
+            });
+        } catch (e) {
+            console.error('Failed to delete season:', e);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const filteredEvents = season.events.filter((event) => {
+        if (filters.type && event.ems_type !== filters.type) return false;
+        if (filters.transport && event.ems_transport !== filters.transport) return false;
+        if (filters.level && event.ems_level !== filters.level) return false;
+        return true;
+    });
+    const eventsByLevel = groupByLevel(filteredEvents);
+    const canDeleteSeason = season.events.length === 0;
 
     return (
         <div className="ems-season-card" style={{ marginBottom: '24px', border: '1px solid #ddd', padding: '16px', background: '#fff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ margin: 0 }}>{seasonTitle(season)}</h2>
-                <button
-                    type="button"
-                    className="button"
-                    onClick={() => setShowEventForm((v) => !v)}
-                >
-                    {showEventForm ? 'Close' : 'Create Event'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {canDeleteSeason && (
+                        <button
+                            type="button"
+                            className="button-link"
+                            style={{ color: '#d63638' }}
+                            onClick={deleteSeason}
+                            disabled={deleting}
+                            aria-label={`Delete season ${seasonTitle(season)}`}
+                        >
+                            Delete season
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className="button"
+                        onClick={() => setShowEventForm((v) => !v)}
+                    >
+                        {showEventForm ? 'Close' : 'Create Event'}
+                    </button>
+                </div>
             </div>
 
             {showEventForm && (
@@ -121,6 +204,8 @@ const SeasonCard: React.FC<{
 
             {season.events.length === 0 ? (
                 <p>Create your first event for this season.</p>
+            ) : filteredEvents.length === 0 ? (
+                <p>No expeditions match the current filters.</p>
             ) : (
                 Object.entries(eventsByLevel).map(([level, events]) => (
                     <div key={level} className="ems-level-group" style={{ marginBottom: '16px' }}>
@@ -166,6 +251,24 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
         }
     };
 
+    const deleteEvent = async () => {
+        if (!confirm(`Delete expedition "${event.post_title}"? This cannot be undone.`)) return;
+        setBusy(true);
+        try {
+            const response = await del(`/events/${event.ID}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            updateBoard((b) => {
+                for (const s of b.seasons ?? []) {
+                    s.events = s.events.filter((e) => e.ID !== event.ID);
+                }
+            });
+        } catch (e) {
+            console.error('Failed to delete event:', e);
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const handleEventSaved = (updatedEvent: Expedition) => {
         setIsEditing(false);
         updateBoard((b) => {
@@ -188,41 +291,47 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
         setIsEditing(true);
     };
 
+    const dateRange = formatDateRange();
+    const canDeleteEvent = event.teams.length === 0 && (event.member_count ?? 0) === 0;
+
     return (
-        <div className="ems-event-card" style={{ marginBottom: '12px', border: '1px solid #eee', padding: '12px' }}>
+        <div className="ems-event-card" style={{ marginBottom: '12px', border: '1px solid #eee', padding: '12px', background: '#fff' }}>
             <div
                 className="ems-event-header"
                 onClick={onToggle}
-                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}
+                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}
                 data-testid={`event-header-${event.ID}`}
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <strong style={{ whiteSpace: 'nowrap' }}>{event.post_title}</strong>
-                        <span style={{ color: '#888', fontSize: '13px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{event.ems_event_code}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12px', color: '#666' }}>
-                            {typeIcon(event.ems_type)}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12px', color: '#666' }}>
-                            {transportIcon(event.ems_transport)}
-                        </span>
-                        <span style={levelBadgeStyle(event.ems_level)}>
-                            {levelIcon(event.ems_level)}
-                        </span>
-                        {formatDateRange() && (
-                            <span style={{ fontSize: '12px', color: '#666' }}>
-                                {formatDateRange()}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: '16px' }}>{event.post_title}</strong>
+                        {dateRange && (
+                            <span style={{ fontSize: '15px', color: '#333', fontWeight: 500 }}>
+                                {dateRange}
                             </span>
                         )}
                     </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-                    <div style={{ textAlign: 'right' }}>
-                        <div>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}</div>
-                        <div style={{ color: '#666', fontSize: '13px' }}>{event.member_count ?? 0} member{((event.member_count ?? 0) !== 1) ? 's' : ''}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '13px', color: '#666' }}>
+                        <span>{event.ems_event_code}</span>
+                        <span>{typeIcon(event.ems_type)}</span>
+                        <span>{transportIcon(event.ems_transport)}</span>
+                        <span style={levelBadgeStyle(event.ems_level)}>{levelIcon(event.ems_level)}</span>
+                        <span>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}, {event.member_count ?? 0} member{(event.member_count ?? 0) !== 1 ? 's' : ''}</span>
                     </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    {canDeleteEvent && (
+                        <button
+                            type="button"
+                            className="button-link"
+                            onClick={deleteEvent}
+                            disabled={busy}
+                            style={{ color: '#d63638', fontSize: '12px' }}
+                            aria-label={`Delete expedition ${event.post_title}`}
+                        >
+                            Delete
+                        </button>
+                    )}
                     <button
                         type="button"
                         className="button"
@@ -256,16 +365,18 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
                 </div>
             )}
             {expanded && !isEditing && (
-                <div className="ems-event-teams" style={{ marginTop: '12px' }}>
-                    <div style={{ marginBottom: '8px' }}>
+                <div className="ems-event-teams" style={{ marginTop: '16px' }}>
+                    <div style={{ marginBottom: '12px' }}>
                         <button type="button" className="button" onClick={addTeam} disabled={busy}>+ Add Team</button>
                     </div>
                     {event.teams.length === 0 ? (
                         <p>No teams in this event.</p>
                     ) : (
-                        event.teams.map((team) => (
-                            <TeamRow key={team.ID} team={team} explorers={explorers} updateBoard={updateBoard} />
-                        ))
+                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                            {event.teams.map((team) => (
+                                <TeamColumn key={team.ID} team={team} explorers={explorers} updateBoard={updateBoard} />
+                            ))}
+                        </div>
                     )}
                 </div>
             )}
@@ -273,13 +384,18 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
     );
 };
 
-const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ team, explorers, updateBoard }) => {
+const TeamColumn: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ team, explorers, updateBoard }) => {
     const [selected, setSelected] = useState('');
     const [busy, setBusy] = useState(false);
 
     const members: Member[] = team.members ?? [];
     const assigned = new Set(members.map((m) => m.scout_id));
     const available = explorers.filter((e) => !assigned.has(e.scout_id));
+    const sortedMembers = [...members].sort((a, b) => {
+        const aName = `${a.last_name ?? ''}, ${a.first_name ?? ''}`;
+        const bName = `${b.last_name ?? ''}, ${b.first_name ?? ''}`;
+        return aName.localeCompare(bName);
+    });
 
     const addMember = async () => {
         if (!selected) return;
@@ -377,43 +493,41 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updat
     };
 
     return (
-        <div className="ems-team-row" style={{ marginBottom: '8px', padding: '8px', border: '1px solid #f0f0f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="ems-team-column" style={{ flex: '1 1 200px', minWidth: '180px', maxWidth: '260px', border: '1px solid #eee', padding: '12px', background: '#fafafa' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontWeight: 600 }}>
                 <span>{team.ems_team_code}</span>
-                <span>
-                    {members.length} members
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {members.length}
                     {team.size_warning && (
-                        <span className="ems-size-warning" style={{ marginLeft: '8px', color: '#d63638', fontWeight: 'bold' }}>
-                            Size warning
+                        <span className="ems-size-warning" title="Team size outside 4–7" style={{ color: '#d63638', fontWeight: 'bold' }}>
+                            !
                         </span>
                     )}
                     {members.length === 0 && (
-                        <button type="button" className="button-link" style={{ marginLeft: '8px', color: '#d63638' }} onClick={deleteTeam} disabled={busy}>
-                            Delete team
+                        <button type="button" className="button-link" style={{ color: '#d63638', fontSize: '12px' }} onClick={deleteTeam} disabled={busy} aria-label={`Delete team ${team.ems_team_code}`}>
+                            ×
                         </button>
                     )}
                 </span>
             </div>
-            {members.length > 0 && (
-                <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px', listStyle: 'none' }}>
-                    {members.map((member) => (
-                        <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', maxWidth: '360px', padding: '2px 0' }}>
-                            <span>{member.first_name} {member.last_name}</span>
-                            <button
-                                type="button"
-                                className="button-link"
-                                style={{ color: '#d63638' }}
-                                aria-label={`Remove ${member.first_name} ${member.last_name}`}
-                                onClick={() => removeMember(member.scout_id ?? 0)}
-                                disabled={busy}
-                            >
-                                Remove
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            )}
-            <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+            <ul style={{ margin: '0 0 12px 0', padding: 0, listStyle: 'none' }}>
+                {sortedMembers.map((member) => (
+                    <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
+                        <span>{member.first_name} {member.last_name}</span>
+                        <button
+                            type="button"
+                            className="button-link"
+                            style={{ color: '#d63638', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}
+                            aria-label={`Remove ${member.first_name} ${member.last_name}`}
+                            onClick={() => removeMember(member.scout_id ?? 0)}
+                            disabled={busy}
+                        >
+                            ×
+                        </button>
+                    </li>
+                ))}
+            </ul>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <select
                     aria-label={`Add explorer to ${team.ems_team_code}`}
                     value={selected}
@@ -488,7 +602,7 @@ function typeIcon(type: string): string {
         case 'training': return 'Training';
         case 'practice': return 'Practice';
         case 'qualifying': return 'Qualifying';
-        default: return type;
+        default: return type ? capitalize(type) : '';
     }
 }
 
@@ -497,16 +611,16 @@ function transportIcon(transport?: string): string {
         case 'hillwalking': return 'Hillwalking';
         case 'biking': return 'Biking';
         case 'paddling': return 'Paddling';
-        default: return '';
+        default: return transport ? capitalize(transport) : '';
     }
 }
 
 function levelIcon(level: string): string {
     switch (level) {
-        case 'bronze': return '';
-        case 'silver': return '';
-        case 'gold': return '';
-        default: return '';
+        case 'bronze': return 'Bronze';
+        case 'silver': return 'Silver';
+        case 'gold': return 'Gold';
+        default: return level ? capitalize(level) : 'Unknown';
     }
 }
 

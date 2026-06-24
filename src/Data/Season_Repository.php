@@ -63,6 +63,24 @@ class Season_Repository {
 		return true;
 	}
 
+	public function delete( int $id ): bool {
+		$post = get_post( $id );
+		if ( ! $post || $post->post_type !== 'season' ) {
+			return false;
+		}
+		return wp_delete_post( $id, true ) !== false;
+	}
+
+	public function has_events( int $id ): bool {
+		$events = get_posts( [
+			'post_type'   => 'expedition',
+			'post_status' => 'publish',
+			'numberposts' => 1,
+			'post_parent' => $id,
+		] );
+		return ! empty( $events );
+	}
+
 	private function year_exists( string $year ): bool {
 		$existing = get_posts( [
 			'post_type'   => 'season',

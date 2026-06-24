@@ -197,6 +197,84 @@ describe('SeasonDashboard', () => {
         };
         render(<SeasonDashboard data={data} />);
         fireEvent.click(screen.getByTestId('event-header-10'));
-        expect(screen.getByText(/Size warning/)).toBeInTheDocument();
+        expect(screen.getByTitle('Team size outside 4–7')).toBeInTheDocument();
+    });
+
+    it('deletes an empty season', async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ deleted: true }) });
+        window.confirm = vi.fn(() => true);
+        const data: BoardData = { ...mockBoard, seasons: [{ ...mockBoard.seasons[0], events: [] }] };
+        render(<SeasonDashboard data={data} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Delete season/ }));
+
+        await waitFor(() => expect(screen.queryByText('2026-27 Season')).not.toBeInTheDocument());
+        const [url, opts] = (global.fetch as any).mock.calls[0];
+        expect(url).toBe('http://test/wp-json/ems/v1/seasons/1');
+        expect(opts.method).toBe('DELETE');
+    });
+
+    it('does not show delete season button when season has events', () => {
+        render(<SeasonDashboard data={mockBoard} />);
+        expect(screen.queryByRole('button', { name: /Delete season/ })).not.toBeInTheDocument();
+    });
+
+    it('deletes an empty expedition', async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ deleted: true }) });
+        window.confirm = vi.fn(() => true);
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{ ...mockBoard.seasons[0].events[0], teams: [], member_count: 0 }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Delete expedition Hill Practice 1/ }));
+
+        await waitFor(() => expect(screen.queryByText(/Hill Practice 1/)).not.toBeInTheDocument());
+        const [url, opts] = (global.fetch as any).mock.calls[0];
+        expect(url).toBe('http://test/wp-json/ems/v1/events/10');
+        expect(opts.method).toBe('DELETE');
+    });
+
+    it('filters expeditions by type', () => {
+        const data: BoardData = {
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [
+                    mockBoard.seasons[0].events[0],
+                    { ...mockBoard.seasons[0].events[0], ID: 11, post_title: 'Training Day', ems_type: 'training' },
+                ],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.change(screen.getByLabelText('Filter by type'), { target: { value: 'training' } });
+        expect(screen.queryByText('Hill Practice 1')).not.toBeInTheDocument();
+        expect(screen.getByText('Training Day')).toBeInTheDocument();
+    });
+
+    it('sorts team members alphabetically by last name', () => {
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    teams: [{
+                        ...mockBoard.seasons[0].events[0].teams[0],
+                        members: [
+                            { user_id: 1, scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod' },
+                            { user_id: 2, scout_id: 30002, first_name: 'Bob', last_name: 'Andrews' },
+                        ],
+                    }],
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        const names = screen.getAllByLabelText(/Remove /).map((el) => el.getAttribute('aria-label'));
+        expect(names).toEqual(['Remove Bob Andrews', 'Remove Alice MacLeod']);
     });
 });
