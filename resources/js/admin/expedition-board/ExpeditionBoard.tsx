@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useBoard } from './useBoard';
+import { useOSMEvents } from './useOSMEvents';
 import { Season } from './types';
 import { SeasonDashboard } from './SeasonDashboard';
 import { CrossEventTeamView } from './CrossEventTeamView';
@@ -10,6 +11,7 @@ type BoardTab = 'dashboard' | 'cross-event' | 'reference';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
+    const { events: osmEvents, loading: osmEventsLoading } = useOSMEvents();
     const [activeTab, setActiveTab] = useState<BoardTab>('dashboard');
     const [showSeasonForm, setShowSeasonForm] = useState(false);
 
@@ -61,7 +63,7 @@ const ExpeditionBoard: React.FC = () => {
             </nav>
 
             <div className="tab-content" style={{ marginTop: '20px' }}>
-                {activeTab === 'dashboard' && <SeasonDashboard data={data} />}
+                {activeTab === 'dashboard' && <SeasonDashboard data={data} osmEvents={osmEvents} osmEventsLoading={osmEventsLoading} />}
                 {activeTab === 'cross-event' && activeSeason && <CrossEventTeamView season={activeSeason} />}
                 {activeTab === 'reference' && <OSMReference data={data} onChanged={refetch} />}
             </div>

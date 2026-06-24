@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { BoardData, Season, Expedition, Team, Member, Explorer } from './types';
+import { BoardData, Season, Expedition, Team, Member, Explorer, OSMEvent } from './types';
 import { EventForm } from './EventForm';
 import { sameTypeEvents, findEventOfTeam, previewTeamCode, nextTeamNumber, memberKey } from './boardUtils';
 
@@ -22,9 +22,11 @@ async function del(path: string): Promise<Response> {
 
 interface SeasonDashboardProps {
     data: BoardData;
+    osmEvents?: OSMEvent[];
+    osmEventsLoading?: boolean;
 }
 
-export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data }) => {
+export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data, osmEvents = [], osmEventsLoading = false }) => {
     const [board, setBoard] = useState<BoardData>(data);
     const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
     const [filterType, setFilterType] = useState<string>('');
@@ -88,6 +90,8 @@ export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data }) => {
                     setExpandedEvents={setExpandedEvents}
                     updateBoard={updateBoard}
                     filters={{ type: filterType, transport: filterTransport, level: filterLevel }}
+                    osmEvents={osmEvents}
+                    osmEventsLoading={osmEventsLoading}
                 />
             ))}
         </div>
@@ -113,7 +117,9 @@ const SeasonCard: React.FC<{
     setExpandedEvents: React.Dispatch<React.SetStateAction<Set<number>>>;
     updateBoard: (updater: (b: BoardData) => void) => void;
     filters: EventFilters;
-}> = ({ season, explorers, expandedEvents, setExpandedEvents, updateBoard, filters }) => {
+    osmEvents?: OSMEvent[];
+    osmEventsLoading?: boolean;
+}> = ({ season, explorers, expandedEvents, setExpandedEvents, updateBoard, filters, osmEvents = [], osmEventsLoading = false }) => {
     const [showEventForm, setShowEventForm] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const toggleEvent = (eventId: number) => {
@@ -183,6 +189,7 @@ const SeasonCard: React.FC<{
                 <div style={{ margin: '12px 0' }}>
                     <EventForm
                         seasonId={season.ID}
+                        osmEvents={osmEvents}
                         onSaved={(savedEvent) => {
                             setShowEventForm(false);
                             updateBoard((b) => {
@@ -216,6 +223,7 @@ const SeasonCard: React.FC<{
                         expanded={expandedEvents.has(event.ID)}
                         onToggle={() => toggleEvent(event.ID)}
                         updateBoard={updateBoard}
+                        osmEvents={osmEvents}
                     />
                 ))
             )}
@@ -223,7 +231,7 @@ const SeasonCard: React.FC<{
     );
 };
 
-const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explorer[]; expanded: boolean; onToggle: () => void; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ season, event, explorers, expanded, onToggle, updateBoard }) => {
+const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explorer[]; expanded: boolean; onToggle: () => void; updateBoard: (updater: (b: BoardData) => void) => void; osmEvents?: OSMEvent[] }> = ({ season, event, explorers, expanded, onToggle, updateBoard, osmEvents = [] }) => {
     const [busy, setBusy] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
@@ -314,7 +322,7 @@ const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explor
                     </span>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                            <strong style={{ fontSize: '17px' }}>{event.ems_event_code}</strong>
+                            <strong style={{ fontSize: '17px' }}>{event.post_title || 'Untitled expedition'} ({event.ems_event_code})</strong>
                             {dateRange && (
                                 <span style={{ fontSize: '15px', color: '#333', fontWeight: 500 }}>
                                     {dateRange}
@@ -322,7 +330,6 @@ const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explor
                             )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px' }}>
-                            {event.post_title && <span style={{ color: '#666' }}>{event.post_title}</span>}
                             <span style={typePillStyle(event.ems_type)}>{typeIcon(event.ems_type)}</span>
                             <span style={transportPillStyle(event.ems_transport)}>{transportIcon(event.ems_transport)}</span>
                             <span style={levelPillStyle(event.ems_level)}>{levelIcon(event.ems_level)}</span>
@@ -366,6 +373,7 @@ const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explor
                     <EventForm
                         seasonId={event.season_id}
                         initialEvent={event}
+                        osmEvents={osmEvents}
                         onSaved={(savedEvent) => {
                             setIsEditing(false);
                             updateBoard((b) => {
