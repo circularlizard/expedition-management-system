@@ -255,7 +255,7 @@ describe('SeasonDashboard', () => {
         expect(screen.getByText(/Training Day/)).toBeInTheDocument();
     });
 
-    it('sorts team members alphabetically by last name', () => {
+    it('sorts team members A-Z by first name', () => {
         const data: BoardData = {
             ...mockBoard,
             seasons: [{
@@ -275,7 +275,7 @@ describe('SeasonDashboard', () => {
         render(<SeasonDashboard data={data} />);
         fireEvent.click(screen.getByTestId('event-header-10'));
         const names = screen.getAllByLabelText(/Remove /).map((el) => el.getAttribute('aria-label'));
-        expect(names).toEqual(['Remove Bob Andrews', 'Remove Alice MacLeod']);
+        expect(names).toEqual(['Remove Alice MacLeod', 'Remove Bob Andrews']);
     });
 
     it('displays expedition metadata', () => {
@@ -548,7 +548,7 @@ describe('SeasonDashboard', () => {
         expect(screen.getByText(/Team size requirement not met/)).toBeInTheDocument();
     });
 
-    it('sorts the add-explorer dropdown alphabetically by last name', () => {
+    it('sorts the add-explorer dropdown A-Z by first name', () => {
         const data: BoardData = {
             ...mockBoard,
             explorers: [
@@ -568,6 +568,6 @@ describe('SeasonDashboard', () => {
         fireEvent.click(screen.getByTestId('event-header-10'));
         const select = screen.getByLabelText('Add explorer to H-SP1-1') as HTMLSelectElement;
         const options = Array.from(select.options).map((option) => option.textContent).filter((text) => text !== 'Add…');
-        expect(options).toEqual(['Bob Andrews (Hawks)', 'Alice MacLeod (Eagles)']);
+        expect(options).toEqual(['Alice MacLeod (Eagles)', 'Bob Andrews (Hawks)']);
     });
 });
