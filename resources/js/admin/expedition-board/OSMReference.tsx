@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BoardData, Explorer, FirstAidLevel } from './types';
 
 interface OSMReferenceProps {
@@ -13,8 +13,18 @@ const labels: Record<FirstAidLevel, string> = {
 };
 
 export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) => {
+    const [levels, setLevels] = useState<Record<number, FirstAidLevel>>({});
     const [saving, setSaving] = useState<Record<number, boolean>>({});
+    const [errors, setErrors] = useState<Record<number, string>>({});
     const config = window.emsExpeditionBoard;
+
+    useEffect(() => {
+        const next: Record<number, FirstAidLevel> = {};
+        for (const explorer of data.explorers ?? []) {
+            next[explorer.scout_id] = explorer.first_aid_level ?? 'none';
+        }
+        setLevels(next);
+    }, [data.explorers]);
 
     const explorers = [...(data.explorers ?? [])].sort((a, b) => {
         const aName = `${a.last_name ?? ''}, ${a.first_name ?? ''}`;
@@ -23,8 +33,10 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
     });
 
     const updateLevel = async (explorer: Explorer, level: FirstAidLevel) => {
-        if (explorer.first_aid_level === level) return;
+        if (levels[explorer.scout_id] === level) return;
+        setLevels((prev) => ({ ...prev, [explorer.scout_id]: level }));
         setSaving((prev) => ({ ...prev, [explorer.scout_id]: true }));
+        setErrors((prev) => ({ ...prev, [explorer.scout_id]: '' }));
         try {
             const response = await fetch(`${config.root_url}/explorers/${explorer.scout_id}/first-aid`, {
                 method: 'POST',
@@ -35,10 +47,11 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                 body: JSON.stringify({ first_aid_level: level }),
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            explorer.first_aid_level = level;
             onChanged?.();
         } catch (e) {
-            console.error('Failed to update first aid level:', e);
+            const message = e instanceof Error ? e.message : 'Failed to save';
+            setErrors((prev) => ({ ...prev, [explorer.scout_id]: message }));
+            setLevels((prev) => ({ ...prev, [explorer.scout_id]: explorer.first_aid_level ?? 'none' }));
         } finally {
             setSaving((prev) => ({ ...prev, [explorer.scout_id]: false }));
         }
@@ -68,7 +81,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                 <td>
                                     <select
                                         aria-label={`First aid level for ${explorer.first_name} ${explorer.last_name}`}
-                                        value={explorer.first_aid_level ?? 'none'}
+                                        value={levels[explorer.scout_id] ?? 'none'}
                                         onChange={(e) => updateLevel(explorer, e.target.value as FirstAidLevel)}
                                         disabled={saving[explorer.scout_id]}
                                     >
@@ -76,6 +89,9 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                             <option key={level} value={level}>{labels[level]}</option>
                                         ))}
                                     </select>
+                                    {errors[explorer.scout_id] && (
+                                        <span style={{ color: '#d63638', fontSize: '12px', marginLeft: '8px' }}>{errors[explorer.scout_id]}</span>
+                                    )}
                                 </td>
                             </tr>
                         ))}

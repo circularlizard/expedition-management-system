@@ -713,9 +713,11 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                 <ul style={{ margin: '0 0 12px 0', padding: 0, listStyle: 'none' }}>
                     {sortedMembers.map((member) => (
                         <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', gap: '6px' }}>
-                            <span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 {member.first_name} {member.last_name}
-                                {member.patrol && <span style={{ fontSize: '11px', color: '#888', marginLeft: '4px' }}>({member.patrol})</span>}
+                                {member.patrol && <span style={{ fontSize: '11px', color: '#888' }}>({member.patrol})</span>}
+                                {member.first_aid_level === 'first_response' && <span title="First Response" style={{ color: '#2e7d32', fontWeight: 'bold' }}>✚</span>}
+                                {member.first_aid_level === 'full_first_aid' && <span title="Full First Aid" style={{ color: '#2e7d32', fontWeight: 'bold' }}>⊕</span>}
                             </span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <button
@@ -936,8 +938,8 @@ function pillStyle(colors: { bg: string; color: string }): React.CSSProperties {
 
 function firstAidIcon(level?: string): string {
     switch (level) {
-        case 'first_response': return 'First Response';
-        case 'full_first_aid': return 'Full First Aid';
+        case 'first_response': return '✚ First Response';
+        case 'full_first_aid': return '⊕ Full First Aid';
         default: return 'No first aid';
     }
 }
@@ -945,8 +947,8 @@ function firstAidIcon(level?: string): string {
 function firstAidPillStyle(level?: string): React.CSSProperties {
     const colors: Record<string, { bg: string; color: string }> = {
         none: { bg: '#f5f5f5', color: '#666' },
-        first_response: { bg: '#fff3e0', color: '#e65100' },
-        full_first_aid: { bg: '#ffebee', color: '#c62828' },
+        first_response: { bg: '#e8f5e9', color: '#2e7d32' },
+        full_first_aid: { bg: '#c8e6c9', color: '#1b5e20' },
     };
     return pillStyle(colors[level ?? 'none'] || colors.none);
 }
