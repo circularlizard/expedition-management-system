@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { BoardData, Expedition, Team, Member, FirstAidLevel } from './types';
+import { BoardData, Expedition, Team, Member, FirstAidLevel, OSMEvent } from './types';
+import { EventForm } from './EventForm';
 
 interface ExpeditionViewProps {
     data: BoardData;
+    osmEvents?: OSMEvent[];
 }
 
 const FA_LABELS: Record<FirstAidLevel, string> = {
@@ -13,14 +15,9 @@ const FA_LABELS: Record<FirstAidLevel, string> = {
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function editUrl(postId: number): string {
-    const base = window.emsExpeditionBoard?.admin_url ?? '/wp-admin/post.php';
-    return `${base}?post=${postId}&action=edit`;
-}
-
 function sortedMembers(members: Member[]): Member[] {
     return [...members].sort((a, b) =>
-        `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
+        `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
     );
 }
 
@@ -94,8 +91,31 @@ const TeamRow: React.FC<{ team: Team }> = ({ team }) => {
     );
 };
 
-const ExpeditionDetail: React.FC<{ expedition: Expedition }> = ({ expedition: e }) => {
+const ExpeditionDetail: React.FC<{
+    expedition: Expedition;
+    osmEvents: OSMEvent[];
+    onSaved: (updated: Expedition) => void;
+}> = ({ expedition: e, osmEvents, onSaved }) => {
+    const [editing, setEditing] = useState(false);
     const totalMembers = e.teams.reduce((acc, t) => acc + (t.member_count ?? t.members?.length ?? 0), 0);
+
+    if (editing) {
+        return (
+            <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '4px', padding: '20px' }}>
+                <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>
+                    Editing: {e.post_title}{' '}
+                    <span style={{ fontWeight: 400, fontSize: '14px', color: '#666' }}>({e.ems_event_code})</span>
+                </h2>
+                <EventForm
+                    seasonId={e.season_id ?? 0}
+                    initialEvent={e}
+                    osmEvents={osmEvents}
+                    onSaved={(saved) => { setEditing(false); onSaved(saved); }}
+                    onCancel={() => setEditing(false)}
+                />
+            </div>
+        );
+    }
 
     return (
         <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '4px', padding: '20px' }}>
@@ -104,15 +124,14 @@ const ExpeditionDetail: React.FC<{ expedition: Expedition }> = ({ expedition: e 
                     {e.post_title}{' '}
                     <span style={{ fontWeight: 400, fontSize: '14px', color: '#666' }}>({e.ems_event_code})</span>
                 </h2>
-                <a
-                    href={editUrl(e.ID)}
-                    target="_blank"
-                    rel="noreferrer"
+                <button
+                    type="button"
                     className="button"
                     style={{ flexShrink: 0, marginLeft: '16px' }}
+                    onClick={() => setEditing(true)}
                 >
-                    Edit expedition ↗
-                </a>
+                    Edit expedition
+                </button>
             </div>
 
             <table style={{ borderCollapse: 'collapse', marginBottom: '24px' }}>
@@ -176,12 +195,23 @@ const ExpeditionDetail: React.FC<{ expedition: Expedition }> = ({ expedition: e 
     );
 };
 
-export const ExpeditionView: React.FC<ExpeditionViewProps> = ({ data }) => {
-    const allExpeditions: Expedition[] = (data.seasons ?? []).flatMap((s) => s.events);
+export const ExpeditionView: React.FC<ExpeditionViewProps> = ({ data, osmEvents = [] }) => {
+    const allExpeditions: Expedition[] = (data.seasons ?? []).flatMap((s) =>
+        s.events.map((ev) => ({ ...ev, season_id: ev.season_id ?? s.ID }))
+    );
 
     const [selectedId, setSelectedId] = useState<number | null>(allExpeditions[0]?.ID ?? null);
+    const [overrides, setOverrides] = useState<Record<number, Expedition>>({});
 
-    const selected = allExpeditions.find((e) => e.ID === selectedId) ?? null;
+    const selected = (() => {
+        const base = allExpeditions.find((e) => e.ID === selectedId) ?? null;
+        if (!base) return null;
+        return overrides[base.ID] ? { ...base, ...overrides[base.ID] } : base;
+    })();
+
+    const handleSaved = (updated: Expedition) => {
+        setOverrides((prev) => ({ ...prev, [updated.ID]: updated }));
+    };
 
     if (allExpeditions.length === 0) {
         return <div className="notice notice-info"><p>No expeditions found. Create a season and add expeditions first.</p></div>;
@@ -210,7 +240,13 @@ export const ExpeditionView: React.FC<ExpeditionViewProps> = ({ data }) => {
                 </select>
             </div>
 
-            {selected && <ExpeditionDetail expedition={selected} />}
+            {selected && (
+                <ExpeditionDetail
+                    expedition={selected}
+                    osmEvents={osmEvents}
+                    onSaved={handleSaved}
+                />
+            )}
         </div>
     );
 };

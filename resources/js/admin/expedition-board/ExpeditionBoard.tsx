@@ -63,7 +63,7 @@ const ExpeditionBoard: React.FC = () => {
 
             <div className="tab-content" style={{ marginTop: '20px' }}>
                 {activeTab === 'dashboard' && <SeasonDashboard data={data} osmEvents={osmEvents} osmEventsLoading={osmEventsLoading} />}
-                {activeTab === 'expedition-view' && <ExpeditionView data={data} />}
+                {activeTab === 'expedition-view' && <ExpeditionView data={data} osmEvents={osmEvents} />}
                 {activeTab === 'reference' && <OSMReference data={data} onChanged={refetch} />}
             </div>
         </div>
