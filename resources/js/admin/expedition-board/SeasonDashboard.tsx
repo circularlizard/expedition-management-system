@@ -714,10 +714,10 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                     {sortedMembers.map((member) => (
                         <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', gap: '6px' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {member.first_name} {member.last_name}
-                                {member.patrol && <span style={{ fontSize: '11px', color: '#888' }}>({member.patrol})</span>}
                                 {member.first_aid_level === 'first_response' && <span title="First Response" style={{ color: '#2e7d32', fontWeight: 'bold' }}>✚</span>}
                                 {member.first_aid_level === 'full_first_aid' && <span title="Full First Aid" style={{ color: '#2e7d32', fontWeight: 'bold' }}>⊕</span>}
+                                {member.first_name} {member.last_name}
+                                {member.patrol && <span style={{ fontSize: '11px', color: '#888' }}>({member.patrol})</span>}
                             </span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <button

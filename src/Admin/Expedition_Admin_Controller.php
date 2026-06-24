@@ -487,7 +487,7 @@ class Expedition_Admin_Controller {
 
         $updated = $this->explorers->update_first_aid_level( $scout_id, $level );
         if ( ! $updated ) {
-            return $this->error( 'ems_first_aid_update_failed', 'Could not update first aid level.', 500 );
+            return $this->error( 'ems_first_aid_update_failed', 'Could not update first aid level. Try deactivating and reactivating the plugin to update the database schema.', 500 );
         }
         return new \WP_REST_Response( [ 'scout_id' => $scout_id, 'first_aid_level' => $level ] );
     }
