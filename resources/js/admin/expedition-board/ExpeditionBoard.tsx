@@ -12,7 +12,6 @@ type BoardTab = 'dashboard' | 'cross-event' | 'move-explorer' | 'move-team';
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
     const [activeTab, setActiveTab] = useState<BoardTab>('dashboard');
-    const [activeSeasonId, setActiveSeasonId] = useState<number | null>(null);
     const [showSeasonForm, setShowSeasonForm] = useState(false);
 
     if (loading) return <p>Loading board...</p>;
@@ -26,8 +25,7 @@ const ExpeditionBoard: React.FC = () => {
     }
 
     const seasons = data.seasons;
-    const activeSeason: Season | null =
-        seasons.find((s) => s.ID === activeSeasonId) ?? seasons[0] ?? null;
+    const activeSeason: Season | null = seasons[0] ?? null;
 
     return (
         <div className="ems-board">
@@ -49,21 +47,6 @@ const ExpeditionBoard: React.FC = () => {
                     onSaved={() => { setShowSeasonForm(false); refetch(); }}
                     onCancel={() => setShowSeasonForm(false)}
                 />
-            )}
-
-            {seasons.length > 1 && (
-                <label className="ems-season-picker" style={{ display: 'block', marginBottom: '16px' }}>
-                    Season
-                    <select
-                        aria-label="Select season"
-                        value={activeSeason?.ID ?? ''}
-                        onChange={(e) => setActiveSeasonId(Number(e.target.value))}
-                    >
-                        {seasons.map((s) => (
-                            <option key={s.ID} value={s.ID}>{s.post_title}</option>
-                        ))}
-                    </select>
-                </label>
             )}
 
             <nav className="nav-tab-wrapper">
