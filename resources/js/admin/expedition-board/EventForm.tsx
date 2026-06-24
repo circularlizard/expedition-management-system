@@ -10,7 +10,7 @@ interface EventFormProps {
     seasonId: number;
     initialEvent?: Expedition | null;
     osmEvents?: OSMEvent[];
-    onSaved?: () => void;
+    onSaved?: (savedEvent: Expedition) => void;
     onCancel?: () => void;
 }
 
@@ -102,7 +102,8 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 throw new Error(`HTTP ${response.status}`);
             }
 
-            onSaved?.();
+            const saved = await response.json();
+            onSaved?.(saved);
         } catch (err) {
             setErrors((prev) => ({ ...prev, form: err instanceof Error ? err.message : 'Failed to save' }));
         } finally {

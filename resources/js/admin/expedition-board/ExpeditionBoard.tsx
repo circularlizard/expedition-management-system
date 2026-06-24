@@ -82,7 +82,7 @@ const ExpeditionBoard: React.FC = () => {
             </nav>
 
             <div className="tab-content" style={{ marginTop: '20px' }}>
-                {activeTab === 'dashboard' && <SeasonDashboard data={data} onChanged={refetch} />}
+                {activeTab === 'dashboard' && <SeasonDashboard data={data} />}
                 {activeTab === 'cross-event' && activeSeason && <CrossEventTeamView season={activeSeason} />}
                 {activeTab === 'move-explorer' && activeSeason && <ExplorerMovePanel season={activeSeason} />}
                 {activeTab === 'move-team' && activeSeason && <TeamMovePanel season={activeSeason} />}
