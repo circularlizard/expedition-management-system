@@ -1,10 +1,12 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SeasonDashboard } from '../../resources/js/admin/expedition-board/SeasonDashboard';
-import { BoardData } from '../../resources/js/admin/expedition-board/types';
+import { BoardData, Expedition } from '../../resources/js/admin/expedition-board/types';
 
-(global as any).window.emsExpeditionBoard = { root_url: 'http://test/wp-json/ems/v1', nonce: 'test-nonce' };
+beforeEach(() => {
+    (global as any).window.emsExpeditionBoard = { root_url: 'http://test/wp-json/ems/v1', nonce: 'test-nonce' };
+});
 
 const mockBoard: BoardData = {
     seasons: [
@@ -17,6 +19,7 @@ const mockBoard: BoardData = {
                 {
                     ID: 10,
                     post_title: 'Hill Practice 1',
+                    season_id: 1,
                     ems_event_code: 'H-SP1',
                     ems_type: 'practice',
                     ems_transport: 'hillwalking',
@@ -24,7 +27,7 @@ const mockBoard: BoardData = {
                     ems_start_date: '2027-06-01',
                     ems_end_date: '2027-06-03',
                     teams: [
-                        { ID: 20, post_title: 'Team 1', ems_team_code: 'H-SP1-1', ems_team_number: 1, event_id: 10, member_count: 4, size_warning: false, members: [{ user_id: 1, first_name: 'Alice', last_name: 'MacLeod' }] },
+                        { ID: 20, post_title: 'Team 1', ems_team_code: 'H-SP1-1', ems_team_number: 1, event_id: 10, member_count: 4, size_warning: false, members: [{ user_id: 1, scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod' }] },
                     ],
                     member_count: 4,
                 },
@@ -62,9 +65,22 @@ describe('SeasonDashboard', () => {
     });
 
     it('opens the event form and posts a new event', async () => {
-        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ ID: 99 }) });
-        const onChanged = vi.fn();
-        render(<SeasonDashboard data={mockBoard} onChanged={onChanged} />);
+        const newEvent: Expedition = {
+            ID: 99,
+            post_title: 'New Event',
+            season_id: 1,
+            ems_event_code: 'H-SP2',
+            ems_type: 'practice',
+            ems_transport: 'hillwalking',
+            ems_level: 'silver',
+            ems_start_date: '2027-07-01',
+            ems_end_date: '2027-07-03',
+            teams: [],
+            member_count: 0,
+        };
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => newEvent });
+
+        render(<SeasonDashboard data={mockBoard} />);
 
         fireEvent.click(screen.getAllByRole('button', { name: /Create Event/ })[0]);
         const codeInput = document.querySelector('input[name="ems_event_code"]') as HTMLInputElement;
@@ -76,44 +92,49 @@ describe('SeasonDashboard', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Create Event/ }));
 
-        await waitFor(() => expect(onChanged).toHaveBeenCalled());
-        const [url, opts] = (global.fetch as any).mock.calls[0];
-        expect(url).toBe('http://test/wp-json/ems/v1/events');
-        expect(opts.method).toBe('POST');
-        expect(JSON.parse(opts.body)).toMatchObject({ season_id: 1, ems_event_code: 'H-SP2' });
+        await waitFor(() => {
+            const [url, opts] = (global.fetch as any).mock.calls[0];
+            expect(url).toBe('http://test/wp-json/ems/v1/events');
+            expect(opts.method).toBe('POST');
+        });
+        await waitFor(() => expect(screen.getByText(/H-SP2/)).toBeInTheDocument());
     });
 
-    it('adds a team to an event', async () => {
-        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({}) });
-        const onChanged = vi.fn();
-        render(<SeasonDashboard data={mockBoard} onChanged={onChanged} />);
+    it('adds a team to an event inline without collapsing', async () => {
+        const newTeam = { ID: 21, post_title: 'Team 2', ems_team_code: 'H-SP1-2', ems_team_number: 2, event_id: 10, member_count: 0, size_warning: false, members: [] };
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => newTeam });
+
+        render(<SeasonDashboard data={mockBoard} />);
 
         fireEvent.click(screen.getByTestId('event-header-10'));
         fireEvent.click(screen.getByRole('button', { name: /Add Team/ }));
 
-        await waitFor(() => expect(onChanged).toHaveBeenCalled());
-        expect((global.fetch as any).mock.calls[0][0]).toBe('http://test/wp-json/ems/v1/events/10/teams');
+        await waitFor(() => expect(screen.getByText('H-SP1-2')).toBeInTheDocument());
+        expect(screen.getByRole('button', { name: /Add Team/ })).toBeInTheDocument();
     });
 
-    it('adds an explorer to a team', async () => {
-        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ([]) });
-        const onChanged = vi.fn();
+    it('adds an explorer to a team inline', async () => {
+        const updatedMembers = [
+            { user_id: 1, scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod' },
+            { user_id: 2, scout_id: 555, first_name: 'Bob', last_name: 'Roy' },
+        ];
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => updatedMembers });
+
         const data: BoardData = { ...mockBoard, explorers: [{ scout_id: 555, first_name: 'Bob', last_name: 'Roy' }] };
-        render(<SeasonDashboard data={data} onChanged={onChanged} />);
+        render(<SeasonDashboard data={data} />);
 
         fireEvent.click(screen.getByTestId('event-header-10'));
         fireEvent.change(screen.getByLabelText('Add explorer to H-SP1-1'), { target: { value: '555' } });
         fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
-        await waitFor(() => expect(onChanged).toHaveBeenCalled());
+        await waitFor(() => expect(screen.getByText('Bob Roy')).toBeInTheDocument());
         const [url, opts] = (global.fetch as any).mock.calls[0];
         expect(url).toBe('http://test/wp-json/ems/v1/teams/20/members');
         expect(JSON.parse(opts.body)).toMatchObject({ scout_id: 555 });
     });
 
-    it('removes a member from a team', async () => {
-        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ([]) });
-        const onChanged = vi.fn();
+    it('removes a member from a team inline', async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ team_deleted: false }) });
         const data: BoardData = {
             ...mockBoard,
             seasons: [{
@@ -124,13 +145,44 @@ describe('SeasonDashboard', () => {
                 }],
             }],
         };
-        render(<SeasonDashboard data={data} onChanged={onChanged} />);
+        render(<SeasonDashboard data={data} />);
 
         fireEvent.click(screen.getByTestId('event-header-10'));
         fireEvent.click(screen.getByRole('button', { name: 'Remove Cara Bell' }));
 
-        await waitFor(() => expect(onChanged).toHaveBeenCalled());
+        await waitFor(() => expect(screen.queryByText('Cara Bell')).not.toBeInTheDocument());
         expect((global.fetch as any).mock.calls[0][0]).toBe('http://test/wp-json/ems/v1/teams/20/members/777');
+    });
+
+    it('opens the edit event form', async () => {
+        render(<SeasonDashboard data={mockBoard} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        expect(screen.getByRole('button', { name: /Update Event/ })).toBeInTheDocument();
+        const codeInput = document.querySelector('input[name="ems_event_code"]') as HTMLInputElement;
+        expect(codeInput?.value).toBe('H-SP1');
+    });
+
+    it('updates an event inline without collapsing', async () => {
+        const updatedEvent: Expedition = {
+            ...mockBoard.seasons[0].events[0],
+            ems_start_date: '2027-08-01',
+            ems_end_date: '2027-08-03',
+        };
+        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => updatedEvent });
+
+        render(<SeasonDashboard data={mockBoard} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        const startInput = document.querySelector('input[name="ems_start_date"]') as HTMLInputElement;
+        fireEvent.change(startInput, { target: { value: '2027-08-01' } });
+        const endInput = document.querySelector('input[name="ems_end_date"]') as HTMLInputElement;
+        fireEvent.change(endInput, { target: { value: '2027-08-03' } });
+
+        fireEvent.click(screen.getByRole('button', { name: /Update Event/ }));
+
+        const [url, opts] = (global.fetch as any).mock.calls[0];
+        expect(url).toBe('http://test/wp-json/ems/v1/events/10');
+        expect(opts.method).toBe('PATCH');
     });
 
     it('shows size warning for oversized teams', () => {
