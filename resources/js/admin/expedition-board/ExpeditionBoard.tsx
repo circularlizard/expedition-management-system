@@ -3,11 +3,9 @@ import { useBoard } from './useBoard';
 import { Season } from './types';
 import { SeasonDashboard } from './SeasonDashboard';
 import { CrossEventTeamView } from './CrossEventTeamView';
-import { ExplorerMovePanel } from './ExplorerMovePanel';
-import { TeamMovePanel } from './TeamMovePanel';
 import { SeasonForm } from './SeasonForm';
 
-type BoardTab = 'dashboard' | 'cross-event' | 'move-explorer' | 'move-team';
+type BoardTab = 'dashboard' | 'cross-event';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
@@ -56,19 +54,11 @@ const ExpeditionBoard: React.FC = () => {
                 <button className={`nav-tab ${activeTab === 'cross-event' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('cross-event')}>
                     Cross-Event View
                 </button>
-                <button className={`nav-tab ${activeTab === 'move-explorer' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('move-explorer')}>
-                    Move Explorer
-                </button>
-                <button className={`nav-tab ${activeTab === 'move-team' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('move-team')}>
-                    Move / Duplicate Teams
-                </button>
             </nav>
 
             <div className="tab-content" style={{ marginTop: '20px' }}>
                 {activeTab === 'dashboard' && <SeasonDashboard data={data} />}
                 {activeTab === 'cross-event' && activeSeason && <CrossEventTeamView season={activeSeason} />}
-                {activeTab === 'move-explorer' && activeSeason && <ExplorerMovePanel season={activeSeason} />}
-                {activeTab === 'move-team' && activeSeason && <TeamMovePanel season={activeSeason} />}
             </div>
         </div>
     );
