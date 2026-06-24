@@ -277,4 +277,47 @@ describe('SeasonDashboard', () => {
         const names = screen.getAllByLabelText(/Remove /).map((el) => el.getAttribute('aria-label'));
         expect(names).toEqual(['Remove Bob Andrews', 'Remove Alice MacLeod']);
     });
+
+    it('displays expedition metadata', () => {
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    ems_start_location: 'Glen Nevis',
+                    ems_end_location: 'Fort William',
+                    ems_start_time: '08:00',
+                    ems_end_time: '16:00',
+                    ems_status: 'planned',
+                    ems_route_deadline: '2027-05-01',
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        expect(screen.getByText('Start: Glen Nevis')).toBeInTheDocument();
+        expect(screen.getByText('End: Fort William')).toBeInTheDocument();
+        expect(screen.getByText('Time: 08:00 — 16:00')).toBeInTheDocument();
+        expect(screen.getByText('Status: planned')).toBeInTheDocument();
+        expect(screen.getByText(/Route deadline:/)).toBeInTheDocument();
+    });
+
+    it('shows explorer patrol in member list', () => {
+        const data: BoardData = {
+            ...mockBoard,
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    teams: [{
+                        ...mockBoard.seasons[0].events[0].teams[0],
+                        members: [{ user_id: 1, scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', patrol: 'Eagles' }],
+                    }],
+                }],
+            }],
+        };
+        render(<SeasonDashboard data={data} />);
+        fireEvent.click(screen.getByTestId('event-header-10'));
+        expect(screen.getByText('(Eagles)')).toBeInTheDocument();
+    });
 });
