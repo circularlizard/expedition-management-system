@@ -378,11 +378,13 @@ class Expedition_Admin_Controller {
 
         $user_id = (int) ( $explorer['wp_user_id'] ?? 0 );
 
-        try {
+       try {
             $this->team_members->assign( $team_id, $scout_id, get_current_user_id(), $user_id );
             return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $team_id ) ), 201 );
         } catch ( \InvalidArgumentException $e ) {
             return $this->error( 'ems_member_already_in_team', $e->getMessage(), 409 );
+        } catch ( \RuntimeException $e ) {
+            return $this->error( 'ems_database_error', $e->getMessage(), 500 );
         }
     }
 
