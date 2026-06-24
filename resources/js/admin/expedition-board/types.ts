@@ -74,6 +74,7 @@ export interface BoardData {
 export interface BoardConfig {
     root_url: string;
     nonce: string;
+    admin_url?: string;
 }
 
 export interface Explorer {
