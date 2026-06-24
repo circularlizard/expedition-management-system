@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BoardData, Explorer, FirstAidLevel } from './types';
+import { sortByName } from './boardUtils';
 
 interface OSMReferenceProps {
     data: BoardData;
@@ -26,11 +27,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
         setLevels(next);
     }, [data.explorers]);
 
-    const explorers = [...(data.explorers ?? [])].sort((a, b) => {
-        const aName = `${a.last_name ?? ''}, ${a.first_name ?? ''}`;
-        const bName = `${b.last_name ?? ''}, ${b.first_name ?? ''}`;
-        return aName.localeCompare(bName);
-    });
+    const explorers = sortByName(data.explorers ?? []);
 
     const updateLevel = async (explorer: Explorer, level: FirstAidLevel) => {
         if (levels[explorer.scout_id] === level) return;
