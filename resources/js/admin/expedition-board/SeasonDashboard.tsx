@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { BoardData, Season, Expedition, Team, Member, Explorer, OSMEvent } from './types';
 import { EventForm } from './EventForm';
-import { sameTypeEvents, findEventOfTeam, previewTeamCode, nextTeamNumber, memberKey, sortByName } from './boardUtils';
+import { sameTypeEvents, findEventOfTeam, previewTeamCode, nextTeamNumber, memberKey, sortByName, sortByFirstName } from './boardUtils';
 
 async function postJson(path: string, body?: unknown): Promise<Response> {
     const config = window.emsExpeditionBoard;
@@ -426,8 +426,8 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
     const uniqueExplorers = explorers.filter((e, index, self) =>
         self.findIndex((ex) => ex.scout_id === e.scout_id) === index
     );
-    const available = sortByName(uniqueExplorers.filter((e) => !assigned.has(e.scout_id)));
-    const sortedMembers = sortByName(members);
+    const available = sortByFirstName(uniqueExplorers.filter((e) => !assigned.has(e.scout_id)));
+    const sortedMembers = sortByFirstName(members);
 
     const closeDialog = () => {
         setDialog(null);
