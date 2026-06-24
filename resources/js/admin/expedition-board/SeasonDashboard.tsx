@@ -294,17 +294,25 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
     const dateRange = formatDateRange();
     const canDeleteEvent = event.teams.length === 0 && (event.member_count ?? 0) === 0;
 
+    const metaItems = [
+        event.ems_start_location ? `Start: ${event.ems_start_location}` : '',
+        event.ems_end_location ? `End: ${event.ems_end_location}` : '',
+        event.ems_start_time ? `Time: ${event.ems_start_time}${event.ems_end_time ? ` — ${event.ems_end_time}` : ''}` : '',
+        event.ems_status ? `Status: ${event.ems_status}` : '',
+        event.ems_route_deadline ? `Route deadline: ${formatShortDate(event.ems_route_deadline)}` : '',
+    ].filter(Boolean);
+
     return (
         <div className="ems-event-card" style={{ marginBottom: '12px', border: '1px solid #eee', padding: '12px', background: '#fff' }}>
             <div
                 className="ems-event-header"
                 onClick={onToggle}
-                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}
+                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', padding: '10px 12px', margin: '-12px -12px 12px -12px', background: '#f7f7f7', borderBottom: '1px solid #eee' }}
                 data-testid={`event-header-${event.ID}`}
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: '16px' }}>{event.post_title}</strong>
+                        <strong style={{ fontSize: '17px' }}>{event.ems_event_code}</strong>
                         {dateRange && (
                             <span style={{ fontSize: '15px', color: '#333', fontWeight: 500 }}>
                                 {dateRange}
@@ -312,10 +320,8 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
                         )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '13px', color: '#666' }}>
-                        <span>{event.ems_event_code}</span>
-                        <span>{typeIcon(event.ems_type)}</span>
-                        <span>{transportIcon(event.ems_transport)}</span>
-                        <span style={levelBadgeStyle(event.ems_level)}>{levelIcon(event.ems_level)}</span>
+                        {event.post_title && <span>{event.post_title}</span>}
+                        <span>{typeIcon(event.ems_type)} · {transportIcon(event.ems_transport)} · {levelIcon(event.ems_level)}</span>
                         <span>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}, {event.member_count ?? 0} member{(event.member_count ?? 0) !== 1 ? 's' : ''}</span>
                     </div>
                 </div>
@@ -342,6 +348,13 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
                     </button>
                 </div>
             </div>
+            {metaItems.length > 0 && (
+                <div className="ems-event-meta" style={{ marginBottom: '12px', fontSize: '12px', color: '#666', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    {metaItems.map((item, index) => (
+                        <span key={index}>{item}</span>
+                    ))}
+                </div>
+            )}
             {isEditing && event.season_id && (
                 <div className="ems-event-edit" style={{ marginTop: '12px' }}>
                     <EventForm
@@ -493,8 +506,8 @@ const TeamColumn: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (up
     };
 
     return (
-        <div className="ems-team-column" style={{ flex: '1 1 200px', minWidth: '180px', maxWidth: '260px', border: '1px solid #eee', padding: '12px', background: '#fafafa' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontWeight: 600 }}>
+        <div className="ems-team-column" style={{ flex: '1 1 200px', minWidth: '180px', maxWidth: '260px', border: '1px solid #eee', background: '#fafafa' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#f0f0f0', borderBottom: '1px solid #eee', fontWeight: 600 }}>
                 <span>{team.ems_team_code}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {members.length}
@@ -510,37 +523,43 @@ const TeamColumn: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (up
                     )}
                 </span>
             </div>
-            <ul style={{ margin: '0 0 12px 0', padding: 0, listStyle: 'none' }}>
-                {sortedMembers.map((member) => (
-                    <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
-                        <span>{member.first_name} {member.last_name}</span>
-                        <button
-                            type="button"
-                            className="button-link"
-                            style={{ color: '#d63638', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}
-                            aria-label={`Remove ${member.first_name} ${member.last_name}`}
-                            onClick={() => removeMember(member.scout_id ?? 0)}
-                            disabled={busy}
-                        >
-                            ×
-                        </button>
-                    </li>
-                ))}
-            </ul>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <select
-                    aria-label={`Add explorer to ${team.ems_team_code}`}
-                    value={selected}
-                    onChange={(e) => setSelected(e.target.value)}
-                >
-                    <option value="">— Add explorer —</option>
-                    {available.map((e) => (
-                        <option key={e.scout_id} value={e.scout_id}>
-                            {e.first_name} {e.last_name}{e.patrol ? ` (${e.patrol})` : ''}
-                        </option>
+            <div style={{ padding: '10px' }}>
+                <ul style={{ margin: '0 0 12px 0', padding: 0, listStyle: 'none' }}>
+                    {sortedMembers.map((member) => (
+                        <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
+                            <span>
+                                {member.first_name} {member.last_name}
+                                {member.patrol && <span style={{ fontSize: '11px', color: '#888', marginLeft: '4px' }}>({member.patrol})</span>}
+                            </span>
+                            <button
+                                type="button"
+                                className="button-link"
+                                style={{ color: '#d63638', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}
+                                aria-label={`Remove ${member.first_name} ${member.last_name}`}
+                                onClick={() => removeMember(member.scout_id ?? 0)}
+                                disabled={busy}
+                            >
+                                ×
+                            </button>
+                        </li>
                     ))}
-                </select>
-                <button type="button" className="button" onClick={addMember} disabled={busy || !selected}>Add</button>
+                </ul>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <select
+                        aria-label={`Add explorer to ${team.ems_team_code}`}
+                        value={selected}
+                        onChange={(e) => setSelected(e.target.value)}
+                        style={{ maxWidth: '100%', flex: '1 1 auto' }}
+                    >
+                        <option value="">Add…</option>
+                        {available.map((e) => (
+                            <option key={e.scout_id} value={e.scout_id}>
+                                {e.first_name} {e.last_name}{e.patrol ? ` (${e.patrol})` : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <button type="button" className="button" onClick={addMember} disabled={busy || !selected}>Add</button>
+                </div>
             </div>
         </div>
     );

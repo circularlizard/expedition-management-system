@@ -43,6 +43,7 @@ export interface Expedition {
     ems_start_location?: string;
     ems_end_location?: string;
     ems_route_info?: string;
+    ems_route_deadline?: string;
     ems_osm_event_id?: number | string;
     ems_status?: string;
     teams: Team[];
