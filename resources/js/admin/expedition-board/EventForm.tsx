@@ -261,18 +261,6 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
             <div style={sectionStyle}>
                 <div style={sectionLabelStyle}>Locations</div>
 
-                <div style={grid2Style}>
-                    <label style={fieldStyle}>
-                        Start Location
-                        <input name="ems_start_location" value={formData.ems_start_location} onChange={handleChange} style={inputStyle} />
-                    </label>
-
-                    <label style={fieldStyle}>
-                        End Location
-                        <input name="ems_end_location" value={formData.ems_end_location} onChange={handleChange} style={inputStyle} />
-                    </label>
-                </div>
-
                 <label style={fieldStyle}>
                     Leader in Charge Name
                     <input name="ems_lic_name" value={formData.ems_lic_name} onChange={handleChange} style={inputStyle} />
@@ -313,6 +301,18 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
 
             <div style={sectionStyle}>
                 <div style={sectionLabelStyle}>Route Planning</div>
+
+                <div style={grid2Style}>
+                    <label style={fieldStyle}>
+                        Start Location
+                        <input name="ems_start_location" value={formData.ems_start_location} onChange={handleChange} style={inputStyle} />
+                    </label>
+
+                    <label style={fieldStyle}>
+                        End Location
+                        <input name="ems_end_location" value={formData.ems_end_location} onChange={handleChange} style={inputStyle} />
+                    </label>
+                </div>
 
                 <div style={grid2Style}>
                     <label style={fieldStyle}>
