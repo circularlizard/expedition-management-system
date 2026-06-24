@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { BoardData, Season, Expedition, Team, Member, Explorer } from './types';
+import { BoardData, Season, Expedition, Team, Member, Explorer, FirstAidLevel } from './types';
 import { EventForm } from './EventForm';
 import { sameTypeEvents, findEventOfTeam, previewTeamCode, nextTeamNumber, memberKey } from './boardUtils';
 
@@ -449,6 +449,7 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                             first_name: ex?.first_name ?? m.first_name ?? '',
                             last_name: ex?.last_name ?? m.last_name ?? '',
                             patrol: ex?.patrol ?? m.patrol ?? '',
+                            first_aid_level: ex?.first_aid_level ?? (m.first_aid_level || 'none'),
                         };
                     });
                     t.member_count = updatedMembers.length;
@@ -646,6 +647,45 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
         }
     };
 
+    const updateMemberFirstAid = async (scout_id: number, level: FirstAidLevel) => {
+        setBusy(true);
+        try {
+            const response = await postJson(`/explorers/${scout_id}/first-aid`, { first_aid_level: level });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            updateBoard((b) => {
+                for (const season of b.seasons ?? []) {
+                    for (const ev of season.events ?? []) {
+                        for (const t of ev.teams ?? []) {
+                            const m = t.members?.find((member) => member.scout_id === scout_id);
+                            if (m) {
+                                m.first_aid_level = level;
+                            }
+                        }
+                    }
+                }
+                const ex = b.explorers?.find((e) => e.scout_id === scout_id);
+                if (ex) {
+                    ex.first_aid_level = level;
+                }
+            });
+        } catch (e) {
+            console.error('Failed to update first aid level:', e);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const firstAidWarning = (() => {
+        const required = event.ems_first_aid_level ?? 'none';
+        if (required === 'none') return false;
+        const qualified = members.filter((m) => {
+            const level = m.first_aid_level ?? 'none';
+            if (required === 'full_first_aid') return level === 'full_first_aid';
+            return level === 'first_response' || level === 'full_first_aid';
+        }).length;
+        return qualified < 2;
+    })();
+
     return (
         <div className="ems-team-column" style={{ flex: '1 1 200px', minWidth: '180px', maxWidth: '260px', border: '1px solid #eee', background: '#fafafa' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#f0f0f0', borderBottom: '1px solid #eee', fontWeight: 600 }}>
@@ -655,6 +695,11 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                     {team.size_warning && (
                         <span className="ems-size-warning" title="Team size outside 4–7" style={{ color: '#d63638', fontWeight: 'bold' }}>
                             !
+                        </span>
+                    )}
+                    {firstAidWarning && (
+                        <span className="ems-first-aid-warning" title="Fewer than 2 qualified first aiders" style={{ color: '#d63638', fontWeight: 'bold' }}>
+                            ⚕
                         </span>
                     )}
                     <button
@@ -689,11 +734,23 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
             <div style={{ padding: '10px' }}>
                 <ul style={{ margin: '0 0 12px 0', padding: 0, listStyle: 'none' }}>
                     {sortedMembers.map((member) => (
-                        <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
+                        <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', gap: '6px' }}>
                             <span>
                                 {member.first_name} {member.last_name}
                                 {member.patrol && <span style={{ fontSize: '11px', color: '#888', marginLeft: '4px' }}>({member.patrol})</span>}
                             </span>
+                            <select
+                                aria-label={`First aid level for ${member.first_name} ${member.last_name}`}
+                                value={member.first_aid_level ?? 'none'}
+                                onChange={(e) => updateMemberFirstAid(member.scout_id ?? 0, e.target.value as FirstAidLevel)}
+                                disabled={busy}
+                                style={{ fontSize: '11px', padding: '2px 4px', maxWidth: '90px' }}
+                                title="First aid qualification"
+                            >
+                                <option value="none">None</option>
+                                <option value="first_response">FR</option>
+                                <option value="full_first_aid">FA</option>
+                            </select>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <button
                                     type="button"

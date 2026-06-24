@@ -4,6 +4,8 @@ export interface TrainingSummary {
     percent: number;
 }
 
+export type FirstAidLevel = 'none' | 'first_response' | 'full_first_aid';
+
 export interface Member {
     id?: number;
     user_id: number;
@@ -12,6 +14,7 @@ export interface Member {
     scout_id?: number;
     patrol?: string;
     unit?: string;
+    first_aid_level?: FirstAidLevel;
     training?: TrainingSummary;
 }
 
@@ -47,6 +50,7 @@ export interface Expedition {
     ems_route_deadline?: string;
     ems_osm_event_id?: number | string;
     ems_status?: string;
+    ems_first_aid_level?: 'none' | 'first_response' | 'full_first_aid';
     teams: Team[];
     member_count?: number;
 }
@@ -76,6 +80,7 @@ export interface Explorer {
     last_name: string;
     wp_user_id?: number;
     patrol?: string;
+    first_aid_level?: FirstAidLevel;
 }
 
 declare global {

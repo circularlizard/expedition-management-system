@@ -46,6 +46,7 @@ class Expedition_Repository {
             'ems_route_deadline',
             'ems_osm_event_id',
             'ems_status',
+            'ems_first_aid_level',
         ];
 
         foreach ( $meta_fields as $key ) {
@@ -95,6 +96,7 @@ class Expedition_Repository {
             'ems_route_deadline',
             'ems_osm_event_id',
             'ems_status',
+            'ems_first_aid_level',
         ];
 
         foreach ( $meta_fields as $key ) {
@@ -206,6 +208,7 @@ class Expedition_Repository {
             'ems_route_deadline',
             'ems_osm_event_id',
             'ems_status',
+            'ems_first_aid_level',
         ];
 
         foreach ( $meta_fields as $key ) {

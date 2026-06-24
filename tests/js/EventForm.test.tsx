@@ -25,6 +25,7 @@ describe('EventForm', () => {
         fireEvent.change(screen.getByLabelText(/Event Code/), { target: { value: 'H-SP1' } });
         fireEvent.change(screen.getByLabelText(/Start Date/), { target: { value: '2027-06-01' } });
         fireEvent.change(screen.getByLabelText(/End Date/), { target: { value: '2027-06-03' } });
+        fireEvent.change(screen.getByLabelText(/First aid required/), { target: { value: 'first_response' } });
 
         fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
@@ -33,6 +34,8 @@ describe('EventForm', () => {
             'https://example.com/wp-json/ems/v1/events',
             expect.objectContaining({ method: 'POST' })
         );
+        const body = JSON.parse((global.fetch as any).mock.calls[0][1].body);
+        expect(body.ems_first_aid_level).toBe('first_response');
     });
 
     it('shows validation errors for missing required fields', () => {

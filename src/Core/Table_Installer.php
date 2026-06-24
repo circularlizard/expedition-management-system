@@ -30,6 +30,12 @@ class Table_Installer {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $wpdb->query( "ALTER TABLE {$table} ADD KEY idx_scout_id (scout_id)" );
         }
+
+        $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+        if ( ! $this->column_exists( $wpdb, $explorers_table, 'first_aid_level' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN first_aid_level VARCHAR(30) NOT NULL DEFAULT 'none' AFTER patrol" );
+        }
     }
 
     private function column_exists( object $wpdb, string $table, string $column ): bool {
@@ -87,16 +93,17 @@ class Table_Installer {
         ) {$charset};";
 
         $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_explorers (
-            id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            scout_id     BIGINT UNSIGNED NOT NULL,
-            wp_user_id   BIGINT UNSIGNED          DEFAULT NULL,
-            section_id   BIGINT UNSIGNED NOT NULL,
-            first_name   VARCHAR(100)    NOT NULL DEFAULT '',
-            last_name    VARCHAR(100)    NOT NULL DEFAULT '',
-            email        VARCHAR(100)    NOT NULL DEFAULT '',
-            parent_email VARCHAR(100)    NOT NULL DEFAULT '',
-            patrol       VARCHAR(100)    NOT NULL DEFAULT '',
-            synced_at    DATETIME        NOT NULL,
+            id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            scout_id        BIGINT UNSIGNED NOT NULL,
+            wp_user_id      BIGINT UNSIGNED          DEFAULT NULL,
+            section_id      BIGINT UNSIGNED NOT NULL,
+            first_name      VARCHAR(100)    NOT NULL DEFAULT '',
+            last_name       VARCHAR(100)    NOT NULL DEFAULT '',
+            email           VARCHAR(100)    NOT NULL DEFAULT '',
+            parent_email    VARCHAR(100)    NOT NULL DEFAULT '',
+            patrol          VARCHAR(100)    NOT NULL DEFAULT '',
+            first_aid_level VARCHAR(30)     NOT NULL DEFAULT 'none',
+            synced_at       DATETIME        NOT NULL,
             PRIMARY KEY (id),
             UNIQUE KEY idx_scout_id (scout_id),
             KEY idx_section_id (section_id),
