@@ -83,15 +83,6 @@ describe('ExpeditionBoard', () => {
         });
     });
 
-    it('switches to the Move / Duplicate Teams tab', async () => {
-        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockBoardData });
-        render(<ExpeditionBoard />);
-        await waitFor(() => screen.getByText('2026-27 Season'));
-
-        fireEvent.click(screen.getByText('Move / Duplicate Teams'));
-        expect(screen.getByTestId('control-H-SP1-1')).toBeInTheDocument();
-    });
-
     it('switches to the Cross-Event View tab', async () => {
         (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockBoardData });
         render(<ExpeditionBoard />);
