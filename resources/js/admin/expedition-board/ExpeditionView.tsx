@@ -15,6 +15,46 @@ const FA_LABELS: Record<FirstAidLevel, string> = {
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+function pillStyle(colors: { bg: string; color: string }): React.CSSProperties {
+    return {
+        display: 'inline-flex', alignItems: 'center', gap: '2px',
+        fontSize: '11px', fontWeight: 600, padding: '3px 8px',
+        borderRadius: '12px', background: colors.bg, color: colors.color,
+    };
+}
+function typePill(type: string): React.CSSProperties {
+    const c: Record<string, { bg: string; color: string }> = {
+        training:  { bg: '#e3f2fd', color: '#1565c0' },
+        practice:  { bg: '#e8f5e9', color: '#2e7d32' },
+        qualifying: { bg: '#f3e5f5', color: '#7b1fa2' },
+    };
+    return pillStyle(c[type] || { bg: '#eee', color: '#666' });
+}
+function transportPill(t?: string): React.CSSProperties {
+    const c: Record<string, { bg: string; color: string }> = {
+        hillwalking: { bg: '#efebe9', color: '#5d4037' },
+        biking:      { bg: '#e0f2f1', color: '#00695c' },
+        paddling:    { bg: '#e1f5fe', color: '#0277bd' },
+    };
+    return pillStyle(c[t || ''] || { bg: '#eee', color: '#666' });
+}
+function levelPill(l: string): React.CSSProperties {
+    const c: Record<string, { bg: string; color: string }> = {
+        bronze: { bg: '#f0d4b8', color: '#7a4410' },
+        silver: { bg: '#e0e0e0', color: '#444' },
+        gold:   { bg: '#fff3cd', color: '#7a5c10' },
+    };
+    return pillStyle(c[l] || { bg: '#eee', color: '#666' });
+}
+function firstAidPill(l?: string): React.CSSProperties {
+    const c: Record<string, { bg: string; color: string }> = {
+        none:           { bg: '#f5f5f5', color: '#666' },
+        first_response: { bg: '#e8f5e9', color: '#2e7d32' },
+        full_first_aid: { bg: '#c8e6c9', color: '#1b5e20' },
+    };
+    return pillStyle(c[l ?? 'none'] || c.none);
+}
+
 function sortedMembers(members: Member[]): Member[] {
     return [...members].sort((a, b) =>
         `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
@@ -158,10 +198,10 @@ const ExpeditionDetail: React.FC<{
             <div style={sectionStyle}>
                 <div style={sectionLabelStyle}>Identification</div>
                 <div style={gridStyle(4)}>
-                    <FieldVal label="Type" value={e.ems_type ? capitalize(e.ems_type) : null} />
-                    <FieldVal label="Transport" value={e.ems_transport ? capitalize(e.ems_transport) : null} />
-                    <FieldVal label="Level" value={e.ems_level ? capitalize(e.ems_level) : null} />
-                    <FieldVal label="First aid required" value={e.ems_first_aid_level ? FA_LABELS[e.ems_first_aid_level] : null} />
+                    <FieldVal label="Type" value={e.ems_type ? <span style={typePill(e.ems_type)}>{capitalize(e.ems_type)}</span> : null} />
+                    <FieldVal label="Transport" value={e.ems_transport ? <span style={transportPill(e.ems_transport)}>{capitalize(e.ems_transport)}</span> : null} />
+                    <FieldVal label="Level" value={e.ems_level ? <span style={levelPill(e.ems_level)}>{capitalize(e.ems_level)}</span> : null} />
+                    <FieldVal label="First aid required" value={<span style={firstAidPill(e.ems_first_aid_level)}>{e.ems_first_aid_level ? FA_LABELS[e.ems_first_aid_level] : 'None'}</span>} />
                 </div>
             </div>
 
