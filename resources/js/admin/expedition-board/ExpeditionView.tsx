@@ -38,13 +38,32 @@ const FaKey: React.FC = () => (
     </div>
 );
 
-const MetaRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-    <tr>
-        <th style={{ textAlign: 'left', fontWeight: 600, paddingRight: '16px', paddingTop: '4px', paddingBottom: '4px', whiteSpace: 'nowrap', color: '#555', width: '160px' }}>
-            {label}
-        </th>
-        <td style={{ paddingTop: '4px', paddingBottom: '4px' }}>{value || <span style={{ color: '#aaa' }}>—</span>}</td>
-    </tr>
+const sectionStyle: React.CSSProperties = {
+    marginBottom: '20px',
+    paddingBottom: '16px',
+    borderBottom: '1px solid #eee',
+};
+
+const sectionLabelStyle: React.CSSProperties = {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    marginBottom: '10px',
+};
+
+const gridStyle = (cols: number): React.CSSProperties => ({
+    display: 'grid',
+    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+    gap: '12px 24px',
+});
+
+const FieldVal: React.FC<{ label: string; value: React.ReactNode; wide?: boolean }> = ({ label, value, wide }) => (
+    <div style={wide ? { gridColumn: '1 / -1' } : undefined}>
+        <div style={{ fontSize: '11px', color: '#888', marginBottom: '2px' }}>{label}</div>
+        <div style={{ fontSize: '13px', color: value ? '#1d2327' : '#aaa' }}>{value || '—'}</div>
+    </div>
 );
 
 const TeamRow: React.FC<{ team: Team }> = ({ team }) => {
@@ -134,38 +153,64 @@ const ExpeditionDetail: React.FC<{
                 </button>
             </div>
 
-            <table style={{ borderCollapse: 'collapse', marginBottom: '24px' }}>
-                <tbody>
-                    <MetaRow label="Type" value={capitalize(e.ems_type)} />
-                    <MetaRow label="Transport" value={e.ems_transport ? capitalize(e.ems_transport) : null} />
-                    <MetaRow label="Level" value={e.ems_level ? capitalize(e.ems_level) : null} />
-                    <MetaRow label="Status" value={e.ems_status ? capitalize(e.ems_status) : null} />
-                    <MetaRow
-                        label="Dates"
-                        value={
-                            e.ems_start_date
-                                ? `${e.ems_start_date}${e.ems_start_time ? ' ' + e.ems_start_time : ''} → ${e.ems_end_date ?? ''}${e.ems_end_time ? ' ' + e.ems_end_time : ''}`
-                                : null
-                        }
-                    />
-                    <MetaRow label="Start location" value={e.ems_start_location} />
-                    <MetaRow label="End location" value={e.ems_end_location} />
-                    <MetaRow label="LiC name" value={e.ems_lic_name} />
-                    <MetaRow label="LiC email" value={e.ems_lic_email} />
-                    <MetaRow label="LiC phone" value={e.ems_lic_phone} />
-                    <MetaRow
-                        label="Route notes"
-                        value={
-                            e.ems_route_info
-                                ? <div dangerouslySetInnerHTML={{ __html: e.ems_route_info }} style={{ maxWidth: '600px' }} />
-                                : null
-                        }
-                    />
-                    <MetaRow label="Route deadline" value={e.ems_route_deadline} />
-                    <MetaRow label="First aid req." value={e.ems_first_aid_level ? FA_LABELS[e.ems_first_aid_level] : null} />
-                    <MetaRow label="Total explorers" value={totalMembers > 0 ? String(totalMembers) : null} />
-                </tbody>
-            </table>
+            {/* Identification */}
+            <div style={sectionStyle}>
+                <div style={sectionLabelStyle}>Identification</div>
+                <div style={gridStyle(4)}>
+                    <FieldVal label="Type" value={e.ems_type ? capitalize(e.ems_type) : null} />
+                    <FieldVal label="Transport" value={e.ems_transport ? capitalize(e.ems_transport) : null} />
+                    <FieldVal label="Level" value={e.ems_level ? capitalize(e.ems_level) : null} />
+                    <FieldVal label="First aid required" value={e.ems_first_aid_level ? FA_LABELS[e.ems_first_aid_level] : null} />
+                </div>
+            </div>
+
+            {/* Schedule */}
+            <div style={sectionStyle}>
+                <div style={sectionLabelStyle}>Schedule</div>
+                <div style={gridStyle(4)}>
+                    <FieldVal label="Start date" value={e.ems_start_date || null} />
+                    <FieldVal label="Start time" value={e.ems_start_time || null} />
+                    <FieldVal label="End date" value={e.ems_end_date || null} />
+                    <FieldVal label="End time" value={e.ems_end_time || null} />
+                </div>
+            </div>
+
+            {/* Locations */}
+            <div style={sectionStyle}>
+                <div style={sectionLabelStyle}>Locations</div>
+                <div style={gridStyle(3)}>
+                    <FieldVal label="Leader in charge" value={e.ems_lic_name || null} />
+                    <FieldVal label="Leader email" value={e.ems_lic_email || null} />
+                    <FieldVal label="Leader phone" value={e.ems_lic_phone || null} />
+                </div>
+            </div>
+
+            {/* OSM Integration */}
+            <div style={sectionStyle}>
+                <div style={sectionLabelStyle}>OSM Integration</div>
+                <div style={gridStyle(2)}>
+                    <FieldVal label="OSM event ID" value={e.ems_osm_event_id ? String(e.ems_osm_event_id) : null} />
+                    <FieldVal label="Total explorers" value={totalMembers > 0 ? String(totalMembers) : null} />
+                </div>
+            </div>
+
+            {/* Route Planning */}
+            <div style={sectionStyle}>
+                <div style={sectionLabelStyle}>Route Planning</div>
+                <div style={{ ...gridStyle(2), marginBottom: '12px' }}>
+                    <FieldVal label="Start location" value={e.ems_start_location || null} />
+                    <FieldVal label="End location" value={e.ems_end_location || null} />
+                </div>
+                <div style={{ ...gridStyle(2), marginBottom: '12px' }}>
+                    <FieldVal label="Status" value={e.ems_status ? capitalize(e.ems_status) : null} />
+                    <FieldVal label="Route deadline" value={e.ems_route_deadline || null} />
+                </div>
+                <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Notes</div>
+                {e.ems_route_info
+                    ? <div dangerouslySetInnerHTML={{ __html: e.ems_route_info }} style={{ fontSize: '13px', maxWidth: '680px' }} />
+                    : <div style={{ fontSize: '13px', color: '#aaa' }}>—</div>
+                }
+            </div>
 
             <h3 style={{ marginTop: 0, marginBottom: '4px', fontSize: '15px' }}>
                 Teams ({e.teams.length})
