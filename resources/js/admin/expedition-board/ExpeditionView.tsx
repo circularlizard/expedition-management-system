@@ -39,30 +39,30 @@ const FaKey: React.FC = () => (
 );
 
 const sectionStyle: React.CSSProperties = {
-    marginBottom: '20px',
-    paddingBottom: '16px',
+    marginBottom: '24px',
+    paddingBottom: '20px',
     borderBottom: '1px solid #eee',
 };
 
 const sectionLabelStyle: React.CSSProperties = {
     fontSize: '11px',
-    fontWeight: 600,
-    color: '#666',
+    fontWeight: 700,
+    color: '#888',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    marginBottom: '10px',
+    letterSpacing: '0.06em',
+    marginBottom: '14px',
 };
 
 const gridStyle = (cols: number): React.CSSProperties => ({
     display: 'grid',
-    gridTemplateColumns: `repeat(${cols}, 1fr)`,
-    gap: '12px 24px',
+    gridTemplateColumns: `repeat(${cols}, minmax(0, 200px))`,
+    gap: '16px 32px',
 });
 
-const FieldVal: React.FC<{ label: string; value: React.ReactNode; wide?: boolean }> = ({ label, value, wide }) => (
-    <div style={wide ? { gridColumn: '1 / -1' } : undefined}>
-        <div style={{ fontSize: '11px', color: '#888', marginBottom: '2px' }}>{label}</div>
-        <div style={{ fontSize: '13px', color: value ? '#1d2327' : '#aaa' }}>{value || '—'}</div>
+const FieldVal: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+    <div>
+        <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
+        <div style={{ fontSize: '14px', color: value ? '#1d2327' : '#bbb' }}>{value || '—'}</div>
     </div>
 );
 
@@ -117,6 +117,7 @@ const ExpeditionDetail: React.FC<{
 }> = ({ expedition: e, osmEvents, onSaved }) => {
     const [editing, setEditing] = useState(false);
     const totalMembers = e.teams.reduce((acc, t) => acc + (t.member_count ?? t.members?.length ?? 0), 0);
+    const osmEvent = e.ems_osm_event_id ? osmEvents.find((o) => o.event_id === Number(e.ems_osm_event_id) || o.id === Number(e.ems_osm_event_id)) : null;
 
     if (editing) {
         return (
@@ -137,19 +138,19 @@ const ExpeditionDetail: React.FC<{
     }
 
     return (
-        <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '4px', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <h2 style={{ margin: 0, fontSize: '18px' }}>
-                    {e.post_title}{' '}
-                    <span style={{ fontWeight: 400, fontSize: '14px', color: '#666' }}>({e.ems_event_code})</span>
-                </h2>
+        <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '4px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+                <div>
+                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>{e.post_title}</h2>
+                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#888' }}>{e.ems_event_code}</div>
+                </div>
                 <button
                     type="button"
-                    className="button"
+                    className="button button-primary"
                     style={{ flexShrink: 0, marginLeft: '16px' }}
                     onClick={() => setEditing(true)}
                 >
-                    Edit expedition
+                    Edit
                 </button>
             </div>
 
@@ -178,18 +179,11 @@ const ExpeditionDetail: React.FC<{
             {/* Locations */}
             <div style={sectionStyle}>
                 <div style={sectionLabelStyle}>Locations</div>
-                <div style={gridStyle(3)}>
+                <div style={gridStyle(5)}>
                     <FieldVal label="Leader in charge" value={e.ems_lic_name || null} />
                     <FieldVal label="Leader email" value={e.ems_lic_email || null} />
                     <FieldVal label="Leader phone" value={e.ems_lic_phone || null} />
-                </div>
-            </div>
-
-            {/* OSM Integration */}
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>OSM Integration</div>
-                <div style={gridStyle(2)}>
-                    <FieldVal label="OSM event ID" value={e.ems_osm_event_id ? String(e.ems_osm_event_id) : null} />
+                    <FieldVal label="OSM event" value={osmEvent ? `${osmEvent.name} (${osmEvent.event_id})` : (e.ems_osm_event_id ? String(e.ems_osm_event_id) : null)} />
                     <FieldVal label="Total explorers" value={totalMembers > 0 ? String(totalMembers) : null} />
                 </div>
             </div>
@@ -197,18 +191,16 @@ const ExpeditionDetail: React.FC<{
             {/* Route Planning */}
             <div style={sectionStyle}>
                 <div style={sectionLabelStyle}>Route Planning</div>
-                <div style={{ ...gridStyle(2), marginBottom: '12px' }}>
+                <div style={{ ...gridStyle(4), marginBottom: '20px' }}>
                     <FieldVal label="Start location" value={e.ems_start_location || null} />
                     <FieldVal label="End location" value={e.ems_end_location || null} />
-                </div>
-                <div style={{ ...gridStyle(2), marginBottom: '12px' }}>
                     <FieldVal label="Status" value={e.ems_status ? capitalize(e.ems_status) : null} />
                     <FieldVal label="Route deadline" value={e.ems_route_deadline || null} />
                 </div>
-                <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Notes</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '6px' }}>Notes</div>
                 {e.ems_route_info
-                    ? <div dangerouslySetInnerHTML={{ __html: e.ems_route_info }} style={{ fontSize: '13px', maxWidth: '680px' }} />
-                    : <div style={{ fontSize: '13px', color: '#aaa' }}>—</div>
+                    ? <div dangerouslySetInnerHTML={{ __html: e.ems_route_info }} style={{ fontSize: '14px', maxWidth: '680px', lineHeight: 1.6 }} />
+                    : <div style={{ fontSize: '14px', color: '#bbb' }}>—</div>
                 }
             </div>
 
