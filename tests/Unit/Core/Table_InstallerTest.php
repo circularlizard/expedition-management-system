@@ -19,6 +19,8 @@ class Table_InstallerTest extends EMSTestCase {
 
         $this->assertNotNull( $team_members_sql );
         $this->assertStringContainsString( 'team_post_id', $team_members_sql );
+        $this->assertStringContainsString( 'scout_id', $team_members_sql );
+        $this->assertStringContainsString( 'KEY idx_scout_id', $team_members_sql );
         $this->assertStringContainsString( 'user_id', $team_members_sql );
         $this->assertStringContainsString( 'added_by', $team_members_sql );
         $this->assertStringContainsString( 'added_at', $team_members_sql );

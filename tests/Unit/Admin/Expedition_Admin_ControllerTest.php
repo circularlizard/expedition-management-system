@@ -234,6 +234,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
     public function test_get_board_returns_season_event_team_hierarchy(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'get_option' )->justReturn( '2026-06-13 20:00:00' );
 
         $seasons = \Mockery::mock( Season_Repository::class );
         $seasons->shouldReceive( 'list_all' )->andReturn( [ [ 'ID' => 10, 'ems_season_year' => '2026-27' ] ] );
@@ -245,10 +246,11 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $teams->shouldReceive( 'list_by_expedition' )->with( 20 )->andReturn( [ [ 'ID' => 30, 'ems_team_code' => 'H-SP1-1' ] ] );
 
         $team_members = \Mockery::mock( Team_Member_Repository::class );
-        $team_members->shouldReceive( 'list_by_team' )->with( 30 )->andReturn( [ [ 'user_id' => 1 ], [ 'user_id' => 2 ], [ 'user_id' => 3 ], [ 'user_id' => 4 ] ] );
+        $team_members->shouldReceive( 'list_by_team' )->with( 30 )->andReturn( [ [ 'scout_id' => 1 ], [ 'scout_id' => 2 ], [ 'scout_id' => 3 ], [ 'scout_id' => 4 ] ] );
 
         $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
-        $explorers->shouldReceive( 'find_by_wp_user_id' )->andReturn( [ 'first_name' => 'Alice', 'last_name' => 'MacLeod', 'scout_id' => 3417257, 'patrol' => 'Eagles' ] );
+        $explorers->shouldReceive( 'find_by_scout_id' )->andReturn( [ 'first_name' => 'Alice', 'last_name' => 'MacLeod', 'scout_id' => 3417257, 'patrol' => 'Eagles' ] );
+        $explorers->shouldReceive( 'list_all' )->andReturn( [] );
 
         $controller = $this->create_controller( $seasons, $expeditions, $teams, $team_members, $explorers );
         $response   = $controller->get_board();
@@ -263,6 +265,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
     public function test_get_board_empty_season(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'get_option' )->justReturn( null );
 
         $seasons = \Mockery::mock( Season_Repository::class );
         $seasons->shouldReceive( 'list_all' )->andReturn( [ [ 'ID' => 10, 'ems_season_year' => '2026-27' ] ] );
@@ -270,11 +273,58 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $expeditions = \Mockery::mock( Expedition_Repository::class );
         $expeditions->shouldReceive( 'list_by_season' )->with( 10 )->andReturn( [] );
 
-        $controller = $this->create_controller( $seasons, $expeditions );
+        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers->shouldReceive( 'list_all' )->andReturn( [] );
+
+        $controller = $this->create_controller( $seasons, $expeditions, null, null, $explorers );
         $response   = $controller->get_board();
 
         $this->assertSame( 200, $response->get_status() );
         $this->assertEmpty( $response->get_data()['seasons'][0]['events'] );
+    }
+
+    public function test_add_member_assigns_by_scout_id_without_wp_user(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $teams = \Mockery::mock( Team_Repository::class );
+        $teams->shouldReceive( 'get_by_id' )->with( 30 )->andReturn( [ 'ID' => 30 ] );
+
+        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers->shouldReceive( 'find_by_scout_id' )->with( 3417257 )->andReturn( [ 'scout_id' => 3417257, 'wp_user_id' => 0, 'first_name' => 'Alice', 'last_name' => 'MacLeod' ] );
+
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+        $team_members->shouldReceive( 'assign' )->with( 30, 3417257, 1, 0 )->andReturn( 5 );
+        $team_members->shouldReceive( 'list_by_team' )->with( 30 )->andReturn( [ [ 'scout_id' => 3417257 ] ] );
+
+        $controller = $this->create_controller( null, null, $teams, $team_members, $explorers );
+        $request    = $this->json_request( [ 'scout_id' => 3417257 ] );
+        $request->set_param( 'team_id', 30 );
+        $response   = $controller->add_member( $request );
+
+        $this->assertSame( 201, $response->get_status() );
+        $this->assertSame( 3417257, $response->get_data()[0]['scout_id'] );
+    }
+
+    public function test_remove_member_by_scout_id(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $teams = \Mockery::mock( Team_Repository::class );
+        $teams->shouldReceive( 'get_by_id' )->with( 30 )->andReturn( [ 'ID' => 30 ] );
+
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+        $team_members->shouldReceive( 'remove' )->with( 30, 3417257 )->andReturn( true );
+        $team_members->shouldReceive( 'list_by_team' )->with( 30 )->andReturn( [] );
+
+        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
+
+        $controller = $this->create_controller( null, null, $teams, $team_members, $explorers );
+        $request    = new \WP_REST_Request();
+        $request->set_param( 'team_id', 30 );
+        $request->set_param( 'scout_id', 3417257 );
+        $response   = $controller->remove_member( $request );
+
+        $this->assertSame( 200, $response->get_status() );
     }
 
     public function test_check_permission_rejects_non_admin(): void {

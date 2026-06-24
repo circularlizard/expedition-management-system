@@ -81,7 +81,7 @@ Add any additional stubs your test needs in the individual test `setUp()`.
 ### Identity anchor
 **`ems_osm_explorers.scout_id` is the primary identity anchor for explorers — NOT `wp_users.ID`.** WP User accounts are NOT created during OSM sync. `wp_user_id` on `ems_osm_explorers` is nullable and only populated after an explorer logs in via OIDC.
 
-When joining explorer data to team membership: `ems_team_members.user_id` → `ems_osm_explorers.wp_user_id` (nullable join). Always fall back to `scout_id` for identity matching.
+Team membership is keyed on `scout_id`: `ems_team_members.scout_id` → `ems_osm_explorers.scout_id`. The `ems_team_members.user_id` column is optional (0 when the explorer has no WP account) and is only populated for future WP-user linkage — never required to add/remove/move a member.
 
 ### No token storage
 OSM OAuth tokens are **never stored server-side**. The personal OAuth2 code flow is admin-triggered per sync action. Tokens are used once and immediately discarded.
@@ -93,11 +93,11 @@ OSM OAuth tokens are **never stored server-side**. The personal OAuth2 code flow
 
 ## 6. DB Tables
 
-All created by `Table_Installer` on plugin activation. Do not use `wpdb->prefix` — tables use literal `ems_` prefix.
+All created by `Table_Installer` on plugin activation. Tables are created and queried with the WordPress table prefix, i.e. `$wpdb->prefix . 'ems_<name>'` (e.g. `wp_ems_team_members`). Always build table names with `$wpdb->prefix` — never hard-code a bare `ems_` prefix.
 
 | Table | Key columns |
 |---|---|
-| `ems_team_members` | `id, team_post_id, user_id, added_by, added_at` |
+| `ems_team_members` | `id, team_post_id, scout_id, user_id (nullable/0), added_by, added_at` |
 | `ems_volunteer_availability` | `id, user_id, expedition_post_id, date, overnight, confirmed, confirmed_by` |
 | `ems_route_submissions` | `id, team_post_id, version, file_type, wp_media_id, submitted_by, submitted_at, feedback, status` |
 | `ems_osm_explorers` | `id, scout_id (UNIQUE), wp_user_id (nullable), section_id, first_name, last_name, email, parent_email, patrol, synced_at` |

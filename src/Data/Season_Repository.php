@@ -14,9 +14,14 @@ class Season_Repository {
 			throw new \InvalidArgumentException( "Season year already exists: {$year}." );
 		}
 
+		$title = trim( (string) ( $data['post_title'] ?? '' ) );
+		if ( $title === '' ) {
+			$title = $year . ' Season';
+		}
+
 		$post_id = wp_insert_post( [
 			'post_type'   => 'season',
-			'post_title'  => $data['post_title'] ?? $year . ' Season',
+			'post_title'  => $title,
 			'post_status' => 'publish',
 		], true );
 
