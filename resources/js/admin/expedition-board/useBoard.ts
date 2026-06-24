@@ -14,8 +14,8 @@ export function useBoard(): UseBoardResult {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
+    const fetchData = useCallback(async (isRefetch = false) => {
+        if (!isRefetch) setLoading(true);
         setError(null);
         try {
             const response = await fetch(`${config.root_url}/expedition-board`, {
@@ -29,7 +29,7 @@ export function useBoard(): UseBoardResult {
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load board data');
         } finally {
-            setLoading(false);
+            if (!isRefetch) setLoading(false);
         }
     }, [config.root_url, config.nonce]);
 
@@ -37,5 +37,5 @@ export function useBoard(): UseBoardResult {
         fetchData();
     }, [fetchData]);
 
-    return { data, loading, error, refetch: fetchData };
+    return { data, loading, error, refetch: () => fetchData(true) };
 }
