@@ -21,6 +21,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         ems_type: 'practice',
         ems_transport: 'hillwalking',
         ems_level: 'silver',
+        ems_first_aid_level: 'none',
         ems_start_date: '',
         ems_end_date: '',
         ems_start_time: '',
@@ -41,6 +42,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 ems_type: initialEvent.ems_type || 'practice',
                 ems_transport: initialEvent.ems_transport || 'hillwalking',
                 ems_level: initialEvent.ems_level || 'silver',
+                ems_first_aid_level: initialEvent.ems_first_aid_level || 'none',
                 ems_start_date: initialEvent.ems_start_date || '',
                 ems_end_date: initialEvent.ems_end_date || '',
                 ems_start_time: initialEvent.ems_start_time || '',
@@ -127,7 +129,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
 
     const gridStyle: React.CSSProperties = {
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
+        gridTemplateColumns: '1fr 1fr 1fr 1fr',
         gap: '16px',
         marginBottom: '16px',
     };
@@ -191,6 +193,15 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                             <option value="bronze">Bronze</option>
                             <option value="silver">Silver</option>
                             <option value="gold">Gold</option>
+                        </select>
+                    </label>
+
+                    <label style={fieldStyle}>
+                        First aid required
+                        <select name="ems_first_aid_level" value={formData.ems_first_aid_level} onChange={handleChange} style={inputStyle}>
+                            <option value="none">None</option>
+                            <option value="first_response">First Response</option>
+                            <option value="full_first_aid">Full First Aid</option>
                         </select>
                     </label>
                 </div>

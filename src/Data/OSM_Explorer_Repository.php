@@ -37,4 +37,18 @@ class OSM_Explorer_Repository {
         $rows  = $this->wpdb->get_results( "SELECT * FROM {$this->wpdb->prefix}{$table}", ARRAY_A );
         return $rows ?: [];
     }
+
+    public function update_first_aid_level( int $scout_id, string $level ): bool {
+        $table   = $this->wpdb->prefix . 'ems_osm_explorers';
+        $allowed = [ 'none', 'first_response', 'full_first_aid' ];
+        if ( ! in_array( $level, $allowed, true ) ) {
+            return false;
+        }
+        $result = $this->wpdb->query( $this->wpdb->prepare(
+            "UPDATE {$table} SET first_aid_level = %s WHERE scout_id = %d",
+            $level,
+            $scout_id
+        ) );
+        return $result !== false && $result > 0;
+    }
 }
