@@ -25,6 +25,20 @@ describe('OSMReference', () => {
         expect(screen.getByLabelText(/First aid level for Bob Andrews/)).toHaveValue('first_response');
     });
 
+    it('sorts explorers alphabetically by last name', () => {
+        const data: BoardData = {
+            seasons: [],
+            explorers: [
+                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', patrol: 'Hawks', first_aid_level: 'none' },
+                { scout_id: 30002, first_name: 'Bob', last_name: 'Andrews', first_aid_level: 'first_response' },
+            ],
+        };
+        render(<OSMReference data={data} />);
+        const rows = screen.getAllByRole('row');
+        expect(rows[1].textContent).toContain('Bob Andrews');
+        expect(rows[2].textContent).toContain('Alice MacLeod');
+    });
+
     it('calls the API when a first aid level is changed', async () => {
         global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ scout_id: 30001, first_aid_level: 'full_first_aid' }) });
         const onChanged = vi.fn();

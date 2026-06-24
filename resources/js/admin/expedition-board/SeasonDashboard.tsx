@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { BoardData, Season, Expedition, Team, Member, Explorer, OSMEvent } from './types';
 import { EventForm } from './EventForm';
-import { sameTypeEvents, findEventOfTeam, previewTeamCode, nextTeamNumber, memberKey } from './boardUtils';
+import { sameTypeEvents, findEventOfTeam, previewTeamCode, nextTeamNumber, memberKey, sortByName } from './boardUtils';
 
 async function postJson(path: string, body?: unknown): Promise<Response> {
     const config = window.emsExpeditionBoard;
@@ -426,12 +426,8 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
     const uniqueExplorers = explorers.filter((e, index, self) =>
         self.findIndex((ex) => ex.scout_id === e.scout_id) === index
     );
-    const available = uniqueExplorers.filter((e) => !assigned.has(e.scout_id));
-    const sortedMembers = [...members].sort((a, b) => {
-        const aName = `${a.last_name ?? ''}, ${a.first_name ?? ''}`;
-        const bName = `${b.last_name ?? ''}, ${b.first_name ?? ''}`;
-        return aName.localeCompare(bName);
-    });
+    const available = sortByName(uniqueExplorers.filter((e) => !assigned.has(e.scout_id)));
+    const sortedMembers = sortByName(members);
 
     const closeDialog = () => {
         setDialog(null);
@@ -715,7 +711,12 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
             <div style={{ padding: '10px' }}>
                 {firstAidWarning && (
                     <div className="ems-first-aid-alert" style={{ marginBottom: '10px', padding: '6px 8px', background: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', borderRadius: '4px', fontSize: '12px', fontWeight: 500 }}>
-                        ⚠ First aid requirement not met (need 2 qualified explorers)
+                        ⚠ First aid requirement not met
+                    </div>
+                )}
+                {team.size_warning && (
+                    <div className="ems-size-alert" style={{ marginBottom: '10px', padding: '6px 8px', background: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '4px', fontSize: '12px', fontWeight: 500 }}>
+                        ⚠ Team size requirement not met
                     </div>
                 )}
                 <ul style={{ margin: '0 0 12px 0', padding: 0, listStyle: 'none' }}>
