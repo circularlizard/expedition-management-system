@@ -485,7 +485,10 @@ class Expedition_Admin_Controller {
             return $this->error( 'ems_explorer_not_found', 'Explorer not found.', 404 );
         }
 
-        $this->explorers->update_first_aid_level( $scout_id, $level );
+        $updated = $this->explorers->update_first_aid_level( $scout_id, $level );
+        if ( ! $updated ) {
+            return $this->error( 'ems_first_aid_update_failed', 'Could not update first aid level.', 500 );
+        }
         return new \WP_REST_Response( [ 'scout_id' => $scout_id, 'first_aid_level' => $level ] );
     }
 
