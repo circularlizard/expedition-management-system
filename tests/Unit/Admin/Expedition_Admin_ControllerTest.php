@@ -7,6 +7,7 @@ use EMS\Data\Expedition_Repository;
 use EMS\Data\Team_Repository;
 use EMS\Data\Team_Member_Repository;
 use EMS\Data\OSM_Explorer_Repository;
+use EMS\Data\OSM_Event_Repository;
 use EMS\Tests\EMSTestCase;
 use Brain\Monkey\Functions;
 
@@ -17,14 +18,16 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         ?Expedition_Repository $expeditions = null,
         ?Team_Repository $teams = null,
         ?Team_Member_Repository $team_members = null,
-        ?OSM_Explorer_Repository $explorers = null
+        ?OSM_Explorer_Repository $explorers = null,
+        ?OSM_Event_Repository $osm_events = null
     ): Expedition_Admin_Controller {
         return new Expedition_Admin_Controller(
             $seasons ?: \Mockery::mock( Season_Repository::class ),
             $expeditions ?: \Mockery::mock( Expedition_Repository::class ),
             $teams ?: \Mockery::mock( Team_Repository::class ),
             $team_members ?: \Mockery::mock( Team_Member_Repository::class ),
-            $explorers ?: \Mockery::mock( OSM_Explorer_Repository::class )
+            $explorers ?: \Mockery::mock( OSM_Explorer_Repository::class ),
+            $osm_events ?: \Mockery::mock( OSM_Event_Repository::class )
         );
     }
 
@@ -380,6 +383,22 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
         $controller = $this->create_controller();
         $this->assertFalse( $controller->check_permission() );
+    }
+
+    public function test_list_osm_events_returns_events(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $osm_events = \Mockery::mock( OSM_Event_Repository::class );
+        $osm_events->shouldReceive( 'list_all' )->andReturn( [
+            [ 'id' => 1, 'event_id' => 40001, 'section_id' => 99001, 'name' => 'Summer Camp', 'start_date' => '2026-07-01', 'end_date' => '2026-07-03', 'location' => 'Loch Lomond' ],
+        ] );
+
+        $controller = $this->create_controller( null, null, null, null, null, $osm_events );
+        $response   = $controller->list_osm_events();
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertCount( 1, $response->get_data() );
+        $this->assertSame( 'Summer Camp', $response->get_data()[0]['name'] );
     }
 
     public function test_update_first_aid_level_returns_updated_level(): void {

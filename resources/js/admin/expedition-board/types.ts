@@ -43,7 +43,9 @@ export interface Expedition {
     ems_start_time?: string;
     ems_end_time?: string;
     ems_lic_name?: string;
+    ems_lic_email?: string;
     ems_lic_phone?: string;
+    ems_lic_id?: string;
     ems_start_location?: string;
     ems_end_location?: string;
     ems_route_info?: string;
@@ -81,6 +83,16 @@ export interface Explorer {
     wp_user_id?: number;
     patrol?: string;
     first_aid_level?: FirstAidLevel;
+}
+
+export interface OSMEvent {
+    id: number;
+    event_id: number;
+    section_id: number;
+    name: string;
+    start_date?: string;
+    end_date?: string;
+    location?: string;
 }
 
 declare global {

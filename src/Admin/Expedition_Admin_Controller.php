@@ -6,6 +6,7 @@ use EMS\Data\Expedition_Repository;
 use EMS\Data\Team_Repository;
 use EMS\Data\Team_Member_Repository;
 use EMS\Data\OSM_Explorer_Repository;
+use EMS\Data\OSM_Event_Repository;
 use EMS\Core\CPT_Registry;
 
 class Expedition_Admin_Controller {
@@ -15,6 +16,7 @@ class Expedition_Admin_Controller {
     private Team_Repository $teams;
     private Team_Member_Repository $team_members;
     private OSM_Explorer_Repository $explorers;
+    private OSM_Event_Repository $osm_events;
     private CPT_Registry $cpt_registry;
 
     public function __construct(
@@ -23,6 +25,7 @@ class Expedition_Admin_Controller {
         Team_Repository $teams,
         Team_Member_Repository $team_members,
         ?OSM_Explorer_Repository $explorers = null,
+        ?OSM_Event_Repository $osm_events = null,
         ?CPT_Registry $cpt_registry = null
     ) {
         $this->seasons      = $seasons;
@@ -30,6 +33,7 @@ class Expedition_Admin_Controller {
         $this->teams        = $teams;
         $this->team_members = $team_members;
         $this->explorers    = $explorers ?: new OSM_Explorer_Repository();
+        $this->osm_events   = $osm_events ?: new OSM_Event_Repository();
         $this->cpt_registry = $cpt_registry ?: new CPT_Registry();
     }
 
@@ -38,6 +42,7 @@ class Expedition_Admin_Controller {
         $this->register_event_routes();
         $this->register_team_routes();
         $this->register_member_routes();
+        $this->register_osm_event_route();
         $this->register_board_route();
     }
 
@@ -190,6 +195,14 @@ class Expedition_Admin_Controller {
         register_rest_route( 'ems/v1', '/expedition-board', [
             'methods'             => \WP_REST_Server::READABLE,
             'callback'            => [ $this, 'get_board' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+        ] );
+    }
+
+    private function register_osm_event_route(): void {
+        register_rest_route( 'ems/v1', '/osm-events', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'list_osm_events' ],
             'permission_callback' => [ $this, 'check_permission' ],
         ] );
     }
@@ -520,6 +533,22 @@ class Expedition_Admin_Controller {
             'explorers' => $this->list_explorers(),
             'last_sync' => get_option( 'ems_osm_last_sync' ) ?: null,
         ] );
+    }
+
+    public function list_osm_events(): \WP_REST_Response {
+        $events = [];
+        foreach ( $this->osm_events->list_all() as $row ) {
+            $events[] = [
+                'id'         => (int) ( $row['id'] ?? 0 ),
+                'event_id'   => (int) ( $row['event_id'] ?? 0 ),
+                'section_id' => (int) ( $row['section_id'] ?? 0 ),
+                'name'       => $row['name'] ?? '',
+                'start_date' => $row['start_date'] ?? null,
+                'end_date'   => $row['end_date'] ?? null,
+                'location'   => $row['location'] ?? '',
+            ];
+        }
+        return new \WP_REST_Response( $events );
     }
 
     private function validate_event( array $data, bool $require_all = true ): bool|\WP_Error {
