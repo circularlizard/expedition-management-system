@@ -104,6 +104,8 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'scout_id', $explorers_sql );
         $this->assertStringContainsString( 'wp_user_id', $explorers_sql );
         $this->assertStringContainsString( 'section_id', $explorers_sql );
+        $this->assertStringContainsString( 'first_aid_level', $explorers_sql );
+        $this->assertStringContainsString( "DEFAULT 'none'", $explorers_sql );
         $this->assertStringContainsString( 'UNIQUE KEY idx_scout_id', $explorers_sql );
     }
 

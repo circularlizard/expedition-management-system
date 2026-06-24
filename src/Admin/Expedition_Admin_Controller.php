@@ -175,6 +175,15 @@ class Expedition_Admin_Controller {
                 'scout_id' => [ 'type' => 'integer', 'required' => true ],
             ],
         ] );
+
+        register_rest_route( 'ems/v1', '/explorers/(?P<scout_id>\d+)/first-aid', [
+            'methods'             => \WP_REST_Server::EDITABLE,
+            'callback'            => [ $this, 'update_first_aid_level' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'scout_id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
     }
 
     private function register_board_route(): void {
@@ -462,6 +471,24 @@ class Expedition_Admin_Controller {
         return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $target_team_id ) ) );
     }
 
+    public function update_first_aid_level( \WP_REST_Request $request ): \WP_REST_Response {
+        $scout_id = (int) $request->get_param( 'scout_id' );
+        $body     = $request->get_json_params() ?: [];
+        $level    = $body['first_aid_level'] ?? '';
+
+        $allowed = [ 'none', 'first_response', 'full_first_aid' ];
+        if ( ! in_array( $level, $allowed, true ) ) {
+            return $this->error( 'ems_invalid_first_aid_level', 'Invalid first aid level.', 400 );
+        }
+
+        if ( ! $this->explorers->find_by_scout_id( $scout_id ) ) {
+            return $this->error( 'ems_explorer_not_found', 'Explorer not found.', 404 );
+        }
+
+        $this->explorers->update_first_aid_level( $scout_id, $level );
+        return new \WP_REST_Response( [ 'scout_id' => $scout_id, 'first_aid_level' => $level ] );
+    }
+
     public function get_board(): \WP_REST_Response {
         $seasons = $this->seasons->list_all();
         $board   = [];
@@ -494,9 +521,10 @@ class Expedition_Admin_Controller {
 
     private function validate_event( array $data, bool $require_all = true ): bool|\WP_Error {
         $valid_enums = [
-            'ems_type'      => [ 'training', 'practice', 'qualifying' ],
-            'ems_transport' => [ 'hillwalking', 'biking', 'paddling' ],
-            'ems_level'     => [ 'bronze', 'silver', 'gold' ],
+            'ems_type'             => [ 'training', 'practice', 'qualifying' ],
+            'ems_transport'        => [ 'hillwalking', 'biking', 'paddling' ],
+            'ems_level'            => [ 'bronze', 'silver', 'gold' ],
+            'ems_first_aid_level'  => [ 'none', 'first_response', 'full_first_aid' ],
         ];
 
         if ( $require_all ) {
@@ -549,9 +577,10 @@ class Expedition_Admin_Controller {
             $member['scout_id'] = (int) ( $member['scout_id'] ?? 0 );
             $explorer = $this->explorers->find_by_scout_id( $member['scout_id'] );
             if ( $explorer ) {
-                $member['first_name'] = $explorer['first_name'] ?? '';
-                $member['last_name']  = $explorer['last_name'] ?? '';
-                $member['patrol']     = $explorer['patrol'] ?? '';
+                $member['first_name']       = $explorer['first_name'] ?? '';
+                $member['last_name']        = $explorer['last_name'] ?? '';
+                $member['patrol']           = $explorer['patrol'] ?? '';
+                $member['first_aid_level']  = $explorer['first_aid_level'] ?? 'none';
             }
             $hydrated[] = $member;
         }
@@ -562,10 +591,11 @@ class Expedition_Admin_Controller {
         $explorers = [];
         foreach ( $this->explorers->list_all() as $row ) {
             $explorers[] = [
-                'scout_id'   => (int) ( $row['scout_id'] ?? 0 ),
-                'first_name' => $row['first_name'] ?? '',
-                'last_name'  => $row['last_name'] ?? '',
-                'patrol'     => $row['patrol'] ?? '',
+                'scout_id'        => (int) ( $row['scout_id'] ?? 0 ),
+                'first_name'      => $row['first_name'] ?? '',
+                'last_name'       => $row['last_name'] ?? '',
+                'patrol'          => $row['patrol'] ?? '',
+                'first_aid_level' => $row['first_aid_level'] ?? 'none',
             ];
         }
         return $explorers;

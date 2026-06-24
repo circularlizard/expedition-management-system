@@ -84,8 +84,9 @@ class Expedition_RepositoryTest extends EMSTestCase {
         Functions\when( 'get_post_meta' )->alias(
             static function ( $id, $key, $single ) {
                 $meta = [
-                    'ems_event_code' => 'SP1',
-                    'ems_level'      => 'silver',
+                    'ems_event_code'        => 'SP1',
+                    'ems_level'             => 'silver',
+                    'ems_first_aid_level'   => 'first_response',
                 ];
                 return $single && isset( $meta[$key] ) ? $meta[$key] : '';
             }
@@ -97,6 +98,7 @@ class Expedition_RepositoryTest extends EMSTestCase {
         $this->assertNotNull( $expedition );
         $this->assertEquals( 10, $expedition['ID'] );
         $this->assertEquals( 'SP1', $expedition['ems_event_code'] );
+        $this->assertEquals( 'first_response', $expedition['ems_first_aid_level'] );
     }
 
     public function test_get_by_id_returns_null_for_missing(): void {

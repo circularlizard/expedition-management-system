@@ -381,4 +381,34 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $controller = $this->create_controller();
         $this->assertFalse( $controller->check_permission() );
     }
+
+    public function test_update_first_aid_level_returns_updated_level(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers->shouldReceive( 'find_by_scout_id' )->with( 30001 )->andReturn( [ 'scout_id' => 30001 ] );
+        $explorers->shouldReceive( 'update_first_aid_level' )->with( 30001, 'full_first_aid' )->andReturn( true );
+
+        $controller = $this->create_controller( null, null, null, null, $explorers );
+        $request    = $this->json_request( [ 'first_aid_level' => 'full_first_aid' ] );
+        $request->set_param( 'scout_id', 30001 );
+        $response   = $controller->update_first_aid_level( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( 'full_first_aid', $response->get_data()['first_aid_level'] );
+    }
+
+    public function test_update_first_aid_level_rejects_invalid_value(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers->shouldReceive( 'find_by_scout_id' )->with( 30001 )->andReturn( [ 'scout_id' => 30001 ] );
+
+        $controller = $this->create_controller( null, null, null, null, $explorers );
+        $request    = $this->json_request( [ 'first_aid_level' => 'surgeon' ] );
+        $request->set_param( 'scout_id', 30001 );
+        $response   = $controller->update_first_aid_level( $request );
+
+        $this->assertSame( 400, $response->get_status() );
+    }
 }
