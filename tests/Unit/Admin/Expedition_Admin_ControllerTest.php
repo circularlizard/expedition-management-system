@@ -91,6 +91,54 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 'archived', $response->get_data()['ems_season_status'] );
     }
 
+    public function test_delete_season_empty_returns_200(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $seasons = \Mockery::mock( Season_Repository::class );
+        $seasons->shouldReceive( 'get_by_id' )->with( 10 )->andReturn( [ 'ID' => 10 ] );
+        $seasons->shouldReceive( 'has_events' )->with( 10 )->andReturn( false );
+        $seasons->shouldReceive( 'delete' )->with( 10 )->andReturn( true );
+
+        $controller = $this->create_controller( $seasons );
+        $request    = new \WP_REST_Request();
+        $request->set_param( 'id', 10 );
+        $response   = $controller->delete_season( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['deleted'] );
+    }
+
+    public function test_delete_season_with_events_returns_409(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $seasons = \Mockery::mock( Season_Repository::class );
+        $seasons->shouldReceive( 'get_by_id' )->with( 10 )->andReturn( [ 'ID' => 10 ] );
+        $seasons->shouldReceive( 'has_events' )->with( 10 )->andReturn( true );
+
+        $controller = $this->create_controller( $seasons );
+        $request    = new \WP_REST_Request();
+        $request->set_param( 'id', 10 );
+        $response   = $controller->delete_season( $request );
+
+        $this->assertSame( 409, $response->get_status() );
+        $this->assertSame( 'ems_season_has_events', $response->get_data()->get_error_code() );
+    }
+
+    public function test_delete_season_not_found_returns_404(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $seasons = \Mockery::mock( Season_Repository::class );
+        $seasons->shouldReceive( 'get_by_id' )->with( 10 )->andReturn( null );
+
+        $controller = $this->create_controller( $seasons );
+        $request    = new \WP_REST_Request();
+        $request->set_param( 'id', 10 );
+        $response   = $controller->delete_season( $request );
+
+        $this->assertSame( 404, $response->get_status() );
+        $this->assertSame( 'ems_season_not_found', $response->get_data()->get_error_code() );
+    }
+
     public function test_create_event_returns_201(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
 

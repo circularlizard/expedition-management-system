@@ -114,4 +114,48 @@ class Season_RepositoryTest extends EMSTestCase {
 
         $this->assertFalse( $result );
     }
+
+    public function test_delete_existing_season(): void {
+        Functions\when( 'get_post' )->alias(
+            static function ( $id ) {
+                $post = new \stdClass();
+                $post->ID        = $id;
+                $post->post_type = 'season';
+                return $post;
+            }
+        );
+        Functions\when( 'wp_delete_post' )->alias( static fn( $id, $force ) => (object) [ 'ID' => $id ] );
+
+        $repo   = new Season_Repository();
+        $result = $repo->delete( 10 );
+
+        $this->assertTrue( $result );
+    }
+
+    public function test_delete_non_existent_returns_false(): void {
+        Functions\when( 'get_post' )->justReturn( null );
+
+        $repo   = new Season_Repository();
+        $result = $repo->delete( 999 );
+
+        $this->assertFalse( $result );
+    }
+
+    public function test_has_events_returns_true_when_expeditions_exist(): void {
+        Functions\when( 'get_posts' )->alias(
+            static function ( $args ) {
+                return $args['post_type'] === 'expedition' ? [ (object) [ 'ID' => 20 ] ] : [];
+            }
+        );
+
+        $repo = new Season_Repository();
+        $this->assertTrue( $repo->has_events( 10 ) );
+    }
+
+    public function test_has_events_returns_false_when_no_expeditions(): void {
+        Functions\when( 'get_posts' )->justReturn( [] );
+
+        $repo = new Season_Repository();
+        $this->assertFalse( $repo->has_events( 10 ) );
+    }
 }

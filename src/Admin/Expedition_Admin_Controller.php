@@ -62,6 +62,15 @@ class Expedition_Admin_Controller {
                 'id' => [ 'type' => 'integer', 'required' => true ],
             ],
         ] );
+
+        register_rest_route( 'ems/v1', '/seasons/(?P<id>\d+)', [
+            'methods'             => \WP_REST_Server::DELETABLE,
+            'callback'            => [ $this, 'delete_season' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
     }
 
     private function register_event_routes(): void {
@@ -204,6 +213,21 @@ class Expedition_Admin_Controller {
             return $this->error( 'ems_season_not_found', 'Season not found.', 404 );
         }
         return new \WP_REST_Response( $this->seasons->get_by_id( $id ) );
+    }
+
+    public function delete_season( \WP_REST_Request $request ): \WP_REST_Response {
+        $id = (int) $request->get_param( 'id' );
+
+        if ( ! $this->seasons->get_by_id( $id ) ) {
+            return $this->error( 'ems_season_not_found', 'Season not found.', 404 );
+        }
+
+        if ( $this->seasons->has_events( $id ) ) {
+            return $this->error( 'ems_season_has_events', 'Cannot delete season with events.', 409 );
+        }
+
+        $this->seasons->delete( $id );
+        return new \WP_REST_Response( [ 'deleted' => true ] );
     }
 
     public function create_event( \WP_REST_Request $request ): \WP_REST_Response {
