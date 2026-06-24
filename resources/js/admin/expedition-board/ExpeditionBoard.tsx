@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useBoard } from './useBoard';
 import { useOSMEvents } from './useOSMEvents';
-import { Season } from './types';
 import { SeasonDashboard } from './SeasonDashboard';
-import { CrossEventTeamView } from './CrossEventTeamView';
+import { ExpeditionView } from './ExpeditionView';
 import { OSMReference } from './OSMReference';
 import { SeasonForm } from './SeasonForm';
 
-type BoardTab = 'dashboard' | 'cross-event' | 'reference';
+type BoardTab = 'dashboard' | 'expedition-view' | 'reference';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
@@ -26,7 +25,7 @@ const ExpeditionBoard: React.FC = () => {
     }
 
     const seasons = data.seasons;
-    const activeSeason: Season | null = seasons[0] ?? null;
+    void seasons;
 
     return (
         <div className="ems-board">
@@ -54,8 +53,8 @@ const ExpeditionBoard: React.FC = () => {
                 <button className={`nav-tab ${activeTab === 'dashboard' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('dashboard')}>
                     Season Dashboard
                 </button>
-                <button className={`nav-tab ${activeTab === 'cross-event' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('cross-event')}>
-                    Cross-Event View
+                <button className={`nav-tab ${activeTab === 'expedition-view' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('expedition-view')}>
+                    Expedition View
                 </button>
                 <button className={`nav-tab ${activeTab === 'reference' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('reference')}>
                     OSM Reference
@@ -64,7 +63,7 @@ const ExpeditionBoard: React.FC = () => {
 
             <div className="tab-content" style={{ marginTop: '20px' }}>
                 {activeTab === 'dashboard' && <SeasonDashboard data={data} osmEvents={osmEvents} osmEventsLoading={osmEventsLoading} />}
-                {activeTab === 'cross-event' && activeSeason && <CrossEventTeamView season={activeSeason} />}
+                {activeTab === 'expedition-view' && <ExpeditionView data={data} />}
                 {activeTab === 'reference' && <OSMReference data={data} onChanged={refetch} />}
             </div>
         </div>
