@@ -91,4 +91,13 @@ describe('ExpeditionBoard', () => {
         fireEvent.click(screen.getByText('Cross-Event View'));
         expect(screen.getByText('Select a team to see cross-event assignments')).toBeInTheDocument();
     });
+
+    it('switches to the OSM Reference tab', async () => {
+        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockBoardData });
+        render(<ExpeditionBoard />);
+        await waitFor(() => screen.getByText('2026-27 Season'));
+
+        fireEvent.click(screen.getByText('OSM Reference'));
+        expect(screen.getByText('Explorer Reference')).toBeInTheDocument();
+    });
 });
