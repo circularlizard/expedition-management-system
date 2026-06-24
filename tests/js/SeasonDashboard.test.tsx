@@ -74,7 +74,7 @@ describe('SeasonDashboard', () => {
         const endInput = document.querySelector('input[name="ems_end_date"]') as HTMLInputElement;
         fireEvent.change(endInput, { target: { value: '2027-07-03' } });
 
-        fireEvent.click(screen.getByRole('button', { name: /Save Event/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Create Event/ }));
 
         await waitFor(() => expect(onChanged).toHaveBeenCalled());
         const [url, opts] = (global.fetch as any).mock.calls[0];
