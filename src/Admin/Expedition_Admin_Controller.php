@@ -377,13 +377,10 @@ class Expedition_Admin_Controller {
         }
 
         $user_id = (int) ( $explorer['wp_user_id'] ?? 0 );
-        if ( $user_id <= 0 ) {
-            return $this->error( 'ems_explorer_no_user', 'Explorer has no linked user.', 422 );
-        }
 
         try {
-            $this->team_members->assign( $team_id, $user_id, get_current_user_id() );
-            return new \WP_REST_Response( $this->team_members->list_by_team( $team_id ), 201 );
+            $this->team_members->assign( $team_id, $scout_id, get_current_user_id(), $user_id );
+            return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $team_id ) ), 201 );
         } catch ( \InvalidArgumentException $e ) {
             return $this->error( 'ems_member_already_in_team', $e->getMessage(), 409 );
         }
@@ -398,18 +395,14 @@ class Expedition_Admin_Controller {
             return $this->error( 'ems_team_not_found', 'Team not found.', 404 );
         }
 
-        $explorer = $this->explorers->find_by_scout_id( $scout_id );
-        if ( ! $explorer ) {
-            return $this->error( 'ems_explorer_not_found', 'Explorer not found.', 404 );
+        $this->team_members->remove( $team_id, $scout_id );
+
+        // The team may have been auto-deleted if that was its last member.
+        if ( ! $this->teams->get_by_id( $team_id ) ) {
+            return new \WP_REST_Response( [ 'team_deleted' => true ] );
         }
 
-        $user_id = (int) ( $explorer['wp_user_id'] ?? 0 );
-        if ( $user_id <= 0 ) {
-            return $this->error( 'ems_explorer_no_user', 'Explorer has no linked user.', 422 );
-        }
-
-        $this->team_members->remove( $team_id, $user_id );
-        return new \WP_REST_Response( $this->team_members->list_by_team( $team_id ) );
+        return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $team_id ) ) );
     }
 
     public function move_explorer( \WP_REST_Request $request ): \WP_REST_Response {
@@ -423,9 +416,6 @@ class Expedition_Admin_Controller {
         }
 
         $user_id = (int) ( $explorer['wp_user_id'] ?? 0 );
-        if ( $user_id <= 0 ) {
-            return $this->error( 'ems_explorer_no_user', 'Explorer has no linked user.', 422 );
-        }
 
         $target_team = $this->teams->get_by_id( $target_team_id );
         if ( ! $target_team ) {
@@ -433,7 +423,7 @@ class Expedition_Admin_Controller {
         }
 
         // Find current team of the explorer in any event of the same type.
-        $current_team_id = $this->find_current_team( $user_id, $target_team['event_id'] );
+        $current_team_id = $this->find_current_team( $scout_id, $target_team['event_id'] );
         if ( ! $current_team_id ) {
             return $this->error( 'ems_explorer_not_in_team', 'Explorer is not assigned to a team in a compatible event.', 422 );
         }
@@ -442,8 +432,8 @@ class Expedition_Admin_Controller {
             return $this->error( 'ems_incompatible_event_type', 'Cannot move between different event types.', 422 );
         }
 
-        $this->team_members->move( $user_id, $current_team_id, $target_team_id, get_current_user_id() );
-        return new \WP_REST_Response( $this->team_members->list_by_team( $target_team_id ) );
+        $this->team_members->move( $scout_id, $current_team_id, $target_team_id, get_current_user_id(), $user_id );
+        return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $target_team_id ) ) );
     }
 
     public function get_board(): \WP_REST_Response {
@@ -469,7 +459,11 @@ class Expedition_Admin_Controller {
             $board[]          = $season;
         }
 
-        return new \WP_REST_Response( [ 'seasons' => $board ] );
+        return new \WP_REST_Response( [
+            'seasons'   => $board,
+            'explorers' => $this->list_explorers(),
+            'last_sync' => get_option( 'ems_osm_last_sync' ) ?: null,
+        ] );
     }
 
     private function validate_event( array $data, bool $require_all = true ): bool|\WP_Error {
@@ -502,7 +496,7 @@ class Expedition_Admin_Controller {
         return $event['ems_type'] ?? '';
     }
 
-    private function find_current_team( int $user_id, int $target_event_id ): int {
+    private function find_current_team( int $scout_id, int $target_event_id ): int {
         $target_type = $this->event_type( $target_event_id );
         $all_events  = $this->expeditions->list_all();
 
@@ -513,7 +507,7 @@ class Expedition_Admin_Controller {
             foreach ( $this->teams->list_by_expedition( $event['ID'] ) as $team ) {
                 $members = $this->team_members->list_by_team( $team['ID'] );
                 foreach ( $members as $member ) {
-                    if ( (int) $member['user_id'] === $user_id ) {
+                    if ( (int) ( $member['scout_id'] ?? 0 ) === $scout_id ) {
                         return (int) $team['ID'];
                     }
                 }
@@ -526,16 +520,29 @@ class Expedition_Admin_Controller {
     private function hydrate_members( array $members ): array {
         $hydrated = [];
         foreach ( $members as $member ) {
-            $explorer = $this->explorers->find_by_wp_user_id( (int) $member['user_id'] );
+            $member['scout_id'] = (int) ( $member['scout_id'] ?? 0 );
+            $explorer = $this->explorers->find_by_scout_id( $member['scout_id'] );
             if ( $explorer ) {
                 $member['first_name'] = $explorer['first_name'] ?? '';
                 $member['last_name']  = $explorer['last_name'] ?? '';
-                $member['scout_id']   = (int) ( $explorer['scout_id'] ?? 0 );
                 $member['patrol']     = $explorer['patrol'] ?? '';
             }
             $hydrated[] = $member;
         }
         return $hydrated;
+    }
+
+    private function list_explorers(): array {
+        $explorers = [];
+        foreach ( $this->explorers->list_all() as $row ) {
+            $explorers[] = [
+                'scout_id'   => (int) ( $row['scout_id'] ?? 0 ),
+                'first_name' => $row['first_name'] ?? '',
+                'last_name'  => $row['last_name'] ?? '',
+                'patrol'     => $row['patrol'] ?? '',
+            ];
+        }
+        return $explorers;
     }
 
     private function error( string $code, string $message, int $status ): \WP_REST_Response {

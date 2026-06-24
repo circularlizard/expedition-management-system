@@ -103,10 +103,10 @@ class Flexi_Record_ImporterTest extends EMSTestCase {
             ->with( 501, 'EXP1', 'T1' )
             ->andReturn( 601 );
 
-        // 3. Assignment
+        // 3. Assignment — keyed on scout_id, with optional wp_user_id as 4th arg
         $this->team_members->shouldReceive( 'assign' )
             ->once()
-            ->with( 601, 123, 1 )
+            ->with( 601, 1001, 1, 123 )
             ->andReturn( 701 );
 
         $option_updated = false;

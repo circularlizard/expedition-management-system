@@ -112,7 +112,12 @@ class Team_Repository {
 
         $members = $this->team_members->list_by_team( $team_id );
         foreach ( $members as $member ) {
-            $this->team_members->assign( $new_id, (int) $member['user_id'], (int) $member['added_by'] );
+            $this->team_members->assign(
+                $new_id,
+                (int) ( $member['scout_id'] ?? 0 ),
+                (int) $member['added_by'],
+                (int) ( $member['user_id'] ?? 0 )
+            );
         }
 
         return (int) $new_id;

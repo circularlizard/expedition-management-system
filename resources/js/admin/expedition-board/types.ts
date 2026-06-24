@@ -58,6 +58,7 @@ export interface Season {
 
 export interface BoardData {
     seasons: Season[];
+    explorers?: Explorer[];
     last_sync?: string | null;
 }
 

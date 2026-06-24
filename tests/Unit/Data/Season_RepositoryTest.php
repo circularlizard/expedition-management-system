@@ -20,6 +20,24 @@ class Season_RepositoryTest extends EMSTestCase {
         $this->assertSame( 42, $id );
     }
 
+    public function test_create_season_defaults_blank_title_to_year_season(): void {
+        Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
+        Functions\when( 'get_posts' )->justReturn( [] );
+        Functions\when( 'update_post_meta' )->justReturn( true );
+        Functions\when( 'is_wp_error' )->justReturn( false );
+
+        $captured_title = null;
+        Functions\when( 'wp_insert_post' )->alias( static function ( $p ) use ( &$captured_title ) {
+            $captured_title = $p['post_title'];
+            return 42;
+        } );
+
+        $repo = new Season_Repository();
+        $repo->create( [ 'year' => '2026-27', 'post_title' => '' ] );
+
+        $this->assertSame( '2026-27 Season', $captured_title );
+    }
+
     public function test_create_season_rejects_duplicate_year(): void {
         Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
         Functions\when( 'get_posts' )->alias(
