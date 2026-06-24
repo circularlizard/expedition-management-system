@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { BoardData, Season, Expedition, Team, Member, Explorer } from './types';
 import { EventForm } from './EventForm';
 
@@ -21,26 +21,34 @@ async function del(path: string): Promise<Response> {
 
 interface SeasonDashboardProps {
     data: BoardData;
-    onChanged?: () => void;
 }
 
-export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data, onChanged }) => {
+export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data }) => {
+    const [board, setBoard] = useState<BoardData>(data);
     const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
 
-    if (!data.seasons || data.seasons.length === 0) {
+    const updateBoard = useCallback((updater: (b: BoardData) => void) => {
+        setBoard((prev) => {
+            const next = JSON.parse(JSON.stringify(prev)) as BoardData;
+            updater(next);
+            return next;
+        });
+    }, []);
+
+    if (!board.seasons || board.seasons.length === 0) {
         return <div className="notice notice-info">Create your first season to begin planning expeditions.</div>;
     }
 
     return (
         <div className="ems-season-dashboard">
-            {data.seasons.map((season) => (
+            {board.seasons.map((season) => (
                 <SeasonCard
                     key={season.ID}
                     season={season}
-                    explorers={data.explorers ?? []}
+                    explorers={board.explorers ?? []}
                     expandedEvents={expandedEvents}
                     setExpandedEvents={setExpandedEvents}
-                    onChanged={onChanged}
+                    updateBoard={updateBoard}
                 />
             ))}
         </div>
@@ -58,8 +66,8 @@ const SeasonCard: React.FC<{
     explorers: Explorer[];
     expandedEvents: Set<number>;
     setExpandedEvents: React.Dispatch<React.SetStateAction<Set<number>>>;
-    onChanged?: () => void;
-}> = ({ season, explorers, expandedEvents, setExpandedEvents, onChanged }) => {
+    updateBoard: (updater: (b: BoardData) => void) => void;
+}> = ({ season, explorers, expandedEvents, setExpandedEvents, updateBoard }) => {
     const [showEventForm, setShowEventForm] = useState(false);
     const toggleEvent = (eventId: number) => {
         setExpandedEvents((prev) => {
@@ -92,7 +100,20 @@ const SeasonCard: React.FC<{
                 <div style={{ margin: '12px 0' }}>
                     <EventForm
                         seasonId={season.ID}
-                        onSaved={() => { setShowEventForm(false); onChanged?.(); }}
+                        onSaved={(savedEvent) => {
+                            setShowEventForm(false);
+                            updateBoard((b) => {
+                                const s = b.seasons?.find((s) => s.ID === season.ID);
+                                if (s) {
+                                    const newEvent = {
+                                        ...savedEvent,
+                                        teams: savedEvent.teams ?? [],
+                                        member_count: savedEvent.member_count ?? 0,
+                                    };
+                                    s.events.push(newEvent);
+                                }
+                            });
+                        }}
                         onCancel={() => setShowEventForm(false)}
                     />
                 </div>
@@ -111,7 +132,7 @@ const SeasonCard: React.FC<{
                                 explorers={explorers}
                                 expanded={expandedEvents.has(event.ID)}
                                 onToggle={() => toggleEvent(event.ID)}
-                                onChanged={onChanged}
+                                updateBoard={updateBoard}
                             />
                         ))}
                     </div>
@@ -121,17 +142,47 @@ const SeasonCard: React.FC<{
     );
 };
 
-const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: boolean; onToggle: () => void; onChanged?: () => void }> = ({ event, explorers, expanded, onToggle, onChanged }) => {
+const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: boolean; onToggle: () => void; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ event, explorers, expanded, onToggle, updateBoard }) => {
     const [busy, setBusy] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     const addTeam = async () => {
         setBusy(true);
         try {
-            await postJson(`/events/${event.ID}/teams`);
-            onChanged?.();
+            const response = await postJson(`/events/${event.ID}/teams`);
+            const newTeam = await response.json() as Team;
+            updateBoard((b) => {
+                const e = findEvent(b, event.ID);
+                if (e) {
+                    e.teams.push({ ...newTeam, members: [] });
+                    e.member_count = (e.member_count ?? 0) + (newTeam.member_count ?? 0);
+                }
+            });
         } finally {
             setBusy(false);
         }
+    };
+
+    const handleEventSaved = (updatedEvent: Expedition) => {
+        setIsEditing(false);
+        updateBoard((b) => {
+            const e = findEvent(b, event.ID);
+            if (e) Object.assign(e, updatedEvent);
+        });
+    };
+
+    const formatDateRange = () => {
+        const s = event.ems_start_date;
+        const e = event.ems_end_date;
+        if (!s) return '';
+        if (s === e) return formatShortDate(s);
+        if (e) return `${formatShortDate(s)} — ${formatShortDate(e)}`;
+        return formatShortDate(s);
+    };
+
+    const handleEdit = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsEditing(true);
     };
 
     return (
@@ -139,17 +190,69 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
             <div
                 className="ems-event-header"
                 onClick={onToggle}
-                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}
                 data-testid={`event-header-${event.ID}`}
             >
-                <div>
-                    <strong>{event.post_title}</strong> ({event.ems_event_code})
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <strong style={{ whiteSpace: 'nowrap' }}>{event.post_title}</strong>
+                        <span style={{ color: '#888', fontSize: '13px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{event.ems_event_code}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12px', color: '#666' }}>
+                            {typeIcon(event.ems_type)}
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12px', color: '#666' }}>
+                            {transportIcon(event.ems_transport)}
+                        </span>
+                        <span style={levelBadgeStyle(event.ems_level)}>
+                            {levelIcon(event.ems_level)}
+                        </span>
+                        {formatDateRange() && (
+                            <span style={{ fontSize: '12px', color: '#666' }}>
+                                {formatDateRange()}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                <div>
-                    {event.teams.length} teams · {event.member_count ?? 0} members
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'right' }}>
+                        <div>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}</div>
+                        <div style={{ color: '#666', fontSize: '13px' }}>{event.member_count ?? 0} member{((event.member_count ?? 0) !== 1) ? 's' : ''}</div>
+                    </div>
+                    <button
+                        type="button"
+                        className="button"
+                        onClick={handleEdit}
+                        style={{ fontSize: '12px' }}
+                    >
+                        Edit
+                    </button>
                 </div>
             </div>
-            {expanded && (
+            {isEditing && event.season_id && (
+                <div className="ems-event-edit" style={{ marginTop: '12px' }}>
+                    <EventForm
+                        seasonId={event.season_id}
+                        initialEvent={event}
+                        onSaved={(savedEvent) => {
+                            setIsEditing(false);
+                            updateBoard((b) => {
+                                const e = findEvent(b, event.ID);
+                                if (e) {
+                                    Object.assign(e, {
+                                        ...savedEvent,
+                                        teams: event.teams,
+                                        member_count: event.member_count,
+                                    });
+                                }
+                            });
+                        }}
+                        onCancel={() => setIsEditing(false)}
+                    />
+                </div>
+            )}
+            {expanded && !isEditing && (
                 <div className="ems-event-teams" style={{ marginTop: '12px' }}>
                     <div style={{ marginBottom: '8px' }}>
                         <button type="button" className="button" onClick={addTeam} disabled={busy}>+ Add Team</button>
@@ -158,7 +261,7 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
                         <p>No teams in this event.</p>
                     ) : (
                         event.teams.map((team) => (
-                            <TeamRow key={team.ID} team={team} explorers={explorers} onChanged={onChanged} />
+                            <TeamRow key={team.ID} team={team} explorers={explorers} updateBoard={updateBoard} />
                         ))
                     )}
                 </div>
@@ -167,7 +270,7 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
     );
 };
 
-const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; onChanged?: () => void }> = ({ team, explorers, onChanged }) => {
+const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updater: (b: BoardData) => void) => void }> = ({ team, explorers, updateBoard }) => {
     const [selected, setSelected] = useState('');
     const [busy, setBusy] = useState(false);
 
@@ -179,9 +282,33 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; onChanged?: () => v
         if (!selected) return;
         setBusy(true);
         try {
-            await postJson(`/teams/${team.ID}/members`, { scout_id: Number(selected) });
+            const response = await postJson(`/teams/${team.ID}/members`, { scout_id: Number(selected) });
+            const updatedMembers = await response.json() as Member[];
+            const addedExplorer = explorers.find((e) => e.scout_id === Number(selected));
+            updateBoard((b) => {
+                const t = findTeam(b, team.ID);
+                if (t) {
+                    t.members = updatedMembers.map((m) => {
+                        const ex = explorers.find((e) => e.scout_id === m.scout_id);
+                        return {
+                            ...m,
+                            first_name: ex?.first_name ?? m.first_name ?? '',
+                            last_name: ex?.last_name ?? m.last_name ?? '',
+                            patrol: ex?.patrol ?? m.patrol ?? '',
+                        };
+                    });
+                    t.member_count = updatedMembers.length;
+                    t.size_warning = updatedMembers.length < 4 || updatedMembers.length > 7;
+                    const ev = findParentEvent(b, team.ID);
+                    if (ev) {
+                        ev.member_count = ev.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
+                    }
+                }
+                if (addedExplorer && b.explorers) {
+                    b.explorers = b.explorers.filter((e) => e.scout_id !== addedExplorer.scout_id);
+                }
+            });
             setSelected('');
-            onChanged?.();
         } finally {
             setBusy(false);
         }
@@ -190,8 +317,32 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; onChanged?: () => v
     const removeMember = async (scoutId: number) => {
         setBusy(true);
         try {
-            await del(`/teams/${team.ID}/members/${scoutId}`);
-            onChanged?.();
+            const response = await del(`/teams/${team.ID}/members/${scoutId}`);
+            const data = await response.json();
+            const removedExplorer = explorers.find((e) => e.scout_id === scoutId);
+            updateBoard((b) => {
+                const t = findTeam(b, team.ID);
+                if (t) {
+                    if (data.team_deleted) {
+                        const ev = findParentEvent(b, team.ID);
+                        if (ev) {
+                            ev.teams = ev.teams.filter((tm) => tm.ID !== team.ID);
+                            ev.member_count = ev.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
+                        }
+                    } else {
+                        t.members = (t.members ?? []).filter((m) => m.scout_id !== scoutId);
+                        t.member_count = t.members.length;
+                        t.size_warning = t.members.length < 4 || t.members.length > 7;
+                        const ev = findParentEvent(b, team.ID);
+                        if (ev) {
+                            ev.member_count = ev.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
+                        }
+                    }
+                }
+                if (removedExplorer && b.explorers) {
+                    b.explorers = [...b.explorers, removedExplorer];
+                }
+            });
         } finally {
             setBusy(false);
         }
@@ -201,7 +352,13 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; onChanged?: () => v
         setBusy(true);
         try {
             await del(`/teams/${team.ID}`);
-            onChanged?.();
+            updateBoard((b) => {
+                const ev = findParentEvent(b, team.ID);
+                if (ev) {
+                    ev.teams = ev.teams.filter((tm) => tm.ID !== team.ID);
+                    ev.member_count = ev.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
+                }
+            });
         } finally {
             setBusy(false);
         }
@@ -215,7 +372,7 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; onChanged?: () => v
                     {members.length} members
                     {team.size_warning && (
                         <span className="ems-size-warning" style={{ marginLeft: '8px', color: '#d63638', fontWeight: 'bold' }}>
-                            ⚠ Size warning
+                            Size warning
                         </span>
                     )}
                     {members.length === 0 && (
@@ -263,6 +420,37 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; onChanged?: () => v
     );
 };
 
+function findEvent(b: BoardData, eventId: number): Expedition | null {
+    for (const season of b.seasons ?? []) {
+        for (const event of season.events ?? []) {
+            if (event.ID === eventId) return event;
+        }
+    }
+    return null;
+}
+
+function findTeam(b: BoardData, teamId: number): Team | null {
+    for (const season of b.seasons ?? []) {
+        for (const event of season.events ?? []) {
+            for (const team of event.teams ?? []) {
+                if (team.ID === teamId) return team;
+            }
+        }
+    }
+    return null;
+}
+
+function findParentEvent(b: BoardData, teamId: number): Expedition | null {
+    for (const season of b.seasons ?? []) {
+        for (const event of season.events ?? []) {
+            for (const team of event.teams ?? []) {
+                if (team.ID === teamId) return event;
+            }
+        }
+    }
+    return null;
+}
+
 function groupByLevel(events: Expedition[]): Record<string, Expedition[]> {
     const groups: Record<string, Expedition[]> = {};
     events.forEach((event) => {
@@ -275,6 +463,59 @@ function groupByLevel(events: Expedition[]): Record<string, Expedition[]> {
 
 function capitalize(value: string): string {
     return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatShortDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function typeIcon(type: string): string {
+    switch (type) {
+        case 'training': return 'Training';
+        case 'practice': return 'Practice';
+        case 'qualifying': return 'Qualifying';
+        default: return type;
+    }
+}
+
+function transportIcon(transport?: string): string {
+    switch (transport) {
+        case 'hillwalking': return 'Hillwalking';
+        case 'biking': return 'Biking';
+        case 'paddling': return 'Paddling';
+        default: return '';
+    }
+}
+
+function levelIcon(level: string): string {
+    switch (level) {
+        case 'bronze': return '';
+        case 'silver': return '';
+        case 'gold': return '';
+        default: return '';
+    }
+}
+
+function levelBadgeStyle(level: string): React.CSSProperties {
+    const colors: Record<string, { bg: string; color: string }> = {
+        bronze: { bg: '#f0d4b8', color: '#7a4410' },
+        silver: { bg: '#e0e0e0', color: '#444' },
+        gold: { bg: '#fff3cd', color: '#7a5c10' },
+    };
+    const c = colors[level] || { bg: '#eee', color: '#666' };
+    return {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '2px',
+        fontSize: '11px',
+        fontWeight: '600',
+        padding: '2px 6px',
+        borderRadius: '4px',
+        background: c.bg,
+        color: c.color,
+    };
 }
 
 export default SeasonDashboard;

@@ -29,6 +29,7 @@ export interface Team {
 export interface Expedition {
     ID: number;
     post_title: string;
+    season_id?: number;
     ems_event_code: string;
     ems_expedition_code?: string;
     ems_type: 'training' | 'practice' | 'qualifying';
