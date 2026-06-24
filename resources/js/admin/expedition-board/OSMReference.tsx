@@ -67,12 +67,22 @@ interface ExplorerRow {
     byType: Record<EventType, EventAssignment[]>;
 }
 
+function normaliseEventType(raw: string | undefined | null): EventType | null {
+    switch (raw) {
+        case 'training':   return 'training';
+        case 'practice':   return 'practice';
+        case 'qualifying':
+        case 'qualifier':  return 'qualifying';
+        default:           return null;
+    }
+}
+
 function buildExplorerRows(data: BoardData): ExplorerRow[] {
     const byScout: Record<number, Record<EventType, EventAssignment[]>> = {};
     for (const season of data.seasons ?? []) {
         for (const event of season.events) {
-            const eventType = event.ems_type as EventType;
-            if (!['training', 'practice', 'qualifying'].includes(eventType)) continue;
+            const eventType = normaliseEventType(event.ems_type);
+            if (!eventType) continue;
             for (const team of event.teams) {
                 for (const member of team.members ?? []) {
                     if (member.scout_id == null) continue;
@@ -186,8 +196,8 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
         return [...filtered].sort((a, b) => {
             let cmp = 0;
             if (sortKey === 'name') {
-                cmp = `${a.explorer.last_name} ${a.explorer.first_name}`.localeCompare(
-                    `${b.explorer.last_name} ${b.explorer.first_name}`,
+                cmp = `${a.explorer.first_name} ${a.explorer.last_name}`.localeCompare(
+                    `${b.explorer.first_name} ${b.explorer.last_name}`,
                 );
             } else if (sortKey === 'patrol') {
                 cmp = (a.explorer.patrol ?? '').localeCompare(b.explorer.patrol ?? '');
@@ -311,7 +321,6 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                         <td>{explorer.patrol || '—'}</td>
                                         <td>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                <FirstAidPill level={levels[explorer.scout_id] ?? 'none'} />
                                                 <select
                                                     aria-label={`First aid level for ${explorer.first_name} ${explorer.last_name}`}
                                                     value={levels[explorer.scout_id] ?? 'none'}
