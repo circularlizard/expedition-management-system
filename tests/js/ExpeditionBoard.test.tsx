@@ -83,21 +83,21 @@ describe('ExpeditionBoard', () => {
         });
     });
 
-    it('switches to the Cross-Event View tab', async () => {
+    it('switches to the Expedition View tab', async () => {
         (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockBoardData });
         render(<ExpeditionBoard />);
         await waitFor(() => screen.getByText('2026-27 Season'));
 
-        fireEvent.click(screen.getByText('Cross-Event View'));
-        expect(screen.getByText('Select a team to see cross-event assignments')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('Expedition View'));
+        expect(screen.getByLabelText('Select expedition')).toBeInTheDocument();
     });
 
-    it('switches to the OSM Reference tab', async () => {
+    it('switches to the Explorer List tab', async () => {
         (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockBoardData });
         render(<ExpeditionBoard />);
         await waitFor(() => screen.getByText('2026-27 Season'));
 
-        fireEvent.click(screen.getByText('OSM Reference'));
-        expect(screen.getByText('Explorer Reference')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Explorer List' }));
+        expect(screen.getByRole('heading', { name: 'Explorer List' })).toBeInTheDocument();
     });
 });

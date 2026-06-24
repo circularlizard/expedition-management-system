@@ -57,7 +57,7 @@ const ExpeditionBoard: React.FC = () => {
                     Expedition View
                 </button>
                 <button className={`nav-tab ${activeTab === 'reference' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('reference')}>
-                    OSM Reference
+                    Explorer List
                 </button>
             </nav>
 

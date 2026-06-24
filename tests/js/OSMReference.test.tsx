@@ -25,7 +25,7 @@ describe('OSMReference', () => {
         expect(screen.getByLabelText(/First aid level for Bob Andrews/)).toHaveValue('first_response');
     });
 
-    it('sorts explorers A-Z by first name', () => {
+    it('sorts explorers A-Z by last name by default', () => {
         const data: BoardData = {
             seasons: [],
             explorers: [
@@ -35,8 +35,8 @@ describe('OSMReference', () => {
         };
         render(<OSMReference data={data} />);
         const rows = screen.getAllByRole('row');
-        expect(rows[1].textContent).toContain('Alice MacLeod');
-        expect(rows[2].textContent).toContain('Bob Andrews');
+        expect(rows[1].textContent).toContain('Bob Andrews');
+        expect(rows[2].textContent).toContain('Alice MacLeod');
     });
 
     it('calls the API when a first aid level is changed', async () => {
