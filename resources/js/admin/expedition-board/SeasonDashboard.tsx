@@ -304,7 +304,7 @@ const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explor
             <div
                 className="ems-event-header"
                 onClick={onToggle}
-                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', padding: '10px 12px', margin: '-12px -12px 12px -12px', background: '#f7f7f7', borderBottom: '1px solid #eee' }}
+                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', padding: '10px 12px', margin: '-12px -12px 12px -12px', background: eventHeaderBackground(event.ems_level), borderBottom: '1px solid #eee' }}
                 data-testid={`event-header-${event.ID}`}
                 aria-expanded={expanded}
             >
@@ -321,10 +321,12 @@ const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explor
                                 </span>
                             )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '13px', color: '#666' }}>
-                            {event.post_title && <span>{event.post_title}</span>}
-                            <span>{typeIcon(event.ems_type)} · {transportIcon(event.ems_transport)} · {levelIcon(event.ems_level)}</span>
-                            <span>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}, {event.member_count ?? 0} member{(event.member_count ?? 0) !== 1 ? 's' : ''}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px' }}>
+                            {event.post_title && <span style={{ color: '#666' }}>{event.post_title}</span>}
+                            <span style={typePillStyle(event.ems_type)}>{typeIcon(event.ems_type)}</span>
+                            <span style={transportPillStyle(event.ems_transport)}>{transportIcon(event.ems_transport)}</span>
+                            <span style={levelPillStyle(event.ems_level)}>{levelIcon(event.ems_level)}</span>
+                            <span style={{ color: '#666' }}>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}, {event.member_count ?? 0} member{(event.member_count ?? 0) !== 1 ? 's' : ''}</span>
                         </div>
                     </div>
                 </div>
@@ -859,23 +861,53 @@ function levelIcon(level: string): string {
     }
 }
 
-function levelBadgeStyle(level: string): React.CSSProperties {
+function eventHeaderBackground(level: string): string {
+    switch (level) {
+        case 'bronze': return '#f9f0e8';
+        case 'silver': return '#f2f2f2';
+        case 'gold': return '#fff9e6';
+        default: return '#f7f7f7';
+    }
+}
+
+function typePillStyle(type: string): React.CSSProperties {
+    const colors: Record<string, { bg: string; color: string }> = {
+        training: { bg: '#e3f2fd', color: '#1565c0' },
+        practice: { bg: '#e8f5e9', color: '#2e7d32' },
+        qualifying: { bg: '#f3e5f5', color: '#7b1fa2' },
+    };
+    return pillStyle(colors[type] || { bg: '#eee', color: '#666' });
+}
+
+function transportPillStyle(transport?: string): React.CSSProperties {
+    const colors: Record<string, { bg: string; color: string }> = {
+        hillwalking: { bg: '#efebe9', color: '#5d4037' },
+        biking: { bg: '#e0f2f1', color: '#00695c' },
+        paddling: { bg: '#e1f5fe', color: '#0277bd' },
+    };
+    return pillStyle(colors[transport || ''] || { bg: '#eee', color: '#666' });
+}
+
+function levelPillStyle(level: string): React.CSSProperties {
     const colors: Record<string, { bg: string; color: string }> = {
         bronze: { bg: '#f0d4b8', color: '#7a4410' },
         silver: { bg: '#e0e0e0', color: '#444' },
         gold: { bg: '#fff3cd', color: '#7a5c10' },
     };
-    const c = colors[level] || { bg: '#eee', color: '#666' };
+    return pillStyle(colors[level] || { bg: '#eee', color: '#666' });
+}
+
+function pillStyle(colors: { bg: string; color: string }): React.CSSProperties {
     return {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '2px',
         fontSize: '11px',
         fontWeight: '600',
-        padding: '2px 6px',
-        borderRadius: '4px',
-        background: c.bg,
-        color: c.color,
+        padding: '3px 8px',
+        borderRadius: '12px',
+        background: colors.bg,
+        color: colors.color,
     };
 }
 
