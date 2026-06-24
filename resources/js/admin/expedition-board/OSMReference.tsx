@@ -12,7 +12,8 @@ const FA_LABELS: Record<FirstAidLevel, string> = {
     full_first_aid: 'Full First Aid',
 };
 
-type SortKey = 'name' | 'patrol' | 'first_aid' | 'events';
+type EventType = 'training' | 'practice' | 'qualifying';
+type SortKey = 'name' | 'patrol' | 'first_aid' | 'training' | 'practice' | 'qualifying';
 type SortDir = 'asc' | 'desc';
 
 function faOrder(level?: FirstAidLevel): number {
@@ -35,6 +36,12 @@ const FA_PILL_COLORS: Record<string, { bg: string; color: string }> = {
     full_first_aid: { bg: '#c8e6c9', color: '#1b5e20' },
 };
 
+function FaIcon({ level }: { level?: FirstAidLevel }) {
+    if (level === 'full_first_aid') return <span title="Full First Aid" style={{ color: '#1b5e20', fontWeight: 'bold' }}>⊕</span>;
+    if (level === 'first_response') return <span title="First Response" style={{ color: '#2e7d32', fontWeight: 'bold' }}>✚</span>;
+    return null;
+}
+
 function FirstAidPill({ level }: { level?: FirstAidLevel }) {
     const l = level ?? 'none';
     const { bg, color } = FA_PILL_COLORS[l] ?? FA_PILL_COLORS.none;
@@ -47,24 +54,35 @@ function FirstAidPill({ level }: { level?: FirstAidLevel }) {
     );
 }
 
+interface EventAssignment {
+    team_code: string;
+    start_date: string;
+    end_date: string;
+    event_id: number;
+    event_type: EventType;
+}
+
 interface ExplorerRow {
     explorer: Explorer;
-    events: { team_code: string; start_date: string; end_date: string; event_id: number }[];
+    byType: Record<EventType, EventAssignment[]>;
 }
 
 function buildExplorerRows(data: BoardData): ExplorerRow[] {
-    const eventsByScout: Record<number, ExplorerRow['events']> = {};
+    const byScout: Record<number, Record<EventType, EventAssignment[]>> = {};
     for (const season of data.seasons ?? []) {
         for (const event of season.events) {
+            const eventType = event.ems_type as EventType;
+            if (!['training', 'practice', 'qualifying'].includes(eventType)) continue;
             for (const team of event.teams) {
                 for (const member of team.members ?? []) {
                     if (member.scout_id == null) continue;
-                    if (!eventsByScout[member.scout_id]) eventsByScout[member.scout_id] = [];
-                    eventsByScout[member.scout_id].push({
+                    if (!byScout[member.scout_id]) byScout[member.scout_id] = { training: [], practice: [], qualifying: [] };
+                    byScout[member.scout_id][eventType].push({
                         team_code: team.ems_team_code,
                         start_date: event.ems_start_date,
                         end_date: event.ems_end_date,
                         event_id: event.ID,
+                        event_type: eventType,
                     });
                 }
             }
@@ -72,13 +90,33 @@ function buildExplorerRows(data: BoardData): ExplorerRow[] {
     }
     return (data.explorers ?? []).map((explorer) => ({
         explorer,
-        events: eventsByScout[explorer.scout_id] ?? [],
+        byType: byScout[explorer.scout_id] ?? { training: [], practice: [], qualifying: [] },
     }));
 }
 
 function formatShortDate(d: string): string {
     if (!d) return '';
     return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function EventCell({ assignments }: { assignments: EventAssignment[] }) {
+    if (assignments.length === 0) return <span style={{ color: '#aaa', fontSize: '12px' }}>—</span>;
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {assignments.map((ev, i) => (
+                <span key={i} style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                    <strong>{ev.team_code}</strong>
+                    {(ev.start_date || ev.end_date) && (
+                        <span style={{ color: '#666', marginLeft: '4px' }}>
+                            {ev.start_date === ev.end_date
+                                ? formatShortDate(ev.start_date)
+                                : `${formatShortDate(ev.start_date)}–${formatShortDate(ev.end_date)}`}
+                        </span>
+                    )}
+                </span>
+            ))}
+        </div>
+    );
 }
 
 function SortHeader({ label, sortKey, active, dir, onSort }: {
@@ -129,10 +167,15 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
 
     const filtered = useMemo(() => {
         return rows.filter((row) => {
-            if (filterEvent === '__none__' && row.events.length > 0) return false;
-            if (filterEvent === '__any__' && row.events.length === 0) return false;
+            const allAssignments = [
+                ...row.byType.training,
+                ...row.byType.practice,
+                ...row.byType.qualifying,
+            ];
+            if (filterEvent === '__none__' && allAssignments.length > 0) return false;
+            if (filterEvent === '__any__' && allAssignments.length === 0) return false;
             if (filterEvent && filterEvent !== '__none__' && filterEvent !== '__any__') {
-                if (!row.events.some((e) => String(e.event_id) === filterEvent)) return false;
+                if (!allAssignments.some((a) => String(a.event_id) === filterEvent)) return false;
             }
             if (filterFa && (levels[row.explorer.scout_id] ?? 'none') !== filterFa) return false;
             return true;
@@ -150,8 +193,8 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                 cmp = (a.explorer.patrol ?? '').localeCompare(b.explorer.patrol ?? '');
             } else if (sortKey === 'first_aid') {
                 cmp = faOrder(levels[a.explorer.scout_id]) - faOrder(levels[b.explorer.scout_id]);
-            } else if (sortKey === 'events') {
-                cmp = a.events.length - b.events.length;
+            } else if (sortKey === 'training' || sortKey === 'practice' || sortKey === 'qualifying') {
+                cmp = a.byType[sortKey].length - b.byType[sortKey].length;
             }
             return sortDir === 'asc' ? cmp : -cmp;
         });
@@ -251,14 +294,19 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     <SortHeader label="Name" sortKey="name" active={sortKey} dir={sortDir} onSort={handleSort} />
                                     <SortHeader label="Patrol" sortKey="patrol" active={sortKey} dir={sortDir} onSort={handleSort} />
                                     <SortHeader label="First Aid" sortKey="first_aid" active={sortKey} dir={sortDir} onSort={handleSort} />
-                                    <SortHeader label="Events" sortKey="events" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                    <SortHeader label="Training" sortKey="training" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                    <SortHeader label="Practice" sortKey="practice" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                    <SortHeader label="Qualifying" sortKey="qualifying" active={sortKey} dir={sortDir} onSort={handleSort} />
                                 </tr>
                             </thead>
                             <tbody>
-                                {sorted.map(({ explorer, events }) => (
+                                {sorted.map(({ explorer, byType }) => (
                                     <tr key={explorer.scout_id}>
                                         <td style={{ fontWeight: 500 }}>
-                                            {explorer.first_name} {explorer.last_name}
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                <FaIcon level={levels[explorer.scout_id] ?? 'none'} />
+                                                {explorer.first_name} {explorer.last_name}
+                                            </span>
                                         </td>
                                         <td>{explorer.patrol || '—'}</td>
                                         <td>
@@ -280,26 +328,9 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                                 )}
                                             </div>
                                         </td>
-                                        <td>
-                                            {events.length === 0 ? (
-                                                <span style={{ color: '#aaa', fontSize: '12px' }}>—</span>
-                                            ) : (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    {events.map((ev, i) => (
-                                                        <span key={i} style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
-                                                            <strong>{ev.team_code}</strong>
-                                                            {(ev.start_date || ev.end_date) && (
-                                                                <span style={{ color: '#666', marginLeft: '4px' }}>
-                                                                    {ev.start_date === ev.end_date
-                                                                        ? formatShortDate(ev.start_date)
-                                                                        : `${formatShortDate(ev.start_date)}–${formatShortDate(ev.end_date)}`}
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </td>
+                                        <td><EventCell assignments={byType.training} /></td>
+                                        <td><EventCell assignments={byType.practice} /></td>
+                                        <td><EventCell assignments={byType.qualifying} /></td>
                                     </tr>
                                 ))}
                             </tbody>
