@@ -513,20 +513,23 @@ describe('SeasonDashboard', () => {
         expect(screen.getByTitle('Fewer than 2 qualified first aiders')).toBeInTheDocument();
     });
 
-    it('updates an explorer first aid level via the inline dropdown', async () => {
-        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ scout_id: 30001, first_aid_level: 'full_first_aid' }) });
+    it('shows the first aid alert banner when the requirement is not met', () => {
         const data: BoardData = {
             ...mockBoard,
-            explorers: [{ scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', first_aid_level: 'none' }],
+            seasons: [{
+                ...mockBoard.seasons[0],
+                events: [{
+                    ...mockBoard.seasons[0].events[0],
+                    ems_first_aid_level: 'full_first_aid',
+                    teams: [{
+                        ...mockBoard.seasons[0].events[0].teams[0],
+                        members: [{ user_id: 1, scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', first_aid_level: 'first_response' }],
+                    }],
+                }],
+            }],
         };
         render(<SeasonDashboard data={data} />);
         fireEvent.click(screen.getByTestId('event-header-10'));
-        fireEvent.change(screen.getByLabelText(/First aid level for Alice MacLeod/), { target: { value: 'full_first_aid' } });
-
-        await waitFor(() => {
-            const [url, opts] = (global.fetch as any).mock.calls[0];
-            expect(url).toBe('http://test/wp-json/ems/v1/explorers/30001/first-aid');
-            expect(JSON.parse(opts.body)).toEqual({ first_aid_level: 'full_first_aid' });
-        });
+        expect(screen.getByText(/First aid requirement not met/)).toBeInTheDocument();
     });
 });
