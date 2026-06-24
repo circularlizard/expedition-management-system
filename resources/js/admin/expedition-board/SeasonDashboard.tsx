@@ -150,6 +150,7 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
         setBusy(true);
         try {
             const response = await postJson(`/events/${event.ID}/teams`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const newTeam = await response.json() as Team;
             updateBoard((b) => {
                 const e = findEvent(b, event.ID);
@@ -158,6 +159,8 @@ const EventCard: React.FC<{ event: Expedition; explorers: Explorer[]; expanded: 
                     e.member_count = (e.member_count ?? 0) + (newTeam.member_count ?? 0);
                 }
             });
+        } catch (e) {
+            console.error('Failed to add team:', e);
         } finally {
             setBusy(false);
         }
@@ -283,6 +286,7 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updat
         setBusy(true);
         try {
             const response = await postJson(`/teams/${team.ID}/members`, { scout_id: Number(selected) });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const updatedMembers = await response.json() as Member[];
             const addedExplorer = explorers.find((e) => e.scout_id === Number(selected));
             updateBoard((b) => {
@@ -309,6 +313,8 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updat
                 }
             });
             setSelected('');
+        } catch (e) {
+            console.error('Failed to add member:', e);
         } finally {
             setBusy(false);
         }
@@ -318,6 +324,7 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updat
         setBusy(true);
         try {
             const response = await del(`/teams/${team.ID}/members/${scoutId}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             const removedExplorer = explorers.find((e) => e.scout_id === scoutId);
             updateBoard((b) => {
@@ -343,6 +350,8 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updat
                     b.explorers = [...b.explorers, removedExplorer];
                 }
             });
+        } catch (e) {
+            console.error('Failed to remove member:', e);
         } finally {
             setBusy(false);
         }
@@ -351,7 +360,8 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updat
     const deleteTeam = async () => {
         setBusy(true);
         try {
-            await del(`/teams/${team.ID}`);
+            const response = await del(`/teams/${team.ID}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             updateBoard((b) => {
                 const ev = findParentEvent(b, team.ID);
                 if (ev) {
@@ -359,6 +369,8 @@ const TeamRow: React.FC<{ team: Team; explorers: Explorer[]; updateBoard: (updat
                     ev.member_count = ev.teams.reduce((sum, tm) => sum + (tm.member_count ?? 0), 0);
                 }
             });
+        } catch (e) {
+            console.error('Failed to delete team:', e);
         } finally {
             setBusy(false);
         }
