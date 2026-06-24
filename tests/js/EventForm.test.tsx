@@ -26,7 +26,7 @@ describe('EventForm', () => {
         fireEvent.change(screen.getByLabelText(/Start Date/), { target: { value: '2027-06-01' } });
         fireEvent.change(screen.getByLabelText(/End Date/), { target: { value: '2027-06-03' } });
 
-        fireEvent.click(screen.getByText('Save Event'));
+        fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
         await waitFor(() => expect(onSaved).toHaveBeenCalled());
         expect(global.fetch).toHaveBeenCalledWith(
@@ -37,7 +37,7 @@ describe('EventForm', () => {
 
     it('shows validation errors for missing required fields', () => {
         render(<EventForm seasonId={1} />);
-        fireEvent.click(screen.getByText('Save Event'));
+        fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
         expect(screen.getByText('Event code is required')).toBeInTheDocument();
     });
 
@@ -52,7 +52,7 @@ describe('EventForm', () => {
         fireEvent.change(screen.getByLabelText(/Event Code/), { target: { value: 'H-SP1' } });
         fireEvent.change(screen.getByLabelText(/Start Date/), { target: { value: '2027-06-01' } });
         fireEvent.change(screen.getByLabelText(/End Date/), { target: { value: '2027-06-03' } });
-        fireEvent.click(screen.getByText('Save Event'));
+        fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
         await waitFor(() => {
             expect(screen.getByText('Event code already exists in this season')).toBeInTheDocument();
