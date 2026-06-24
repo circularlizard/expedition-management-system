@@ -61,4 +61,27 @@ describe('EventForm', () => {
             expect(screen.getByText('Event code already exists in this season')).toBeInTheDocument();
         });
     });
+
+    it('shows email validation error for invalid leader email', () => {
+        render(<EventForm seasonId={1} />);
+        fireEvent.change(screen.getByLabelText(/Event Code/), { target: { value: 'H-SP1' } });
+        fireEvent.change(screen.getByLabelText(/Start Date/), { target: { value: '2027-06-01' } });
+        fireEvent.change(screen.getByLabelText(/End Date/), { target: { value: '2027-06-03' } });
+        fireEvent.change(screen.getByLabelText(/Leader Email/), { target: { value: 'not-an-email' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
+        expect(screen.getByText('Enter a valid email address')).toBeInTheDocument();
+    });
+
+    it('shows route planning status options as Draft and Confirmed', () => {
+        render(<EventForm seasonId={1} />);
+        const select = screen.getByLabelText(/Status/) as HTMLSelectElement;
+        const options = Array.from(select.options).map((option) => option.textContent);
+        expect(options).toContain('Draft');
+        expect(options).toContain('Confirmed');
+    });
+
+    it('renders a rich text editor for route planning notes', () => {
+        render(<EventForm seasonId={1} />);
+        expect(screen.getByRole('textbox', { name: 'Notes' })).toBeInTheDocument();
+    });
 });
