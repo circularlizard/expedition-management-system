@@ -10,10 +10,10 @@
 3. Expedition view
    1. Expedition parameters
    2. Teams and alerts
-4.  Explorer view
-    1.  Separate columns for training, practice & qualifier
-5.  Training view
-    1.  List of who has done which course
+4. Explorer view
+    1. Separate columns for training, practice & qualifier
+5. Training view
+    1. List of who has done which course
 
 ## What has not been done
 💗= Priority 1
@@ -30,40 +30,43 @@ No icon = No special priority
    3. 💗 View of who has signed up for what
    4. 2️⃣ Need to work out link to OSM sign-in
    5. 2️⃣ Exped sign up edge cases
-3.  💗Link OSM data to WP login
-    1.  💗 Bulk reconciliation
-    2.  💗 Link when someone logs in
-    3.  💗 Parents vs Explorers
-    4.  2️⃣ Over-ride / manual selection for cases where Explorer can’t log in
-    5.  2️⃣ Exception cases
-4.  2️⃣ Training status on expedition view
-    1.  Show who has done what
-    2.  Flag people with gaps
-    3.  Define which training is needed for which event
-5.  2️⃣ Explorer list enhancements
-    1.  Add training completed
-    2.  Individual explorer page with all details
-    3.  Exped prefs, ASN summaries
-6.  2️⃣ OSM sync outbound
-    1.  Populate events
-    2.  Populate flexi record
-7.  Explorer expedition view
-    1.  What expeditions am I on
-    2.  What training do I need to do / have I done
-    3.  When do I have to submit routes
-    4.  WhatsApp group links / QR codes
-    5.  👎 Online route submission
-8.  LIC expedition view
-    1.  Teams, with training, FA and other status
-    2.  Edit route info
-    3.  👎 Secure download of emergency contact & medical data
-9.  Adult sign ups
-    1.  Form for sign up to help
-    2.  👎 View of who has signed up when, editable in case we get updates offline
-    3.  👎 View of what I have signed up for and what I’m allocated to (basic exped info, not participants)
-    4.  👎 Exped view of who has said they can help on those dates
-    5.  👎 Select the team & notify them
-    6.  Alerts on expeds without an adequate team
+3. 💗 Link OSM data to WP login
+    1. 💗 Bulk reconciliation
+    2. 💗 Link when someone logs in
+    3. 💗 Parents vs Explorers
+    4. 2️⃣ Over-ride / manual selection for cases where Explorer can't log in
+    5. 2️⃣ Exception cases
+    6. 💗 Shell account merge on OIDC login
+4. 2️⃣ Training status on expedition view
+    1. Show who has done what
+    2. Flag people with gaps
+    3. Define which training is needed for which event
+5. 2️⃣ Explorer list enhancements
+    1. Add training completed
+    2. Individual explorer page with all details
+    3. Exped prefs, ASN summaries
+6. 2️⃣ OSM sync outbound
+    1. Populate events
+    2. Populate flexi record
+7. Explorer expedition view
+    1. What expeditions am I on
+    2. What training do I need to do / have I done
+    3. When do I have to submit routes
+    4. WhatsApp group links / QR codes
+    5. 👎 Online route submission
+        1. 👎 Route submission portal (GPX/PDF upload)
+        2. 👎 LiC review & feedback workflow with version tracking
+8. LIC expedition view
+    1. Teams, with training, FA and other status
+    2. Edit route info
+    3. 👎 Secure download of emergency contact & medical data
+9. Adult sign ups
+    1. Form for sign up to help
+    2. 👎 View of who has signed up when, editable in case we get updates offline
+    3. 👎 View of what I have signed up for and what I'm allocated to (basic exped info, not participants)
+    4. 👎 Exped view of who has said they can help on those dates
+    5. 👎 Select the team & notify them
+    6. Alerts on expeds without an adequate team
 10. 👎 Leaders view
     1.  See who is allocated to which exped/team
     2.  👎 Kit supply
