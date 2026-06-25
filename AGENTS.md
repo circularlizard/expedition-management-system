@@ -200,6 +200,56 @@ Gherkin UI scenarios are implemented with **Vitest + React Testing Library**. Th
 
 ---
 
+## 14. Build & Deploy
+
+| Script | Purpose |
+|---|---|
+| `bash bin/deploy.sh` | Build JS, install prod deps, sync to local WP (`wordpress/wp-content/plugins/ems-plugin/`), activate via WP-CLI |
+| `bash bin/package.sh` | Bump patch version, build JS, produce `dist/ems-plugin-{VERSION}.zip` for manual upload |
+
+`npm run build` is acceptable during active development to enable JS tests. However, **every development phase must finish with `bash bin/deploy.sh`** to sync the built assets and PHP to the local WordPress install. Never leave a phase complete without running the deploy script.
+
+---
+
+## 15. Version Bumping
+
+The plugin version lives in **one place**: the `* Version:` header in `ems-plugin.php` (currently `0.1.x`).
+
+Rules:
+- **`bin/package.sh` auto-increments the patch segment** (`0.1.32` → `0.1.33`) on every run — do not manually bump the version before running this script.
+- **Minor bump** (`0.1.x` → `0.2.0`): manually edit `ems-plugin.php` when completing a named stage (e.g. Stage 1.11 done). Reset patch to 0.
+- **Major bump** (`0.x` → `1.0`): reserved for production-ready release. User decision only.
+- Never change the version in `wordpress/wp-content/plugins/ems-plugin/ems-plugin.php` — that copy is managed by `bin/deploy.sh`.
+- After a manual version edit, run `bash bin/deploy.sh` to sync.
+
+---
+
+## 16. Commit Message Rules
+
+All commits must have **meaningful messages** that describe *what changed and why*, not just *what file was touched*.
+
+Format:
+```
+<type>(<scope>): <short imperative summary>
+
+[Optional body: explain the why, not the what. Reference the feature/stage if relevant.]
+```
+
+Types: `feat`, `fix`, `test`, `refactor`, `chore`, `docs`
+
+Examples:
+- `feat(explorers): link wp_user_id on OIDC login via email match`
+- `fix(sync): preserve wp_user_id when OSM replace overwrites explorer row`
+- `test(team-repo): add PHPUnit coverage for sequential team code generation`
+- `chore(deploy): update bin/deploy.sh to skip node_modules in rsync`
+
+Rules:
+- **No** `update file`, `fix bug`, `WIP`, or single-word messages.
+- Scope should match the class, feature area, or stage (e.g. `explorers`, `expedition-board`, `sync`, `training`).
+- If a commit closes a stage or sub-task, note it in the body (e.g. `Completes Stage 1.11 step 1a`).
+
+---
+
 ## 13. OSM API Call Flow (authoritative)
 
 1. `get_data_payload(token)` → `ext/generic/startup/` — sections + terms
