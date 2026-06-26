@@ -76,6 +76,29 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->assertSame( 999, $stored['ems_osm_id'] );
     }
 
+    public function test_handle_osm_login_accepts_stdclass_for_data(): void {
+        $stored = [];
+        Functions\when( 'update_user_meta' )->alias( static function ( $uid, $key, $val ) use ( &$stored ): bool {
+            $stored[ $key ] = $val;
+            return true;
+        } );
+
+        $this->api_client->shouldReceive( 'set_access_token' )->andReturn();
+        $this->api_client->shouldReceive( 'get_data_payload' )->withNoArgs()->andReturn( [] );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $data = new \stdClass();
+        $data->osm_id = 999;
+        $data->access_token = 'secret-token';
+        $data->patrol = 'Cobra';
+
+        $integration->handle_osm_login( $this->user, $data );
+
+        $this->assertSame( 999, $stored['ems_osm_id'] );
+        $this->assertSame( 'Cobra', $stored['ems_unit'] );
+    }
+
+
     public function test_handle_osm_login_stores_access_type_from_payload(): void {
         $raw_payload = json_decode(
             file_get_contents( __DIR__ . '/../../mocks/osm-get-data-payload-parent.json' ),
