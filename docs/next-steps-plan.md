@@ -51,7 +51,7 @@ Implementation plan for next-steps items 1 (sync timestamp tracking), 3 (link OS
 
 ---
 
-## Item 3 — Link OSM data to WP login
+## Item 3 — Link OSM data to WP login (Partially Complete — 3a ✅)
 
 ### Context
 The `login-with-google` plugin fires `rtcamp.google_user_logged_in (WP_User, stdClass)` and `rtcamp.google_user_created (int $uid, stdClass)` after successful OIDC login/registration. The stdClass has `.email`. `ems_osm_explorers` has `email`, `parent_email`, and `wp_user_id` (nullable). The link from WP user → explorer is currently **never written**. `OSM_Auth_Integration` already hooks `rtcamp.google_user_logged_in` for meta population.
@@ -119,7 +119,7 @@ Admin UI flow:
 
 ---
 
-## Item 4 — Training status on expedition view
+## Item 4 — Training status on expedition view (Partially Complete — 4a ✅)
 
 ### Context
 `Training_Report_Page` already queries TutorLMS via `TutorLMS_Client` for course completion (assessing course status as `'complete'`, `'in_progress'`, or `'not_enrolled'`). `Member` type has `training?: TrainingSummary`. `Admin_View_Controller::hydrate_member_data()` populates training via `get_user_training_summary()` — but this is only used in the volunteer/admin view, not the expedition board. The expedition board's `hydrate_members()` in `Expedition_Admin_Controller` does **not** populate training. No concept of "which training is required for which event level" exists yet.
@@ -128,10 +128,11 @@ To prevent duplicating the training assessment logic, the expedition view will r
 
 ### Tasks
 
-**4a — Training requirements config**
-- New WP Option: `ems_training_requirements` — map of `{ level: { course_ids: [] } }` e.g. `{ bronze: [101, 102], silver: [101,102,103], gold: [...] }`
-- New admin sub-page (or section on Training Report page): simple UI to assign Tutor LMS courses to each level
-- REST: `GET/POST ems/v1/training-requirements`
+**4a — Training requirements config** ✅ COMPLETE (commit `496a6c0`, unit & vitest tests green, deployed)
+- Required courses are configured **explicitly per event** rather than globally per level.
+- Course configuration is stored in the event's post meta under key `ems_training_requirements` (array of course IDs).
+- REST: `GET/POST ems/v1/events/(?P<id>\d+)/training-requirements` callback in `Admin_View_Controller`.
+- UI: Segmented the `ExpeditionDetail` view in `ExpeditionView.tsx` into three sub-tabs: **Overview**, **Teams**, and **Training Requirements** (which loads, displays a checklist of Tutor LMS courses, and saves the requirements).
 
 **4b — Hydrate training into expedition board members**
 - Extend `Expedition_Admin_Controller::hydrate_members()` to call `TutorLMS_Client::get_enrollment_matrix()` (reusing the existing course status assessment logic) for the batch of `wp_user_id`s in the team
