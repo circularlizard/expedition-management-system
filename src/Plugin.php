@@ -41,7 +41,7 @@ class Plugin {
         $driver     = ( $api_mode === 'live' ) ? new Live_Driver() : new Mock_Driver();
         $osm_client = new OSM_API_Client( $driver, new OSM_Parser(), new Rate_Limiter( 10, 1.0 ) );
 
-        new \EMS\Integrations\OSM_Auth_Integration(
+        new \EMS\Integrations\OIDC_Login_Handler(
             $osm_client,
             new OSM_Parser(),
             new \EMS\Data\OSM_Explorer_Repository()
