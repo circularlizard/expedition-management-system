@@ -4,7 +4,7 @@ Implementation plan for next-steps items 1 (sync timestamp tracking), 3 (link OS
 
 ---
 
-## Item 1 — Track when explorers were last updated
+## Item 1 — Track when explorers were last updated ✅ DONE
 
 ### Context
 `ems_osm_explorers.synced_at` is already written on every OSM sync but reflects when OSM data was pulled. Two new timestamps are needed:
@@ -14,23 +14,40 @@ Implementation plan for next-steps items 1 (sync timestamp tracking), 3 (link OS
 
 ### Tasks
 
-**1a — Schema migration**
+**1a — Schema migration** ✅
 - Add `last_local_update_at DATETIME DEFAULT NULL` to `ems_osm_explorers` via `Table_Installer::run_migrations()`
 - Add `last_ems_push_at DATETIME DEFAULT NULL` to `ems_osm_explorers` via migration
 - Existing `synced_at` continues to represent inbound OSM sync time (rename deferred — breaking change)
 
-**1b — Stamp on local edit**
+**1b — Stamp on local edit** ✅
 - `OSM_Explorer_Repository::update_first_aid_level()` → also write `last_local_update_at = NOW()`
 - Any future repo method that mutates an explorer row should do the same (doc in AGENTS.md)
 
-**1c — Surface in Explorer List UI**
+**1c — Surface in Explorer List UI** ✅
 - Add `last_local_update_at` and `synced_at` columns to `Explorer` TypeScript interface
 - Expose both from the board REST endpoint (already returns explorers list)
 - Add a "Last synced" tooltip or column in `OSMReference.tsx` explorer table
 
-**Tests**
+**Tests** ✅
 - PHPUnit: migration idempotency (column added once), `update_first_aid_level` stamps `last_local_update_at`
 - Vitest: Explorer table renders last-synced date when present
+
+### Verified Results
+- PHP tests: 278 tests, 565 assertions — all green
+- JS tests: 76 tests across 10 files — all green
+- Deployed to local WordPress via `bin/deploy.sh`
+- Gherkin scenarios written: `tests/features/1-timestamp-tracking.feature`
+
+### Files Changed
+- `src/Core/Table_Installer.php` — added `last_local_update_at` and `last_ems_push_at` columns to schema + migration
+- `src/Data/OSM_Explorer_Repository.php` — `update_first_aid_level()` now stamps `last_local_update_at`
+- `src/Admin/Expedition_Admin_Controller.php` — `list_explorers()` now returns `synced_at` and `last_local_update_at`
+- `resources/js/admin/expedition-board/types.ts` — `Explorer` interface extended with timestamp fields
+- `resources/js/admin/expedition-board/OSMReference.tsx` — added "Synced" and "Edited" columns with timestamp formatting
+- `tests/Unit/Core/Table_InstallerTest.php` — `test_osm_explorers_has_timestamp_columns`
+- `tests/Unit/Data/OSM_Explorer_RepositoryTest.php` — `test_update_first_aid_level_stamps_last_local_update_at`
+- `tests/js/OSMReference.test.tsx` — 4 new tests for timestamp display
+- `tests/features/1-timestamp-tracking.feature` — Gherkin scenarios for observable behavior
 
 ---
 
@@ -111,7 +128,7 @@ Admin UI: add "Reconcile Explorer Links" button to the OSM Reference page with r
 
 | Order | Item | Why |
 |---|---|---|
-| 1 | **Item 1 — timestamps** | Pure schema + minimal code; no dependencies; quick win |
+| 1 | **Item 1 — timestamps** ✅ DONE | Pure schema + minimal code; no dependencies; quick win |
 | 2 | **Item 3 — login link** | Unlocks `wp_user_id` population, which Item 4 depends on |
 | 3 | **Item 4 — training status** | Requires `wp_user_id` to be populated to be useful |
 

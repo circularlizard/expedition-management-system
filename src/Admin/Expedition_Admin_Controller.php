@@ -623,11 +623,13 @@ class Expedition_Admin_Controller {
         $explorers = [];
         foreach ( $this->explorers->list_all() as $row ) {
             $explorers[] = [
-                'scout_id'        => (int) ( $row['scout_id'] ?? 0 ),
-                'first_name'      => $row['first_name'] ?? '',
-                'last_name'       => $row['last_name'] ?? '',
-                'patrol'          => $row['patrol'] ?? '',
-                'first_aid_level' => $row['first_aid_level'] ?? 'none',
+                'scout_id'             => (int) ( $row['scout_id'] ?? 0 ),
+                'first_name'           => $row['first_name'] ?? '',
+                'last_name'            => $row['last_name'] ?? '',
+                'patrol'               => $row['patrol'] ?? '',
+                'first_aid_level'      => $row['first_aid_level'] ?? 'none',
+                'synced_at'            => $row['synced_at'] ?: null,
+                'last_local_update_at' => $row['last_local_update_at'] ?: null,
             ];
         }
         return $explorers;

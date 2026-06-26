@@ -109,6 +109,12 @@ function formatShortDate(d: string): string {
     return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+function formatTimestamp(d: string | null | undefined): string {
+    if (!d) return '';
+    const parts = d.split(' ')[0];
+    return new Date(parts + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
 function EventCell({ assignments }: { assignments: EventAssignment[] }) {
     if (assignments.length === 0) return <span style={{ color: '#aaa', fontSize: '12px' }}>—</span>;
     return (
@@ -307,6 +313,8 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     <SortHeader label="Training" sortKey="training" active={sortKey} dir={sortDir} onSort={handleSort} />
                                     <SortHeader label="Practice" sortKey="practice" active={sortKey} dir={sortDir} onSort={handleSort} />
                                     <SortHeader label="Qualifying" sortKey="qualifying" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                    <th title="Last OSM sync"><span style={{ fontSize: '12px' }}>Synced</span></th>
+                                    <th title="Last local edit"><span style={{ fontSize: '12px' }}>Edited</span></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -340,6 +348,16 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                         <td><EventCell assignments={byType.training} /></td>
                                         <td><EventCell assignments={byType.practice} /></td>
                                         <td><EventCell assignments={byType.qualifying} /></td>
+                                        <td title={explorer.synced_at || 'Not synced'}>
+                                            <span style={{ fontSize: '12px', color: '#666' }}>
+                                                {formatTimestamp(explorer.synced_at) || '—'}
+                                            </span>
+                                        </td>
+                                        <td title={explorer.last_local_update_at || 'No local edits'}>
+                                            <span style={{ fontSize: '12px', color: '#666' }}>
+                                                {formatTimestamp(explorer.last_local_update_at) || '—'}
+                                            </span>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

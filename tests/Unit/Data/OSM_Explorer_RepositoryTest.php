@@ -44,4 +44,22 @@ class OSM_Explorer_RepositoryTest extends EMSTestCase {
 
         $this->assertFalse( $result );
     }
+
+    public function test_update_first_aid_level_stamps_last_local_update_at(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+            }
+            public function query( string $sql ) {
+                $this->last_query = $sql;
+                return 1;
+            }
+        };
+
+        $repo = new OSM_Explorer_Repository( $wpdb );
+        $repo->update_first_aid_level( 30001, 'first_response' );
+
+        $this->assertStringContainsString( 'last_local_update_at', $wpdb->last_query );
+    }
 }

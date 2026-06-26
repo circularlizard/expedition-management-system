@@ -57,4 +57,52 @@ describe('OSMReference', () => {
         render(<OSMReference data={{ seasons: [] }} />);
         expect(screen.getByText(/No explorers have been synced yet/)).toBeInTheDocument();
     });
+
+    it('shows synced_at date when present', () => {
+        const data: BoardData = {
+            seasons: [],
+            explorers: [
+                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', patrol: 'Hawks', first_aid_level: 'none', synced_at: '2026-06-13 20:00:00' },
+            ],
+        };
+        render(<OSMReference data={data} />);
+        expect(screen.getByText('13 Jun')).toBeInTheDocument();
+    });
+
+    it('shows dash for synced_at when null', () => {
+        const data: BoardData = {
+            seasons: [],
+            explorers: [
+                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', first_aid_level: 'none', synced_at: null, last_local_update_at: null },
+            ],
+        };
+        render(<OSMReference data={data} />);
+        const rows = screen.getAllByRole('row');
+        const lastSyncCell = rows[1].children[rows[1].children.length - 2];
+        expect(lastSyncCell.textContent).toContain('—');
+    });
+
+    it('shows local update date when present', () => {
+        const data: BoardData = {
+            seasons: [],
+            explorers: [
+                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', first_aid_level: 'none', synced_at: '2026-06-13 20:00:00', last_local_update_at: '2026-06-20 10:30:00' },
+            ],
+        };
+        render(<OSMReference data={data} />);
+        expect(screen.getByText('20 Jun')).toBeInTheDocument();
+    });
+
+    it('shows dash for local update when null', () => {
+        const data: BoardData = {
+            seasons: [],
+            explorers: [
+                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', first_aid_level: 'none', synced_at: '2026-06-13 20:00:00', last_local_update_at: null },
+            ],
+        };
+        render(<OSMReference data={data} />);
+        const rows = screen.getAllByRole('row');
+        const localUpdateCell = rows[1].children[rows[1].children.length - 1];
+        expect(localUpdateCell.textContent).toContain('—');
+    });
 });
