@@ -26,10 +26,11 @@ class OIDC_Login_Handler {
      * Fetches getDataPayload from OSM using the one-time access token, persists
      * hydration context to User Meta, then discards the token (ADR 009).
      *
-     * @param \WP_User $user The WP user object
-     * @param array    $data Raw data returned from the OAuth provider
+     * @param \WP_User     $user The WP user object
+     * @param array|object $data Raw data returned from the OAuth provider
      */
-    public function handle_osm_login( \WP_User $user, array $data ): void {
+    public function handle_osm_login( \WP_User $user, $data ): void {
+        $data = (array) $data;
         if ( isset( $data['osm_id'] ) ) {
             update_user_meta( $user->ID, 'ems_osm_id', $data['osm_id'] );
         }
