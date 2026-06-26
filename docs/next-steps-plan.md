@@ -122,7 +122,9 @@ Admin UI flow:
 ## Item 4 — Training status on expedition view
 
 ### Context
-`Training_Report_Page` already queries TutorLMS via `TutorLMS_Client` for course completion. `Member` type has `training?: TrainingSummary`. `Admin_View_Controller::hydrate_member_data()` populates training via `get_user_training_summary()` — but this is only used in the volunteer/admin view, not the expedition board. The expedition board's `hydrate_members()` in `Expedition_Admin_Controller` does **not** populate training. No concept of "which training is required for which event level" exists yet.
+`Training_Report_Page` already queries TutorLMS via `TutorLMS_Client` for course completion (assessing course status as `'complete'`, `'in_progress'`, or `'not_enrolled'`). `Member` type has `training?: TrainingSummary`. `Admin_View_Controller::hydrate_member_data()` populates training via `get_user_training_summary()` — but this is only used in the volunteer/admin view, not the expedition board. The expedition board's `hydrate_members()` in `Expedition_Admin_Controller` does **not** populate training. No concept of "which training is required for which event level" exists yet.
+
+To prevent duplicating the training assessment logic, the expedition view will reuse the same `TutorLMS_Client::get_enrollment_matrix()` methods that power the existing training views.
 
 ### Tasks
 
@@ -132,9 +134,10 @@ Admin UI flow:
 - REST: `GET/POST ems/v1/training-requirements`
 
 **4b — Hydrate training into expedition board members**
-- Extend `Expedition_Admin_Controller::hydrate_members()` to call `TutorLMS_Client::get_enrollment_matrix()` for the batch of `wp_user_id`s in the team
+- Extend `Expedition_Admin_Controller::hydrate_members()` to call `TutorLMS_Client::get_enrollment_matrix()` (reusing the existing course status assessment logic) for the batch of `wp_user_id`s in the team
 - Add `training_gaps: string[]` (names of required courses not yet complete) and `training_ok: bool` to `Member` (only populated when `wp_user_id` is known)
 - Extend `Member` TypeScript interface: `training_ok?: boolean; training_gaps?: string[]`
+
 
 **4c — UI: expedition view team table**
 - Add "Training" column to `TeamRow` in `ExpeditionView.tsx`
