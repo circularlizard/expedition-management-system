@@ -39,6 +39,26 @@ class Admin_Page {
     }
 
     /**
+     * Registers the Explorer List submenu.
+     */
+    public function register_explorers_menu(): void {
+        $explorers_hook = add_submenu_page(
+            'ems',
+            __( 'Explorer List', 'ems-plugin' ),
+            __( 'Explorer List', 'ems-plugin' ),
+            'manage_options',
+            'ems-explorers',
+            [ $this, 'render_explorers_page' ]
+        );
+
+        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $explorers_hook ) {
+            if ( $hook === $explorers_hook ) {
+                $this->enqueue_dashboard_assets();
+            }
+        } );
+    }
+
+    /**
      * Registers the OSM Reference Data submenu.
      */
     public function register_reference_menu(): void {
@@ -100,6 +120,13 @@ class Admin_Page {
         }
 
         echo '<div id="ems-expedition-board-root"></div>';
+        echo '</div>';
+    }
+
+    public function render_explorers_page(): void {
+        echo '<div class="wrap">';
+        echo '<h1>' . esc_html__( 'Explorer List', 'ems-plugin' ) . '</h1>';
+        echo '<div id="ems-explorers-root"></div>';
         echo '</div>';
     }
 

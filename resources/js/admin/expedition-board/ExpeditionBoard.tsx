@@ -3,10 +3,9 @@ import { useBoard } from './useBoard';
 import { useOSMEvents } from './useOSMEvents';
 import { SeasonDashboard } from './SeasonDashboard';
 import { ExpeditionView } from './ExpeditionView';
-import { OSMReference } from './OSMReference';
 import { SeasonForm } from './SeasonForm';
 
-type BoardTab = 'dashboard' | 'expedition-view' | 'reference';
+type BoardTab = 'dashboard' | 'expedition-view';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
@@ -56,15 +55,11 @@ const ExpeditionBoard: React.FC = () => {
                 <button className={`nav-tab ${activeTab === 'expedition-view' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('expedition-view')}>
                     Expedition View
                 </button>
-                <button className={`nav-tab ${activeTab === 'reference' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('reference')}>
-                    Explorer List
-                </button>
             </nav>
 
             <div className="tab-content" style={{ marginTop: '20px' }}>
                 {activeTab === 'dashboard' && <SeasonDashboard data={data} osmEvents={osmEvents} osmEventsLoading={osmEventsLoading} />}
                 {activeTab === 'expedition-view' && <ExpeditionView data={data} osmEvents={osmEvents} />}
-                {activeTab === 'reference' && <OSMReference data={data} onChanged={refetch} />}
             </div>
         </div>
     );
