@@ -1,7 +1,7 @@
 <?php
 namespace EMS\Tests\Unit\Auth;
 
-use EMS\Integrations\OSM_Auth_Integration;
+use EMS\Integrations\OIDC_Login_Handler;
 use EMS\Integrations\OSM_API_Client;
 use EMS\Integrations\OSM_Parser;
 use EMS\Data\OSM_Explorer_Repository;
@@ -9,7 +9,7 @@ use EMS\Tests\EMSTestCase;
 use Brain\Monkey\Functions;
 use Mockery;
 
-class OSM_Auth_IntegrationTest extends EMSTestCase {
+class OIDC_Login_HandlerTest extends EMSTestCase {
     private OSM_API_Client $api_client;
     private OSM_Parser $parser;
     private \WP_User $user;
@@ -37,7 +37,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             ->withNoArgs()
             ->andReturn( [] );
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
 
         if ( ! isset( $_SESSION ) ) {
             $_SESSION = [];
@@ -67,7 +67,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'set_access_token' )->andReturn();
         $this->api_client->shouldReceive( 'get_data_payload' )->withNoArgs()->andReturn( [] );
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
         $integration->handle_osm_login( $this->user, [
             'osm_id'       => 999,
             'access_token' => 'secret-token',
@@ -94,7 +94,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             ->andReturn( $raw_payload );
 
         $real_parser = new OSM_Parser();
-        $integration = new OSM_Auth_Integration( $this->api_client, $real_parser );
+        $integration = new OIDC_Login_Handler( $this->api_client, $real_parser );
         $integration->handle_osm_login( $this->user, [
             'osm_id'       => 20002,
             'access_token' => 'parent-token',
@@ -120,7 +120,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             ->withNoArgs()
             ->andReturn( $raw_payload );
 
-        $integration = new OSM_Auth_Integration( $this->api_client, new OSM_Parser() );
+        $integration = new OIDC_Login_Handler( $this->api_client, new OSM_Parser() );
         $integration->handle_osm_login( $this->user, [
             'osm_id'       => 20001,
             'access_token' => 'explorer-token',
@@ -136,7 +136,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             return true;
         } );
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
         $integration->handle_osm_login( $this->user, [ 'patrol' => 'Some Patrol' ] );
 
         $this->assertSame( 'local', $stored['ems_access_type'] );
@@ -147,7 +147,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
 
         $this->api_client->shouldReceive( 'get_data_payload' )->never();
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
         $integration->handle_osm_login( $this->user, [] );
         $this->addToAssertionCount( 1 );
     }
@@ -155,7 +155,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
     public function test_local_user_without_access_token_throws_no_exception(): void {
         Functions\stubs( [ 'update_user_meta' ] );
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
 
         $this->expectNotToPerformAssertions();
         $integration->handle_osm_login( $this->user, [] );
@@ -172,7 +172,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             ->with( 'alice@example.com', 42 )
             ->andReturn( 1 );
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser, $explorer_repo );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
         $integration->handle_osm_login( $this->user, [] );
         $this->addToAssertionCount( 1 );
     }
@@ -185,7 +185,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
         $explorer_repo = Mockery::mock( OSM_Explorer_Repository::class );
         $explorer_repo->shouldReceive( 'link_wp_user_by_email' )->never();
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser, $explorer_repo );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
         $integration->handle_osm_login( $this->user, [] );
         $this->addToAssertionCount( 1 );
     }
@@ -202,7 +202,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
             ->with( 'bob@example.com', 42 )
             ->andReturn( 1 );
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser, $explorer_repo );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
         $integration->handle_user_created( 42, new \stdClass() );
         $this->addToAssertionCount( 1 );
     }
@@ -213,7 +213,7 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
         $explorer_repo = Mockery::mock( OSM_Explorer_Repository::class );
         $explorer_repo->shouldReceive( 'link_wp_user_by_email' )->never();
 
-        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser, $explorer_repo );
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
         $integration->handle_user_created( 99, new \stdClass() );
         $this->addToAssertionCount( 1 );
     }
