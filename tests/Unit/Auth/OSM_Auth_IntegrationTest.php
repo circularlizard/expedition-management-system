@@ -4,6 +4,7 @@ namespace EMS\Tests\Unit\Auth;
 use EMS\Integrations\OSM_Auth_Integration;
 use EMS\Integrations\OSM_API_Client;
 use EMS\Integrations\OSM_Parser;
+use EMS\Data\OSM_Explorer_Repository;
 use EMS\Tests\EMSTestCase;
 use Brain\Monkey\Functions;
 use Mockery;
@@ -158,5 +159,62 @@ class OSM_Auth_IntegrationTest extends EMSTestCase {
 
         $this->expectNotToPerformAssertions();
         $integration->handle_osm_login( $this->user, [] );
+    }
+
+    public function test_handle_osm_login_calls_link_wp_user_by_email_with_user_email(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+
+        $this->user->user_email = 'alice@example.com';
+
+        $explorer_repo = Mockery::mock( OSM_Explorer_Repository::class );
+        $explorer_repo->shouldReceive( 'link_wp_user_by_email' )
+            ->once()
+            ->with( 'alice@example.com', 42 )
+            ->andReturn( 1 );
+
+        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser, $explorer_repo );
+        $integration->handle_osm_login( $this->user, [] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_osm_login_skips_link_when_user_email_is_empty(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+
+        $this->user->user_email = '';
+
+        $explorer_repo = Mockery::mock( OSM_Explorer_Repository::class );
+        $explorer_repo->shouldReceive( 'link_wp_user_by_email' )->never();
+
+        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser, $explorer_repo );
+        $integration->handle_osm_login( $this->user, [] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_user_created_calls_link_wp_user_by_email(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        Functions\when( 'get_user_by' )->justReturn( $this->user );
+
+        $this->user->user_email = 'bob@example.com';
+
+        $explorer_repo = Mockery::mock( OSM_Explorer_Repository::class );
+        $explorer_repo->shouldReceive( 'link_wp_user_by_email' )
+            ->once()
+            ->with( 'bob@example.com', 42 )
+            ->andReturn( 1 );
+
+        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser, $explorer_repo );
+        $integration->handle_user_created( 42, new \stdClass() );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_user_created_skips_link_when_user_not_found(): void {
+        Functions\when( 'get_user_by' )->justReturn( false );
+
+        $explorer_repo = Mockery::mock( OSM_Explorer_Repository::class );
+        $explorer_repo->shouldReceive( 'link_wp_user_by_email' )->never();
+
+        $integration = new OSM_Auth_Integration( $this->api_client, $this->parser, $explorer_repo );
+        $integration->handle_user_created( 99, new \stdClass() );
+        $this->addToAssertionCount( 1 );
     }
 }
