@@ -56,6 +56,18 @@ class Admin_View_Controller {
             'permission_callback' => fn() => current_user_can( 'manage_options' ),
             'args'                => [ 'patrol' => [ 'type' => 'string', 'required' => true ] ],
         ] );
+        register_rest_route( 'ems/v1', '/events/(?P<id>\d+)/training-requirements', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'get_event_training_requirements' ],
+            'permission_callback' => fn() => current_user_can( 'manage_options' ),
+            'args'                => [ 'id' => [ 'type' => 'integer', 'required' => true ] ],
+        ] );
+        register_rest_route( 'ems/v1', '/events/(?P<id>\d+)/training-requirements', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'update_event_training_requirements' ],
+            'permission_callback' => fn() => current_user_can( 'manage_options' ),
+            'args'                => [ 'id' => [ 'type' => 'integer', 'required' => true ] ],
+        ] );
     }
 
     /**
@@ -257,5 +269,51 @@ class Admin_View_Controller {
             'complete' => $complete,
             'percent'  => count( $course_ids ) > 0 ? round( ( $complete / count( $course_ids ) ) * 100 ) : 0,
         ];
+    }
+
+    /**
+     * GET ems/v1/events/{id}/training-requirements
+     */
+    public function get_event_training_requirements( \WP_REST_Request $request ): \WP_REST_Response {
+        $event_id = (int) $request->get_param( 'id' );
+        $course_ids = get_post_meta( $event_id, 'ems_training_requirements', true );
+        if ( ! is_array( $course_ids ) ) {
+            $course_ids = [];
+        } else {
+            $course_ids = array_map( 'intval', $course_ids );
+        }
+
+        $all_courses = $this->tutor_client->get_all_courses() ?? [];
+        $courses = array_map( function( $course ) {
+            return [
+                'id'    => (int) $course->ID,
+                'title' => $course->post_title,
+            ];
+        }, $all_courses );
+
+        return new \WP_REST_Response( [
+            'course_ids' => $course_ids,
+            'courses'    => $courses,
+        ], 200 );
+    }
+
+    /**
+     * POST ems/v1/events/{id}/training-requirements
+     */
+    public function update_event_training_requirements( \WP_REST_Request $request ): \WP_REST_Response {
+        $event_id = (int) $request->get_param( 'id' );
+        $params = $request->get_json_params();
+
+        if ( ! is_array( $params ) || ! isset( $params['course_ids'] ) || ! is_array( $params['course_ids'] ) ) {
+            return new \WP_REST_Response( [ 'error' => 'Invalid parameters' ], 400 );
+        }
+
+        $course_ids = array_map( 'intval', $params['course_ids'] );
+        update_post_meta( $event_id, 'ems_training_requirements', $course_ids );
+
+        return new \WP_REST_Response( [
+            'success'    => true,
+            'course_ids' => $course_ids,
+        ], 200 );
     }
 }
