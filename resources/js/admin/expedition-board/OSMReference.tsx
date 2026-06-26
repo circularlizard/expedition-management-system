@@ -115,6 +115,26 @@ function formatTimestamp(d: string | null | undefined): string {
     return new Date(parts + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+function formatFullTimestamp(d: string | null | undefined): string {
+    if (!d) return '';
+    const isoStr = d.includes(' ') ? d.replace(' ', 'T') : d;
+    try {
+        const date = new Date(isoStr);
+        if (isNaN(date.getTime())) return d;
+        return date.toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
+    } catch {
+        return d;
+    }
+}
+
+
 function EventCell({ assignments }: { assignments: EventAssignment[] }) {
     if (assignments.length === 0) return <span style={{ color: '#aaa', fontSize: '12px' }}>—</span>;
     return (
@@ -348,12 +368,12 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                         <td><EventCell assignments={byType.training} /></td>
                                         <td><EventCell assignments={byType.practice} /></td>
                                         <td><EventCell assignments={byType.qualifying} /></td>
-                                        <td title={explorer.synced_at || 'Not synced'}>
+                                        <td title={formatFullTimestamp(explorer.synced_at) || 'Not synced'}>
                                             <span style={{ fontSize: '12px', color: '#666' }}>
                                                 {formatTimestamp(explorer.synced_at) || '—'}
                                             </span>
                                         </td>
-                                        <td title={explorer.last_local_update_at || 'No local edits'}>
+                                        <td title={formatFullTimestamp(explorer.last_local_update_at) || 'No local edits'}>
                                             <span style={{ fontSize: '12px', color: '#666' }}>
                                                 {formatTimestamp(explorer.last_local_update_at) || '—'}
                                             </span>

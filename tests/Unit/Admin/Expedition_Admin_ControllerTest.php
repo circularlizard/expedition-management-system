@@ -343,6 +343,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
         $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
         $explorers->shouldReceive( 'find_by_scout_id' )->with( 3417257 )->andReturn( [ 'scout_id' => 3417257, 'wp_user_id' => 0, 'first_name' => 'Alice', 'last_name' => 'MacLeod' ] );
+        $explorers->shouldReceive( 'touch_last_local_update' )->once()->with( 3417257 )->andReturn( true );
 
         $team_members = \Mockery::mock( Team_Member_Repository::class );
         $team_members->shouldReceive( 'assign' )->with( 30, 3417257, 1, 0 )->andReturn( 5 );
@@ -368,6 +369,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $team_members->shouldReceive( 'list_by_team' )->with( 30 )->andReturn( [] );
 
         $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers->shouldReceive( 'touch_last_local_update' )->once()->with( 3417257 )->andReturn( true );
 
         $controller = $this->create_controller( null, null, $teams, $team_members, $explorers );
         $request    = new \WP_REST_Request();

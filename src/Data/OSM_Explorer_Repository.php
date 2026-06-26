@@ -103,6 +103,15 @@ class OSM_Explorer_Repository {
             $level,
             $scout_id
         ) );
-        return $result !== false && $result > 0;
+        return $result !== false;
+    }
+
+    public function touch_last_local_update( int $scout_id ): bool {
+        $table  = $this->wpdb->prefix . 'ems_osm_explorers';
+        $result = $this->wpdb->query( $this->wpdb->prepare(
+            "UPDATE {$table} SET last_local_update_at = NOW() WHERE scout_id = %d",
+            $scout_id
+        ) );
+        return $result !== false;
     }
 }

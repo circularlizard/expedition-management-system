@@ -382,6 +382,10 @@ class Expedition_Admin_Controller {
 
         try {
             $new_id = $this->teams->duplicate( $id, $target_id, $target['ems_event_code'] );
+            $members = $this->team_members->list_by_team( $new_id );
+            foreach ( $members as $member ) {
+                $this->explorers->touch_last_local_update( (int) $member['scout_id'] );
+            }
             return new \WP_REST_Response( $this->teams->get_by_id( $new_id ), 201 );
         } catch ( \RuntimeException $e ) {
             return $this->error( 'ems_team_duplicate_failed', $e->getMessage(), 500 );
@@ -404,6 +408,12 @@ class Expedition_Admin_Controller {
         }
 
         $created = $this->teams->populate_from_event( $source_id, $target_id, $target['ems_event_code'] );
+        foreach ( $created as $new_team_id ) {
+            $members = $this->team_members->list_by_team( $new_team_id );
+            foreach ( $members as $member ) {
+                $this->explorers->touch_last_local_update( (int) $member['scout_id'] );
+            }
+        }
         return new \WP_REST_Response( $this->teams->list_by_expedition( $target_id ), 201 );
     }
 
@@ -426,6 +436,7 @@ class Expedition_Admin_Controller {
 
        try {
             $this->team_members->assign( $team_id, $scout_id, get_current_user_id(), $user_id );
+            $this->explorers->touch_last_local_update( $scout_id );
             return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $team_id ) ), 201 );
         } catch ( \InvalidArgumentException $e ) {
             return $this->error( 'ems_member_already_in_team', $e->getMessage(), 409 );
@@ -444,6 +455,7 @@ class Expedition_Admin_Controller {
         }
 
         $this->team_members->remove( $team_id, $scout_id );
+        $this->explorers->touch_last_local_update( $scout_id );
 
         // The team may have been auto-deleted if that was its last member.
         if ( ! $this->teams->get_by_id( $team_id ) ) {
@@ -481,6 +493,7 @@ class Expedition_Admin_Controller {
         }
 
         $this->team_members->move( $scout_id, $current_team_id, $target_team_id, get_current_user_id(), $user_id );
+        $this->explorers->touch_last_local_update( $scout_id );
         return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $target_team_id ) ) );
     }
 

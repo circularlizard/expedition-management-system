@@ -29,6 +29,7 @@ class Plugin {
             new Diagnostic_Panel()
         );
         add_action( 'admin_menu', [ $admin_page, 'register' ], 10 );
+        add_action( 'admin_menu', [ $admin_page, 'register_explorers_menu' ], 11 );
 
         add_action( 'admin_menu', [ $admin_page, 'register_reference_menu' ], 12 );
 
