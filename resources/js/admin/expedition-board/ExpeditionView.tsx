@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BoardData, Expedition, Team, Member, FirstAidLevel, OSMEvent } from './types';
 import { EventForm } from './EventForm';
 
@@ -150,12 +150,139 @@ const TeamRow: React.FC<{ team: Team }> = ({ team }) => {
     );
 };
 
+const TrainingRequirementsTab: React.FC<{ eventId: number }> = ({ eventId }) => {
+    const config = window.emsExpeditionBoard;
+    const [courses, setCourses] = useState<{ id: number; title: string }[]>([]);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        setMessage(null);
+        fetch(`${config.root_url}/events/${eventId}/training-requirements`, {
+            headers: {
+                'X-WP-Nonce': config.nonce,
+            }
+        })
+        .then((res) => {
+            if (!res.ok) throw new Error('Failed to load training requirements');
+            return res.json();
+        })
+        .then((data) => {
+            if (isMounted) {
+                setCourses(data.courses || []);
+                setSelectedIds(data.course_ids || []);
+                setLoading(false);
+            }
+        })
+        .catch((err: any) => {
+            if (isMounted) {
+                setMessage({ type: 'error', text: err.message || 'Error loading courses' });
+                setLoading(false);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [eventId]);
+
+    const handleCheckboxChange = (courseId: number, checked: boolean) => {
+        setSelectedIds((prev) =>
+            checked ? [...prev, courseId] : prev.filter((id) => id !== courseId)
+        );
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        setMessage(null);
+        try {
+            const res = await fetch(`${config.root_url}/events/${eventId}/training-requirements`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce,
+                },
+                body: JSON.stringify({ course_ids: selectedIds }),
+            });
+
+            if (!res.ok) throw new Error('Failed to save requirements');
+            const data = await res.json();
+            if (data.success) {
+                setMessage({ type: 'success', text: 'Training requirements saved successfully.' });
+            } else {
+                throw new Error('Failed to save requirements');
+            }
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.message || 'Error saving training requirements' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return <div style={{ padding: '20px 0', color: '#666' }}>Loading training requirements...</div>;
+    }
+
+    return (
+        <div style={{ marginTop: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>
+                Required Tutor LMS Courses
+            </h3>
+            <p style={{ color: '#666', fontSize: '13px', marginBottom: '16px' }}>
+                Select the courses that explorers must complete to be cleared for this expedition.
+            </p>
+
+            {message && (
+                <div className={`notice notice-${message.type}`} style={{ margin: '0 0 16px 0', padding: '8px 12px', borderLeftWidth: '4px' }}>
+                    <p style={{ margin: 0, fontSize: '13px' }}>{message.text}</p>
+                </div>
+            )}
+
+            {courses.length === 0 ? (
+                <p style={{ color: '#888', fontStyle: 'italic' }}>No Tutor LMS courses found.</p>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                    {courses.map((course) => {
+                        const isChecked = selectedIds.includes(course.id);
+                        return (
+                            <label key={course.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => handleCheckboxChange(course.id, e.target.checked)}
+                                    disabled={saving}
+                                    style={{ margin: 0 }}
+                                />
+                                {course.title}
+                            </label>
+                        );
+                    })}
+                </div>
+            )}
+
+            <button
+                type="button"
+                className="button button-primary"
+                onClick={handleSave}
+                disabled={saving}
+            >
+                {saving ? 'Saving...' : 'Save Requirements'}
+            </button>
+        </div>
+    );
+};
+
 const ExpeditionDetail: React.FC<{
     expedition: Expedition;
     osmEvents: OSMEvent[];
     onSaved: (updated: Expedition) => void;
 }> = ({ expedition: e, osmEvents, onSaved }) => {
     const [editing, setEditing] = useState(false);
+    const [activeSubTab, setActiveSubTab] = useState<'overview' | 'teams' | 'training'>('overview');
     const totalMembers = e.teams.reduce((acc, t) => acc + (t.member_count ?? t.members?.length ?? 0), 0);
     const osmEvent = e.ems_osm_event_id ? osmEvents.find((o) => o.event_id === Number(e.ems_osm_event_id) || o.id === Number(e.ems_osm_event_id)) : null;
 
@@ -194,79 +321,119 @@ const ExpeditionDetail: React.FC<{
                 </button>
             </div>
 
-            {/* Identification */}
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>Identification</div>
-                <div style={gridStyle(4)}>
-                    <FieldVal label="Type" value={e.ems_type ? <span style={typePill(e.ems_type)}>{capitalize(e.ems_type)}</span> : null} />
-                    <FieldVal label="Transport" value={e.ems_transport ? <span style={transportPill(e.ems_transport)}>{capitalize(e.ems_transport)}</span> : null} />
-                    <FieldVal label="Level" value={e.ems_level ? <span style={levelPill(e.ems_level)}>{capitalize(e.ems_level)}</span> : null} />
-                    <FieldVal label="First aid required" value={<span style={firstAidPill(e.ems_first_aid_level)}>{e.ems_first_aid_level ? FA_LABELS[e.ems_first_aid_level] : 'None'}</span>} />
+            {/* Sub-tabs */}
+            <nav className="nav-tab-wrapper" style={{ marginBottom: '20px' }}>
+                <button
+                    type="button"
+                    className={`nav-tab ${activeSubTab === 'overview' ? 'nav-tab-active' : ''}`}
+                    onClick={() => setActiveSubTab('overview')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                    Overview
+                </button>
+                <button
+                    type="button"
+                    className={`nav-tab ${activeSubTab === 'teams' ? 'nav-tab-active' : ''}`}
+                    onClick={() => setActiveSubTab('teams')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                    Teams
+                </button>
+                <button
+                    type="button"
+                    className={`nav-tab ${activeSubTab === 'training' ? 'nav-tab-active' : ''}`}
+                    onClick={() => setActiveSubTab('training')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                    Training Requirements
+                </button>
+            </nav>
+
+            {activeSubTab === 'overview' && (
+                <div>
+                    {/* Identification */}
+                    <div style={sectionStyle}>
+                        <div style={sectionLabelStyle}>Identification</div>
+                        <div style={gridStyle(4)}>
+                            <FieldVal label="Type" value={e.ems_type ? <span style={typePill(e.ems_type)}>{capitalize(e.ems_type)}</span> : null} />
+                            <FieldVal label="Transport" value={e.ems_transport ? <span style={transportPill(e.ems_transport)}>{capitalize(e.ems_transport)}</span> : null} />
+                            <FieldVal label="Level" value={e.ems_level ? <span style={levelPill(e.ems_level)}>{capitalize(e.ems_level)}</span> : null} />
+                            <FieldVal label="First aid required" value={<span style={firstAidPill(e.ems_first_aid_level)}>{e.ems_first_aid_level ? FA_LABELS[e.ems_first_aid_level] : 'None'}</span>} />
+                        </div>
+                    </div>
+
+                    {/* Schedule */}
+                    <div style={sectionStyle}>
+                        <div style={sectionLabelStyle}>Schedule</div>
+                        <div style={gridStyle(4)}>
+                            <FieldVal label="Start date" value={e.ems_start_date || null} />
+                            <FieldVal label="Start time" value={e.ems_start_time || null} />
+                            <FieldVal label="End date" value={e.ems_end_date || null} />
+                            <FieldVal label="End time" value={e.ems_end_time || null} />
+                        </div>
+                    </div>
+
+                    {/* Locations */}
+                    <div style={sectionStyle}>
+                        <div style={sectionLabelStyle}>Locations</div>
+                        <div style={gridStyle(5)}>
+                            <FieldVal label="Leader in charge" value={e.ems_lic_name || null} />
+                            <FieldVal label="Leader email" value={e.ems_lic_email || null} />
+                            <FieldVal label="Leader phone" value={e.ems_lic_phone || null} />
+                            <FieldVal label="OSM event" value={osmEvent ? `${osmEvent.name} (${osmEvent.event_id})` : (e.ems_osm_event_id ? String(e.ems_osm_event_id) : null)} />
+                            <FieldVal label="Total explorers" value={totalMembers > 0 ? String(totalMembers) : null} />
+                        </div>
+                    </div>
+
+                    {/* Route Planning */}
+                    <div style={sectionStyle}>
+                        <div style={sectionLabelStyle}>Route Planning</div>
+                        <div style={{ ...gridStyle(4), marginBottom: '20px' }}>
+                            <FieldVal label="Start location" value={e.ems_start_location || null} />
+                            <FieldVal label="End location" value={e.ems_end_location || null} />
+                            <FieldVal label="Status" value={e.ems_status ? capitalize(e.ems_status) : null} />
+                            <FieldVal label="Route deadline" value={e.ems_route_deadline || null} />
+                        </div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '6px' }}>Notes</div>
+                        {e.ems_route_info
+                            ? <div dangerouslySetInnerHTML={{ __html: e.ems_route_info }} style={{ fontSize: '14px', maxWidth: '680px', lineHeight: 1.6 }} />
+                            : <div style={{ fontSize: '14px', color: '#bbb' }}>—</div>
+                        }
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* Schedule */}
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>Schedule</div>
-                <div style={gridStyle(4)}>
-                    <FieldVal label="Start date" value={e.ems_start_date || null} />
-                    <FieldVal label="Start time" value={e.ems_start_time || null} />
-                    <FieldVal label="End date" value={e.ems_end_date || null} />
-                    <FieldVal label="End time" value={e.ems_end_time || null} />
+            {activeSubTab === 'teams' && (
+                <div>
+                    <h3 style={{ marginTop: 0, marginBottom: '4px', fontSize: '15px' }}>
+                        Teams ({e.teams.length})
+                    </h3>
+                    <FaKey />
+
+                    {e.teams.length === 0 ? (
+                        <p style={{ color: '#666' }}>No teams yet.</p>
+                    ) : (
+                        <table className="widefat striped" style={{ fontSize: '13px', marginTop: '8px' }}>
+                            <thead>
+                                <tr>
+                                    <th>Team</th>
+                                    <th>Size</th>
+                                    <th>First Aid</th>
+                                    <th>Members (A–Z)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {e.teams.map((team) => (
+                                    <TeamRow key={team.ID} team={team} />
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
-            </div>
+            )}
 
-            {/* Locations */}
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>Locations</div>
-                <div style={gridStyle(5)}>
-                    <FieldVal label="Leader in charge" value={e.ems_lic_name || null} />
-                    <FieldVal label="Leader email" value={e.ems_lic_email || null} />
-                    <FieldVal label="Leader phone" value={e.ems_lic_phone || null} />
-                    <FieldVal label="OSM event" value={osmEvent ? `${osmEvent.name} (${osmEvent.event_id})` : (e.ems_osm_event_id ? String(e.ems_osm_event_id) : null)} />
-                    <FieldVal label="Total explorers" value={totalMembers > 0 ? String(totalMembers) : null} />
-                </div>
-            </div>
-
-            {/* Route Planning */}
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>Route Planning</div>
-                <div style={{ ...gridStyle(4), marginBottom: '20px' }}>
-                    <FieldVal label="Start location" value={e.ems_start_location || null} />
-                    <FieldVal label="End location" value={e.ems_end_location || null} />
-                    <FieldVal label="Status" value={e.ems_status ? capitalize(e.ems_status) : null} />
-                    <FieldVal label="Route deadline" value={e.ems_route_deadline || null} />
-                </div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '6px' }}>Notes</div>
-                {e.ems_route_info
-                    ? <div dangerouslySetInnerHTML={{ __html: e.ems_route_info }} style={{ fontSize: '14px', maxWidth: '680px', lineHeight: 1.6 }} />
-                    : <div style={{ fontSize: '14px', color: '#bbb' }}>—</div>
-                }
-            </div>
-
-            <h3 style={{ marginTop: 0, marginBottom: '4px', fontSize: '15px' }}>
-                Teams ({e.teams.length})
-            </h3>
-            <FaKey />
-
-            {e.teams.length === 0 ? (
-                <p style={{ color: '#666' }}>No teams yet.</p>
-            ) : (
-                <table className="widefat striped" style={{ fontSize: '13px', marginTop: '8px' }}>
-                    <thead>
-                        <tr>
-                            <th>Team</th>
-                            <th>Size</th>
-                            <th>First Aid</th>
-                            <th>Members (A–Z)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {e.teams.map((team) => (
-                            <TeamRow key={team.ID} team={team} />
-                        ))}
-                    </tbody>
-                </table>
+            {activeSubTab === 'training' && (
+                <TrainingRequirementsTab eventId={e.ID} />
             )}
         </div>
     );

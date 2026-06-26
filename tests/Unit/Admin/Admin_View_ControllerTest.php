@@ -208,4 +208,70 @@ class Admin_View_ControllerTest extends EMSTestCase {
         $this->assertCount( 0, $data['explorers'] );
         $this->assertNull( $data['last_synced'] );
     }
+
+    public function test_get_event_training_requirements_returns_configured_requirements(): void {
+        Functions\expect( 'get_post_meta' )->once()->with( 10, 'ems_training_requirements', true )->andReturn( [ 101, 102 ] );
+        
+        $mock_course_1 = (object) [ 'ID' => 101, 'post_title' => 'Course 1' ];
+        $mock_course_2 = (object) [ 'ID' => 102, 'post_title' => 'Course 2' ];
+        $mock_course_3 = (object) [ 'ID' => 103, 'post_title' => 'Course 3' ];
+        
+        $this->tutor_client->shouldReceive( 'get_all_courses' )->once()->andReturn( [ $mock_course_1, $mock_course_2, $mock_course_3 ] );
+        
+        $request = Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive( 'get_param' )->with( 'id' )->andReturn( 10 );
+        
+        $response = $this->make_controller()->get_event_training_requirements( $request );
+        $data = $response->get_data();
+        
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertEquals( [ 101, 102 ], $data['course_ids'] );
+        $this->assertCount( 3, $data['courses'] );
+        $this->assertEquals( 101, $data['courses'][0]['id'] );
+        $this->assertEquals( 'Course 1', $data['courses'][0]['title'] );
+    }
+
+    public function test_get_event_training_requirements_returns_empty_by_default(): void {
+        Functions\expect( 'get_post_meta' )->once()->with( 10, 'ems_training_requirements', true )->andReturn( '' );
+        
+        $this->tutor_client->shouldReceive( 'get_all_courses' )->once()->andReturn( [] );
+        
+        $request = Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive( 'get_param' )->with( 'id' )->andReturn( 10 );
+        
+        $response = $this->make_controller()->get_event_training_requirements( $request );
+        $data = $response->get_data();
+        
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertEquals( [], $data['course_ids'] );
+        $this->assertEquals( [], $data['courses'] );
+    }
+
+    public function test_update_event_training_requirements_saves_requirements(): void {
+        Functions\expect( 'update_post_meta' )->once()->with( 10, 'ems_training_requirements', [ 101, 103 ] )->andReturn( true );
+        
+        $request = Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive( 'get_param' )->with( 'id' )->andReturn( 10 );
+        $request->shouldReceive( 'get_json_params' )->once()->andReturn( [ 'course_ids' => [ 101, 103 ] ] );
+        
+        $response = $this->make_controller()->update_event_training_requirements( $request );
+        $data = $response->get_data();
+        
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $data['success'] );
+        $this->assertEquals( [ 101, 103 ], $data['course_ids'] );
+    }
+
+    public function test_update_event_training_requirements_rejects_invalid_input(): void {
+        Functions\expect( 'update_post_meta' )->never();
+        
+        $request = Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive( 'get_param' )->with( 'id' )->andReturn( 10 );
+        $request->shouldReceive( 'get_json_params' )->once()->andReturn( [ 'course_ids' => 'not-an-array' ] );
+        
+        $response = $this->make_controller()->update_event_training_requirements( $request );
+        
+        $this->assertSame( 400, $response->get_status() );
+    }
 }
+
