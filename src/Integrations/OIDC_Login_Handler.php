@@ -3,7 +3,7 @@ namespace EMS\Integrations;
 
 use EMS\Data\OSM_Explorer_Repository;
 
-class OSM_Auth_Integration {
+class OIDC_Login_Handler {
     private OSM_API_Client $api_client;
     private OSM_Parser $parser;
     private ?OSM_Explorer_Repository $explorer_repo;
@@ -16,7 +16,7 @@ class OSM_Auth_Integration {
         $this->api_client    = $api_client;
         $this->parser        = $parser;
         $this->explorer_repo = $explorer_repo;
-        add_action( 'rtcamp.google_user_logged_in', [ $this, 'handle_osm_login' ], 10, 2 );
+        add_action( 'rtcamp.google_user_logged_in', [ $this, 'handle_osm_login'    ], 10, 2 );
         add_action( 'rtcamp.google_user_created',   [ $this, 'handle_user_created' ], 10, 2 );
     }
 
