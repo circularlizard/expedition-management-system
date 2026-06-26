@@ -63,6 +63,62 @@ class OSM_Explorer_RepositoryTest extends EMSTestCase {
         $this->assertStringContainsString( 'last_local_update_at', $wpdb->last_query );
     }
 
+    public function test_update_first_aid_level_returns_true_when_zero_rows_updated(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+            }
+            public function query( string $sql ) {
+                return 0;
+            }
+        };
+
+        $repo = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->update_first_aid_level( 30001, 'first_response' );
+
+        $this->assertTrue( $result );
+    }
+
+    public function test_update_first_aid_level_returns_false_on_query_error(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+            }
+            public function query( string $sql ) {
+                return false;
+            }
+        };
+
+        $repo = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->update_first_aid_level( 30001, 'first_response' );
+
+        $this->assertFalse( $result );
+    }
+
+
+    public function test_touch_last_local_update_stamps_now(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+            }
+            public function query( string $sql ) {
+                $this->last_query = $sql;
+                return 1;
+            }
+        };
+
+        $repo = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->touch_last_local_update( 30001 );
+
+        $this->assertTrue( $result );
+        $this->assertStringContainsString( "UPDATE wp_ems_osm_explorers", $wpdb->last_query );
+        $this->assertStringContainsString( 'last_local_update_at = NOW()', $wpdb->last_query );
+        $this->assertStringContainsString( 'WHERE scout_id = 30001', $wpdb->last_query );
+    }
+
     public function test_link_wp_user_by_email_returns_zero_for_blank_email(): void {
         $wpdb = new class {
             public $prefix  = 'wp_';
