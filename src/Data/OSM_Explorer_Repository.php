@@ -45,7 +45,7 @@ class OSM_Explorer_Repository {
             return false;
         }
         $result = $this->wpdb->query( $this->wpdb->prepare(
-            "UPDATE {$table} SET first_aid_level = %s WHERE scout_id = %d",
+            "UPDATE {$table} SET first_aid_level = %s, last_local_update_at = NOW() WHERE scout_id = %d",
             $level,
             $scout_id
         ) );

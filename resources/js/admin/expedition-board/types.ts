@@ -84,6 +84,8 @@ export interface Explorer {
     wp_user_id?: number;
     patrol?: string;
     first_aid_level?: FirstAidLevel;
+    synced_at?: string | null;
+    last_local_update_at?: string | null;
 }
 
 export interface OSMEvent {
