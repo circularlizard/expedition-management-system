@@ -109,6 +109,24 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'UNIQUE KEY idx_scout_id', $explorers_sql );
     }
 
+    public function test_osm_explorers_has_timestamp_columns(): void {
+        $installer = new Table_Installer();
+        $sql = $installer->generate_sql( '', '' );
+
+        $explorers_sql = null;
+        foreach ( $sql as $statement ) {
+            if ( strpos( $statement, 'ems_osm_explorers' ) !== false ) {
+                $explorers_sql = $statement;
+                break;
+            }
+        }
+
+        $this->assertNotNull( $explorers_sql );
+        $this->assertStringContainsString( 'last_local_update_at', $explorers_sql );
+        $this->assertStringContainsString( 'last_ems_push_at', $explorers_sql );
+        $this->assertStringContainsString( 'synced_at', $explorers_sql );
+    }
+
     public function test_volunteer_availability_includes_indexes(): void {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( '', '' );
