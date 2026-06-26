@@ -58,6 +58,11 @@ The `login-with-google` plugin fires `rtcamp.google_user_logged_in (WP_User, std
 
 **No schema change required** — `wp_user_id BIGINT UNSIGNED DEFAULT NULL` already exists on `ems_osm_explorers`. Item 3 is purely a write path that populates an existing column.
 
+**Graceful degradation** — the `login-with-google` plugin may not be installed or active. The EMS plugin must not error if the hooks never fire:
+- Hook registration in `OSM_Auth_Integration` is safe regardless (`add_action` on a never-fired hook is harmless)
+- The bulk reconciliation UI (preview/confirm) must still render on the OSM Reference page; if no WP users with matching emails exist the preview simply returns an empty matches list
+- All EMS features that consume `wp_user_id` (training status, explorer linking) must handle `NULL` gracefully — show "—" or "not linked" rather than failing
+
 ### Design decisions
 - **Explorer link**: match `$user->user_email` against `ems_osm_explorers.email` → set `wp_user_id`
 - **Parent accounts**: deferred — out of scope for now
