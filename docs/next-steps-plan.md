@@ -56,6 +56,8 @@ Implementation plan for next-steps items 1 (sync timestamp tracking), 3 (link OS
 ### Context
 The `login-with-google` plugin fires `rtcamp.google_user_logged_in (WP_User, stdClass)` and `rtcamp.google_user_created (int $uid, stdClass)` after successful OIDC login/registration. The stdClass has `.email`. `ems_osm_explorers` has `email`, `parent_email`, and `wp_user_id` (nullable). The link from WP user → explorer is currently **never written**. `OSM_Auth_Integration` already hooks `rtcamp.google_user_logged_in` for meta population.
 
+**No schema change required** — `wp_user_id BIGINT UNSIGNED DEFAULT NULL` already exists on `ems_osm_explorers`. Item 3 is purely a write path that populates an existing column.
+
 ### Design decisions
 - **Explorer link**: match `$user->user_email` against `ems_osm_explorers.email` → set `wp_user_id`
 - **Parent accounts**: deferred — out of scope for now
@@ -68,26 +70,47 @@ The `login-with-google` plugin fires `rtcamp.google_user_logged_in (WP_User, std
 **3a — Auto-link on OIDC login**
 
 Extend `OSM_Auth_Integration::handle_osm_login()`:
-1. Look up `ems_osm_explorers` by `email = $user->user_email`
-2. If found and `wp_user_id` is not already set → `UPDATE ems_osm_explorers SET wp_user_id = $user->ID WHERE scout_id = X`
-3. Also hook `rtcamp.google_user_created` for the same logic (new registration path)
+1. Guard: skip if `$user->user_email` is empty
+2. Look up `ems_osm_explorers` by `email = $user->user_email`
+3. If found and `wp_user_id` is not set → write `wp_user_id = $user->ID`
+4. If found and `wp_user_id` is already set to a **different** user ID → log a warning, do not overwrite
+5. If found and `wp_user_id` already matches `$user->ID` → silent no-op
+6. Also hook `rtcamp.google_user_created` for the same logic (new registration path)
 
-New method: `OSM_Explorer_Repository::link_wp_user_by_email( string $email, int $wp_user_id ): int` (returns rows affected; no-op if already linked)
+New method: `OSM_Explorer_Repository::link_wp_user_by_email( string $email, int $wp_user_id ): int` (returns rows updated; 0 on no-op or mismatch)
 
-**3b — Bulk reconciliation endpoint**
+**Edge cases handled by `link_wp_user_by_email`:**
+- **Blank email**: return 0 immediately if `$email === ''` — avoids matching explorer rows with a blank email field
+- **Already linked to different user**: return 0 and trigger `error_log` warning — never silently reassign
+- **Multiple explorer rows with same email**: `email` has no UNIQUE constraint; link all unlinked matches (same WP user logged in with one email should own all matching explorer rows for now — revisit if this causes issues)
+- **`rtcamp.google_user_created` signature**: hook passes `(int $user_id, stdClass $user_data)` — handler must call `get_user_by('id', $user_id)` to obtain `WP_User` before linking
+- **OSM API call fails**: email-match link runs regardless — it only needs `$user->user_email`, not the OSM payload
 
-New REST route: `POST ems/v1/reconcile-explorers`
-- Iterates all WP users, for each calls `link_wp_user_by_email`
-- Returns `{ linked: N, already_linked: M, unmatched: K }`
-- Admin-only (`manage_options`)
+**3b — Bulk reconciliation (preview + confirm)**
 
-Admin UI: add "Reconcile Explorer Links" button to the OSM Reference page with result summary.
+Two REST routes:
+
+| Route | Purpose |
+|---|---|
+| `GET ems/v1/reconcile-explorers/preview` | Dry-run: returns proposed matches without writing anything |
+| `POST ems/v1/reconcile-explorers/confirm` | Writes only the scout_ids explicitly included in the request body |
+
+Preview response shape: `{ matches: [{ scout_id, first_name, last_name, explorer_email, wp_user_id, wp_display_name }], already_linked: N, unmatched: N }`
+
+Confirm request body: `{ scout_ids: [int, ...] }` — admin selects which rows to link.
+
+Admin UI flow:
+1. Admin clicks "Preview Explorer Links" on the OSM Reference page
+2. Table renders proposed matches (explorer name, email, WP account to be linked) plus counts of already-linked and unmatched
+3. Admin can deselect individual rows, then clicks "Confirm Selected" to POST the approved `scout_ids`
+4. Result summary shown after confirmation
 
 **Tests (TDD order)**
-- Gherkin: `tests/features/3-explorer-login-link.feature` — explorer logs in → `wp_user_id` set; already-linked user not overwritten; unknown email is a no-op
+- Gherkin: `tests/features/3-explorer-login-link.feature` — explorer logs in → `wp_user_id` set; already-linked to same user is a no-op; already-linked to different user logs warning and does not overwrite; blank email is a no-op; unknown email is a no-op; preview returns matches without writing; confirm writes only approved scout_ids
 - PHPUnit: `OSM_Explorer_Repository::link_wp_user_by_email` unit tests (email match, no-op when already set, unknown email)
 - PHPUnit: `OSM_Auth_Integration::handle_osm_login` — asserts `link_wp_user_by_email` called with correct args
-- PHPUnit: bulk reconciliation endpoint response shape
+- PHPUnit: preview endpoint returns correct shape without side effects
+- PHPUnit: confirm endpoint writes only submitted scout_ids
 
 ---
 
