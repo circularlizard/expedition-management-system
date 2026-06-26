@@ -72,7 +72,7 @@ The `login-with-google` plugin fires `rtcamp.google_user_logged_in (WP_User, std
 
 ### Tasks
 
-**3a — Auto-link on OIDC login**
+**3a — Auto-link on OIDC login** ✅ COMPLETE (commit `1139d3a`, 288/288 PHPUnit green, deployed)
 
 Extend `OSM_Auth_Integration::handle_osm_login()`:
 1. Guard: skip if `$user->user_email` is empty
