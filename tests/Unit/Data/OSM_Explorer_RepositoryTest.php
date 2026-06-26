@@ -62,4 +62,139 @@ class OSM_Explorer_RepositoryTest extends EMSTestCase {
 
         $this->assertStringContainsString( 'last_local_update_at', $wpdb->last_query );
     }
+
+    public function test_link_wp_user_by_email_returns_zero_for_blank_email(): void {
+        $wpdb = new class {
+            public $prefix  = 'wp_';
+            public array $queries = [];
+            public function prepare( string $sql, ...$args ): string { return $sql; }
+            public function get_results( string $sql, $output = OBJECT ): array { return []; }
+            public function query( string $sql ): int { $this->queries[] = $sql; return 0; }
+        };
+
+        $repo   = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->link_wp_user_by_email( '', 42 );
+
+        $this->assertSame( 0, $result );
+        $this->assertEmpty( $wpdb->queries );
+    }
+
+    public function test_link_wp_user_by_email_writes_wp_user_id_when_unlinked(): void {
+        $wpdb = new class {
+            public $prefix   = 'wp_';
+            public array $queries = [];
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( ['%s', '%d'], ["'%s'", '%d'], $sql ), $args );
+            }
+            public function get_results( string $sql, $output = OBJECT ): array {
+                return [
+                    (object) [ 'scout_id' => 30001, 'wp_user_id' => null ],
+                ];
+            }
+            public function query( string $sql ): int {
+                $this->queries[] = $sql;
+                return 1;
+            }
+        };
+
+        $repo   = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->link_wp_user_by_email( 'alice@example.com', 42 );
+
+        $this->assertSame( 1, $result );
+        $this->assertCount( 1, $wpdb->queries );
+        $this->assertStringContainsString( 'wp_user_id', $wpdb->queries[0] );
+        $this->assertStringContainsString( '42', $wpdb->queries[0] );
+    }
+
+    public function test_link_wp_user_by_email_is_noop_when_already_linked_to_same_user(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public array $queries = [];
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( ['%s', '%d'], ["'%s'", '%d'], $sql ), $args );
+            }
+            public function get_results( string $sql, $output = OBJECT ): array {
+                return [
+                    (object) [ 'scout_id' => 30001, 'wp_user_id' => 42 ],
+                ];
+            }
+            public function query( string $sql ): int {
+                $this->queries[] = $sql;
+                return 1;
+            }
+        };
+
+        $repo   = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->link_wp_user_by_email( 'alice@example.com', 42 );
+
+        $this->assertSame( 0, $result );
+        $this->assertEmpty( $wpdb->queries );
+    }
+
+    public function test_link_wp_user_by_email_does_not_overwrite_different_user(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public array $queries = [];
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( ['%s', '%d'], ["'%s'", '%d'], $sql ), $args );
+            }
+            public function get_results( string $sql, $output = OBJECT ): array {
+                return [
+                    (object) [ 'scout_id' => 30001, 'wp_user_id' => 99 ],
+                ];
+            }
+            public function query( string $sql ): int {
+                $this->queries[] = $sql;
+                return 1;
+            }
+        };
+
+        $repo   = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->link_wp_user_by_email( 'alice@example.com', 42 );
+
+        $this->assertSame( 0, $result );
+        $this->assertEmpty( $wpdb->queries, 'Must not UPDATE when already linked to a different user' );
+    }
+
+    public function test_link_wp_user_by_email_returns_zero_when_no_matching_explorer(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public array $queries = [];
+            public function prepare( string $sql, ...$args ): string { return $sql; }
+            public function get_results( string $sql, $output = OBJECT ): array { return []; }
+            public function query( string $sql ): int { $this->queries[] = $sql; return 0; }
+        };
+
+        $repo   = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->link_wp_user_by_email( 'unknown@example.com', 42 );
+
+        $this->assertSame( 0, $result );
+        $this->assertEmpty( $wpdb->queries );
+    }
+
+    public function test_link_wp_user_by_email_links_all_unlinked_rows_with_same_email(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public array $queries = [];
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( ['%s', '%d'], ["'%s'", '%d'], $sql ), $args );
+            }
+            public function get_results( string $sql, $output = OBJECT ): array {
+                return [
+                    (object) [ 'scout_id' => 30001, 'wp_user_id' => null ],
+                    (object) [ 'scout_id' => 30002, 'wp_user_id' => null ],
+                ];
+            }
+            public function query( string $sql ): int {
+                $this->queries[] = $sql;
+                return 1;
+            }
+        };
+
+        $repo   = new OSM_Explorer_Repository( $wpdb );
+        $result = $repo->link_wp_user_by_email( 'twins@example.com', 42 );
+
+        $this->assertSame( 2, $result );
+        $this->assertCount( 2, $wpdb->queries );
+    }
 }
