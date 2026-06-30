@@ -14,6 +14,15 @@
     1. Separate columns for training, practice & qualifier
 5. Training view
     1. List of who has done which course
+6. Track when explorers were last updated (Item 1)
+   1. DB schema changes: added `last_local_update_at` and `last_ems_push_at` to `ems_osm_explorers`
+   2. Mutating actions update `last_local_update_at` (e.g. updating first aid level)
+   3. Render update timestamps in the Explorer table and API response
+7. Link OSM data to WP login (Item 3a)
+   1. Auto-linking unlinked explorer rows to WP users via email match on OIDC login or user creation
+   2. Shell account merging on OIDC login
+8. Training status configuration on expedition view (Item 4a)
+   1. Configure required Tutor LMS courses explicitly per expedition event (via the event details sub-tab)
 
 ## What has not been done
 💗= Priority 1
@@ -21,26 +30,26 @@
 No icon = No special priority
 👎= Low priority
 
-1. 💗 Track when explorers were last updated for targeted sync
-   1. When OSM sync was done, each way
-   2. When record was last updated (exped added, FA status etc)
+1. [x] 💗 Track when explorers were last updated for targeted sync
+   1. [x] When OSM sync was done, each way
+   2. [x] When record was last updated (exped added, FA status etc)
 2. 💗 Expedition sign up
-   1. 💗 Gravity forms, replicate workflow of existing form
-   2. 💗 Combined level and expedition sign up, ask about exped preferences, ASN and first aid
-   3. 💗 View of who has signed up for what
-   4. 2️⃣ Need to work out link to OSM sign-in
-   5. 2️⃣ Exped sign up edge cases
+   1. [ ] 💗 Gravity forms, replicate workflow of existing form
+   2. [ ] 💗 Combined level and expedition sign up, ask about exped preferences, ASN and first aid
+   3. [ ] 💗 View of who has signed up for what
+   4. [ ] 2️⃣ Need to work out link to OSM sign-in
+   5. [ ] 2️⃣ Exped sign up edge cases
 3. 💗 Link OSM data to WP login
-    1. 💗 Bulk reconciliation
-    2. 💗 Link when someone logs in
-    3. 💗 Parents vs Explorers
-    4. 2️⃣ Over-ride / manual selection for cases where Explorer can't log in
-    5. 2️⃣ Exception cases
-    6. 💗 Shell account merge on OIDC login
+    1. [ ] 💗 Bulk reconciliation
+    2. [x] 💗 Link when someone logs in
+    3. [ ] 💗 Parents vs Explorers
+    4. [ ] 2️⃣ Over-ride / manual selection for cases where Explorer can't log in
+    5. [ ] 2️⃣ Exception cases
+    6. [x] 💗 Shell account merge on OIDC login
 4. 2️⃣ Training status on expedition view
-    1. Show who has done what
-    2. Flag people with gaps
-    3. Define which training is needed for which event
+    1. [ ] Show who has done what
+    2. [ ] Flag people with gaps
+    3. [x] Define which training is needed for which event
 5. 2️⃣ Explorer list enhancements
     1. Add training completed
     2. Individual explorer page with all details

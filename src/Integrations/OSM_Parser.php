@@ -68,6 +68,9 @@ class OSM_Parser {
         $children = [];
         foreach ( $payload['data']['globals']['member_access'] ?? [] as $section_id => $section_data ) {
             foreach ( $section_data['members'] ?? [] as $scout_id => $member ) {
+                if ( ( $member['access_type'] ?? '' ) !== 'parent' ) {
+                    continue;
+                }
                 $id = (int) $scout_id;
                 if ( ! isset( $children[ $id ] ) ) {
                     $children[ $id ] = [
