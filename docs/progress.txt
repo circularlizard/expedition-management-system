@@ -12,3 +12,8 @@ Tasks Completed (Spec 1: WordPress User Roles & OIDC Mapping):
 5. Implemented comprehensive PHPUnit test cases in `tests/Unit/Core/Role_ManagerTest.php` and `tests/Unit/Auth/OIDC_Login_HandlerTest.php` to verify all dynamic role assignments, default capability configurations, and malformed payload resilience.
 6. Verified that all 302 backend tests in the PHPUnit test suite pass successfully.
 7. Successfully built the frontend bundles and deployed the updated plugin files into the local WordPress environment via `bash bin/deploy.sh`.
+
+Updates & Bug Fixes:
+- Fixed an issue where the OIDC access token was not present in the user profile object returned by the provider. Added an `http_response` filter to intercept and capture the access token dynamically during the token exchange request.
+- Fixed a bug where first-time registrations only fired the user creation hook (`rtcamp.google_user_created`) and bypassed the login hook (`rtcamp.google_user_logged_in`). The handler now routes user registration through `handle_osm_login` to perform immediate role assignment and metadata mapping upon account creation.
+- Corrected role display names to `ESU Parent`, `ESU Explorer`, and `ESU Leader` to match specification.
