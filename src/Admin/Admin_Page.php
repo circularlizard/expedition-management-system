@@ -24,8 +24,8 @@ class Admin_Page {
 
         $dashboard_hook = add_submenu_page(
             'ems',
-            __( 'Expedition Board', 'ems-plugin' ),
-            __( 'Expedition Board', 'ems-plugin' ),
+            __( 'Expeditions', 'ems-plugin' ),
+            __( 'Expeditions', 'ems-plugin' ),
             'manage_options',
             'ems',
             [ $this, 'render_dashboard' ]
@@ -44,8 +44,8 @@ class Admin_Page {
     public function register_explorers_menu(): void {
         $explorers_hook = add_submenu_page(
             'ems',
-            __( 'Explorer List', 'ems-plugin' ),
-            __( 'Explorer List', 'ems-plugin' ),
+            __( 'Explorers', 'ems-plugin' ),
+            __( 'Explorers', 'ems-plugin' ),
             'manage_options',
             'ems-explorers',
             [ $this, 'render_explorers_page' ]
@@ -59,13 +59,27 @@ class Admin_Page {
     }
 
     /**
+     * Registers the Volunteers submenu.
+     */
+    public function register_volunteers_menu(): void {
+        $volunteers_hook = add_submenu_page(
+            'ems',
+            __( 'Volunteers', 'ems-plugin' ),
+            __( 'Volunteers', 'ems-plugin' ),
+            'manage_options',
+            'ems-volunteers',
+            [ $this, 'render_volunteers_page' ]
+        );
+    }
+
+    /**
      * Registers the OSM Reference Data submenu.
      */
     public function register_reference_menu(): void {
         add_submenu_page(
             'ems',
-            __( 'OSM Reference', 'ems-plugin' ),
-            __( 'OSM Reference', 'ems-plugin' ),
+            __( 'OSM Sync', 'ems-plugin' ),
+            __( 'OSM Sync', 'ems-plugin' ),
             'manage_options',
             'ems-reference',
             [ $this, 'render_reference_page' ]
@@ -77,7 +91,7 @@ class Admin_Page {
      */
     public function register_mapper_menu(): void {
         $mapper_hook = add_submenu_page(
-            'ems',
+            null,
             __( 'Column Mapper', 'ems-plugin' ),
             __( 'Column Mapper', 'ems-plugin' ),
             'manage_options',
@@ -534,6 +548,13 @@ class Admin_Page {
             echo esc_html( wp_json_encode( $summary, JSON_PRETTY_PRINT ) );
             echo '</pre>';
         }
+    }
+
+    public function render_volunteers_page(): void {
+        echo '<div class="wrap">';
+        echo '<h1>' . esc_html__( 'Volunteers', 'ems-plugin' ) . '</h1>';
+        echo '<div id="ems-volunteers-root"></div>';
+        echo '</div>';
     }
 
     public function render_column_mapper(): void {

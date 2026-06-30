@@ -71,6 +71,25 @@ class CPT_RegistryTest extends EMSTestCase {
         $this->assertContains( 'custom-fields', $captured['team']['supports'] );
     }
 
+    public function test_cpts_receive_show_in_menu_false(): void {
+        $captured = [];
+        Functions\when( 'register_post_type' )->alias(
+            static function ( string $type, array $args ) use ( &$captured ): void {
+                $captured[ $type ] = $args;
+            }
+        );
+
+        ( new CPT_Registry() )->register();
+
+        $this->assertArrayHasKey( 'season', $captured );
+        $this->assertArrayHasKey( 'expedition', $captured );
+        $this->assertArrayHasKey( 'team', $captured );
+
+        $this->assertFalse( $captured['season']['show_in_menu'] );
+        $this->assertFalse( $captured['expedition']['show_in_menu'] );
+        $this->assertFalse( $captured['team']['show_in_menu'] );
+    }
+
     public function test_expedition_meta_field_list_covers_required_keys(): void {
         $registry = new CPT_Registry();
         $fields   = $registry->get_expedition_meta_fields();
