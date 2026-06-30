@@ -6,7 +6,7 @@ set -e
 
 PLUGIN_NAME="ems-plugin"
 TARGET_DIR="wordpress/wp-content/plugins/$PLUGIN_NAME"
-STAGING_DIR="/tmp/ems-plugin-deploy"
+STAGING_DIR="temp/ems-plugin-deploy"
 
 echo "==> Deploying EMS plugin to $TARGET_DIR..."
 
@@ -36,11 +36,20 @@ rsync -a \
 
 # 4. Install production Composer dependencies in staging
 echo "==> Installing production dependencies..."
-composer install \
-  --no-dev \
-  --optimize-autoloader \
-  --working-dir="$STAGING_DIR/$PLUGIN_NAME" \
-  --quiet
+if command -v composer >/dev/null 2>&1; then
+  composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --working-dir="$STAGING_DIR/$PLUGIN_NAME" \
+    --quiet
+else
+  echo "==> Host composer not found, using dockerized composer..."
+  docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -v "$(pwd)/$STAGING_DIR/$PLUGIN_NAME:/app" \
+    -w /app \
+    composer install --no-dev --optimize-autoloader --quiet
+fi
 
 # 5. Sync staging to target
 echo "==> Syncing to $TARGET_DIR..."

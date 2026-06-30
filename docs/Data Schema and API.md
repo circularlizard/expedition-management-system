@@ -59,7 +59,7 @@ Extending standard WP User records.
 - `ems_scout_id`: integer (OSM `member_id` - The primary identifier for an Explorer record. Used to link parents to children before a child WP account exists)
 - `ems_osm_access_type`: string (`parent` | `member` - The primary role identifier retrieved from OSM)
 - `ems_first_aid_status`: string (`none` | `first_response` | `full`)
-- `ems_teammate_preferences`: string (Text from Gravity Forms)
+- `ems_teammate_preferences`: string (Text from Fluent Forms)
 - `ems_available_date`: string (ISO 8601). **Note**: Stored as multiple individual meta rows per user, NOT serialized, to allow fast `WP_User_Query` lookups for the calendar view.
 - `ems_parent_children`: array (List of Explorer **Scout IDs** - Used for multi-child aggregation and linking)
 - `ems_unit`: string (Pulled from OSM 'patrol' field)
@@ -187,8 +187,8 @@ Type: serialized array. Defines every OSM section the EMS manages. Each entry is
 
 > **Note on `termid`**: OSM terms are academic-year periods. The `termid` must be refreshed annually (before the new term's expeditions begin). A future admin notice should prompt renewal when the stored term expires.
 
-### 5.2 `ems_gravity_form_id`
-Type: integer. The ID of the Gravity Forms expedition signup form. Cannot be hardcoded as form IDs are environment-specific.
+### 5.2 `ems_fluent_form_id`
+Type: integer. The ID of the Fluent Forms expedition signup form. Cannot be hardcoded as form IDs are environment-specific.
 
 ### 5.3 `ems_tutor_course_map`
 Type: serialized array. Maps DofE level to Tutor LMS course ID for training access validation.
@@ -229,7 +229,7 @@ Type: serialized array. Persists failed `updateScout` / event-status write jobs 
 ]
 ```
 
-## 6. Gravity Forms Integration Note
-The Reconciliation Dashboard reads Gravity Forms signup data using **`GFAPI::get_entries()`**, filtered by form ID and Explorer email address. This is the official Gravity Forms PHP API and is preferred over direct `WPDB` queries to avoid coupling to GF's internal schema.
-- **Matching Key**: Explorer's personal email address (must be captured as a dedicated field in the GF form — not the submitter/parent email).
-- **Logic**: Compare GF entries against the OSM section participant list; highlight records present in one source but not the other.
+## 6. Fluent Forms Integration Note
+The Admin Signups Board / Reconciliation Dashboard displays and processes entries from the `ems_signups` table (synced from Fluent Forms submissions).
+- **Matching Key**: `scout_id` (primary link embedded as a hidden field in the Parent Portal). Default fallback matches on explorer's email address.
+- **Logic**: Submissions dynamically update the custom `ems_signups` table on form completion hooks.

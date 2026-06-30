@@ -54,12 +54,12 @@ Implementation plan for next-steps items 1 (sync timestamp tracking), 3 (link OS
 ## Item 3 — Link OSM data to WP login (Partially Complete — 3a ✅)
 
 ### Context
-The `login-with-google` plugin fires `rtcamp.google_user_logged_in (WP_User, stdClass)` and `rtcamp.google_user_created (int $uid, stdClass)` after successful OIDC login/registration. The stdClass has `.email`. `ems_osm_explorers` has `email`, `parent_email`, and `wp_user_id` (nullable). The link from WP user → explorer is currently **never written**. `OSM_Auth_Integration` already hooks `rtcamp.google_user_logged_in` for meta population.
+The `login-with-google` plugin fires `rtcamp.google_user_logged_in (WP_User, stdClass)` and `rtcamp.google_user_created (int $uid, stdClass)` after successful OIDC login/registration. The stdClass has `.email`. `ems_osm_explorers` has `email`, `parent_email`, and `wp_user_id` (nullable). The link from WP user → explorer is currently **never written**. `OIDC_Login_Handler` already hooks `rtcamp.google_user_logged_in` for meta population.
 
 **No schema change required** — `wp_user_id BIGINT UNSIGNED DEFAULT NULL` already exists on `ems_osm_explorers`. Item 3 is purely a write path that populates an existing column.
 
 **Graceful degradation** — the `login-with-google` plugin may not be installed or active. The EMS plugin must not error if the hooks never fire:
-- Hook registration in `OSM_Auth_Integration` is safe regardless (`add_action` on a never-fired hook is harmless)
+- Hook registration in `OIDC_Login_Handler` is safe regardless (`add_action` on a never-fired hook is harmless)
 - The bulk reconciliation UI (preview/confirm) must still render on the OSM Reference page; if no WP users with matching emails exist the preview simply returns an empty matches list
 - All EMS features that consume `wp_user_id` (training status, explorer linking) must handle `NULL` gracefully — show "—" or "not linked" rather than failing
 
@@ -74,7 +74,7 @@ The `login-with-google` plugin fires `rtcamp.google_user_logged_in (WP_User, std
 
 **3a — Auto-link on OIDC login** ✅ COMPLETE (commit `1139d3a`, 288/288 PHPUnit green, deployed)
 
-Extend `OSM_Auth_Integration::handle_osm_login()`:
+Extend `OIDC_Login_Handler::handle_osm_login()`:
 1. Guard: skip if `$user->user_email` is empty
 2. Look up `ems_osm_explorers` by `email = $user->user_email`
 3. If found and `wp_user_id` is not set → write `wp_user_id = $user->ID`
@@ -113,7 +113,7 @@ Admin UI flow:
 **Tests (TDD order)**
 - Gherkin: `tests/features/3-explorer-login-link.feature` — explorer logs in → `wp_user_id` set; already-linked to same user is a no-op; already-linked to different user logs warning and does not overwrite; blank email is a no-op; unknown email is a no-op; preview returns matches without writing; confirm writes only approved scout_ids
 - PHPUnit: `OSM_Explorer_Repository::link_wp_user_by_email` unit tests (email match, no-op when already set, unknown email)
-- PHPUnit: `OSM_Auth_Integration::handle_osm_login` — asserts `link_wp_user_by_email` called with correct args
+- PHPUnit: `OIDC_Login_Handler::handle_osm_login` — asserts `link_wp_user_by_email` called with correct args
 - PHPUnit: preview endpoint returns correct shape without side effects
 - PHPUnit: confirm endpoint writes only submitted scout_ids
 

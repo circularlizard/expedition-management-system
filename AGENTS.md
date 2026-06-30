@@ -103,6 +103,8 @@ All created by `Table_Installer` on plugin activation. Tables are created and qu
 | `ems_osm_explorers` | `id, scout_id (UNIQUE), wp_user_id (nullable), section_id, first_name, last_name, email, parent_email, patrol, synced_at` |
 | `ems_osm_events` | `id, event_id, section_id, name, start_date, end_date, location, synced_at` |
 | `ems_osm_event_attendance` | `id, event_id, scout_id, status, synced_at` |
+| `ems_unit_leaders` | `id, unit_name (UNIQUE), leader_first_name, leader_last_name, leader_email, created_at, updated_at` |
+| `ems_signups` | `id, scout_id (nullable), parent_user_id, dofe_level, expedition_preferences, first_aid_status, signup_status, payment_status, form_submission_id, created_at, updated_at` |
 
 ---
 
@@ -134,9 +136,9 @@ Team size 4–7 is the official range — outside this range flag a warning (not
 
 ---
 
-## 9. WP User Meta Keys
+## 9. WP User Meta Keys & Roles
 
-Written by `OSM_Auth_Integration` on OIDC login:
+Written by `OIDC_Login_Handler` on OIDC login:
 
 | Key | Type | Description |
 |---|---|---|
@@ -146,6 +148,12 @@ Written by `OSM_Auth_Integration` on OIDC login:
 | `ems_section_ids` | int[] | OSM section IDs this user administers |
 | `ems_children` | array | Explorer records linked to parent account |
 | `ems_unit` | string | Patrol/unit name from OSM |
+
+### WordPress User Roles
+Programmatically registered on plugin activation and mapped dynamically on OIDC login:
+* `ems_parent` — assigned when `ems_access_type === 'parent'`.
+* `ems_explorer` — assigned when `ems_access_type === 'member'`.
+* `ems_leader` — assigned when `ems_access_type === 'local'` or the user has section IDs in `ems_section_ids`.
 
 ---
 
@@ -162,6 +170,7 @@ Written by `OSM_Auth_Integration` on OIDC login:
 | `ems_osm_scope` | OAuth scope string |
 | `ems_failed_pushback_queue` | Serialized array of failed OSM write jobs |
 | `ems_osm_field_map` | `{section_id: {flexi_id, field_map: {ems_field: column_id}}}` |
+| `ems_fluent_form_id` | int — The Fluent Forms expedition/level signup form ID |
 
 ---
 

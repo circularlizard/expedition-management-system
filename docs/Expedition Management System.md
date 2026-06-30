@@ -27,16 +27,16 @@ The Expedition Management System (EMS) is designed to manage and store informati
 ### 2.2 WordPress & Tutor LMS
 - **Hosting**: Integrated with or hosted on the SE Scotland DofE WordPress site.
 - **Course Completion**: EMS connects to Tutor LMS to verify online training status.
-- **Gravity Forms Integration**: 
-    - Participants sign up via Gravity Forms (year-round).
-    - EMS provides a comparison view to match Gravity Forms signups against OSM section lists to ensure no one is missed.
+- **Fluent Forms Integration**: 
+    - Participants sign up via Fluent Forms.
+    - EMS provides an Admin Signups Board to manage, reconcile, and match Fluent Forms signups against OSM reference data.
 - **User Provisioning**: WP accounts (Name, Email, OSM ID) may be pre-provisioned in WP based on OSM sync to facilitate the first OIDC login.
 
 ## 3. Expedition Lifecycle & Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant GF as Gravity Forms (WP)
+    participant FF as Fluent Forms (WP)
     participant OSM as Online Scout Manager
     participant EMS as Expedition Management System (WP)
     participant Admin as Expedition Admin
@@ -124,7 +124,7 @@ An **event** is the EMS term for a training event, practice expedition, or quali
 - Minimise clicks — primary view is the expedition/team summary dashboard.
 
 ### 4.2 First Aid & Safety
-- **Declaration**: At signup (via Gravity Forms), participants declare their first aid status:
+- **Declaration**: At signup (via Fluent Forms), participants declare their first aid status:
     - No First Aid.
     - First Response.
     - Full First Aid Qualification.
@@ -164,9 +164,9 @@ An **event** is the EMS term for a training event, practice expedition, or quali
 
 ### 4.5 Reporting & Comparison
 - **Signup Reconciliation**: 
-    - A dedicated view to compare Gravity Forms submissions with OSM section lists.
-    - **Matching Key**: Explorer Email address (Note: Gravity Forms must capture the Explorer's specific email, which may differ from the parent/submitter email).
-    - **Logic**: Highlight OSM records without matching Gravity Forms, and Gravity Form entries without matching OSM records.
+    - A dedicated board to reconcile Fluent Forms submissions with OSM reference data.
+    - **Matching Key**: `scout_id` (primary hidden match) or email address/name (reconciliation fallbacks).
+    - **Logic**: Match `ems_signups` records with `ems_osm_explorers` records, offering manual reconciliation for new recruits or unlinked submissions.
 - **Reports**:
     - Event participation and staffing levels.
     - Training completion (Tutor LMS).
