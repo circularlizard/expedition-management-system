@@ -8,6 +8,8 @@ class OIDC_Login_Handler {
     private OSM_Parser $parser;
     private ?OSM_Explorer_Repository $explorer_repo;
 
+    private static string $captured_token = '';
+
     public function __construct(
         OSM_API_Client $api_client,
         OSM_Parser $parser,
@@ -18,6 +20,22 @@ class OIDC_Login_Handler {
         $this->explorer_repo = $explorer_repo;
         add_action( 'rtcamp.google_user_logged_in', [ $this, 'handle_osm_login'    ], 10, 2 );
         add_action( 'rtcamp.google_user_created',   [ $this, 'handle_user_created' ], 10, 2 );
+        add_filter( 'http_response',                [ $this, 'capture_token_from_response' ], 10, 3 );
+    }
+
+    /**
+     * Captures the access token from the HTTP response when the OAuth provider token handshake occurs.
+     */
+    public function capture_token_from_response( $response, array $parsed_args, string $url ) {
+        if ( is_array( $response ) && isset( $response['body'] ) ) {
+            $body = json_decode( $response['body'], true );
+            if ( is_array( $body ) && ! empty( $body['access_token'] ) ) {
+                if ( str_contains( $url, '/oauth/token' ) || str_contains( $url, '/token' ) ) {
+                    self::$captured_token = $body['access_token'];
+                }
+            }
+        }
+        return $response;
     }
 
     /**
@@ -40,8 +58,13 @@ class OIDC_Login_Handler {
         $access_type = 'local';
         $section_ids = [];
 
-        if ( ! empty( $data['access_token'] ) ) {
-            $this->api_client->set_access_token( $data['access_token'] );
+        $token = $data['access_token'] ?? '';
+        if ( empty( $token ) ) {
+            $token = self::$captured_token;
+        }
+
+        if ( ! empty( $token ) ) {
+            $this->api_client->set_access_token( $token );
             $payload = $this->api_client->get_data_payload();
 
             if ( ! empty( $payload ) ) {
@@ -103,7 +126,7 @@ class OIDC_Login_Handler {
         if ( ! $user instanceof \WP_User ) {
             return;
         }
-        $this->maybe_link_explorer( $user );
+        $this->handle_osm_login( $user, $raw_user );
     }
 
     /**
