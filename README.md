@@ -105,6 +105,28 @@ docker-compose up -d
 
 ---
 
+## Configuration & API Options
+
+The plugin's behaviour can be customized by configuring options in the WordPress database. You can manage these settings via the WP Admin Settings page or directly using WP-CLI:
+
+| Option Key | Description | Allowed Values / Default |
+|---|---|---|
+| `ems_api_mode` | Controls the integration driver mode for Online Scout Manager (OSM). | `mock` (Default) \| `live` \| `live-auth-only` \| `live-limited` |
+| `ems_sync_limit` | Sets the member synchronization limit for the `live-limited` API mode. | `5` (Default) |
+| `ems_fluent_form_id` | Identifies the Fluent Forms signup form ID to hook for expedition signups. | `0` (Default) |
+
+### Changing Options via WP-CLI
+To configure the integration mode (for example, switching from `mock` to `live` data):
+```bash
+docker-compose run --rm wpcli option update ems_api_mode live
+```
+To set a specific Fluent Forms ID:
+```bash
+docker-compose run --rm wpcli option update ems_fluent_form_id 3
+```
+
+---
+
 ## Project Structure
 
 ```
