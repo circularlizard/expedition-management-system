@@ -24,6 +24,7 @@ class Plugin {
 
     private function init_hooks(): void {
         add_action( 'init', [ $this->cpt_registry, 'register' ] );
+        add_action( 'init', [ new \EMS\Core\Role_Manager(), 'register_roles' ] );
 
         $admin_page = new Admin_Page(
             new Diagnostic_Panel()
@@ -372,12 +373,14 @@ class Plugin {
 
     public static function activate(): void {
         ( new Table_Installer() )->install();
+        ( new \EMS\Core\Role_Manager() )->register_roles();
         update_option( 'ems_db_version', EMS_VERSION );
     }
 
     public static function maybe_upgrade(): void {
         if ( get_option( 'ems_db_version' ) !== EMS_VERSION ) {
             ( new Table_Installer() )->install();
+            ( new \EMS\Core\Role_Manager() )->register_roles();
             update_option( 'ems_db_version', EMS_VERSION );
         }
     }
