@@ -188,7 +188,7 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
             if ( $key === 'ems_osm_client_secret' ) return \EMS\Core\Encryption::encrypt( 'secret' );
             if ( $key === 'ems_osm_auth_url' ) return 'https://example.com/auth';
             if ( $key === 'ems_osm_token_url' ) return 'https://example.com/token';
-            if ( $key === 'ems_osm_scope' ) return 'section:member:read section:events:read';
+            if ( $key === 'ems_osm_scope' ) return 'section:member:read section:event:read';
             return $default;
         } );
 
@@ -200,6 +200,6 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
         $handler = new OSM_Sync_Auth_Handler();
         $handler->initiate();
 
-        $this->assertStringContainsString( urlencode( 'section:member:read section:events:read' ), $redirect_url );
+        $this->assertStringContainsString( urlencode( 'section:member:read section:event:read' ), $redirect_url );
     }
 }
