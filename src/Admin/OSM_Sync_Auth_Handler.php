@@ -46,7 +46,7 @@ class OSM_Sync_Auth_Handler {
             return;
         }
 
-        $scope = get_option( 'ems_osm_scope', 'section:member:read section:events:read section:flexirecord:read' );
+        $scope = get_option( 'ems_osm_scope', 'section:member:read section:event:read section:flexirecord:read' );
         $state = wp_create_nonce( 'ems_osm_sync' );
         $query = http_build_query( [
             'client_id'     => $this->client_id,

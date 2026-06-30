@@ -197,7 +197,7 @@ class Settings_Page {
         $token_url    = get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
         $resource_url = get_option( 'ems_osm_resource_url', 'https://www.onlinescoutmanager.co.uk/oauth/resource' );
         $client_id    = get_option( 'ems_osm_client_id', '' );
-        $scope        = get_option( 'ems_osm_scope', 'section:member:read section:events:read section:flexirecord:read' );
+        $scope        = get_option( 'ems_osm_scope', 'section:member:read section:event:read section:flexirecord:read' );
         $has_secret   = ! empty( get_option( 'ems_osm_client_secret' ) );
         $redirect_uri = admin_url( 'admin-post.php?action=ems_osm_callback' );
         ?>

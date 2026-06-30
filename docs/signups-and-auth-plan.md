@@ -13,9 +13,9 @@ EMS registers three custom WordPress roles programmatically on plugin activation
 
 | Role Slug | Display Name | Default Capabilities |
 |---|---|---|
-| `ems_parent` | ESU Parent | `read: true`, `access_ems_parent_portal: true` |
-| `ems_explorer` | ESU Explorer | `read: true`, `access_ems_explorer_portal: true` |
-| `ems_leader` | ESU Leader | `read: true`, `edit_posts: true` (limited), `access_ems_leader_portal: true` |
+| `ems_parent` | EMS Parent | `read: true`, `access_ems_parent_portal: true` |
+| `ems_explorer` | EMS Explorer | `read: true`, `access_ems_explorer_portal: true` |
+| `ems_leader` | EMS Leader | `read: true`, `edit_posts: true` (limited), `access_ems_leader_portal: true` |
 
 * **Implementation Class**: `EMS\Core\Role_Manager` registered under the `init` hook (or plugin activation hook).
 
