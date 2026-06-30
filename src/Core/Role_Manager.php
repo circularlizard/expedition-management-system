@@ -9,21 +9,21 @@ class Role_Manager {
     public function register_roles(): void {
         $roles = [
             'ems_parent' => [
-                'display_name' => 'EMS Parent',
+                'display_name' => 'ESU Parent',
                 'capabilities' => [
                     'read'                     => true,
                     'access_ems_parent_portal' => true,
                 ],
             ],
             'ems_explorer' => [
-                'display_name' => 'EMS Explorer',
+                'display_name' => 'ESU Explorer',
                 'capabilities' => [
                     'read'                       => true,
                     'access_ems_explorer_portal' => true,
                 ],
             ],
             'ems_leader' => [
-                'display_name' => 'EMS Leader',
+                'display_name' => 'ESU Leader',
                 'capabilities' => [
                     'read'                     => true,
                     'edit_posts'               => true,
