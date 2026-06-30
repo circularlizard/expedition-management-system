@@ -22,7 +22,7 @@ class Role_ManagerTest extends EMSTestCase {
         ( new Role_Manager() )->register_roles();
 
         $this->assertArrayHasKey( 'ems_parent', $added_roles );
-        $this->assertSame( 'ESU Parent', $added_roles['ems_parent']['display_name'] );
+        $this->assertSame( 'EMS Parent', $added_roles['ems_parent']['display_name'] );
         $this->assertTrue( $added_roles['ems_parent']['caps']['access_ems_parent_portal'] );
 
         $this->assertArrayHasKey( 'ems_explorer', $added_roles );
