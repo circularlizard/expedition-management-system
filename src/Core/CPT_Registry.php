@@ -8,6 +8,7 @@ class CPT_Registry {
             'public'       => false,
             'show_ui'      => true,
             'show_in_rest' => true,
+            'show_in_menu' => false,
             'menu_icon'    => 'dashicons-calendar-alt',
             'supports'     => [ 'title', 'custom-fields' ],
         ] );
@@ -17,6 +18,7 @@ class CPT_Registry {
             'public'       => true,
             'has_archive'  => false,
             'show_in_rest' => true,
+            'show_in_menu' => false,
             'menu_icon'    => 'dashicons-location-alt',
             'supports'     => [ 'title', 'editor', 'custom-fields', 'page-attributes' ],
         ] );
@@ -25,6 +27,7 @@ class CPT_Registry {
             'labels'       => [ 'name' => 'Teams', 'singular_name' => 'Team' ],
             'public'       => true,
             'show_in_rest' => true,
+            'show_in_menu' => false,
             'menu_icon'    => 'dashicons-groups',
             'supports'     => [ 'title', 'custom-fields', 'page-attributes' ],
         ] );

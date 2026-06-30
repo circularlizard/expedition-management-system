@@ -31,6 +31,7 @@ class Plugin {
         );
         add_action( 'admin_menu', [ $admin_page, 'register' ], 10 );
         add_action( 'admin_menu', [ $admin_page, 'register_explorers_menu' ], 11 );
+        add_action( 'admin_menu', [ $admin_page, 'register_volunteers_menu' ], 11 );
 
         add_action( 'admin_menu', [ $admin_page, 'register_reference_menu' ], 12 );
 
@@ -82,6 +83,9 @@ class Plugin {
                 new \EMS\Data\Team_Member_Repository()
             );
             $expedition_controller->register_routes();
+
+            $unit_leader_controller = new \EMS\Admin\Unit_Leader_Controller();
+            $unit_leader_controller->register_routes();
 
             register_rest_route( 'ems/v1', '/sync-status', [
                 'methods'             => 'GET',

@@ -163,6 +163,18 @@ class Table_Installer {
             KEY idx_section_id (section_id)
         ) {$charset};";
 
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
+            id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            unit_name         VARCHAR(100)    NOT NULL,
+            leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',
+            leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',
+            leader_email      VARCHAR(100)    NOT NULL DEFAULT '',
+            created_at        DATETIME        NOT NULL,
+            updated_at        DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_unit_name (unit_name)
+        ) {$charset};";
+
         return $sql;
     }
 
@@ -176,6 +188,7 @@ class Table_Installer {
             'osm_events'            => $wpdb->prefix . 'ems_osm_events',
             'osm_event_attendance'  => $wpdb->prefix . 'ems_osm_event_attendance',
             'osm_patrols'           => $wpdb->prefix . 'ems_osm_patrols',
+            'unit_leaders'          => $wpdb->prefix . 'ems_unit_leaders',
         ];
     }
 }
