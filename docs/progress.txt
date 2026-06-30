@@ -1,0 +1,14 @@
+EMS Signups & Auth Progress Report
+=================================
+
+Status: Spec 1 Completed
+Date: 2026-06-30
+
+Tasks Completed (Spec 1: WordPress User Roles & OIDC Mapping):
+1. Created Gherkin scenario behavioral specifications in `tests/features/auth-oidc-mapping.feature`.
+2. Created the `EMS\Core\Role_Manager` class to handle registering custom WordPress roles (`ems_parent`, `ems_explorer`, `ems_leader`) on plugin activation and alignment of capability settings on `init`.
+3. Extended the OIDC login handler (`EMS\Integrations\OIDC_Login_Handler`) to dynamically assign the correct user roles (`ems_parent` for parents, `ems_explorer` for members/explorers, and `ems_leader` for local logs/administered sections) upon OIDC authentication.
+4. Added validation logic in the OIDC login workflow to gracefully log warnings and abort role assignment if critical OSM payload fields (such as `member_access` or `globals`) are missing, protecting login stability.
+5. Implemented comprehensive PHPUnit test cases in `tests/Unit/Core/Role_ManagerTest.php` and `tests/Unit/Auth/OIDC_Login_HandlerTest.php` to verify all dynamic role assignments, default capability configurations, and malformed payload resilience.
+6. Verified that all 302 backend tests in the PHPUnit test suite pass successfully.
+7. Successfully built the frontend bundles and deployed the updated plugin files into the local WordPress environment via `bash bin/deploy.sh`.

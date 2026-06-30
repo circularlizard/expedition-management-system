@@ -21,6 +21,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
 
         $this->user     = Mockery::mock( \WP_User::class );
         $this->user->ID = 42;
+        $this->user->shouldReceive( 'set_role' )->byDefault();
     }
 
     protected function tearDown(): void {
@@ -238,6 +239,99 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
         $integration->handle_user_created( 99, new \stdClass() );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_osm_login_assigns_ems_parent_role_for_parent_payload(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'parent' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( [] );
+
+        $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_parent' );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_osm_login_assigns_ems_explorer_role_for_member_payload(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'member' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( [] );
+
+        $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_explorer' );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_osm_login_assigns_ems_leader_role_for_local_payload(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'local' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( [] );
+
+        $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_leader' );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_osm_login_aborts_role_assignment_on_malformed_payload(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        $raw_payload = [
+            'data' => [
+                // globals missing
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->user->shouldReceive( 'set_role' )->never();
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
         $this->addToAssertionCount( 1 );
     }
 }

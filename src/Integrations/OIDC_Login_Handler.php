@@ -37,14 +37,28 @@ class OIDC_Login_Handler {
 
         update_user_meta( $user->ID, 'ems_unit', $data['patrol'] ?? '' );
 
+        $access_type = 'local';
+        $section_ids = [];
+
         if ( ! empty( $data['access_token'] ) ) {
             $this->api_client->set_access_token( $data['access_token'] );
             $payload = $this->api_client->get_data_payload();
 
             if ( ! empty( $payload ) ) {
-                update_user_meta( $user->ID, 'ems_access_type', $this->parser->parse_access_type( $payload ) );
-                update_user_meta( $user->ID, 'ems_scout_ids',   $this->parser->parse_scout_ids( $payload ) );
-                update_user_meta( $user->ID, 'ems_section_ids', $this->parser->parse_section_ids( $payload ) );
+                // Validation: Check for globals & member_access
+                if ( ! isset( $payload['data']['globals'] ) || ! isset( $payload['data']['globals']['member_access'] ) ) {
+                    error_log( '[EMS] OIDC Omit: payload is missing critical globals or member_access fields' );
+                    $this->maybe_link_explorer( $user );
+                    return;
+                }
+
+                $access_type = $this->parser->parse_access_type( $payload );
+                $scout_ids   = $this->parser->parse_scout_ids( $payload );
+                $section_ids = $this->parser->parse_section_ids( $payload );
+
+                update_user_meta( $user->ID, 'ems_access_type', $access_type );
+                update_user_meta( $user->ID, 'ems_scout_ids',   $scout_ids );
+                update_user_meta( $user->ID, 'ems_section_ids', $section_ids );
 
                 $children = $this->parser->parse_children( $payload );
                 if ( ! empty( $children ) ) {
@@ -56,7 +70,26 @@ class OIDC_Login_Handler {
             update_user_meta( $user->ID, 'ems_access_type', 'local' );
         }
 
+        $this->assign_user_role( $user, $access_type, $section_ids );
         $this->maybe_link_explorer( $user );
+    }
+
+    /**
+     * Assigns the appropriate custom WordPress role to the user based on access type and section IDs.
+     */
+    private function assign_user_role( \WP_User $user, string $access_type, array $section_ids ): void {
+        $target_role = '';
+        if ( $access_type === 'member' ) {
+            $target_role = 'ems_explorer';
+        } elseif ( $access_type === 'parent' ) {
+            $target_role = 'ems_parent';
+        } elseif ( $access_type === 'local' || ! empty( $section_ids ) ) {
+            $target_role = 'ems_leader';
+        }
+
+        if ( ! empty( $target_role ) ) {
+            $user->set_role( $target_role );
+        }
     }
 
     /**
