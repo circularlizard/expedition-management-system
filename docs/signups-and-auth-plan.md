@@ -52,6 +52,7 @@ After resolving the access type and relationships:
    * If `ems_access_type === 'parent'` $\rightarrow$ Add `ems_parent` role to user; remove other subscriber roles.
    * If `ems_access_type === 'local'` or the user has a non-empty list of administered section IDs in `ems_section_ids` $\rightarrow$ Add `ems_leader` role.
 2. **Persistence**: Call `$user->set_role( $target_role )` or `$user->add_role( $target_role )` securely.
+3. **Payload Validation**: If critical fields (such as `member_access` or `globals`) are missing from the Online Scout Manager payload, EMS must gracefully log a warning and abort the role assignment rather than disrupting the OIDC login process or throwing hard exceptions.
 
 ---
 
@@ -77,6 +78,9 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
 * **Data Source**: The list of available `unit_name`s is seeded from synced OSM patrol names (`patrol` column in `ems_osm_explorers`).
 * **Form Integration**: The ESU/Unit selection options in the Fluent Forms chained select fields (District $\rightarrow$ Unit) are statically hardcoded in the form configuration (since ESU names change infrequently). These options must strictly match the ESU/patrol names from OSM reference data to ensure consistency. The `ems_unit_leaders` mapping table is used solely in the backend to look up the unit leader name and email matching the submitted ESU/Unit value.
 * **Admin UI**: A tab under Settings or Reference page where admins can view ESU units and assign a leader's name and email.
+* **Validation Rules**:
+  * **Email Validation**: Validate that leader email addresses match standard format constraints on creation/update.
+  * **Unit Validation**: Ensure the `unit_name` is unique and matches a synced patrol/unit name in the database.
 
 ---
 
@@ -116,7 +120,11 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
    * Determine the explorer's ESU/Unit (either from the form selection or looking up the `ems_osm_explorers` patrol field using `scout_id`).
    * Query `ems_unit_leaders` where `unit_name = $unit_name` to get the leader's email.
 5. **Write Signup**: Insert/update the row in the `ems_signups` table.
-6. **Dummy Notifications**: Send transaction notifications using standard `wp_mail()`:
+6. **Payload Validation Rules**:
+   * **Authentication**: Check that the parent submitting the form is authenticated and matches the logged-in user.
+   * **DofE Level Validation**: Validate that the submitted `dofe_level` is strictly one of `'bronze'`, `'silver'`, or `'gold'`.
+   * **Scout ID Validation**: If a `scout_id` is submitted, validate that it exists in the `ems_osm_explorers` table.
+7. **Dummy Notifications**: Send transaction notifications using standard `wp_mail()`:
    * **Parent Email**: Confirming signup and payment status.
    * **Explorer Email**: Confirming preferences received.
    * **Leader Email**: Notifies the unit leader that an explorer signed up, requesting them to check OSM and confirm the unit profile share.
@@ -153,6 +161,9 @@ Reconciliation runs through these ordered priority paths:
 * `GET ems/v1/signups`: Lists all signup records with resolved explorer names, emails, and linked status.
 * `POST ems/v1/signups/{id}/reconcile`: Manually links a signup to a specific `scout_id`.
   * **Linkage Rule**: Confirming a manual link updates `ems_signups.scout_id` to link the signup record, but **does not** dynamically rewrite the parent user's WordPress metadata. We rely strictly on the next parent OIDC login hydration call to pull parent-child links from OSM globals (Option B).
+  * **Validation Rules**:
+    * Verify that both the signup record (`id`) and the target `scout_id` exist.
+    * Prevent linking/reconciliation actions if the signup record's status is already marked as `'processed'`.
 * `POST ems/v1/signups/{id}/process`: Marks a signup as `processed` (completed back-office allocation).
 
 #### 3. Administrative Interface (React)
@@ -182,22 +193,37 @@ gantt
 ```
 
 ### Phase 1 — WP User Roles & OIDC Mapping
-1. Register custom roles (`ems_parent`, `ems_explorer`, `ems_leader`) on plugin activation.
-2. Extend `OIDC_Login_Handler` to assign correct role on successful login based on `ems_access_type`.
-3. **Tests**: Assert correct roles assigned on login hook; verify default capabilities.
+1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/auth-oidc-mapping.feature` defining OIDC role resolution (e.g. `ems_parent` deduplication, `ems_leader` section matching) and validation failure conditions.
+2. **Implementation**:
+   * Register custom roles (`ems_parent`, `ems_explorer`, `ems_leader`) on plugin activation via `EMS\Core\Role_Manager`.
+   * Extend `OIDC_Login_Handler` to assign the target role on successful login based on `ems_access_type`.
+3. **Tests**:
+   * Implement `tests/features/auth-oidc-mapping.feature` scenarios using PHPUnit/Brain Monkey stubs to assert roles are correctly assigned on login hooks, metadata is mapped correctly, capabilities are set, and OIDC payloads with missing critical fields log a warning without interrupting the OIDC login process.
 
 ### Phase 2 — Unit Leader Directory
-1. Migration to create the `ems_unit_leaders` table.
-2. Provide CRUD repository methods and simple REST endpoints for mapping.
-3. **Tests**: DB schema verification, mapping CRUD operations.
+1. **Behavioral Design (TDD)**: Define repository contract expectations for unit leader CRUD operations.
+2. **Implementation**:
+   * Execute migration to create the `ems_unit_leaders` table.
+   * Provide CRUD repository methods and simple REST endpoints for managing mapping entries.
+3. **Tests**:
+   * Write database unit tests in `tests/Unit/Data/Unit_Leader_RepositoryTest.php` to verify table schema, unique keys on `unit_name`, and CRUD helper methods.
+   * Verify email format validation and uniqueness check for `unit_name` on save.
 
-### Phase 3 — Fluent Forms Sync Engine
-1. Migration to create `ems_signups` table.
-2. Add Fluent Forms submission hook (`fluentform/submission_inserted`) and entry parsing logic.
-3. Hook unit leader email lookup and trigger dummy emails using `wp_mail`.
-4. **Tests**: Stub Fluent Forms hooks, verify parser handles hidden fields, emails matched, DB rows written correctly.
+### Phase 3 — Fluent Forms Sync Engine & CPTs
+1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/signup-fluentforms-sync.feature` representing signup form submissions.
+2. **Implementation**:
+   * Execute migration to create `ems_signups` table.
+   * Update custom post type registrations (`season`, `expedition`, `team`) in `CPT_Registry` to set `'show_in_menu' => false`.
+   * Bind callback to `fluentform/submission_inserted` to extract signup info, validate user permission, validate the `dofe_level` parameter, ensure `scout_id` is verified, look up unit leader mappings, and insert/update `ems_signups`.
+3. **Tests**:
+   * **PHPUnit (CPT Config)**: Implement tests in `tests/Unit/Core/CPT_RegistryTest.php` asserting that `register_post_type` calls for `season`, `expedition`, and `team` receive `'show_in_menu' => false`.
+   * **PHPUnit (Forms Sync)**: Implement `tests/features/signup-fluentforms-sync.feature` to test parent user matching validation, `dofe_level` range validations, existing `scout_id` checks, repository storage, and `wp_mail` lookup notifications.
 
 ### Phase 4 — Admin Signups Board & Reconciliation UI
-1. Create REST endpoints for listings and manual linking.
-2. Create React Admin Component for "Sign Ups" tab, rendering the reconciliation workflow.
-3. **Tests**: API response shape, Vitest rendering of unlinked/proposed states, manual linking actions.
+1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/admin-reconciliation.feature` covering REST API requests and manual linking constraints.
+2. **Implementation**:
+   * Implement REST endpoints for `/signups` listing and `/reconcile` / `/process` actions.
+   * Create React Admin Component for "Sign Ups" tab, rendering the reconciliation workflow.
+3. **Tests**:
+   * **API Integration Tests**: Implement `tests/features/admin-reconciliation.feature` scenarios verifying `/reconcile` validates signup & `scout_id` existence, blocks reconciliation of already `'processed'` signups, and validates fuzzy matching query logic.
+   * **UI Vitest Tests**: Write tests in `tests/js/AdminSignupsBoard.test.tsx` verifying component renders "Unlinked" and "Proposed Link" statuses, triggers manual search dialogs, and fires action API endpoints appropriately.
