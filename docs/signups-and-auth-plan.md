@@ -40,6 +40,18 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
   * **Email Validation**: Validate that leader email addresses match standard format constraints on creation/update.
   * **Unit Validation**: Ensure the `unit_name` is unique and matches a synced patrol/unit name in the database.
 
+#### 2. WP Admin Menu Restructuring
+Modify the WordPress Admin menu structure according to the PRD Stage 4 layout to group EMS features cleanly:
+* **ESM** (Parent Menu)
+  * **Expeditions** (Calendar, Team set up, Expedition Detail, Explorers' Preferences)
+  * **Explorers** (Sign Ups, Explorer view, Training view)
+  * **Volunteers** (Sign Ups, Expedition Assignment)
+  * **OSM Sync** (OSM data, Flexi record mapping, Sync manager, Account reconciliation)
+  * **Settings** (OAuth settings, Unit Leader mappings)
+
+#### 3. Custom Post Type Menu Hiding
+Update custom post type registrations (`season`, `expedition`, `team`) in `CPT_Registry` to set `'show_in_menu' => false` to prevent duplicate menu entries in the WordPress admin sidebar, routing their management strictly through the custom ESM submenus.
+
 ---
 
 ### Spec 3: Signup Data Model & Fluent Forms Sync
@@ -153,23 +165,25 @@ gantt
 ### [x] Phase 1 — WP User Roles & OIDC Mapping (Completed)
 Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md) for details.
 
-### Phase 2 — Unit Leader Directory
-1. **Behavioral Design (TDD)**: Define repository contract expectations for unit leader CRUD operations.
+### Phase 2 — Unit Leader Directory & Admin Menus
+1. **Behavioral Design (TDD)**: Define repository contract expectations for unit leader CRUD operations, and define admin menu structure registration assertions.
 2. **Implementation**:
    * Execute migration to create the `ems_unit_leaders` table.
    * Provide CRUD repository methods and simple REST endpoints for managing mapping entries.
+   * Update custom post type registrations (`season`, `expedition`, `team`) in `CPT_Registry` to set `'show_in_menu' => false`.
+   * Restructure the WP admin menus to follow the `ESM` parent and nested submenu layout.
 3. **Tests**:
    * Write database unit tests in `tests/Unit/Data/Unit_Leader_RepositoryTest.php` to verify table schema, unique keys on `unit_name`, and CRUD helper methods.
    * Verify email format validation and uniqueness check for `unit_name` on save.
+   * Implement PHPUnit tests in `tests/Unit/Core/CPT_RegistryTest.php` asserting that `register_post_type` calls for `season`, `expedition`, and `team` receive `'show_in_menu' => false`.
+   * Add tests verifying the correct hierarchy of registered admin menus and submenus.
 
-### Phase 3 — Fluent Forms Sync Engine & CPTs
+### Phase 3 — Fluent Forms Sync Engine
 1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/signup-fluentforms-sync.feature` representing signup form submissions.
 2. **Implementation**:
    * Execute migration to create `ems_signups` table.
-   * Update custom post type registrations (`season`, `expedition`, `team`) in `CPT_Registry` to set `'show_in_menu' => false`.
    * Bind callback to `fluentform/submission_inserted` to extract signup info, validate user permission, validate the `dofe_level` parameter, ensure `scout_id` is verified, look up unit leader mappings, and insert/update `ems_signups`.
 3. **Tests**:
-   * **PHPUnit (CPT Config)**: Implement tests in `tests/Unit/Core/CPT_RegistryTest.php` asserting that `register_post_type` calls for `season`, `expedition`, and `team` receive `'show_in_menu' => false`.
    * **PHPUnit (Forms Sync)**: Implement `tests/features/signup-fluentforms-sync.feature` to test parent user matching validation, `dofe_level` range validations, existing `scout_id` checks, repository storage, and `wp_mail` lookup notifications.
 
 ### Phase 4 — Admin Signups Board & Reconciliation UI
