@@ -23,7 +23,7 @@ class Training_Report_Page {
         add_action( 'admin_init', [ $this, 'maybe_export_csv' ] );
 
         add_submenu_page(
-            'ems',
+            null,
             'Training Report',
             'Training Report',
             'manage_options',

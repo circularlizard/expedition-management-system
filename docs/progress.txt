@@ -1,8 +1,18 @@
 EMS Signups & Auth Progress Report
 =================================
 
-Status: Spec 1 Completed
-Date: 2026-06-30
+Status: Spec 2 Completed
+Date: 2026-07-01
+
+Tasks Completed (Spec 2: Unit Leader Mapping Directory & Admin Menus):
+1. Created the `ems_unit_leaders` database migration inside `EMS\Core\Table_Installer` and registered the table structure.
+2. Created the `EMS\Data\Unit_Leader_Repository` class for CRUD access and database interactions with uniqueness and active patrol validation.
+3. Created the `EMS\Admin\Unit_Leader_Controller` and registered REST API routes for listing, creating, updating, and deleting unit leaders (`ems/v1/unit-leaders`).
+4. Re-organized custom post types (`season`, `expedition`, `team`) to hide from the default sidebar menus (`show_in_menu => false`).
+5. Restructured the WordPress Admin menu structure according to PRD Stage 4 layout under the parent `EMS` menu.
+6. Hid secondary views (`ems-column-mapper` and `ems-training-report`) from sidebar menus by registering them with parent_slug `null`.
+7. Wrote comprehensive PHPUnit test cases in `tests/Unit/Data/Unit_Leader_RepositoryTest.php`, `tests/Unit/Admin/Unit_Leader_ControllerTest.php`, and `tests/Unit/Admin/Admin_PageTest.php` to achieve full test coverage.
+8. Successfully deployed assets to local WordPress environment via `bash bin/deploy.sh`.
 
 Tasks Completed (Spec 1: WordPress User Roles & OIDC Mapping):
 1. Created Gherkin scenario behavioral specifications in `tests/features/auth-oidc-mapping.feature`.
