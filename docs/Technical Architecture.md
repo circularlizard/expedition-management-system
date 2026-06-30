@@ -66,7 +66,7 @@ This document outlines the key architectural decisions and foundational assumpti
 - **Scope**: `@wordpress/components` is used **exclusively in the WP Admin Dashboard**. It is not used in frontend portal SPAs (those use Elementor CSS variables — see ADR 003).
 - **Version Pinning**: `@wordpress/components` must be pinned to a specific minor version in `package.json`. It is not a stable API — WP major releases introduce deprecations and component API changes. Audit deprecation notices before each WP major upgrade on staging.
 - **Key Management Views**:
-    - **Reconciliation Dashboard**: A real-time comparison tool for Gravity Forms vs. OSM records.
+    - **Reconciliation Dashboard**: A real-time comparison tool for Fluent Forms vs. OSM records.
     - **Team Builder**: A drag-and-drop interface for moving Explorers between expeditions and teams.
     - **Volunteer Command Center**: A grid view for confirming volunteers and managing seasonal availability.
     - **Reporting Engine**: Visualizations for training status and route planning progress.
@@ -155,7 +155,7 @@ graph TD
     subgraph External_Systems
         OSM[(Online Scout Manager)]
         TutorLMS[Tutor LMS API]
-        GF[Gravity Forms DB]
+        FF[Fluent Forms DB]
     end
 
     AdminUI --> REST

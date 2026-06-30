@@ -1,0 +1,203 @@
+# EMS Signups and Authentication — Implementation Plan
+
+This document defines the plan and technical specifications for implementing custom WordPress user roles, mapping these roles on OIDC login, setting up the Fluent Forms signup sync engine with a Unit Leader directory, and building the Admin Signups & Reconciliation Board.
+
+---
+
+## Technical Specifications
+
+### Spec 1: WordPress User Roles & OIDC Mapping
+
+#### 1. Custom Roles Registration
+EMS registers three custom WordPress roles programmatically on plugin activation (and checks for alignment if they already exist):
+
+| Role Slug | Display Name | Default Capabilities |
+|---|---|---|
+| `ems_parent` | ESU Parent | `read: true`, `access_ems_parent_portal: true` |
+| `ems_explorer` | ESU Explorer | `read: true`, `access_ems_explorer_portal: true` |
+| `ems_leader` | ESU Leader | `read: true`, `edit_posts: true` (limited), `access_ems_leader_portal: true` |
+
+* **Implementation Class**: `EMS\Core\Role_Manager` registered under the `init` hook (or plugin activation hook).
+
+#### 2. Dynamic OIDC Role Assignment & Relationship Mapping
+
+##### A. Dynamic Hydration Flow (Post-Login)
+1. **Identity Authentication**: The standard OIDC handshake handles initial Google identity login, verifying the email address and returning a temporary `access_token` (gated in the `login-with-google` plugin).
+2. **OSM Hydration Call**: On the hook `rtcamp.google_user_logged_in`, the EMS plugin triggers a secondary backend API call using this `access_token` to Online Scout Manager's `getDataPayload` endpoint (startup API - `ext/generic/startup/`). This returns the rich OSM context payload (as seen in `mockdata/getDataPayload.json`).
+3. **Context Parsing**: The response is processed by `OSM_Parser` to extract the user's roles, section permissions, member access details, and child relationships before discarding the `access_token`.
+
+##### B. How Access Type is Determined
+The user's `ems_access_type` is determined by scanning the nested `member_access` block under `$payload['data']['globals']['member_access']`:
+* Inside `OSM_Parser::parse_access_type()`, the code iterates over all sections, and then through each member block under `members`.
+* It extracts the `access_type` key from the member records (e.g., returns `'member'` for explorers, `'parent'` for parents, or `'local'`/`'leader'` configurations).
+* The resolved string is saved in the WordPress user's meta under `ems_access_type`.
+
+##### C. How Parent-Explorer Relationships are Parsed & Stored
+Since an individual child explorer may appear under multiple sections in the `member_access` structure (e.g. in `data.globals.member_access.{section_id}.members.{scout_id}` as shown in `mockdata/getDataPayload.json`), the parser deduplicates children and aggregates their sections:
+1. **Deduplication Rules**:
+   * Scans each section under the `member_access` object.
+   * For each member under `members` (keyed by `scout_id`), it filters for rows where `access_type === 'parent'`.
+   * Deduplicates by the unique explorer `scout_id`.
+   * For duplicate explorer IDs across multiple sections, it merges all unique `section_id`s into a single `section_ids` array.
+2. **Metadata Storage**: Saves the resolved child mapping to:
+   * **`ems_children`**: A serialized array of deduplicated child objects.
+     * Structure: `[ { scout_id: 30001, first_name: "Child", last_name: "One", section_ids: [99001, 99002] }, ... ]`
+   * **`ems_scout_ids`**: A simple flat array of unique child IDs: `[30001, 30002]`.
+3. **Portal Usage**: The Parent Portal SPA reads the parent's `ems_children` meta to render child selectors, and pre-populates the correct child `scout_id` as a hidden field in the Fluent Form when initiating a signup.
+
+##### C. Role Mapping & Persistence
+After resolving the access type and relationships:
+1. **Mapping Logic**:
+   * If `ems_access_type === 'member'` $\rightarrow$ Add `ems_explorer` role to user; remove default `subscriber` or other non-EMS member roles.
+   * If `ems_access_type === 'parent'` $\rightarrow$ Add `ems_parent` role to user; remove other subscriber roles.
+   * If `ems_access_type === 'local'` or the user has a non-empty list of administered section IDs in `ems_section_ids` $\rightarrow$ Add `ems_leader` role.
+2. **Persistence**: Call `$user->set_role( $target_role )` or `$user->add_role( $target_role )` securely.
+
+---
+
+### Spec 2: Unit Leader Mapping Directory
+
+To route sign-up notifications and requests for OSM sharing to the correct ESU (Explorer Scout Unit) leaders, EMS maintains a local directory mapping.
+
+#### 1. Database Table: `ems_unit_leaders`
+```sql
+CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    unit_name         VARCHAR(100)    NOT NULL,
+    leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',
+    leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',
+    leader_email      VARCHAR(100)    NOT NULL DEFAULT '',
+    created_at        DATETIME        NOT NULL,
+    updated_at        DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY idx_unit_name (unit_name)
+) {$charset};
+```
+
+* **Data Source**: The list of available `unit_name`s is seeded from synced OSM patrol names (`patrol` column in `ems_osm_explorers`).
+* **Form Integration**: The ESU/Unit selection options in the Fluent Forms chained select fields (District $\rightarrow$ Unit) are statically hardcoded in the form configuration (since ESU names change infrequently). These options must strictly match the ESU/patrol names from OSM reference data to ensure consistency. The `ems_unit_leaders` mapping table is used solely in the backend to look up the unit leader name and email matching the submitted ESU/Unit value.
+* **Admin UI**: A tab under Settings or Reference page where admins can view ESU units and assign a leader's name and email.
+
+---
+
+### Spec 3: Signup Data Model & Fluent Forms Sync
+
+Parents submit a Fluent Form to sign up their child for a DofE level and expedition. EMS hooks this submission, parses it, and creates a normalized relational record.
+
+#### 1. Database Table: `ems_signups`
+```sql
+CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
+    id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    scout_id               BIGINT UNSIGNED          DEFAULT NULL,
+    parent_user_id         BIGINT UNSIGNED NOT NULL,
+    dofe_level             VARCHAR(20)     NOT NULL, -- 'bronze' | 'silver' | 'gold'
+    expedition_preferences TEXT                     DEFAULT NULL, -- JSON string (dates, transport type, etc.)
+    first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
+    signup_status          VARCHAR(30)     NOT NULL DEFAULT 'pending', -- 'pending' | 'processed'
+    payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending', -- 'pending' | 'paid' | 'exempt'
+    form_submission_id     BIGINT UNSIGNED NOT NULL,
+    created_at             DATETIME        NOT NULL,
+    updated_at             DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_scout_id (scout_id),
+    KEY idx_parent_user_id (parent_user_id)
+) {$charset};
+```
+
+#### 2. Fluent Forms Sync Integration Flow
+1. **Hooks**: 
+   * **Signup Creation**: Register a callback on `fluentform/submission_inserted` (fired when a form is submitted). Creates the signup row in `ems_signups` with initial metadata and sets the transaction status.
+   * **Payment Processing**: Register callbacks on Fluent Forms payment status change events (e.g. `fluentform/payment_status_updated`). On receipt of payment webhook, dynamically update the `payment_status` column in `ems_signups` (e.g. to `'paid'`).
+2. **Form Verification**: Retrieve the form ID from the entry and verify it matches the configuration WP option `ems_fluent_form_id`.
+3. **Pre-population & Parsing Payload**:
+   * **Pre-population**: If the parent portal opens the form for an existing synced child, the form template pre-populates the child's `scout_id` (hidden field) and automatically selects their home ESU/Unit based on the child's `patrol` field in `ems_osm_explorers`.
+   * **Parse**: Extract `scout_id`, parent `user_id` (from `get_current_user_id()`), DofE level, expedition date/transport preferences, first aid status, and initial payment status.
+4. **Leader Lookup**:
+   * Determine the explorer's ESU/Unit (either from the form selection or looking up the `ems_osm_explorers` patrol field using `scout_id`).
+   * Query `ems_unit_leaders` where `unit_name = $unit_name` to get the leader's email.
+5. **Write Signup**: Insert/update the row in the `ems_signups` table.
+6. **Dummy Notifications**: Send transaction notifications using standard `wp_mail()`:
+   * **Parent Email**: Confirming signup and payment status.
+   * **Explorer Email**: Confirming preferences received.
+   * **Leader Email**: Notifies the unit leader that an explorer signed up, requesting them to check OSM and confirm the unit profile share.
+
+---
+
+### Spec 4: Admin Signups Board & Reconciliation
+
+Admin dashboards require a unified screen to review Fluent Forms signup data, verify them against OSM reference data, and link them together.
+
+#### 1. Identity Linkage Model
+To connect submissions generated by Fluent Forms with existing OSM Explorer records:
+
+```mermaid
+graph TD
+    FF[Fluent Forms Signup Submission] -->|Parsed & Sync'd| SU[(ems_signups Table)]
+    OSM[OSM API Sync] -->|Upserted Reference| EXP[(ems_osm_explorers Table)]
+    WP[OIDC Login] -->|OIDC User Account| WPUSR[(wp_users Table)]
+
+    SU -->|1. scout_id Hidden Match| EXP
+    SU -.->|2. Fuzzy Matching: Email / Name| EXP
+    EXP -->|wp_user_id| WPUSR
+```
+
+Reconciliation runs through these ordered priority paths:
+1. **Direct Match (Hidden Scout ID)**: If the form is submitted via the Parent Portal, the form embeds the child's `scout_id` as a hidden field. This connects the signup row directly to `ems_osm_explorers.scout_id` with 100% confidence.
+2. **Fuzzy Match (Email / Name)**: If `scout_id` is null or zero (e.g., a new recruit signup not yet synced in OSM):
+   * Search `ems_osm_explorers` for a row matching the explorer's email address (case-insensitive).
+   * If email is missing/blank, search by `first_name` and `last_name` combination.
+   * If a match is found, show it as a **"Proposed Link"** on the admin dashboard.
+3. **Unlinked (New Recruit)**: If no match is found, flag the signup as "New / Unlinked". The admin cannot process this signup until the explorer is created/synced in OSM.
+
+#### 2. REST API Endpoints
+* `GET ems/v1/signups`: Lists all signup records with resolved explorer names, emails, and linked status.
+* `POST ems/v1/signups/{id}/reconcile`: Manually links a signup to a specific `scout_id`.
+  * **Linkage Rule**: Confirming a manual link updates `ems_signups.scout_id` to link the signup record, but **does not** dynamically rewrite the parent user's WordPress metadata. We rely strictly on the next parent OIDC login hydration call to pull parent-child links from OSM globals (Option B).
+* `POST ems/v1/signups/{id}/process`: Marks a signup as `processed` (completed back-office allocation).
+
+#### 3. Administrative Interface (React)
+A new "Sign Ups" tab is registered in the Explorer View SPA in the WP Admin Dashboard:
+* Displays a table of all sign-ups from `ems_signups`.
+* For linked signups: Show explorer name, level, first aid, ESU unit, and a tick mark.
+* For proposed/unlinked signups: Renders a warning badge and a "Link Explorer" button opening a search dialog to reconcile manually.
+* Filter controls for: Level (Bronze/Silver/Gold), Status (Pending/Processed), ESU/Unit, and Matching Status (Linked/Proposed/Unlinked).
+* Batch Action: "Mark Selected as Processed".
+
+---
+
+## Sequencing Recommendation & Phases
+
+```mermaid
+gantt
+    title EMS Signups & Auth Implementation Phases
+    dateFormat  YYYY-MM-DD
+    section Phase 1
+    Auth Roles & OIDC Mapping       :active, p1, 2026-07-01, 3d
+    section Phase 2
+    Unit Leader Directory Mapping    : p2, after p1, 3d
+    section Phase 3
+    Fluent Forms Sync Engine & CPTs  : p3, after p2, 5d
+    section Phase 4
+    Admin Signups & Reconciliation Board: p4, after p3, 5d
+```
+
+### Phase 1 — WP User Roles & OIDC Mapping
+1. Register custom roles (`ems_parent`, `ems_explorer`, `ems_leader`) on plugin activation.
+2. Extend `OIDC_Login_Handler` to assign correct role on successful login based on `ems_access_type`.
+3. **Tests**: Assert correct roles assigned on login hook; verify default capabilities.
+
+### Phase 2 — Unit Leader Directory
+1. Migration to create the `ems_unit_leaders` table.
+2. Provide CRUD repository methods and simple REST endpoints for mapping.
+3. **Tests**: DB schema verification, mapping CRUD operations.
+
+### Phase 3 — Fluent Forms Sync Engine
+1. Migration to create `ems_signups` table.
+2. Add Fluent Forms submission hook (`fluentform/submission_inserted`) and entry parsing logic.
+3. Hook unit leader email lookup and trigger dummy emails using `wp_mail`.
+4. **Tests**: Stub Fluent Forms hooks, verify parser handles hidden fields, emails matched, DB rows written correctly.
+
+### Phase 4 — Admin Signups Board & Reconciliation UI
+1. Create REST endpoints for listings and manual linking.
+2. Create React Admin Component for "Sign Ups" tab, rendering the reconciliation workflow.
+3. **Tests**: API response shape, Vitest rendering of unlinked/proposed states, manual linking actions.
