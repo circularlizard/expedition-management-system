@@ -173,22 +173,36 @@ Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Use
 1. **Behavioral Design (TDD)**: Gherkin scenarios written in `tests/features/signup-fluentforms-sync.feature` covering child dropdown pre-population, valid form submission, parent ownership validation, and payment status updates.
 2. **Implementation**:
    * Migrated `ems_signups` table via `EMS\Core\Table_Installer`.
-   * Implemented `EMS\Integrations\Fluent_Forms_Sync` with hooks:
+   * Implemented `EMS\Integrations\Fluent_Forms_Sync` with seven FF hooks:
      - `fluentform/rendering_field_data_select` — populates `signup_child` dropdown from `ems_children` user meta.
      - `fluentform/validate_input_item_select` — bypasses Fluent Forms' strict value-matching for dynamic choices.
      - `fluentform/validation_errors` — enforces parent ownership of `scout_id` and valid `dofe_level`.
      - `fluentform/submission_inserted` — extracts fields via `ems_form_mappings` config, resolves `unit_id` from `ems_units`, and calls `Signup_Repository::create_signup()`.
      - `fluentform/after_payment_status_change` — maps `paid`/`succeeded` → `'paid'`; all else → `'pending'`; includes idempotency guard.
-     - `fluentform/before_form_render` — enqueues inline JS that syncs the unit dropdown when the child selector changes.
-   * Client-side unit sync script: reads child→unit mapping from PHP-rendered `window.emsFormMappings`. Uses `jQuery(el).data('choicesjs')` (the correct Fluent Forms Choices.js instance key) with a 3 s polling retry to handle the `fluentform_init` timing race. Falls back to native `<select>` assignment if Choices.js is not present.
+     - `fluentform/before_form_render` — enqueues inline JS that syncs unit + email fields when the child selector changes.
+     - `fluentform/rendering_field_data_input_email` × 3 — pre-populates hidden email fields on form render (see below).
+   * **Email notifications via Fluent Forms' built-in notification system** (no `wp_mail` calls from EMS):
+     EMS pre-populates three hidden email fields so the FF notification system can address emails to the correct recipients without EMS needing its own mail logic. The fields are:
+
+     | Field | Source | Notes |
+     |---|---|---|
+     | `signup_parent_email` | WP user account email | Always available |
+     | `signup_explorer_email` | `ems_osm_explorers.email` via `scout_id` | Left empty if child not yet synced — no API call made |
+     | `signup_leader_email` | `ems_units.leader_email` for resolved unit | Left empty if no unit mapping exists |
+
+     All three are set server-side on render and updated client-side (JS `updateUnit()`) when the parent changes the child selector, so recipient addresses always track the selected child. Admins configure FF notification rules to use `{signup_parent_email}`, `{signup_explorer_email}`, and `{signup_leader_email}` as recipient smart tags.
+   * Client-side sync script (`window.emsFormMappings`): includes `unitCode`, `unitId`, `explorerEmail`, and `leaderEmail` per child. Uses `jQuery(el).data('choicesjs')` (the correct Fluent Forms Choices.js key) with a 3 s polling retry for the `fluentform_init` timing race. Falls back to native `<select>` assignment if Choices.js is absent.
    * Implemented `EMS\Data\Signup_Repository` with `create_signup()`, `get_signup()`, `get_signup_by_submission_id()`, `update_payment_status_by_submission_id()`, and `get_all_signups()`.
-   * Implemented `EMS\Data\Unit_Repository` with `get_unit_by_section_id()` for child→unit resolution.
-3. **Tests** (323 total, all green):
-   * `tests/Unit/Integrations/Fluent_Forms_SyncTest.php` — 8 tests covering dropdown injection, validation, submission handling, and all payment-status mapping paths (paid, succeeded alias, processing→pending, idempotency guard).
+   * `resolve_unit_for_child()` extended to SELECT and return `leader_email` alongside `short_code` and `unit_id`.
+3. **Tests** (13 in suite, all green):
+   * `tests/Unit/Integrations/Fluent_Forms_SyncTest.php` — 13 tests covering: dropdown injection, validation, submission (no `wp_mail`), parent/explorer/leader email population, and all payment-status mapping paths (paid, succeeded alias, processing→pending, idempotency guard).
    * `tests/Unit/Data/Signup_RepositoryTest.php` — covers create, get, update payment status.
 4. **Bug Fixes Applied**:
-   * **Choices.js sync**: Previous code used `el.choicesInstance` (a DOM property that is always `undefined`). Fixed to use `jQuery(el).data('choicesjs')` — the actual key Fluent Forms uses — with a 100 ms polling loop (3 s max) to handle the `fluentform_init` timing race.
-   * **Payment status mapping**: `completed` was dead code (never sent by Fluent Forms). Fixed map: `paid` + `succeeded` → `'paid'`; all other statuses → `'pending'`. Added idempotency guard via `get_signup_by_submission_id()` to prevent a late `processing` webhook from downgrading an already-paid row. Removed temporary `file_put_contents` debug logger.
+   * **Choices.js sync**: `el.choicesInstance` is always `undefined` in Fluent Forms (instance stored under jQuery `.data('choicesjs')`). Fixed lookup and added polling retry.
+   * **Payment status mapping**: `completed` was dead code (never sent by Fluent Forms). Corrected map: `paid` + `succeeded` → `'paid'`; all else → `'pending'`. Added idempotency guard via `get_signup_by_submission_id()`. Removed debug logger.
+5. **Admin setup required** (one-time, in FF dashboard):
+   * Add three hidden email fields (`signup_parent_email`, `signup_explorer_email`, `signup_leader_email`) to the Fluent Form.
+   * Configure FF notification rules using those field values as recipient smart tags.
 
 ### Phase 4 — Admin Signups Board & Reconciliation UI
 1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/admin-reconciliation.feature` covering REST API requests and manual linking constraints.
