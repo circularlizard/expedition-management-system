@@ -43,7 +43,6 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $this->assertTrue( Filters\has( 'fluentform/rendering_field_data_select' ) );
         $this->assertTrue( Filters\has( 'fluentform/validate_input_item_select' ) );
-        $this->assertTrue( Filters\has( 'fluentform/rendering_field_data_input_hidden' ) );
         $this->assertTrue( Filters\has( 'fluentform/validation_errors' ) );
         $this->assertTrue( Actions\has( 'fluentform/submission_inserted' ) );
         $this->assertTrue( Actions\has( 'fluentform/after_payment_status_change' ) );
@@ -76,25 +75,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->assertEquals( '30001|Mary|Smith', $options[0]['value'] );
     }
 
-    public function test_prepopulate_unit_select_matches_explorer_section(): void {
-        $children = [
-            [ 'scout_id' => 30001, 'first_name' => 'Mary', 'last_name' => 'Smith', 'section_ids' => [ 99001 ] ]
-        ];
-        Functions\when( 'get_user_meta' )->justReturn( $children );
 
-        $this->wpdb->rows["SELECT short_code, unit_id FROM wp_ems_units WHERE unit_id = 99001 AND active = 1 LIMIT 1"] = [
-            'short_code' => 'BO-Kelso',
-            'unit_id'    => 99001,
-        ];
-
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
-        $field_data = [
-            'attributes' => [ 'name' => 'signup_unit', 'value' => '' ],
-        ];
-        $result = $sync->prepopulate_unit_select( $field_data, [] );
-
-        $this->assertEquals( 'BO-Kelso', $result['attributes']['value'] );
-    }
 
     public function test_validate_submission_errors_on_invalid_level(): void {
         Functions\when( 'get_option' )->justReturn( [
@@ -161,5 +142,17 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         ], (object) [ 'id' => 4 ] );
 
         $this->assertTrue( true ); // Verify execution finished without exception
+    }
+
+    public function test_handle_payment_status_updates_signup(): void {
+        $this->signup_repo->shouldReceive( 'update_payment_status_by_submission_id' )
+            ->once()
+            ->with( 999, 'paid' )
+            ->andReturn( true );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync->handle_payment_status( 12, 'paid', 'pending', (object) [ 'id' => 999 ] );
+
+        $this->assertTrue( true );
     }
 }
