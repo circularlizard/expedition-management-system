@@ -117,10 +117,6 @@ class Settings_Page {
         <div class="wrap">
             <h1><?php esc_html_e( 'EMS Settings', 'ems-plugin' ); ?></h1>
             <nav class="nav-tab-wrapper">
-                <a href="<?php echo esc_url( $page_url . '&tab=sections' ); ?>"
-                   class="nav-tab<?php echo $active_tab === 'sections' ? ' nav-tab-active' : ''; ?>">
-                    <?php esc_html_e( 'Managed Sections', 'ems-plugin' ); ?>
-                </a>
                 <a href="<?php echo esc_url( $page_url . '&tab=general' ); ?>"
                    class="nav-tab<?php echo $active_tab === 'general' ? ' nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'General', 'ems-plugin' ); ?>
@@ -128,6 +124,10 @@ class Settings_Page {
                 <a href="<?php echo esc_url( $page_url . '&tab=connection' ); ?>"
                    class="nav-tab<?php echo $active_tab === 'connection' ? ' nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'OSM Connection', 'ems-plugin' ); ?>
+                </a>
+                <a href="<?php echo esc_url( $page_url . '&tab=sections' ); ?>"
+                   class="nav-tab<?php echo $active_tab === 'sections' ? ' nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Managed Sections', 'ems-plugin' ); ?>
                 </a>
                 <a href="<?php echo esc_url( $page_url . '&tab=unit_leaders' ); ?>"
                    class="nav-tab<?php echo $active_tab === 'unit_leaders' ? ' nav-tab-active' : ''; ?>">
