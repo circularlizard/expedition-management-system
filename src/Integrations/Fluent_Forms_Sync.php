@@ -131,7 +131,7 @@ class Fluent_Forms_Sync {
 
             $explorer = $this->wpdb->get_row(
                 $this->wpdb->prepare(
-                    "SELECT section_id FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
+                    "SELECT section_id, patrol FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
                     $scout_id
                 ),
                 ARRAY_A
@@ -142,14 +142,32 @@ class Fluent_Forms_Sync {
                 continue;
             }
 
+            $patrol_name = $explorer['patrol'] ?? '';
+
             foreach ( $section_ids as $sec_id ) {
-                $unit = $this->wpdb->get_row(
-                    $this->wpdb->prepare(
-                        "SELECT short_code FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND active = 1 LIMIT 1",
-                        $sec_id
-                    ),
-                    ARRAY_A
-                );
+                $unit = null;
+                if ( ! empty( $patrol_name ) ) {
+                    $unit = $this->wpdb->get_row(
+                        $this->wpdb->prepare(
+                            "SELECT short_code FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND (name = %s OR short_code = %s) AND active = 1 LIMIT 1",
+                            $sec_id,
+                            $patrol_name,
+                            $patrol_name
+                        ),
+                        ARRAY_A
+                    );
+                }
+
+                // Fallback to first unit with a valid unit_id
+                if ( empty( $unit ) ) {
+                    $unit = $this->wpdb->get_row(
+                        $this->wpdb->prepare(
+                            "SELECT short_code FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND active = 1 AND unit_id IS NOT NULL AND unit_id != 0 LIMIT 1",
+                            $sec_id
+                        ),
+                        ARRAY_A
+                    );
+                }
 
                 if ( ! empty( $unit['short_code'] ) ) {
                     $data['attributes']['value'] = $unit['short_code'];
@@ -188,7 +206,7 @@ class Fluent_Forms_Sync {
 
             $explorer = $this->wpdb->get_row(
                 $this->wpdb->prepare(
-                    "SELECT section_id FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
+                    "SELECT section_id, patrol FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
                     $scout_id
                 ),
                 ARRAY_A
@@ -199,14 +217,32 @@ class Fluent_Forms_Sync {
                 continue;
             }
 
+            $patrol_name = $explorer['patrol'] ?? '';
+
             foreach ( $section_ids as $sec_id ) {
-                $unit = $this->wpdb->get_row(
-                    $this->wpdb->prepare(
-                        "SELECT unit_id FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND active = 1 LIMIT 1",
-                        $sec_id
-                    ),
-                    ARRAY_A
-                );
+                $unit = null;
+                if ( ! empty( $patrol_name ) ) {
+                    $unit = $this->wpdb->get_row(
+                        $this->wpdb->prepare(
+                            "SELECT unit_id FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND (name = %s OR short_code = %s) AND active = 1 LIMIT 1",
+                            $sec_id,
+                            $patrol_name,
+                            $patrol_name
+                        ),
+                        ARRAY_A
+                    );
+                }
+
+                // Fallback to first unit with a valid unit_id
+                if ( empty( $unit ) ) {
+                    $unit = $this->wpdb->get_row(
+                        $this->wpdb->prepare(
+                            "SELECT unit_id FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND active = 1 AND unit_id IS NOT NULL AND unit_id != 0 LIMIT 1",
+                            $sec_id
+                        ),
+                        ARRAY_A
+                    );
+                }
 
                 if ( ! empty( $unit['unit_id'] ) ) {
                     $data['attributes']['value'] = (int) $unit['unit_id'];
