@@ -150,6 +150,7 @@ class Fluent_Forms_Sync {
 
                 if ( ! empty( $unit['short_code'] ) ) {
                     $data['attributes']['value'] = $unit['short_code'];
+                    $data['settings']['value'] = $unit['short_code'];
                     return $data;
                 }
             }
@@ -206,6 +207,7 @@ class Fluent_Forms_Sync {
 
                 if ( ! empty( $unit['unit_id'] ) ) {
                     $data['attributes']['value'] = (int) $unit['unit_id'];
+                    $data['settings']['value'] = (int) $unit['unit_id'];
                     return $data;
                 }
             }
