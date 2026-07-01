@@ -26,8 +26,8 @@ class Fluent_Forms_Sync {
         add_filter( 'fluentform/validate_input_item_select', [ $this, 'bypass_dropdown_validation' ], 10, 2 );
 
         // Dynamic pre-population of unit default value
-        add_filter( 'fluentform/input_default_value_signup_unit', [ $this, 'get_default_unit_value' ], 10, 2 );
-        add_filter( 'fluentform/input_default_value_signup_unitid', [ $this, 'get_default_unit_id_value' ], 10, 2 );
+        add_filter( 'fluentform/rendering_field_data_select', [ $this, 'prepopulate_unit_select' ], 10, 2 );
+        add_filter( 'fluentform/rendering_field_data_input_hidden', [ $this, 'prepopulate_unit_id_hidden' ], 10, 2 );
 
         // Form validation hook
         add_filter( 'fluentform/validation_errors', [ $this, 'validate_submission' ], 10, 2 );
@@ -105,15 +105,19 @@ class Fluent_Forms_Sync {
     /**
      * Fetch default unit short code based on parent's children section IDs
      */
-    public function get_default_unit_value( $default_val, $field ) {
+    public function prepopulate_unit_select( array $data, $form ): array {
+        if ( ( $data['attributes']['name'] ?? '' ) !== 'signup_unit' ) {
+            return $data;
+        }
+
         $user_id = get_current_user_id();
         if ( ! $user_id ) {
-            return $default_val;
+            return $data;
         }
 
         $children_meta = get_user_meta( $user_id, 'ems_children', true );
         if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
-            return $default_val;
+            return $data;
         }
 
         foreach ( $children_meta as $child ) {
@@ -145,26 +149,31 @@ class Fluent_Forms_Sync {
                 );
 
                 if ( ! empty( $unit['short_code'] ) ) {
-                    return $unit['short_code'];
+                    $data['attributes']['value'] = $unit['short_code'];
+                    return $data;
                 }
             }
         }
 
-        return $default_val;
+        return $data;
     }
 
     /**
      * Fetch default unit ID based on parent's children section IDs
      */
-    public function get_default_unit_id_value( $default_val, $field ) {
+    public function prepopulate_unit_id_hidden( array $data, $form ): array {
+        if ( ( $data['attributes']['name'] ?? '' ) !== 'signup_unitid' ) {
+            return $data;
+        }
+
         $user_id = get_current_user_id();
         if ( ! $user_id ) {
-            return $default_val;
+            return $data;
         }
 
         $children_meta = get_user_meta( $user_id, 'ems_children', true );
         if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
-            return $default_val;
+            return $data;
         }
 
         foreach ( $children_meta as $child ) {
@@ -196,12 +205,13 @@ class Fluent_Forms_Sync {
                 );
 
                 if ( ! empty( $unit['unit_id'] ) ) {
-                    return (int) $unit['unit_id'];
+                    $data['attributes']['value'] = (int) $unit['unit_id'];
+                    return $data;
                 }
             }
         }
 
-        return $default_val;
+        return $data;
     }
 
     /**
