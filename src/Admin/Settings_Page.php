@@ -416,46 +416,73 @@ class Settings_Page {
             $mappings[ $m['unit_name'] ] = $m;
         }
         ?>
+        <style>
+            .ems-unit-leaders-table-container {
+                max-height: 500px;
+                overflow-y: auto;
+                border: 1px solid #ccd0d4;
+                margin-top: 15px;
+            }
+            .ems-unit-leaders-table-container table {
+                margin-top: 0 !important;
+                border: none !important;
+            }
+            .ems-unit-leaders-table-container thead th {
+                position: sticky;
+                top: 0;
+                background: #f6f7f7;
+                box-shadow: inset 0 -1px 0 #ccd0d4;
+                z-index: 2;
+            }
+            .ems-unit-leaders-table-container input[type="text"],
+            .ems-unit-leaders-table-container input[type="email"] {
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+        </style>
         <form method="post">
             <?php wp_nonce_field( 'ems_settings_unit_leaders' ); ?>
-            <table class="wp-list-table widefat fixed striped" style="margin-top: 15px;">
-                <thead>
-                    <tr>
-                        <th style="width: 25%;"><?php esc_html_e( 'ESU / Unit Name', 'ems-plugin' ); ?></th>
-                        <th><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></th>
-                        <th><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></th>
-                        <th><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if ( empty( $patrols ) ) : ?>
+            <div class="ems-unit-leaders-table-container">
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
                         <tr>
-                            <td colspan="4"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data first.', 'ems-plugin' ); ?></td>
+                            <th style="width: 25%;"><?php esc_html_e( 'ESU / Unit Name', 'ems-plugin' ); ?></th>
+                            <th><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></th>
+                            <th><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></th>
+                            <th><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
                         </tr>
-                    <?php else : ?>
-                        <?php foreach ( $patrols as $patrol ) : 
-                            $m = $mappings[ $patrol ] ?? [];
-                            $esc_patrol = esc_attr( $patrol );
-                            ?>
+                    </thead>
+                    <tbody>
+                        <?php if ( empty( $patrols ) ) : ?>
                             <tr>
-                                <td><strong><?php echo esc_html( $patrol ); ?></strong></td>
-                                <td>
-                                    <input type="text" name="unit_leaders[<?php echo $esc_patrol; ?>][first_name]" 
-                                           value="<?php echo esc_attr( $m['leader_first_name'] ?? '' ); ?>" class="regular-text" />
-                                </td>
-                                <td>
-                                    <input type="text" name="unit_leaders[<?php echo $esc_patrol; ?>][last_name]" 
-                                           value="<?php echo esc_attr( $m['leader_last_name'] ?? '' ); ?>" class="regular-text" />
-                                </td>
-                                <td>
-                                    <input type="email" name="unit_leaders[<?php echo $esc_patrol; ?>][email]" 
-                                           value="<?php echo esc_attr( $m['leader_email'] ?? '' ); ?>" class="regular-text" />
-                                </td>
+                                <td colspan="4"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data first.', 'ems-plugin' ); ?></td>
                             </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+                        <?php else : ?>
+                            <?php foreach ( $patrols as $patrol ) : 
+                                $m = $mappings[ $patrol ] ?? [];
+                                $esc_patrol = esc_attr( $patrol );
+                                ?>
+                                <tr>
+                                    <td><strong><?php echo esc_html( $patrol ); ?></strong></td>
+                                    <td>
+                                        <input type="text" name="unit_leaders[<?php echo $esc_patrol; ?>][first_name]" 
+                                               value="<?php echo esc_attr( $m['leader_first_name'] ?? '' ); ?>" />
+                                    </td>
+                                    <td>
+                                        <input type="text" name="unit_leaders[<?php echo $esc_patrol; ?>][last_name]" 
+                                               value="<?php echo esc_attr( $m['leader_last_name'] ?? '' ); ?>" />
+                                    </td>
+                                    <td>
+                                        <input type="email" name="unit_leaders[<?php echo $esc_patrol; ?>][email]" 
+                                               value="<?php echo esc_attr( $m['leader_email'] ?? '' ); ?>" />
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
             <?php if ( ! empty( $patrols ) ) : ?>
                 <p class="submit">
                     <input type="submit" name="ems_save_unit_leaders" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Unit Leaders', 'ems-plugin' ); ?>" />
