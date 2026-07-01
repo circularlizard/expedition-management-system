@@ -36,6 +36,11 @@ class Fluent_Forms_Sync {
 
         // Enqueue form interaction script
         add_action( 'fluentform/before_form_render', [ $this, 'enqueue_form_script' ], 10, 1 );
+
+        // Hidden email field pre-population — used by Fluent Forms' notification system
+        add_filter( 'fluentform/rendering_field_data_input_email', [ $this, 'populate_parent_email' ], 10, 2 );
+        add_filter( 'fluentform/rendering_field_data_input_email', [ $this, 'populate_explorer_email' ], 10, 2 );
+        add_filter( 'fluentform/rendering_field_data_input_email', [ $this, 'populate_leader_email' ], 10, 2 );
     }
 
     /**
@@ -102,34 +107,37 @@ class Fluent_Forms_Sync {
     }
 
     /**
-     * Resolve ESU unit mapping details for a child
+     * Resolve ESU unit mapping details for a child, including leader email.
+     *
+     * @return array{short_code: string, unit_id: int, leader_email: string}
      */
     private function resolve_unit_for_child( array $child ): array {
         $section_ids = (array) ( $child['section_ids'] ?? [] );
         $section_ids = array_unique( array_filter( array_map( 'intval', $section_ids ) ) );
 
         if ( empty( $section_ids ) ) {
-            return [ 'short_code' => '', 'unit_id' => 0 ];
+            return [ 'short_code' => '', 'unit_id' => 0, 'leader_email' => '' ];
         }
 
         // Match the child's section IDs against the unit_id column in ems_units
         foreach ( $section_ids as $sec_id ) {
             $unit = $this->wpdb->get_row(
                 $this->wpdb->prepare(
-                    "SELECT short_code, unit_id FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d AND active = 1 LIMIT 1",
+                    "SELECT short_code, unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d AND active = 1 LIMIT 1",
                     $sec_id
                 ),
                 ARRAY_A
             );
             if ( ! empty( $unit ) ) {
                 return [
-                    'short_code' => $unit['short_code'] ?: '',
-                    'unit_id'    => (int) ( $unit['unit_id'] ?? 0 ),
+                    'short_code'   => $unit['short_code']   ?: '',
+                    'unit_id'      => (int) ( $unit['unit_id']  ?? 0 ),
+                    'leader_email' => $unit['leader_email'] ?: '',
                 ];
             }
         }
 
-        return [ 'short_code' => '', 'unit_id' => 0 ];
+        return [ 'short_code' => '', 'unit_id' => 0, 'leader_email' => '' ];
     }
 
     /**
@@ -314,12 +322,12 @@ class Fluent_Forms_Sync {
             'signup_status'          => 'pending',
         ];
 
-        $signup_id = $this->signup_repo->create_signup( $signup_data );
-
-        // Send notifications
-        if ( $signup_id > 0 ) {
-            $this->send_notifications( $signup_data, $patrol_value );
-        }
+        $this->signup_repo->create_signup( $signup_data );
+        // Email notifications are handled entirely by Fluent Forms' built-in
+        // notification system, which reads the hidden email fields pre-populated
+        // by populate_parent_email(), populate_explorer_email(), and
+        // populate_leader_email() on form render and updated by the inline JS
+        // when the child selector changes.
     }
 
     /**
@@ -356,52 +364,106 @@ class Fluent_Forms_Sync {
     }
 
     /**
-     * Send email notifications using wp_mail
+     * Pre-populate the hidden signup_parent_email field.
+     *
+     * Always resolvable from the logged-in WP user account.
+     * Fluent Forms' notification system reads this field to address emails
+     * to the parent without EMS needing to call wp_mail().
      */
-    private function send_notifications( array $signup, string $patrol_code ): void {
-        $parent_user = get_userdata( $signup['parent_user_id'] );
-        $parent_email = $parent_user ? $parent_user->user_email : '';
+    public function populate_parent_email( array $data, $form ): array {
+        if ( ( $data['attributes']['name'] ?? '' ) !== 'signup_parent_email' ) {
+            return $data;
+        }
 
-        // Get leader email
-        $leader_email = '';
-        if ( ! empty( $patrol_code ) ) {
-            $unit = $this->wpdb->get_row(
+        $user = get_userdata( get_current_user_id() );
+        if ( $user && ! empty( $user->user_email ) ) {
+            $data['attributes']['value'] = $user->user_email;
+            $data['settings']['value']   = $user->user_email;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Pre-populate the hidden signup_explorer_email field.
+     *
+     * Sourced from ems_osm_explorers.email for the first child in the parent's
+     * ems_children list that has a synced explorer record. Left empty if the
+     * child has not yet been synced (no OSM API call is made).
+     *
+     * The JS in enqueue_form_script() updates this field when the parent
+     * selects a different child from the dropdown.
+     */
+    public function populate_explorer_email( array $data, $form ): array {
+        if ( ( $data['attributes']['name'] ?? '' ) !== 'signup_explorer_email' ) {
+            return $data;
+        }
+
+        $user_id = get_current_user_id();
+        if ( ! $user_id ) {
+            return $data;
+        }
+
+        $children_meta = get_user_meta( $user_id, 'ems_children', true );
+        if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
+            return $data;
+        }
+
+        foreach ( $children_meta as $child ) {
+            $scout_id = (int) ( $child['scout_id'] ?? 0 );
+            if ( ! $scout_id ) {
+                continue;
+            }
+
+            $row = $this->wpdb->get_row(
                 $this->wpdb->prepare(
-                    "SELECT leader_email FROM {$this->wpdb->prefix}ems_units WHERE short_code = %s AND active = 1 LIMIT 1",
-                    $patrol_code
+                    "SELECT email FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d LIMIT 1",
+                    $scout_id
                 ),
                 ARRAY_A
             );
-            $leader_email = $unit['leader_email'] ?? '';
+
+            if ( ! empty( $row['email'] ) ) {
+                $data['attributes']['value'] = $row['email'];
+                $data['settings']['value']   = $row['email'];
+                return $data; // use first child that has a synced email
+            }
         }
 
-        // Email parents
-        if ( ! empty( $parent_email ) ) {
-            wp_mail(
-                $parent_email,
-                __( 'DofE Signup Confirmation', 'ems-plugin' ),
-                sprintf(
-                    __( "Thank you for registering %s %s for the %s DofE award.", "ems-plugin" ),
-                    $signup['explorer_first_name'],
-                    $signup['explorer_last_name'],
-                    ucfirst( $signup['dofe_level'] )
-                )
-            );
+        return $data;
+    }
+
+    /**
+     * Pre-populate the hidden signup_leader_email field.
+     *
+     * Resolved from ems_units.leader_email for the first child's section ID.
+     * Updated by the JS when the parent selects a different child.
+     */
+    public function populate_leader_email( array $data, $form ): array {
+        if ( ( $data['attributes']['name'] ?? '' ) !== 'signup_leader_email' ) {
+            return $data;
         }
 
-        // Email leader
-        if ( ! empty( $leader_email ) ) {
-            wp_mail(
-                $leader_email,
-                __( 'New Explorer DofE Signup', 'ems-plugin' ),
-                sprintf(
-                    __( "Explorer %s %s has registered for the %s DofE award in your unit.", "ems-plugin" ),
-                    $signup['explorer_first_name'],
-                    $signup['explorer_last_name'],
-                    ucfirst( $signup['dofe_level'] )
-                )
-            );
+        $user_id = get_current_user_id();
+        if ( ! $user_id ) {
+            return $data;
         }
+
+        $children_meta = get_user_meta( $user_id, 'ems_children', true );
+        if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
+            return $data;
+        }
+
+        foreach ( $children_meta as $child ) {
+            $res = $this->resolve_unit_for_child( $child );
+            if ( ! empty( $res['leader_email'] ) ) {
+                $data['attributes']['value'] = $res['leader_email'];
+                $data['settings']['value']   = $res['leader_email'];
+                return $data;
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -432,9 +494,21 @@ class Fluent_Forms_Sync {
             }
 
             $res = $this->resolve_unit_for_child( $child );
+
+            // Look up explorer email from local sync table (no API call).
+            $explorer_row = $this->wpdb->get_row(
+                $this->wpdb->prepare(
+                    "SELECT email FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d LIMIT 1",
+                    $scout_id
+                ),
+                ARRAY_A
+            );
+
             $js_mappings[ $scout_id ] = [
-                'unitCode' => $res['short_code'],
-                'unitId'   => $res['unit_id'],
+                'unitCode'      => $res['short_code'],
+                'unitId'        => $res['unit_id'],
+                'explorerEmail' => $explorer_row['email'] ?? '',
+                'leaderEmail'   => $res['leader_email'],
             ];
         }
 
@@ -520,6 +594,20 @@ class Fluent_Forms_Sync {
                             console.log('[EMS Sync] Setting signup_unitid to:', mapping.unitId);
                             unitIdInput.value = mapping.unitId;
                             unitIdInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        // Update hidden email fields so Fluent Forms' notification
+                        // system addresses the correct recipients for this child.
+                        var explorerEmailInput = document.querySelector('input[name="signup_explorer_email"]');
+                        if (explorerEmailInput) {
+                            explorerEmailInput.value = mapping.explorerEmail || '';
+                            explorerEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        var leaderEmailInput = document.querySelector('input[name="signup_leader_email"]');
+                        if (leaderEmailInput) {
+                            leaderEmailInput.value = mapping.leaderEmail || '';
+                            leaderEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                     }
 
