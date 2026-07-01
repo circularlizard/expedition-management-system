@@ -270,4 +270,34 @@ class Settings_PageTest extends EMSTestCase {
         
         $this->addToAssertionCount( 1 );
     }
+
+    public function test_save_form_mappings_stores_mappings(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+        Functions\when( 'get_option' )->justReturn( [] );
+        Functions\when( 'sanitize_key' )->alias( 'strtolower' );
+
+        $page = new Settings_Page();
+        
+        // Let's call save_form_mappings directly
+        $reflected = new \ReflectionClass(Settings_Page::class);
+        $method = $reflected->getMethod('save_form_mappings');
+        $method->setAccessible(true);
+        
+        $method->invoke( $page, [
+            'ems_fluent_form_id'       => '12',
+            'ems_mapping_scout_id'     => 'signup_child',
+            'ems_mapping_dofe_level'   => 'signup_level',
+            'ems_mapping_esu_patrol'   => 'signup_unit',
+            'ems_mapping_first_aid'    => 'input_radio',
+            'ems_mapping_pref_fields'  => 'exped_type, exped_asn',
+        ] );
+
+        $this->assertEquals( 12, $stored['ems_fluent_form_id'] );
+        $this->assertArrayHasKey( 'ems_form_mappings', $stored );
+        $mapping = $stored['ems_form_mappings'][12];
+        $this->assertEquals( 'signup_child', $mapping['scout_id_field'] );
+        $this->assertEquals( 'signup_level', $mapping['dofe_level_field'] );
+        $this->assertEquals( [ 'exped_type', 'exped_asn' ], $mapping['pref_fields'] );
+    }
 }
