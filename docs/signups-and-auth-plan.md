@@ -12,35 +12,8 @@ Work completed on custom roles and OIDC mapping has been archived in [completed-
 ### [x] Spec 1: WordPress User Roles & OIDC Mapping (Completed)
 Detailed specification and logic have been moved to [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md).
 
-### Spec 2: Consolidated Units & Mappings (Database & UI)
-
-EMS maintains a consolidated units lookup directory mapping synced Online Scout Manager patrols to local Explorer Scout Units (ESUs).
-
-#### 1. Database Table: `ems_units`
-```sql
-CREATE TABLE IF NOT EXISTS {$prefix}ems_units (
-    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    patrol_id         BIGINT          NOT NULL,              -- Synced from OSM (Patrol ID)
-    section_id        BIGINT UNSIGNED NOT NULL,              -- Synced from OSM (Section ID)
-    name              VARCHAR(100)    NOT NULL DEFAULT '',   -- Synced from OSM (Patrol name)
-    active            TINYINT(1)      NOT NULL DEFAULT 1,    -- Synced from OSM
-    synced_at         DATETIME        NOT NULL,              -- Synced from OSM
-    
-    -- Local Admin Mappings (Protected from OSM sync overwrite)
-    unit_id           BIGINT UNSIGNED          DEFAULT NULL, -- Manually populated General Unit ID
-    short_code        VARCHAR(100)    NOT NULL DEFAULT '',   -- Short ESU identification (defaults to patrol name)
-    leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
-    leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
-    leader_email      VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
-    updated_at        DATETIME                 DEFAULT NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY idx_patrol_section (patrol_id, section_id),
-    KEY idx_unit_id (unit_id)
-) {$charset};
-```
-
-* **OSM Reference Sync**: Updates patrol reference data (`name`, `active`, `synced_at`) using the unique `idx_patrol_section` key, while protecting and preserving the manual settings (`unit_id`, `short_code`, and leader fields).
-* **Settings Mapping Tab (UI)**: An administrative screen under *EMS Settings* listing synced ESU patrols grouped by section where the admin can input/edit the manual **Unit ID**, **Short Code** (defaults to patrol name), and **Leader Details**. Uses sticky headers and responsive input sizing.
+### [x] Spec 2: Consolidated Units & Mappings (Completed)
+Detailed specification and logic have been moved to [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md).
 
 ---
 
@@ -168,15 +141,8 @@ Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Use
 ### [x] Phase 2 — Unit Leader Directory & Admin Menus (Completed)
 Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md) for details.
 
-### Phase 2.5 — Consolidated Units Directory & Settings UI
-1. **Behavioral Design (TDD)**: Define repository contract expectations for managing Consolidated Units, and define Settings UI mapping render assertions.
-2. **Implementation**:
-   * Migrate and create the consolidated `ems_units` database table.
-   * Provide repository methods for ESU patrol listings, manual mapping updates (`unit_id`, `short_code` defaults, leader details), and protect custom mappings from being overwritten by OSM sync.
-   * Update the Settings page tab to list ESU patrols grouped by OSM section, rendering inputs for manual Unit ID and shortcodes.
-3. **Tests**:
-   * Write database unit tests in `tests/Unit/Data/Unit_RepositoryTest.php` verifying the consolidated schema, uniqueness constraints, and protected columns during updates.
-   * Add Settings Page test cases verifying ESU section-grouped rendering, sticky headers, and input widths.
+### [x] Phase 2.5 — Consolidated Units Directory & Settings UI (Completed)
+Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md) for details.
 
 ### Phase 3 — Fluent Forms Sync Engine & Unit Lookup Integration
 1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/signup-fluentforms-sync.feature` representing signup form submissions and unit lookup mapping logic.
