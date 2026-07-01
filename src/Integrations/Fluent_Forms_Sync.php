@@ -25,10 +25,6 @@ class Fluent_Forms_Sync {
         // Validation bypass for dynamically generated dropdown choices
         add_filter( 'fluentform/validate_input_item_select', [ $this, 'bypass_dropdown_validation' ], 10, 2 );
 
-        // Dynamic pre-population of unit default value
-        add_filter( 'fluentform/rendering_field_data_select', [ $this, 'prepopulate_unit_select' ], 10, 2 );
-        add_filter( 'fluentform/rendering_field_data_input_hidden', [ $this, 'prepopulate_unit_id_hidden' ], 10, 2 );
-
         // Form validation hook
         add_filter( 'fluentform/validation_errors', [ $this, 'validate_submission' ], 10, 2 );
 
@@ -36,7 +32,7 @@ class Fluent_Forms_Sync {
         add_action( 'fluentform/submission_inserted', [ $this, 'handle_submission' ], 10, 3 );
 
         // Stripe Payment status callbacks
-        add_action( 'fluentform/after_payment_status_change', [ $this, 'handle_payment_status' ], 10, 2 );
+        add_action( 'fluentform/after_payment_status_change', [ $this, 'handle_payment_status' ], 10, 4 );
 
         // Enqueue form interaction script
         add_action( 'fluentform/before_form_render', [ $this, 'enqueue_form_script' ], 10, 1 );
@@ -329,10 +325,10 @@ class Fluent_Forms_Sync {
     /**
      * Handle Stripe/Fluent Forms payment status changes
      */
-    public function handle_payment_status( string $status, $submission ): void {
+    public function handle_payment_status( $paymentId, string $newStatus, string $oldStatus, $submission ): void {
         $entryId = (int) ( is_object( $submission ) ? ( $submission->id ?? 0 ) : ( is_array( $submission ) ? ( $submission['id'] ?? 0 ) : $submission ) );
         if ( $entryId > 0 ) {
-            $mapped_status = ( $status === 'completed' || $status === 'paid' ) ? 'paid' : 'pending';
+            $mapped_status = ( $newStatus === 'completed' || $newStatus === 'paid' ) ? 'paid' : 'pending';
             $this->signup_repo->update_payment_status_by_submission_id( $entryId, $mapped_status );
         }
     }
