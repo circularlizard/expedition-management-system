@@ -43,7 +43,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $this->assertTrue( Filters\has( 'fluentform/rendering_field_data_select' ) );
         $this->assertTrue( Filters\has( 'fluentform/validate_input_item_select' ) );
-        $this->assertTrue( Filters\has( 'fluentform/input_default_value_signup_unit' ) );
+        $this->assertTrue( Filters\has( 'fluentform/rendering_field_data_input_hidden' ) );
         $this->assertTrue( Filters\has( 'fluentform/validation_errors' ) );
         $this->assertTrue( Actions\has( 'fluentform/submission_inserted' ) );
         $this->assertTrue( Actions\has( 'fluentform/after_payment_status_change' ) );
@@ -76,7 +76,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->assertEquals( '30001|Mary|Smith', $options[0]['value'] );
     }
 
-    public function test_get_default_unit_value_matches_explorer_section(): void {
+    public function test_prepopulate_unit_select_matches_explorer_section(): void {
         $children = [
             [ 'scout_id' => 30001, 'first_name' => 'Mary', 'last_name' => 'Smith', 'section_ids' => [ 99001 ] ]
         ];
@@ -90,9 +90,12 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         ];
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
-        $result = $sync->get_default_unit_value( '', [] );
+        $field_data = [
+            'attributes' => [ 'name' => 'signup_unit', 'value' => '' ],
+        ];
+        $result = $sync->prepopulate_unit_select( $field_data, [] );
 
-        $this->assertEquals( 'BO-Kelso', $result );
+        $this->assertEquals( 'BO-Kelso', $result['attributes']['value'] );
     }
 
     public function test_validate_submission_errors_on_invalid_level(): void {
