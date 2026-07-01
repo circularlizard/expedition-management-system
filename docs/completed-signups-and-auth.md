@@ -63,18 +63,22 @@ To route sign-up notifications and requests for OSM sharing to the correct ESU (
 ```sql
 CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
     id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    unit_id           BIGINT UNSIGNED          DEFAULT NULL, -- General Unit ID
     unit_name         VARCHAR(100)    NOT NULL,
+    short_code        VARCHAR(20)     NOT NULL DEFAULT '',   -- Short unit identification
+    patrol_id         BIGINT                   DEFAULT NULL, -- Mapping reference to ems_osm_patrols
     leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',
     leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',
     leader_email      VARCHAR(100)    NOT NULL DEFAULT '',
     created_at        DATETIME        NOT NULL,
     updated_at        DATETIME        NOT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY idx_unit_name (unit_name)
+    UNIQUE KEY idx_unit_name (unit_name),
+    KEY idx_patrol_id (patrol_id)
 ) {$charset};
 ```
 
-* **Data Source**: The list of available `unit_name`s is seeded from synced OSM patrol names (`patrol` column in `ems_osm_explorers`).
+* **Data Source & General Unit Lookup**: The list of ESU units provides a general unit lookup mapping from synced OSM patrol names (`patrol_id` mapping from `ems_osm_patrols`). It stores the unit name, `unit_id`, `short_code`, and patrol reference.
 * **Form Integration**: The ESU/Unit selection options in the Fluent Forms chained select fields (District $\rightarrow$ Unit) are statically hardcoded in the form configuration. The `ems_unit_leaders` mapping table is used solely in the backend to look up the unit leader name and email matching the submitted ESU/Unit value.
 * **Admin UI**: A tab under Settings where admins can view ESU units and assign/edit a leader's name and email with sticky header scrolling and responsive inputs.
 * **Validation Rules**:

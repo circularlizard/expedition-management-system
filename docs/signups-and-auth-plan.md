@@ -51,10 +51,13 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
 3. **Pre-population & Parsing Payload**:
    * **Pre-population**: If the parent portal opens the form for an existing synced child, the form template pre-populates the child's `scout_id` (hidden field) and automatically selects their home ESU/Unit based on the child's `patrol` field in `ems_osm_explorers`.
    * **Parse**: Extract `scout_id`, parent `user_id` (from `get_current_user_id()`), DofE level, expedition date/transport preferences, first aid status, and initial payment status.
-4. **Leader Lookup**:
-   * Determine the explorer's ESU/Unit (either from the form selection or looking up the `ems_osm_explorers` patrol field using `scout_id`).
-   * Query `ems_unit_leaders` where `unit_name = $unit_name` to get the leader's email.
-5. **Write Signup**: Insert/update the row in the `ems_signups` table.
+4. **Leader & Unit Lookup**:
+   * **Explorer Unit Identification**: Find the explorer's home patrol name from `ems_osm_explorers` (or section terms). Map this to `ems_osm_patrols.patrol_id` to lookup the corresponding unit in `ems_unit_leaders` (using the new `patrol_id` column).
+   * **Manual Override**: The Fluent Form registration includes a ESU/Unit dropdown field. If a parent/admin manually selects a ESU/Unit, this manual override takes precedence over the automated patrol lookup.
+   * **Handling Edge Cases (0 or >1 Unit)**:
+     - **0 Units**: If the explorer maps to 0 units in `ems_unit_leaders` (e.g. patrol not mapped), mark the signup unit as unlinked/unassigned and require manual selection in the admin dashboard.
+     - **Multiple Units (>1)**: If the explorer matches more than one unit, use the manual dropdown override if present; otherwise, select the unit mapping that matches the specific section ID the explorer is registered under. If still ambiguous, flag for manual admin reconciliation.
+5. **Write Signup**: Insert/update the row in the `ems_signups` table (storing the resolved `unit_id`).
 6. **Payload Validation Rules**:
    * **Authentication**: Check that the parent submitting the form is authenticated and matches the logged-in user.
    * **DofE Level Validation**: Validate that the submitted `dofe_level` is strictly one of `'bronze'`, `'silver'`, or `'gold'`.
