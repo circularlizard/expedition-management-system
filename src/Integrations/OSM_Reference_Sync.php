@@ -112,12 +112,9 @@ class OSM_Reference_Sync {
         return $result;
     }
 
-    /**
-     * Syncs patrols for a section into ems_osm_patrols.
-     */
     private function sync_patrols( \wpdb $wpdb, int $section_id, string $now, Sync_Result $result ): void {
         $raw   = $this->api_client->get_patrols( $section_id );
-        $table = $wpdb->prefix . 'ems_osm_patrols';
+        $unit_repo = new \EMS\Data\Unit_Repository( $wpdb );
 
         foreach ( $raw['patrols'] ?? [] as $patrol ) {
             $patrol_id = (int) ( $patrol['patrolid'] ?? 0 );
@@ -125,20 +122,16 @@ class OSM_Reference_Sync {
                 continue;
             }
 
-            $rows = $wpdb->replace(
-                $table,
-                [
+            try {
+                $unit_repo->sync_patrol( [
                     'patrol_id'  => $patrol_id,
                     'section_id' => $section_id,
                     'name'       => $patrol['name']   ?? '',
                     'active'     => ( ( $patrol['active'] ?? '1' ) === '1' ) ? 1 : 0,
                     'synced_at'  => $now,
-                ],
-                [ '%d', '%d', '%s', '%d', '%s' ]
-            );
-
-            if ( $rows === false ) {
-                $result->add_error( "Failed to upsert patrol {$patrol_id}: " . $wpdb->last_error );
+                ] );
+            } catch ( \Exception $e ) {
+                $result->add_error( "Failed to upsert patrol {$patrol_id}: " . $e->getMessage() );
             }
         }
     }

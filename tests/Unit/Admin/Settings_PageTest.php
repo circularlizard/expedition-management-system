@@ -244,24 +244,23 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertSame( 'https://www.onlinescoutmanager.co.uk', $stored['ems_osm_api_base_url'] );
     }
 
-    public function test_save_unit_leaders_creates_or_updates_leader(): void {
-        $repo = \Mockery::mock( \EMS\Data\Unit_Leader_Repository::class );
+    public function test_save_unit_leaders_saves_mappings(): void {
+        $repo = \Mockery::mock( \EMS\Data\Unit_Repository::class );
         
-        // Mock existing lookup
-        $repo->shouldReceive( 'find_by_unit_name' )->with( 'Orion' )->once()->andReturn( null );
-        
-        // Mock create
-        $repo->shouldReceive( 'create' )->with( [
-            'unit_name'         => 'Orion',
+        $repo->shouldReceive( 'update_custom_mappings' )->with( 12, [
+            'unit_id'           => 4200,
+            'short_code'        => 'ORION-ESU',
             'leader_first_name' => 'John',
             'leader_last_name'  => 'Doe',
             'leader_email'      => 'john.doe@example.com',
-        ] )->once()->andReturn( 42 );
+        ] )->once()->andReturn( true );
 
         $page = new Settings_Page( $repo );
         $page->save_unit_leaders( [
             'unit_leaders' => [
-                'Orion' => [
+                12 => [
+                    'unit_id'    => 4200,
+                    'short_code' => 'ORION-ESU',
                     'first_name' => 'John',
                     'last_name'  => 'Doe',
                     'email'      => 'john.doe@example.com',
@@ -269,26 +268,6 @@ class Settings_PageTest extends EMSTestCase {
             ]
         ] );
         
-        $this->addToAssertionCount( 1 );
-    }
-
-    public function test_save_unit_leaders_deletes_when_email_empty(): void {
-        $repo = \Mockery::mock( \EMS\Data\Unit_Leader_Repository::class );
-        
-        $repo->shouldReceive( 'find_by_unit_name' )->with( 'Orion' )->once()->andReturn( [ 'id' => 10, 'unit_name' => 'Orion' ] );
-        $repo->shouldReceive( 'delete' )->with( 10 )->once()->andReturn( true );
-
-        $page = new Settings_Page( $repo );
-        $page->save_unit_leaders( [
-            'unit_leaders' => [
-                'Orion' => [
-                    'first_name' => '',
-                    'last_name'  => '',
-                    'email'      => '',
-                ]
-            ]
-        ] );
-
         $this->addToAssertionCount( 1 );
     }
 }
