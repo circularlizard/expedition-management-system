@@ -63,9 +63,9 @@ To route sign-up notifications and requests for OSM sharing to the correct ESU (
 ```sql
 CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
     id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    unit_id           BIGINT UNSIGNED          DEFAULT NULL, -- General Unit ID
+    unit_id           BIGINT UNSIGNED          DEFAULT NULL, -- General Unit ID (manually populated)
     unit_name         VARCHAR(100)    NOT NULL,
-    short_code        VARCHAR(20)     NOT NULL DEFAULT '',   -- Short unit identification
+    short_code        VARCHAR(100)    NOT NULL DEFAULT '',   -- Short unit identification (same as OSM patrol name)
     patrol_id         BIGINT                   DEFAULT NULL, -- Mapping reference to ems_osm_patrols
     leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',
     leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',
@@ -78,9 +78,9 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
 ) {$charset};
 ```
 
-* **Data Source & General Unit Lookup**: The list of ESU units provides a general unit lookup mapping from synced OSM patrol names (`patrol_id` mapping from `ems_osm_patrols`). It stores the unit name, `unit_id`, `short_code`, and patrol reference.
+* **Data Source & General Unit Lookup**: The list of ESU units provides a general unit lookup mapping from synced OSM patrol names (`patrol_id` mapping from `ems_osm_patrols`). It stores the unit name, the manually populated `unit_id`, the `short_code` (which matches the patrol name), and the patrol reference.
 * **Form Integration**: The ESU/Unit selection options in the Fluent Forms chained select fields (District $\rightarrow$ Unit) are statically hardcoded in the form configuration. The `ems_unit_leaders` mapping table is used solely in the backend to look up the unit leader name and email matching the submitted ESU/Unit value.
-* **Admin UI**: A tab under Settings where admins can view ESU units and assign/edit a leader's name and email with sticky header scrolling and responsive inputs.
+* **Admin UI**: A tab under Settings where admins can view ESU units and assign/edit a leader's name, email, and manual `unit_id` entries, with sticky header scrolling and responsive inputs.
 * **Validation Rules**:
   * **Email Validation**: Validate that leader email addresses match standard format constraints on creation/update.
   * **Unit Validation**: Ensure the `unit_name` is unique and matches a synced patrol/unit name in the database.
