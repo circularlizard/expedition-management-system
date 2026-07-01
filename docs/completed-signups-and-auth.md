@@ -1,6 +1,6 @@
-# Completed Signups and Authentication — Spec 1 & Phase 1
+# Completed Signups and Authentication — Spec 1, 2 & 3
 
-This document archives the completed technical specifications and sequencing tasks for **Spec 1: WordPress User Roles & OIDC Mapping** and **Phase 1 — WP User Roles & OIDC Mapping** to maintain a clean project plan for subsequent phases.
+This document archives the completed technical specifications and sequencing tasks for **Spec 1: WordPress User Roles & OIDC Mapping**, **Spec 2: Consolidated Units & Mappings**, and **Spec 3: Signup Data Model & Fluent Forms Sync**.
 
 ---
 
@@ -134,3 +134,107 @@ Update custom post type registrations (`season`, `expedition`, `team`) in `CPT_R
 3. **Tests**:
    * Wrote database unit tests in `tests/Unit/Data/Unit_RepositoryTest.php` verifying the consolidated schema, uniqueness constraints, and protected columns during updates.
    * Added Settings Page test cases verifying ESU section-grouped rendering, sticky headers, and input widths.
+
+---
+
+### [x] Spec 3: Signup Data Model & Fluent Forms Sync
+
+Parents submit a Fluent Form to sign up their child for a DofE level and expedition. EMS hooks this submission, parses it, and creates a normalised relational record.
+
+#### 1. Database Table: `ems_signups`
+```sql
+CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
+    id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    scout_id               BIGINT UNSIGNED          DEFAULT NULL,
+    parent_user_id         BIGINT UNSIGNED NOT NULL,
+    unit_id                BIGINT UNSIGNED          DEFAULT NULL, -- Resolved ESU/Unit ID from lookup
+    explorer_first_name    VARCHAR(100)    NOT NULL DEFAULT '',
+    explorer_last_name     VARCHAR(100)    NOT NULL DEFAULT '',
+    dofe_level             VARCHAR(20)     NOT NULL, -- 'bronze' | 'silver' | 'gold'
+    expedition_preferences TEXT                     DEFAULT NULL, -- JSON string (dates, transport type, etc.)
+    first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
+    signup_status          VARCHAR(30)     NOT NULL DEFAULT 'pending', -- 'pending' | 'processed'
+    payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending', -- 'pending' | 'paid'
+    form_submission_id     BIGINT UNSIGNED NOT NULL,
+    created_at             DATETIME        NOT NULL,
+    updated_at             DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_scout_id (scout_id),
+    KEY idx_parent_user_id (parent_user_id),
+    KEY idx_unit_id (unit_id)
+) {$charset};
+```
+
+#### 2. Form Mapping Indirection Layer & Admin UI
+To decouple database ingestion from form changes and support multiple Fluent Forms:
+* **Storage Option (`ems_form_mappings`)**: A serialised configuration matching form IDs to target database fields:
+  ```json
+  {
+    "form_id": {
+      "scout_id_field": "signup_child",
+      "first_name_field": "signup_first_name",
+      "last_name_field": "signup_last_name",
+      "dofe_level_field": "signup_level",
+      "esu_patrol_field": "signup_unit",
+      "first_aid_field": "input_radio",
+      "pref_fields": [
+        "exped_practice_dates",
+        "exped_qualifier_dates",
+        "exped_type",
+        "exped_team_names",
+        "exped_asn"
+      ]
+    }
+  }
+  ```
+* **Admin Mapping UI**: A tab under *EMS Settings* allowing the admin to select a form ID and map its raw input field names to the required EMS database fields.
+
+#### 3. Fluent Forms Sync Integration — Hooks Implemented
+
+| Hook | Purpose |
+|---|---|
+| `fluentform/rendering_field_data_select` | Populates `signup_child` dropdown from `ems_children` user meta |
+| `fluentform/validate_input_item_select` | Bypasses FF strict value-matching for dynamic choices |
+| `fluentform/validation_errors` | Enforces parent ownership of `scout_id` and valid `dofe_level` |
+| `fluentform/submission_inserted` | Extracts fields via `ems_form_mappings`, resolves `unit_id`, calls `create_signup()` |
+| `fluentform/after_payment_status_change` | Maps `paid`/`succeeded` → `'paid'`; all else → `'pending'`; idempotency guard |
+| `fluentform/before_form_render` | Enqueues inline JS; syncs unit + email fields when child selector changes |
+| `fluentform/rendering_field_data_input_email` ×3 | Pre-populates hidden email fields on form render |
+
+#### 4. Email Notification Architecture
+All email notifications are handled by **Fluent Forms' built-in notification system** — no `wp_mail` calls from EMS. EMS pre-populates three hidden email fields on render and updates them via JS when the parent changes the child selector:
+
+| Field | Source | Notes |
+|---|---|---|
+| `signup_parent_email` | WP user account email | Always available |
+| `signup_explorer_email` | `ems_osm_explorers.email` via `scout_id` | Left empty if child not yet synced — no API call made |
+| `signup_leader_email` | `ems_units.leader_email` for resolved unit | Left empty if no unit mapping exists |
+
+Admins configure FF notification rules to use `{signup_parent_email}`, `{signup_explorer_email}`, and `{signup_leader_email}` as recipient smart tags. The three hidden email fields must be added to the Fluent Form in the FF dashboard.
+
+#### 5. Client-side Sync Script (`window.emsFormMappings`)
+Inline JS rendered by `before_form_render`. Per child entry includes `unitCode`, `unitId`, `explorerEmail`, and `leaderEmail`. Uses `jQuery(el).data('choicesjs')` (the correct Fluent Forms Choices.js key) with a 100 ms polling loop (3 s max) to handle the `fluentform_init` timing race. Falls back to native `<select>` assignment if Choices.js is absent.
+
+#### 6. Payment Status Mapping
+* `paid` / `succeeded` → `'paid'`
+* All other statuses → `'pending'`
+* Idempotency guard: never downgrades a row already marked `paid`
+
+---
+
+### [x] Phase 3 — Fluent Forms Sync Engine & Unit Lookup Integration (Completed)
+1. **Behavioral Design (TDD)**: Gherkin scenarios written in `tests/features/signup-fluentforms-sync.feature` covering child dropdown pre-population, valid form submission, parent ownership validation, and payment status updates (including idempotency scenarios).
+2. **Implementation**:
+   * Migrated `ems_signups` table via `EMS\Core\Table_Installer`.
+   * Implemented `EMS\Integrations\Fluent_Forms_Sync` with all seven hooks listed above.
+   * Implemented `EMS\Data\Signup_Repository` with `create_signup()`, `get_signup()`, `get_signup_by_submission_id()`, `update_payment_status_by_submission_id()`, and `get_all_signups()`.
+   * Extended `resolve_unit_for_child()` to return `leader_email` alongside `short_code` and `unit_id`.
+3. **Tests** (13 tests, all green):
+   * `tests/Unit/Integrations/Fluent_Forms_SyncTest.php` — 13 tests: dropdown injection, validation, submission (confirms no `wp_mail`), parent/explorer/leader email population, and all payment-status paths.
+   * `tests/Unit/Data/Signup_RepositoryTest.php` — create, get, update payment status.
+4. **Bug Fixes Applied**:
+   * **Choices.js sync**: `el.choicesInstance` is always `undefined` in Fluent Forms (instance stored under jQuery `.data('choicesjs')`). Fixed lookup and added polling retry.
+   * **Payment status mapping**: `completed` was dead code (never sent by Fluent Forms). Corrected map, added idempotency guard, removed debug `file_put_contents` logger.
+5. **Admin setup required** (one-time, in FF dashboard):
+   * Add three hidden email fields (`signup_parent_email`, `signup_explorer_email`, `signup_leader_email`) to the Fluent Form.
+   * Configure FF notification rules using those field values as recipient smart tags.
