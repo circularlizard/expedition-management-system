@@ -472,8 +472,10 @@ class Fluent_Forms_Sync {
 
         ?>
         <script type="text/javascript">
-            window.emsFormMappings = window.emsFormMappings || {};
-            Object.assign(window.emsFormMappings, <?php echo json_encode( $js_mappings, JSON_FORCE_OBJECT ) ?: '{}'; ?>);
+            if (typeof window.emsFormMappings === 'undefined') {
+                window.emsFormMappings = new Object();
+            }
+            Object.assign(window.emsFormMappings, JSON.parse('<?php echo json_encode( $js_mappings, JSON_FORCE_OBJECT ); ?>'));
             console.log('[EMS Sync] Loaded children unit mappings:', window.emsFormMappings);
 
             document.addEventListener('DOMContentLoaded', function() {
