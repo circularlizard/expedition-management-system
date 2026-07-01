@@ -5,6 +5,12 @@ class Settings_Page {
 
     private const VALID_MODES = [ 'mock', 'live', 'live-auth-only', 'live-limited' ];
 
+    private \EMS\Data\Unit_Leader_Repository $unit_leaders;
+
+    public function __construct( ?\EMS\Data\Unit_Leader_Repository $unit_leaders = null ) {
+        $this->unit_leaders = $unit_leaders ?: new \EMS\Data\Unit_Leader_Repository();
+    }
+
     public function register(): void {
         add_submenu_page(
             'ems',
@@ -87,6 +93,8 @@ class Settings_Page {
             $this->save_connection( $post_data );
         } elseif ( isset( $post_data['ems_save_sections'] ) ) {
             $this->save_sections( $post_data );
+        } elseif ( isset( $post_data['ems_save_unit_leaders'] ) ) {
+            $this->save_unit_leaders( $post_data );
         } else {
             $this->save_general( $post_data );
         }
@@ -99,6 +107,8 @@ class Settings_Page {
             $this->save_connection( $_POST );
         } elseif ( isset( $_POST['ems_save_sections'] ) && check_admin_referer( 'ems_settings_sections' ) ) {
             $this->save_sections( $_POST );
+        } elseif ( isset( $_POST['ems_save_unit_leaders'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
+            $this->save_unit_leaders( $_POST );
         }
 
         $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'sections';
@@ -119,12 +129,18 @@ class Settings_Page {
                    class="nav-tab<?php echo $active_tab === 'connection' ? ' nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'OSM Connection', 'ems-plugin' ); ?>
                 </a>
+                <a href="<?php echo esc_url( $page_url . '&tab=unit_leaders' ); ?>"
+                   class="nav-tab<?php echo $active_tab === 'unit_leaders' ? ' nav-tab-active' : ''; ?>">
+                    <?php esc_html_e( 'Unit Leaders', 'ems-plugin' ); ?>
+                </a>
             </nav>
             <?php
             if ( $active_tab === 'general' ) {
                 $this->render_general_tab();
             } elseif ( $active_tab === 'connection' ) {
                 $this->render_connection_tab();
+            } elseif ( $active_tab === 'unit_leaders' ) {
+                $this->render_unit_leaders_tab();
             } else {
                 $this->render_sections_tab();
             }
@@ -330,6 +346,122 @@ class Settings_Page {
             </tbody>
         </table>
         <?php endif; ?>
+        <?php
+    }
+
+    private function get_all_patrols(): array {
+        global $wpdb;
+        $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+        $patrols_table   = $wpdb->prefix . 'ems_osm_patrols';
+
+        // Check if tables exist first to avoid SQL errors before migration
+        $explorers_exists = $wpdb->get_var( "SHOW TABLES LIKE '{$explorers_table}'" );
+        $patrols_exists   = $wpdb->get_var( "SHOW TABLES LIKE '{$patrols_table}'" );
+
+        $explorers_patrols = [];
+        $patrols_names     = [];
+
+        if ( $explorers_exists ) {
+            $explorers_patrols = $wpdb->get_col( "SELECT DISTINCT patrol FROM {$explorers_table} WHERE patrol != ''" );
+        }
+        if ( $patrols_exists ) {
+            $patrols_names = $wpdb->get_col( "SELECT DISTINCT name FROM {$patrols_table} WHERE active = 1 AND name != ''" );
+        }
+
+        $all = array_unique( array_merge( (array) $explorers_patrols, (array) $patrols_names ) );
+        sort( $all );
+        return $all;
+    }
+
+    public function save_unit_leaders( array $post_data ): void {
+        $leaders_data = $post_data['unit_leaders'] ?? [];
+        
+        foreach ( $leaders_data as $unit_name => $fields ) {
+            $email = sanitize_text_field( $fields['email'] ?? '' );
+            $first = sanitize_text_field( $fields['first_name'] ?? '' );
+            $last  = sanitize_text_field( $fields['last_name'] ?? '' );
+
+            $existing = $this->unit_leaders->find_by_unit_name( $unit_name );
+            
+            if ( empty( $email ) ) {
+                if ( $existing ) {
+                    $this->unit_leaders->delete( $existing['id'] );
+                }
+                continue;
+            }
+
+            $data = [
+                'unit_name'         => $unit_name,
+                'leader_first_name' => $first,
+                'leader_last_name'  => $last,
+                'leader_email'      => $email,
+            ];
+
+            try {
+                if ( $existing ) {
+                    $this->unit_leaders->update( $existing['id'], $data );
+                } else {
+                    $this->unit_leaders->create( $data );
+                }
+            } catch ( \InvalidArgumentException $e ) {
+                error_log( '[EMS] Settings save_unit_leaders failed: ' . $e->getMessage() );
+            }
+        }
+    }
+
+    private function render_unit_leaders_tab(): void {
+        $patrols  = $this->get_all_patrols();
+        $mappings = [];
+        foreach ( $this->unit_leaders->list_all() as $m ) {
+            $mappings[ $m['unit_name'] ] = $m;
+        }
+        ?>
+        <form method="post">
+            <?php wp_nonce_field( 'ems_settings_unit_leaders' ); ?>
+            <table class="wp-list-table widefat fixed striped" style="margin-top: 15px;">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;"><?php esc_html_e( 'ESU / Unit Name', 'ems-plugin' ); ?></th>
+                        <th><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></th>
+                        <th><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></th>
+                        <th><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ( empty( $patrols ) ) : ?>
+                        <tr>
+                            <td colspan="4"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data first.', 'ems-plugin' ); ?></td>
+                        </tr>
+                    <?php else : ?>
+                        <?php foreach ( $patrols as $patrol ) : 
+                            $m = $mappings[ $patrol ] ?? [];
+                            $esc_patrol = esc_attr( $patrol );
+                            ?>
+                            <tr>
+                                <td><strong><?php echo esc_html( $patrol ); ?></strong></td>
+                                <td>
+                                    <input type="text" name="unit_leaders[<?php echo $esc_patrol; ?>][first_name]" 
+                                           value="<?php echo esc_attr( $m['leader_first_name'] ?? '' ); ?>" class="regular-text" />
+                                </td>
+                                <td>
+                                    <input type="text" name="unit_leaders[<?php echo $esc_patrol; ?>][last_name]" 
+                                           value="<?php echo esc_attr( $m['leader_last_name'] ?? '' ); ?>" class="regular-text" />
+                                </td>
+                                <td>
+                                    <input type="email" name="unit_leaders[<?php echo $esc_patrol; ?>][email]" 
+                                           value="<?php echo esc_attr( $m['leader_email'] ?? '' ); ?>" class="regular-text" />
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+            <?php if ( ! empty( $patrols ) ) : ?>
+                <p class="submit">
+                    <input type="submit" name="ems_save_unit_leaders" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Unit Leaders', 'ems-plugin' ); ?>" />
+                </p>
+            <?php endif; ?>
+        </form>
         <?php
     }
 }
