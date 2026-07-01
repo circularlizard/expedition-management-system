@@ -95,9 +95,9 @@ class Fluent_Forms_Sync {
     /**
      * Bypass Fluent Forms dropdown mismatch validation
      */
-    public function bypass_dropdown_validation( array $errors, $field ): array {
+    public function bypass_dropdown_validation( $errors, $field ) {
         if ( ( $field['attributes']['name'] ?? '' ) === 'signup_child' ) {
-            return [];
+            return '';
         }
         return $errors;
     }
