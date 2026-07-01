@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
     id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     scout_id               BIGINT UNSIGNED          DEFAULT NULL,
     parent_user_id         BIGINT UNSIGNED NOT NULL,
+    unit_id                BIGINT UNSIGNED          DEFAULT NULL, -- Resolved ESU/Unit ID from lookup
     dofe_level             VARCHAR(20)     NOT NULL, -- 'bronze' | 'silver' | 'gold'
     expedition_preferences TEXT                     DEFAULT NULL, -- JSON string (dates, transport type, etc.)
     first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
@@ -39,7 +40,8 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
     updated_at             DATETIME        NOT NULL,
     PRIMARY KEY (id),
     KEY idx_scout_id (scout_id),
-    KEY idx_parent_user_id (parent_user_id)
+    KEY idx_parent_user_id (parent_user_id),
+    KEY idx_unit_id (unit_id)
 ) {$charset};
 ```
 
@@ -108,6 +110,10 @@ Reconciliation runs through these ordered priority paths:
 A new "Sign Ups" tab is registered in the Explorer View SPA in the WP Admin Dashboard:
 * Displays a table of all sign-ups from `ems_signups`.
 * For linked signups: Show explorer name, level, first aid, ESU unit, and a tick mark.
+* **ESU/Unit Field**: Displays the mapped unit (ESU name and Short Code) based on the signup's `unit_id`. Renders an editable select/dropdown letting the administrator manually override or assign the correct unit at any point before processing.
+* **Unit Mapping Exceptions**:
+  * **0 Mapped Units**: Displays a warning badge indicating "Unassigned Unit".
+  * **Multiple Mapped Units**: Displays an option listing the proposed units, prompting the administrator to click and select/confirm the correct one.
 * For proposed/unlinked signups: Renders a warning badge and a "Link Explorer" button opening a search dialog to reconcile manually.
 * Filter controls for: Level (Bronze/Silver/Gold), Status (Pending/Processed), ESU/Unit, and Matching Status (Linked/Proposed/Unlinked).
 * Batch Action: "Mark Selected as Processed".
