@@ -55,6 +55,44 @@ After resolving the access type and relationships:
 2. **Persistence**: Call `$user->set_role( $target_role )` securely.
 3. **Payload Validation**: If critical fields (such as `member_access` or `globals`) are missing from the Online Scout Manager payload, EMS must gracefully log a warning and abort the role assignment rather than disrupting the OIDC login process or throwing hard exceptions.
 
+#### [x] Spec 2: Unit Leader Mapping Directory
+
+To route sign-up notifications and requests for OSM sharing to the correct ESU (Explorer Scout Unit) leaders, EMS maintains a local directory mapping.
+
+##### [x] 1. Database Table: `ems_unit_leaders`
+```sql
+CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    unit_name         VARCHAR(100)    NOT NULL,
+    leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',
+    leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',
+    leader_email      VARCHAR(100)    NOT NULL DEFAULT '',
+    created_at        DATETIME        NOT NULL,
+    updated_at        DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY idx_unit_name (unit_name)
+) {$charset};
+```
+
+* **Data Source**: The list of available `unit_name`s is seeded from synced OSM patrol names (`patrol` column in `ems_osm_explorers`).
+* **Form Integration**: The ESU/Unit selection options in the Fluent Forms chained select fields (District $\rightarrow$ Unit) are statically hardcoded in the form configuration. The `ems_unit_leaders` mapping table is used solely in the backend to look up the unit leader name and email matching the submitted ESU/Unit value.
+* **Admin UI**: A tab under Settings where admins can view ESU units and assign/edit a leader's name and email with sticky header scrolling and responsive inputs.
+* **Validation Rules**:
+  * **Email Validation**: Validate that leader email addresses match standard format constraints on creation/update.
+  * **Unit Validation**: Ensure the `unit_name` is unique and matches a synced patrol/unit name in the database.
+
+##### [x] 2. WP Admin Menu Restructuring
+Modify the WordPress Admin menu structure according to the PRD Stage 4 layout to group EMS features cleanly:
+* **ESM** (Parent Menu)
+  * **Expeditions** (Calendar, Team set up, Expedition Detail, Explorers' Preferences)
+  * **Explorers** (Sign Ups, Explorer view, Training view)
+  * **Volunteers** (Sign Ups, Expedition Assignment)
+  * **OSM Sync** (OSM data, Flexi record mapping, Sync manager, Account reconciliation)
+  * **Settings** (OAuth settings, Unit Leader mappings)
+
+##### [x] 3. Custom Post Type Menu Hiding
+Update custom post type registrations (`season`, `expedition`, `team`) in `CPT_Registry` to set `'show_in_menu' => false` to prevent duplicate menu entries in the WordPress admin sidebar, routing their management strictly through the custom ESM submenus.
+
 ---
 
 ## Completed Sequencing Recommendations & Phases
@@ -66,3 +104,16 @@ After resolving the access type and relationships:
    * Extended `OIDC_Login_Handler` to assign the target role on successful login and registration based on `ems_access_type`.
 3. **Tests**:
    * Implemented `tests/features/auth-oidc-mapping.feature` scenarios using PHPUnit/Brain Monkey stubs to assert roles are correctly assigned on login hooks, metadata is mapped correctly, capabilities are set, and OIDC payloads with missing critical fields log a warning without interrupting the OIDC login process.
+
+### [x] Phase 2 — Unit Leader Directory & Admin Menus
+1. **Behavioral Design (TDD)**: Defined repository contract expectations for unit leader CRUD operations, and defined admin menu structure registration assertions.
+2. **Implementation**:
+   * Executed migration to create the `ems_unit_leaders` table.
+   * Provided CRUD repository methods and simple REST endpoints for managing mapping entries.
+   * Updated custom post type registrations (`season`, `expedition`, `team`) in `CPT_Registry` to set `'show_in_menu' => false`.
+   * Restructured the WP admin menus to follow the `ESM` parent and nested submenu layout.
+3. **Tests**:
+   * Wrote database unit tests in `tests/Unit/Data/Unit_Leader_RepositoryTest.php` verifying table schema, unique keys on `unit_name`, and CRUD helper methods.
+   * Verified email format validation and uniqueness check for `unit_name` on save.
+   * Implemented PHPUnit tests in `tests/Unit/Core/CPT_RegistryTest.php` asserting that `register_post_type` calls for `season`, `expedition`, and `team` receive `'show_in_menu' => false`.
+   * Added tests verifying the correct hierarchy of registered admin menus and submenus.
