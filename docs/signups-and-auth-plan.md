@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
     scout_id               BIGINT UNSIGNED          DEFAULT NULL,
     parent_user_id         BIGINT UNSIGNED NOT NULL,
     unit_id                BIGINT UNSIGNED          DEFAULT NULL, -- Resolved ESU/Unit ID from lookup
+    explorer_first_name    VARCHAR(100)    NOT NULL DEFAULT '',
+    explorer_last_name     VARCHAR(100)    NOT NULL DEFAULT '',
     dofe_level             VARCHAR(20)     NOT NULL, -- 'bronze' | 'silver' | 'gold'
     expedition_preferences TEXT                     DEFAULT NULL, -- JSON string (dates, transport type, etc.)
     first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
@@ -49,19 +51,25 @@ To decouple database ingestion from form changes and support multiple Fluent For
   ```json
   {
     "form_id": {
-      "scout_id_field": "hidden_scout_id",
-      "dofe_level_field": "select_dofe_level",
-      "esu_patrol_field": "select_esu_unit",
-      "first_aid_field": "radio_first_aid_status",
-      "pref_fields": {
-        "dates": "dates_preference",
-        "transport": "transport_preference"
-      }
+      "scout_id_field": "signup_child",
+      "first_name_field": "signup_first_name",
+      "last_name_field": "signup_last_name",
+      "dofe_level_field": "signup_level",
+      "esu_patrol_field": "signup_unit",
+      "first_aid_field": "input_radio",
+      "pref_fields": [
+        "exped_practice_dates",
+        "exped_qualifier_dates",
+        "exped_type",
+        "exped_team_names",
+        "exped_asn"
+      ]
     }
   }
   ```
-* **Admin Mapping UI**: A tab under *EMS Settings* allowing the admin to select a form ID and map its raw input field names to the required EMS database fields (`scout_id`, `dofe_level`, `esu_patrol`, etc.).
+* **Admin Mapping UI**: A tab under *EMS Settings* allowing the admin to select a form ID and map its raw input field names to the required EMS database fields. It also lists all form input keys as checkboxes, allowing the admin to select multiple fields to be serialized together into the JSON `expedition_preferences` column.
 * **Form Submission Mapper**: An interface `Form_Submission_Mapper` resolved by `Form_Mapper_Factory` based on the form ID. Reads submission data using the configured mappings option to extract clean domain fields.
+* **Dynamic Child Name Resolution (OSM)**: When rendering the parent portal and dynamic dropdown choices, EMS retrieves associated child IDs from `ems_children`. For each child, it calls the OSM custom data endpoint `ext/customdata/?action=getData` with parameters `section_id`, `associated_id` (Scout ID), and `associated_type=member` to query the child's detailed profile. EMS extracts the first name and last name (from group `contact_primary_1` or core `firstname`/`lastname` fields) to populate the dynamic options and labels.
 
 #### 3. Fluent Forms Sync Integration Flow
 1. **Dynamic Form Pre-population (Hooks)**:
