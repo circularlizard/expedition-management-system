@@ -55,26 +55,30 @@ After resolving the access type and relationships:
 2. **Persistence**: Call `$user->set_role( $target_role )` securely.
 3. **Payload Validation**: If critical fields (such as `member_access` or `globals`) are missing from the Online Scout Manager payload, EMS must gracefully log a warning and abort the role assignment rather than disrupting the OIDC login process or throwing hard exceptions.
 
-#### [x] Spec 2: Unit Leader Mapping Directory
+#### [x] Spec 2: Consolidated Units & Mappings (Database & UI)
 
-To route sign-up notifications and requests for OSM sharing to the correct ESU (Explorer Scout Unit) leaders, EMS maintains a local directory mapping.
+EMS maintains a consolidated units lookup directory mapping synced Online Scout Manager patrols to local Explorer Scout Units (ESUs).
 
-##### [x] 1. Database Table: `ems_unit_leaders`
+##### [x] 1. Database Table: `ems_units`
 ```sql
-CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
+CREATE TABLE IF NOT EXISTS {$prefix}ems_units (
     id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    unit_id           BIGINT UNSIGNED          DEFAULT NULL, -- General Unit ID (manually populated)
-    unit_name         VARCHAR(100)    NOT NULL,
-    short_code        VARCHAR(100)    NOT NULL DEFAULT '',   -- Short unit identification (same as OSM patrol name)
-    patrol_id         BIGINT                   DEFAULT NULL, -- Mapping reference to ems_osm_patrols
-    leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',
-    leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',
-    leader_email      VARCHAR(100)    NOT NULL DEFAULT '',
-    created_at        DATETIME        NOT NULL,
-    updated_at        DATETIME        NOT NULL,
+    patrol_id         BIGINT          NOT NULL,              -- Synced from OSM (Patrol ID)
+    section_id        BIGINT UNSIGNED NOT NULL,              -- Synced from OSM (Section ID)
+    name              VARCHAR(100)    NOT NULL DEFAULT '',   -- Synced from OSM (Patrol name)
+    active            TINYINT(1)      NOT NULL DEFAULT 1,    -- Synced from OSM
+    synced_at         DATETIME        NOT NULL,              -- Synced from OSM
+    
+    -- Local Admin Mappings (Protected from OSM sync overwrite)
+    unit_id           BIGINT UNSIGNED          DEFAULT NULL, -- Manually populated General Unit ID
+    short_code        VARCHAR(100)    NOT NULL DEFAULT '',   -- Short ESU identification (defaults to patrol name)
+    leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
+    leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
+    leader_email      VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
+    updated_at        DATETIME                 DEFAULT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY idx_unit_name (unit_name),
-    KEY idx_patrol_id (patrol_id)
+    UNIQUE KEY idx_patrol_section (patrol_id, section_id),
+    KEY idx_unit_id (unit_id)
 ) {$charset};
 ```
 
@@ -83,7 +87,6 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_leaders (
 * **Admin UI**: A tab under Settings where admins can view ESU units and assign/edit a leader's name, email, and manual `unit_id` entries, with sticky header scrolling and responsive inputs.
 * **Validation Rules**:
   * **Email Validation**: Validate that leader email addresses match standard format constraints on creation/update.
-  * **Unit Validation**: Ensure the `unit_name` is unique and matches a synced patrol/unit name in the database.
 
 ##### [x] 2. WP Admin Menu Restructuring
 Modify the WordPress Admin menu structure according to the PRD Stage 4 layout to group EMS features cleanly:
@@ -121,3 +124,13 @@ Update custom post type registrations (`season`, `expedition`, `team`) in `CPT_R
    * Verified email format validation and uniqueness check for `unit_name` on save.
    * Implemented PHPUnit tests in `tests/Unit/Core/CPT_RegistryTest.php` asserting that `register_post_type` calls for `season`, `expedition`, and `team` receive `'show_in_menu' => false`.
    * Added tests verifying the correct hierarchy of registered admin menus and submenus.
+
+### [x] Phase 2.5 — Consolidated Units Directory & Settings UI
+1. **Behavioral Design (TDD)**: Defined repository contract expectations for managing Consolidated Units, and defined Settings UI mapping render assertions.
+2. **Implementation**:
+   * Migrated and created the consolidated `ems_units` database table.
+   * Provided repository methods for ESU patrol listings, manual mapping updates (`unit_id`, `short_code` defaults, leader details), and protected custom mappings from being overwritten by OSM sync.
+   * Updated the Settings page tab to list ESU patrols grouped by OSM section, rendering inputs for manual Unit ID and shortcodes.
+3. **Tests**:
+   * Wrote database unit tests in `tests/Unit/Data/Unit_RepositoryTest.php` verifying the consolidated schema, uniqueness constraints, and protected columns during updates.
+   * Added Settings Page test cases verifying ESU section-grouped rendering, sticky headers, and input widths.
