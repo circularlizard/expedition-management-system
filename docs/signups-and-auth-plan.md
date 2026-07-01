@@ -12,10 +12,35 @@ Work completed on custom roles and OIDC mapping has been archived in [completed-
 ### [x] Spec 1: WordPress User Roles & OIDC Mapping (Completed)
 Detailed specification and logic have been moved to [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md).
 
----
+### Spec 2: Consolidated Units & Mappings (Database & UI)
 
-### [x] Spec 2: Unit Leader Mapping Directory (Completed)
-Detailed specification and logic have been moved to [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md).
+EMS maintains a consolidated units lookup directory mapping synced Online Scout Manager patrols to local Explorer Scout Units (ESUs).
+
+#### 1. Database Table: `ems_units`
+```sql
+CREATE TABLE IF NOT EXISTS {$prefix}ems_units (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    patrol_id         BIGINT          NOT NULL,              -- Synced from OSM (Patrol ID)
+    section_id        BIGINT UNSIGNED NOT NULL,              -- Synced from OSM (Section ID)
+    name              VARCHAR(100)    NOT NULL DEFAULT '',   -- Synced from OSM (Patrol name)
+    active            TINYINT(1)      NOT NULL DEFAULT 1,    -- Synced from OSM
+    synced_at         DATETIME        NOT NULL,              -- Synced from OSM
+    
+    -- Local Admin Mappings (Protected from OSM sync overwrite)
+    unit_id           BIGINT UNSIGNED          DEFAULT NULL, -- Manually populated General Unit ID
+    short_code        VARCHAR(100)    NOT NULL DEFAULT '',   -- Short ESU identification (defaults to patrol name)
+    leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
+    leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
+    leader_email      VARCHAR(100)    NOT NULL DEFAULT '',   -- Manually populated
+    updated_at        DATETIME                 DEFAULT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY idx_patrol_section (patrol_id, section_id),
+    KEY idx_unit_id (unit_id)
+) {$charset};
+```
+
+* **OSM Reference Sync**: Updates patrol reference data (`name`, `active`, `synced_at`) using the unique `idx_patrol_section` key, while protecting and preserving the manual settings (`unit_id`, `short_code`, and leader fields).
+* **Settings Mapping Tab (UI)**: An administrative screen under *EMS Settings* listing synced ESU patrols grouped by section where the admin can input/edit the manual **Unit ID**, **Short Code** (defaults to patrol name), and **Leader Details**. Uses sticky headers and responsive input sizing.
 
 ---
 
@@ -129,8 +154,10 @@ gantt
     Auth Roles & OIDC Mapping       :active, p1, 2026-07-01, 3d
     section Phase 2
     Unit Leader Directory Mapping    : p2, after p1, 3d
+    section Phase 2.5
+    Consolidated Units & UI Mappings : p25, after p2, 3d
     section Phase 3
-    Fluent Forms Sync Engine & CPTs  : p3, after p2, 5d
+    Fluent Forms Sync Engine & CPTs  : p3, after p25, 5d
     section Phase 4
     Admin Signups & Reconciliation Board: p4, after p3, 5d
 ```
@@ -141,19 +168,31 @@ Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Use
 ### [x] Phase 2 — Unit Leader Directory & Admin Menus (Completed)
 Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md) for details.
 
-### Phase 3 — Fluent Forms Sync Engine
-1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/signup-fluentforms-sync.feature` representing signup form submissions.
+### Phase 2.5 — Consolidated Units Directory & Settings UI
+1. **Behavioral Design (TDD)**: Define repository contract expectations for managing Consolidated Units, and define Settings UI mapping render assertions.
 2. **Implementation**:
-   * Execute migration to create `ems_signups` table.
-   * Bind callback to `fluentform/submission_inserted` to extract signup info, validate user permission, validate the `dofe_level` parameter, ensure `scout_id` is verified, look up unit leader mappings, and insert/update `ems_signups`.
+   * Migrate and create the consolidated `ems_units` database table.
+   * Provide repository methods for ESU patrol listings, manual mapping updates (`unit_id`, `short_code` defaults, leader details), and protect custom mappings from being overwritten by OSM sync.
+   * Update the Settings page tab to list ESU patrols grouped by OSM section, rendering inputs for manual Unit ID and shortcodes.
 3. **Tests**:
-   * **PHPUnit (Forms Sync)**: Implement `tests/features/signup-fluentforms-sync.feature` to test parent user matching validation, `dofe_level` range validations, existing `scout_id` checks, repository storage, and `wp_mail` lookup notifications.
+   * Write database unit tests in `tests/Unit/Data/Unit_RepositoryTest.php` verifying the consolidated schema, uniqueness constraints, and protected columns during updates.
+   * Add Settings Page test cases verifying ESU section-grouped rendering, sticky headers, and input widths.
+
+### Phase 3 — Fluent Forms Sync Engine & Unit Lookup Integration
+1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/signup-fluentforms-sync.feature` representing signup form submissions and unit lookup mapping logic.
+2. **Implementation**:
+   * Execute migration to create `ems_signups` table (containing `unit_id`).
+   * Bind callback to `fluentform/submission_inserted` to extract signup info, validate user permission, validate the `dofe_level` parameter, and ensure `scout_id` is verified.
+   * **Unit Lookup Integration**: Integrate the child ESU mapping logic: query the `ems_units` table for matches based on the child's `section_ids` array to pre-populate or resolve ESU `unit_id`, supporting parent manual override submissions.
+   * Insert/update `ems_signups` with the resolved `unit_id`.
+3. **Tests**:
+   * **PHPUnit (Forms Sync)**: Implement `tests/features/signup-fluentforms-sync.feature` to test parent user matching validation, `dofe_level` range validations, existing `scout_id` checks, automated child section IDs lookup, manual overrides, repository storage, and `wp_mail` lookup notifications.
 
 ### Phase 4 — Admin Signups Board & Reconciliation UI
 1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/admin-reconciliation.feature` covering REST API requests and manual linking constraints.
 2. **Implementation**:
-   * Implement REST endpoints for `/signups` listing and `/reconcile` / `/process` actions.
-   * Create React Admin Component for "Sign Ups" tab, rendering the reconciliation workflow.
+   * Implement REST endpoints for `/signups` listing (returning resolved unit details) and `/reconcile` / `/process` actions.
+   * Create React Admin Component for "Sign Ups" tab, rendering the reconciliation workflow with dropdown overrides and unassigned/multi-unit warnings.
 3. **Tests**:
    * **API Integration Tests**: Implement `tests/features/admin-reconciliation.feature` scenarios verifying `/reconcile` validates signup & `scout_id` existence, blocks reconciliation of already `'processed'` signups, and validates fuzzy matching query logic.
-   * **UI Vitest Tests**: Write tests in `tests/js/AdminSignupsBoard.test.tsx` verifying component renders "Unlinked" and "Proposed Link" statuses, triggers manual search dialogs, and fires action API endpoints appropriately.
+   * **UI Vitest Tests**: Write tests in `tests/js/AdminSignupsBoard.test.tsx` verifying component renders "Unlinked", "Proposed Link", "Unassigned Unit", and "Multiple Mapped Units" statuses, triggers manual search dialogs, and fires action API endpoints appropriately.
