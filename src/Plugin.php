@@ -324,11 +324,11 @@ class Plugin {
             foreach ( [
                 'ems_osm_event_attendance',
                 'ems_osm_events',
-                'ems_osm_patrols',
                 'ems_osm_explorers',
             ] as $table ) {
                 $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}{$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL
             }
+            $wpdb->query( "UPDATE {$wpdb->prefix}ems_units SET active = 0" );
 
             delete_transient( 'ems_last_sync_result' );
             delete_transient( 'ems_last_sync_log' );
