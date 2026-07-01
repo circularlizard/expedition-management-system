@@ -99,7 +99,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->assertArrayHasKey( 'signup_level', $errors );
     }
 
-    public function test_handle_submission_creates_signup_and_triggers_notifications(): void {
+    public function test_handle_submission_creates_signup_record(): void {
         Functions\when( 'get_option' )->justReturn( [
             4 => [
                 'scout_id_field'   => 'signup_child',
@@ -112,13 +112,6 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->wpdb->rows["SELECT unit_id FROM wp_ems_units WHERE (short_code = 'BO-Kelso' OR name = 'BO-Kelso') LIMIT 1"] = [
             'unit_id' => 10,
         ];
-        $this->wpdb->rows["SELECT leader_email FROM wp_ems_units WHERE short_code = 'BO-Kelso' AND active = 1 LIMIT 1"] = [
-            'leader_email' => 'leader@example.com',
-        ];
-
-        $parent_user = Mockery::mock( \WP_User::class );
-        $parent_user->user_email = 'parent@example.com';
-        Functions\when( 'get_userdata' )->justReturn( $parent_user );
 
         $this->signup_repo->shouldReceive( 'create_signup' )
             ->once()
@@ -131,7 +124,8 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             } ) )
             ->andReturn( 123 );
 
-        Functions\expect( 'wp_mail' )->twice()->andReturn( true );
+        // wp_mail must NOT be called — email is handled by Fluent Forms notifications
+        Functions\expect( 'wp_mail' )->never();
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
         $sync->handle_submission( 999, [
@@ -141,7 +135,99 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             'exped_type'   => 'Hillwalking',
         ], (object) [ 'id' => 4 ] );
 
-        $this->assertTrue( true ); // Verify execution finished without exception
+        $this->assertTrue( true );
+    }
+
+    public function test_populate_parent_email_sets_value(): void {
+        $user = Mockery::mock( \WP_User::class );
+        $user->user_email = 'parent@example.com';
+        Functions\when( 'get_userdata' )->justReturn( $user );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $data = [
+            'attributes' => [ 'name' => 'signup_parent_email', 'value' => '' ],
+            'settings'   => [ 'value' => '' ],
+        ];
+
+        $result = $sync->populate_parent_email( $data, (object) [ 'id' => 4 ] );
+
+        $this->assertSame( 'parent@example.com', $result['attributes']['value'] );
+        $this->assertSame( 'parent@example.com', $result['settings']['value'] );
+    }
+
+    public function test_populate_parent_email_ignores_other_fields(): void {
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $data = [
+            'attributes' => [ 'name' => 'some_other_email', 'value' => '' ],
+            'settings'   => [ 'value' => '' ],
+        ];
+
+        $result = $sync->populate_parent_email( $data, (object) [ 'id' => 4 ] );
+
+        $this->assertSame( '', $result['attributes']['value'] );
+    }
+
+    public function test_populate_explorer_email_uses_osm_record_when_synced(): void {
+        $children = [
+            [ 'scout_id' => 30001, 'section_ids' => [ 99001 ] ]
+        ];
+        Functions\when( 'get_user_meta' )->justReturn( $children );
+
+        // Explorer is in the local sync table
+        $this->wpdb->rows["SELECT email FROM wp_ems_osm_explorers WHERE scout_id = 30001 LIMIT 1"] = [
+            'email' => 'explorer@example.com',
+        ];
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $data = [
+            'attributes' => [ 'name' => 'signup_explorer_email', 'value' => '' ],
+            'settings'   => [ 'value' => '' ],
+        ];
+
+        $result = $sync->populate_explorer_email( $data, (object) [ 'id' => 4 ] );
+
+        $this->assertSame( 'explorer@example.com', $result['attributes']['value'] );
+    }
+
+    public function test_populate_explorer_email_leaves_empty_when_not_synced(): void {
+        $children = [
+            [ 'scout_id' => 30001, 'section_ids' => [ 99001 ] ]
+        ];
+        Functions\when( 'get_user_meta' )->justReturn( $children );
+        // No row in ems_osm_explorers for this scout_id
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $data = [
+            'attributes' => [ 'name' => 'signup_explorer_email', 'value' => '' ],
+            'settings'   => [ 'value' => '' ],
+        ];
+
+        $result = $sync->populate_explorer_email( $data, (object) [ 'id' => 4 ] );
+
+        $this->assertSame( '', $result['attributes']['value'] );
+    }
+
+    public function test_populate_leader_email_resolves_from_unit(): void {
+        $children = [
+            [ 'scout_id' => 30001, 'section_ids' => [ 99001 ] ]
+        ];
+        Functions\when( 'get_user_meta' )->justReturn( $children );
+
+        $this->wpdb->rows["SELECT short_code, unit_id, leader_email FROM wp_ems_units WHERE unit_id = 99001 AND active = 1 LIMIT 1"] = [
+            'short_code'   => 'BO-Kelso',
+            'unit_id'      => 99001,
+            'leader_email' => 'leader@example.com',
+        ];
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $data = [
+            'attributes' => [ 'name' => 'signup_leader_email', 'value' => '' ],
+            'settings'   => [ 'value' => '' ],
+        ];
+
+        $result = $sync->populate_leader_email( $data, (object) [ 'id' => 4 ] );
+
+        $this->assertSame( 'leader@example.com', $result['attributes']['value'] );
     }
 
     public function test_handle_payment_status_paid_marks_signup_paid(): void {
