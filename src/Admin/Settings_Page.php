@@ -131,7 +131,7 @@ class Settings_Page {
                 </a>
                 <a href="<?php echo esc_url( $page_url . '&tab=unit_leaders' ); ?>"
                    class="nav-tab<?php echo $active_tab === 'unit_leaders' ? ' nav-tab-active' : ''; ?>">
-                    <?php esc_html_e( 'Unit Leaders', 'ems-plugin' ); ?>
+                    <?php esc_html_e( 'Unit Lookup', 'ems-plugin' ); ?>
                 </a>
             </nav>
             <?php
@@ -381,7 +381,7 @@ class Settings_Page {
         ?>
         <style>
             .ems-unit-leaders-table-container {
-                max-height: 500px;
+                max-height: calc(100vh - 220px);
                 overflow-y: auto;
                 border: 1px solid #ccd0d4;
                 margin-top: 15px;
