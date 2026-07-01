@@ -474,28 +474,39 @@ class Fluent_Forms_Sync {
         <script type="text/javascript">
             window.emsFormMappings = window.emsFormMappings || {};
             Object.assign(window.emsFormMappings, <?php echo json_encode( $js_mappings ); ?>);
+            console.log('[EMS Sync] Loaded children unit mappings:', window.emsFormMappings);
 
             document.addEventListener('DOMContentLoaded', function() {
                 function initEmsFormSync() {
                     const childSelect = document.querySelector('select[name="signup_child"]');
                     const unitSelect = document.querySelector('select[name="signup_unit"]');
                     const unitIdInput = document.querySelector('input[name="signup_unitid"]');
-                    if (!childSelect) return;
+                    if (!childSelect) {
+                        console.log('[EMS Sync] childSelect not found in form.');
+                        return;
+                    }
+                    console.log('[EMS Sync] Initializing sync hook. Fields found: childSelect, unitSelect:', !!unitSelect, 'unitIdInput:', !!unitIdInput);
 
                     function updateUnit() {
                         const val = childSelect.value;
+                        console.log('[EMS Sync] signup_child changed value:', val);
                         if (!val) return;
                         const scoutId = val.split('|')[0];
                         const mapping = window.emsFormMappings[scoutId];
                         if (mapping) {
+                            console.log('[EMS Sync] Found unit mapping for scout ID', scoutId, ':', mapping);
                             if (unitSelect && mapping.unitCode) {
+                                console.log('[EMS Sync] Setting signup_unit to:', mapping.unitCode);
                                 unitSelect.value = mapping.unitCode;
                                 unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
                             }
                             if (unitIdInput && mapping.unitId) {
+                                console.log('[EMS Sync] Setting signup_unitid to:', mapping.unitId);
                                 unitIdInput.value = mapping.unitId;
                                 unitIdInput.dispatchEvent(new Event('change', { bubbles: true }));
                             }
+                        } else {
+                            console.log('[EMS Sync] No unit mapping found for scout ID', scoutId);
                         }
                     }
 
@@ -503,7 +514,9 @@ class Fluent_Forms_Sync {
 
                     // Auto-trigger if there is exactly 1 valid child option
                     const nonPlaceholderOptions = Array.from(childSelect.options).filter(o => o.value && o.value.includes('|'));
+                    console.log('[EMS Sync] Total valid explorer options in select:', nonPlaceholderOptions.length);
                     if (nonPlaceholderOptions.length === 1) {
+                        console.log('[EMS Sync] Exactly 1 child option found, auto-triggering selection:', nonPlaceholderOptions[0].value);
                         childSelect.value = nonPlaceholderOptions[0].value;
                         childSelect.dispatchEvent(new Event('change', { bubbles: true }));
                     } else {
