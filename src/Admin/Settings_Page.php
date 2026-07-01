@@ -5,10 +5,10 @@ class Settings_Page {
 
     private const VALID_MODES = [ 'mock', 'live', 'live-auth-only', 'live-limited' ];
 
-    private \EMS\Data\Unit_Leader_Repository $unit_leaders;
+    private \EMS\Data\Unit_Repository $unit_leaders;
 
-    public function __construct( ?\EMS\Data\Unit_Leader_Repository $unit_leaders = null ) {
-        $this->unit_leaders = $unit_leaders ?: new \EMS\Data\Unit_Leader_Repository();
+    public function __construct( ?\EMS\Data\Unit_Repository $unit_leaders = null ) {
+        $this->unit_leaders = $unit_leaders ?: new \EMS\Data\Unit_Repository();
     }
 
     public function register(): void {
@@ -349,60 +349,26 @@ class Settings_Page {
         <?php
     }
 
-    private function get_all_patrols(): array {
-        global $wpdb;
-        $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
-        $patrols_table   = $wpdb->prefix . 'ems_osm_patrols';
-
-        // Check if tables exist first to avoid SQL errors before migration
-        $explorers_exists = $wpdb->get_var( "SHOW TABLES LIKE '{$explorers_table}'" );
-        $patrols_exists   = $wpdb->get_var( "SHOW TABLES LIKE '{$patrols_table}'" );
-
-        $explorers_patrols = [];
-        $patrols_names     = [];
-
-        if ( $explorers_exists ) {
-            $explorers_patrols = $wpdb->get_col( "SELECT DISTINCT patrol FROM {$explorers_table} WHERE patrol != ''" );
-        }
-        if ( $patrols_exists ) {
-            $patrols_names = $wpdb->get_col( "SELECT DISTINCT name FROM {$patrols_table} WHERE active = 1 AND name != ''" );
-        }
-
-        $all = array_unique( array_merge( (array) $explorers_patrols, (array) $patrols_names ) );
-        sort( $all );
-        return $all;
-    }
-
     public function save_unit_leaders( array $post_data ): void {
         $leaders_data = $post_data['unit_leaders'] ?? [];
         
-        foreach ( $leaders_data as $unit_name => $fields ) {
+        foreach ( $leaders_data as $id => $fields ) {
             $email = sanitize_text_field( $fields['email'] ?? '' );
             $first = sanitize_text_field( $fields['first_name'] ?? '' );
             $last  = sanitize_text_field( $fields['last_name'] ?? '' );
-
-            $existing = $this->unit_leaders->find_by_unit_name( $unit_name );
-            
-            if ( empty( $email ) ) {
-                if ( $existing ) {
-                    $this->unit_leaders->delete( $existing['id'] );
-                }
-                continue;
-            }
+            $unit_id = empty( $fields['unit_id'] ) ? null : (int) $fields['unit_id'];
+            $short_code = sanitize_text_field( $fields['short_code'] ?? '' );
 
             $data = [
-                'unit_name'         => $unit_name,
+                'unit_id'           => $unit_id,
+                'short_code'        => $short_code,
                 'leader_first_name' => $first,
                 'leader_last_name'  => $last,
                 'leader_email'      => $email,
             ];
 
             try {
-                if ( $existing ) {
-                    $this->unit_leaders->update( $existing['id'], $data );
-                } else {
-                    $this->unit_leaders->create( $data );
-                }
+                $this->unit_leaders->update_custom_mappings( (int) $id, $data );
             } catch ( \InvalidArgumentException $e ) {
                 error_log( '[EMS] Settings save_unit_leaders failed: ' . $e->getMessage() );
             }
@@ -410,11 +376,8 @@ class Settings_Page {
     }
 
     private function render_unit_leaders_tab(): void {
-        $patrols  = $this->get_all_patrols();
-        $mappings = [];
-        foreach ( $this->unit_leaders->list_all() as $m ) {
-            $mappings[ $m['unit_name'] ] = $m;
-        }
+        $units            = $this->unit_leaders->list_active_units();
+        $managed_sections = get_option( 'ems_managed_sections', [] );
         ?>
         <style>
             .ems-unit-leaders-table-container {
@@ -435,7 +398,8 @@ class Settings_Page {
                 z-index: 2;
             }
             .ems-unit-leaders-table-container input[type="text"],
-            .ems-unit-leaders-table-container input[type="email"] {
+            .ems-unit-leaders-table-container input[type="email"],
+            .ems-unit-leaders-table-container input[type="number"] {
                 width: 100%;
                 max-width: 100%;
                 box-sizing: border-box;
@@ -447,35 +411,48 @@ class Settings_Page {
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
-                            <th style="width: 25%;"><?php esc_html_e( 'ESU / Unit Name', 'ems-plugin' ); ?></th>
+                            <th style="width: 15%;"><?php esc_html_e( 'OSM Section', 'ems-plugin' ); ?></th>
+                            <th style="width: 15%;"><?php esc_html_e( 'ESU / Unit Name', 'ems-plugin' ); ?></th>
+                            <th style="width: 10%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
+                            <th style="width: 15%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
                             <th><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></th>
                             <th><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></th>
                             <th><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ( empty( $patrols ) ) : ?>
+                        <?php if ( empty( $units ) ) : ?>
                             <tr>
-                                <td colspan="4"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data first.', 'ems-plugin' ); ?></td>
+                                <td colspan="7"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data first.', 'ems-plugin' ); ?></td>
                             </tr>
                         <?php else : ?>
-                            <?php foreach ( $patrols as $patrol ) : 
-                                $m = $mappings[ $patrol ] ?? [];
-                                $esc_patrol = esc_attr( $patrol );
+                            <?php foreach ( $units as $u ) : 
+                                $sec_id = $u['section_id'];
+                                $sec_name = $managed_sections[$sec_id]['name'] ?? "Section #{$sec_id}";
+                                $row_id = (int) $u['id'];
                                 ?>
                                 <tr>
-                                    <td><strong><?php echo esc_html( $patrol ); ?></strong></td>
+                                    <td><?php echo esc_html( $sec_name ); ?></td>
+                                    <td><strong><?php echo esc_html( $u['name'] ); ?></strong></td>
                                     <td>
-                                        <input type="text" name="unit_leaders[<?php echo $esc_patrol; ?>][first_name]" 
-                                               value="<?php echo esc_attr( $m['leader_first_name'] ?? '' ); ?>" />
+                                        <input type="number" name="unit_leaders[<?php echo $row_id; ?>][unit_id]" 
+                                               value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" />
                                     </td>
                                     <td>
-                                        <input type="text" name="unit_leaders[<?php echo $esc_patrol; ?>][last_name]" 
-                                               value="<?php echo esc_attr( $m['leader_last_name'] ?? '' ); ?>" />
+                                        <input type="text" name="unit_leaders[<?php echo $row_id; ?>][short_code]" 
+                                               value="<?php echo esc_attr( $u['short_code'] ?: $u['name'] ); ?>" />
                                     </td>
                                     <td>
-                                        <input type="email" name="unit_leaders[<?php echo $esc_patrol; ?>][email]" 
-                                               value="<?php echo esc_attr( $m['leader_email'] ?? '' ); ?>" />
+                                        <input type="text" name="unit_leaders[<?php echo $row_id; ?>][first_name]" 
+                                               value="<?php echo esc_attr( $u['leader_first_name'] ?? '' ); ?>" />
+                                    </td>
+                                    <td>
+                                        <input type="text" name="unit_leaders[<?php echo $row_id; ?>][last_name]" 
+                                               value="<?php echo esc_attr( $u['leader_last_name'] ?? '' ); ?>" />
+                                    </td>
+                                    <td>
+                                        <input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
+                                               value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -483,7 +460,7 @@ class Settings_Page {
                     </tbody>
                 </table>
             </div>
-            <?php if ( ! empty( $patrols ) ) : ?>
+            <?php if ( ! empty( $units ) ) : ?>
                 <p class="submit">
                     <input type="submit" name="ems_save_unit_leaders" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Unit Leaders', 'ems-plugin' ); ?>" />
                 </p>
