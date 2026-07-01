@@ -32,7 +32,7 @@ class Fluent_Forms_Sync {
         add_action( 'fluentform/submission_inserted', [ $this, 'handle_submission' ], 10, 3 );
 
         // Stripe Payment status callbacks
-        add_action( 'fluentform/after_payment_status_change', [ $this, 'handle_payment_status' ], 10, 4 );
+        add_action( 'fluentform/after_payment_status_change', [ $this, 'handle_payment_status' ], 10, 2 );
 
         // Enqueue form interaction script
         add_action( 'fluentform/before_form_render', [ $this, 'enqueue_form_script' ], 10, 1 );
@@ -325,11 +325,23 @@ class Fluent_Forms_Sync {
     /**
      * Handle Stripe/Fluent Forms payment status changes
      */
-    public function handle_payment_status( $paymentId, string $newStatus, string $oldStatus, $submission ): void {
+    public function handle_payment_status( string $status, $submission ): void {
         $entryId = (int) ( is_object( $submission ) ? ( $submission->id ?? 0 ) : ( is_array( $submission ) ? ( $submission['id'] ?? 0 ) : $submission ) );
+        $log_dir = defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR . '/uploads' : sys_get_temp_dir();
+        $log_file = $log_dir . '/payment_debug.log';
+        $log_msg = sprintf(
+            "[%s] handle_payment_status - status: %s, entryId: %d, submission type: %s\n",
+            date('Y-m-d H:i:s'),
+            $status,
+            $entryId,
+            gettype($submission)
+        );
+        file_put_contents( $log_file, $log_msg, FILE_APPEND );
+
         if ( $entryId > 0 ) {
-            $mapped_status = ( $newStatus === 'completed' || $newStatus === 'paid' ) ? 'paid' : 'pending';
-            $this->signup_repo->update_payment_status_by_submission_id( $entryId, $mapped_status );
+            $mapped_status = ( $status === 'completed' || $status === 'paid' ) ? 'paid' : 'pending';
+            $res = $this->signup_repo->update_payment_status_by_submission_id( $entryId, $mapped_status );
+            file_put_contents( $log_file, "Update result: " . ($res ? 'SUCCESS' : 'FAILED') . "\n", FILE_APPEND );
         }
     }
 
@@ -445,7 +457,11 @@ class Fluent_Forms_Sync {
                             console.log('[EMS Sync] Found unit mapping for scout ID', scoutId, ':', mapping);
                             if (unitSelect && mapping.unitCode) {
                                 console.log('[EMS Sync] Setting signup_unit to:', mapping.unitCode);
-                                unitSelect.value = mapping.unitCode;
+                                if (unitSelect.choicesInstance) {
+                                    unitSelect.choicesInstance.setChoiceByValue(mapping.unitCode);
+                                } else {
+                                    unitSelect.value = mapping.unitCode;
+                                }
                                 unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
                             }
                             if (unitIdInput && mapping.unitId) {
@@ -464,8 +480,13 @@ class Fluent_Forms_Sync {
                     const nonPlaceholderOptions = Array.from(childSelect.options).filter(o => o.value && o.value.includes('|'));
                     console.log('[EMS Sync] Total valid explorer options in select:', nonPlaceholderOptions.length);
                     if (nonPlaceholderOptions.length === 1) {
-                        console.log('[EMS Sync] Exactly 1 child option found, auto-triggering selection:', nonPlaceholderOptions[0].value);
-                        childSelect.value = nonPlaceholderOptions[0].value;
+                        const targetVal = nonPlaceholderOptions[0].value;
+                        console.log('[EMS Sync] Exactly 1 child option found, auto-triggering selection:', targetVal);
+                        if (childSelect.choicesInstance) {
+                            childSelect.choicesInstance.setChoiceByValue(targetVal);
+                        } else {
+                            childSelect.value = targetVal;
+                        }
                         childSelect.dispatchEvent(new Event('change', { bubbles: true }));
                     } else {
                         updateUnit();

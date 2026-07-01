@@ -151,7 +151,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             ->andReturn( true );
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
-        $sync->handle_payment_status( 12, 'paid', 'pending', (object) [ 'id' => 999 ] );
+        $sync->handle_payment_status( 'paid', (object) [ 'id' => 999 ] );
 
         $this->assertTrue( true );
     }
