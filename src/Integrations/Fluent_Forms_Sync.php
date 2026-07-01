@@ -323,26 +323,36 @@ class Fluent_Forms_Sync {
     }
 
     /**
-     * Handle Stripe/Fluent Forms payment status changes
+     * Handle Stripe/Fluent Forms payment status changes.
+     *
+     * Fluent Forms passes the raw Stripe-derived status string:
+     *   'paid'             — card/immediate payment succeeded
+     *   'succeeded'        — alias used by some Stripe intent paths
+     *   'processing'       — async payment in progress (webhook will follow)
+     *   'requires_capture' — authorise-only mode
+     *   'failed'           — payment failed
+     *
+     * EMS persists only 'paid' | 'pending' and never downgrades a paid row.
      */
     public function handle_payment_status( string $status, $submission ): void {
-        $entryId = (int) ( is_object( $submission ) ? ( $submission->id ?? 0 ) : ( is_array( $submission ) ? ( $submission['id'] ?? 0 ) : $submission ) );
-        $log_dir = defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR . '/uploads' : sys_get_temp_dir();
-        $log_file = $log_dir . '/payment_debug.log';
-        $log_msg = sprintf(
-            "[%s] handle_payment_status - status: %s, entryId: %d, submission type: %s\n",
-            date('Y-m-d H:i:s'),
-            $status,
-            $entryId,
-            gettype($submission)
-        );
-        file_put_contents( $log_file, $log_msg, FILE_APPEND );
+        $entryId = (int) ( is_object( $submission )
+            ? ( $submission->id ?? 0 )
+            : ( is_array( $submission ) ? ( $submission['id'] ?? 0 ) : $submission ) );
 
-        if ( $entryId > 0 ) {
-            $mapped_status = ( $status === 'completed' || $status === 'paid' ) ? 'paid' : 'pending';
-            $res = $this->signup_repo->update_payment_status_by_submission_id( $entryId, $mapped_status );
-            file_put_contents( $log_file, "Update result: " . ($res ? 'SUCCESS' : 'FAILED') . "\n", FILE_APPEND );
+        if ( $entryId <= 0 ) {
+            return;
         }
+
+        // Only 'paid' and 'succeeded' represent a completed payment.
+        $mapped_status = in_array( $status, [ 'paid', 'succeeded' ], true ) ? 'paid' : 'pending';
+
+        // Idempotency guard: never downgrade a row that is already marked paid.
+        $existing = $this->signup_repo->get_signup_by_submission_id( $entryId );
+        if ( $existing && $existing['payment_status'] === 'paid' && $mapped_status !== 'paid' ) {
+            return;
+        }
+
+        $this->signup_repo->update_payment_status_by_submission_id( $entryId, $mapped_status );
     }
 
     /**
@@ -436,65 +446,114 @@ class Fluent_Forms_Sync {
             Object.assign(window.emsFormMappings, JSON.parse('<?php echo json_encode( $js_mappings, JSON_FORCE_OBJECT ); ?>'));
             console.log('[EMS Sync] Loaded children unit mappings:', window.emsFormMappings);
 
+            /**
+             * Retrieve the Choices.js instance for a <select> element.
+             *
+             * Fluent Forms initialises Choices.js via jQuery and stores the instance
+             * using jQuery's internal data cache (key: 'choicesjs'). It is NOT exposed
+             * as a DOM property, so `el.choicesInstance` is always undefined.
+             * We must go through window.jQuery to read it.
+             */
+            function emsGetChoices(el) {
+                return (window.jQuery && window.jQuery(el).data('choicesjs')) || null;
+            }
+
+            /**
+             * Set a value on a <select> whether or not Choices.js wraps it.
+             * Dispatches a native 'change' event so FF's own handlers stay in sync.
+             */
+            function emsSetSelectValue(el, value) {
+                var choices = emsGetChoices(el);
+                if (choices) {
+                    choices.setChoiceByValue(value);
+                } else {
+                    el.value = value;
+                }
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
             document.addEventListener('DOMContentLoaded', function() {
+
                 function initEmsFormSync() {
-                    const childSelect = document.querySelector('select[name="signup_child"]');
-                    const unitSelect = document.querySelector('select[name="signup_unit"]');
-                    const unitIdInput = document.querySelector('input[name="signup_unitid"]');
+                    var childSelect = document.querySelector('select[name="signup_child"]');
+                    var unitSelect  = document.querySelector('select[name="signup_unit"]');
+                    var unitIdInput = document.querySelector('input[name="signup_unitid"]');
+
                     if (!childSelect) {
                         console.log('[EMS Sync] childSelect not found in form.');
                         return;
                     }
-                    console.log('[EMS Sync] Initializing sync hook. Fields found: childSelect, unitSelect:', !!unitSelect, 'unitIdInput:', !!unitIdInput);
+                    console.log('[EMS Sync] Initializing sync hook. Fields found: unitSelect:', !!unitSelect, 'unitIdInput:', !!unitIdInput);
 
                     function updateUnit() {
-                        const val = childSelect.value;
+                        var val = childSelect.value;
                         console.log('[EMS Sync] signup_child changed value:', val);
                         if (!val) return;
-                        const scoutId = val.split('|')[0];
-                        const mapping = window.emsFormMappings[scoutId];
-                        if (mapping) {
-                            console.log('[EMS Sync] Found unit mapping for scout ID', scoutId, ':', mapping);
-                            if (unitSelect && mapping.unitCode) {
-                                console.log('[EMS Sync] Setting signup_unit to:', mapping.unitCode);
-                                if (unitSelect.choicesInstance) {
-                                    unitSelect.choicesInstance.setChoiceByValue(mapping.unitCode);
-                                } else {
-                                    unitSelect.value = mapping.unitCode;
-                                }
-                                unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                            if (unitIdInput && mapping.unitId) {
-                                console.log('[EMS Sync] Setting signup_unitid to:', mapping.unitId);
-                                unitIdInput.value = mapping.unitId;
-                                unitIdInput.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                        } else {
+                        var scoutId = val.split('|')[0];
+                        var mapping = window.emsFormMappings[scoutId];
+                        if (!mapping) {
                             console.log('[EMS Sync] No unit mapping found for scout ID', scoutId);
+                            return;
+                        }
+                        console.log('[EMS Sync] Found unit mapping for scout ID', scoutId, ':', mapping);
+
+                        if (unitSelect && mapping.unitCode) {
+                            // Choices.js may not be attached yet — poll until it is or
+                            // fall back to native <select> after 3 s.
+                            (function trySetUnit(deadline) {
+                                var choices = emsGetChoices(unitSelect);
+                                if (choices) {
+                                    console.log('[EMS Sync] Setting signup_unit via Choices.js to:', mapping.unitCode);
+                                    choices.setChoiceByValue(mapping.unitCode);
+                                    unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                                } else if (Date.now() < deadline) {
+                                    setTimeout(function() { trySetUnit(deadline); }, 100);
+                                } else {
+                                    console.log('[EMS Sync] Choices.js not found after 3 s, setting signup_unit via native select to:', mapping.unitCode);
+                                    unitSelect.value = mapping.unitCode;
+                                    unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            })(Date.now() + 3000);
+                        }
+
+                        if (unitIdInput && mapping.unitId) {
+                            console.log('[EMS Sync] Setting signup_unitid to:', mapping.unitId);
+                            unitIdInput.value = mapping.unitId;
+                            unitIdInput.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                     }
 
                     childSelect.addEventListener('change', updateUnit);
 
-                    // Auto-trigger if there is exactly 1 valid child option
-                    const nonPlaceholderOptions = Array.from(childSelect.options).filter(o => o.value && o.value.includes('|'));
+                    // Auto-trigger if there is exactly 1 valid child option.
+                    // We also need to wait for Choices.js on childSelect before calling
+                    // setChoiceByValue, so we use the same polling approach.
+                    var nonPlaceholderOptions = Array.from(childSelect.options).filter(function(o) {
+                        return o.value && o.value.includes('|');
+                    });
                     console.log('[EMS Sync] Total valid explorer options in select:', nonPlaceholderOptions.length);
+
                     if (nonPlaceholderOptions.length === 1) {
-                        const targetVal = nonPlaceholderOptions[0].value;
-                        console.log('[EMS Sync] Exactly 1 child option found, auto-triggering selection:', targetVal);
-                        if (childSelect.choicesInstance) {
-                            childSelect.choicesInstance.setChoiceByValue(targetVal);
-                        } else {
-                            childSelect.value = targetVal;
-                        }
-                        childSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        var targetVal = nonPlaceholderOptions[0].value;
+                        console.log('[EMS Sync] Exactly 1 child option, auto-triggering selection:', targetVal);
+                        (function trySetChild(deadline) {
+                            var choices = emsGetChoices(childSelect);
+                            if (choices) {
+                                choices.setChoiceByValue(targetVal);
+                                childSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else if (Date.now() < deadline) {
+                                setTimeout(function() { trySetChild(deadline); }, 100);
+                            } else {
+                                childSelect.value = targetVal;
+                                childSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        })(Date.now() + 3000);
                     } else {
                         updateUnit();
                     }
                 }
+
                 initEmsFormSync();
-                // Also initialize on dynamic/AJAX loaded forms
-                setTimeout(initEmsFormSync, 600);
             });
         </script>
         <?php
