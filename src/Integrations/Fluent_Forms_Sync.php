@@ -37,6 +37,9 @@ class Fluent_Forms_Sync {
 
         // Stripe Payment status callbacks
         add_action( 'fluentform/after_payment_status_change', [ $this, 'handle_payment_status' ], 10, 2 );
+
+        // Enqueue form interaction script
+        add_action( 'fluentform/before_form_render', [ $this, 'enqueue_form_script' ], 10, 1 );
     }
 
     /**
@@ -404,5 +407,114 @@ class Fluent_Forms_Sync {
                 )
             );
         }
+    }
+
+    /**
+     * Enqueue client-side synchronization JavaScript for dynamic form selections
+     */
+    public function enqueue_form_script( $form ): void {
+        $mappings = get_option( 'ems_form_mappings', [] );
+        $form_id = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
+        if ( ! isset( $mappings[ $form_id ] ) ) {
+            return;
+        }
+
+        $user_id = get_current_user_id();
+        if ( ! $user_id ) {
+            return;
+        }
+
+        $children_meta = get_user_meta( $user_id, 'ems_children', true );
+        if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
+            return;
+        }
+
+        $js_mappings = [];
+        foreach ( $children_meta as $child ) {
+            $scout_id = (int) ( $child['scout_id'] ?? 0 );
+            if ( ! $scout_id ) {
+                continue;
+            }
+
+            $explorer = $this->wpdb->get_row(
+                $this->wpdb->prepare(
+                    "SELECT section_id FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
+                    $scout_id
+                ),
+                ARRAY_A
+            );
+
+            $section_ids = ! empty( $explorer['section_id'] ) ? [ (int) $explorer['section_id'] ] : (array) ( $child['section_ids'] ?? [] );
+            $resolved_code = '';
+            $resolved_id = 0;
+
+            foreach ( $section_ids as $sec_id ) {
+                $unit = $this->wpdb->get_row(
+                    $this->wpdb->prepare(
+                        "SELECT short_code, unit_id FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND active = 1 LIMIT 1",
+                        $sec_id
+                    ),
+                    ARRAY_A
+                );
+
+                if ( ! empty( $unit ) ) {
+                    $resolved_code = $unit['short_code'] ?: '';
+                    $resolved_id   = (int) ( $unit['unit_id'] ?? 0 );
+                    break;
+                }
+            }
+
+            $js_mappings[ $scout_id ] = [
+                'unitCode' => $resolved_code,
+                'unitId'   => $resolved_id,
+            ];
+        }
+
+        ?>
+        <script type="text/javascript">
+            window.emsFormMappings = window.emsFormMappings || {};
+            Object.assign(window.emsFormMappings, <?php echo json_encode( $js_mappings ); ?>);
+
+            document.addEventListener('DOMContentLoaded', function() {
+                function initEmsFormSync() {
+                    const childSelect = document.querySelector('select[name="signup_child"]');
+                    const unitSelect = document.querySelector('select[name="signup_unit"]');
+                    const unitIdInput = document.querySelector('input[name="signup_unitid"]');
+                    if (!childSelect) return;
+
+                    function updateUnit() {
+                        const val = childSelect.value;
+                        if (!val) return;
+                        const scoutId = val.split('|')[0];
+                        const mapping = window.emsFormMappings[scoutId];
+                        if (mapping) {
+                            if (unitSelect && mapping.unitCode) {
+                                unitSelect.value = mapping.unitCode;
+                                unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            if (unitIdInput && mapping.unitId) {
+                                unitIdInput.value = mapping.unitId;
+                                unitIdInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                    }
+
+                    childSelect.addEventListener('change', updateUnit);
+
+                    // Auto-trigger if there is exactly 1 valid child option
+                    const nonPlaceholderOptions = Array.from(childSelect.options).filter(o => o.value && o.value.includes('|'));
+                    if (nonPlaceholderOptions.length === 1) {
+                        childSelect.value = nonPlaceholderOptions[0].value;
+                        childSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    } else {
+                        updateUnit();
+                    }
+                }
+                initEmsFormSync();
+                // Also initialize on dynamic/AJAX loaded forms
+                setTimeout(initEmsFormSync, 600);
+            });
+        </script>
+        <?php
     }
 }
