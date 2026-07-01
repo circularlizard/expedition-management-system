@@ -209,7 +209,7 @@ class Fluent_Forms_Sync {
      */
     public function validate_submission( array $errors, $form ): array {
         $mappings = get_option( 'ems_form_mappings', [] );
-        $form_id = (int) $form->id;
+        $form_id = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
         
         if ( ! isset( $mappings[ $form_id ] ) ) {
             return $errors;
@@ -247,7 +247,7 @@ class Fluent_Forms_Sync {
      */
     public function handle_submission( $entryId, $formData, $form ): void {
         $mappings = get_option( 'ems_form_mappings', [] );
-        $form_id = (int) $form->id;
+        $form_id = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
 
         if ( ! isset( $mappings[ $form_id ] ) ) {
             return;
