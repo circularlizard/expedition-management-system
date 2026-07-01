@@ -114,10 +114,7 @@ class Fluent_Forms_Sync {
             return [ 'short_code' => '', 'unit_id' => 0 ];
         }
 
-        // Get the child's section IDs from the OIDC ems_children payload
-        $section_ids = (array) ( $child['section_ids'] ?? [] );
-
-        // Fallback: check synced explorer row for any section ID
+        // 1. Get the explorer's synced section ID
         $explorer = $this->wpdb->get_row(
             $this->wpdb->prepare(
                 "SELECT section_id FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
@@ -125,30 +122,25 @@ class Fluent_Forms_Sync {
             ),
             ARRAY_A
         );
-        if ( ! empty( $explorer['section_id'] ) ) {
-            $section_ids[] = (int) $explorer['section_id'];
-        }
-        $section_ids = array_unique( array_filter( $section_ids ) );
 
-        if ( empty( $section_ids ) ) {
+        if ( empty( $explorer['section_id'] ) ) {
             return [ 'short_code' => '', 'unit_id' => 0 ];
         }
 
-        // Match the child's section IDs against the unit_id column in ems_units
-        foreach ( $section_ids as $sec_id ) {
-            $unit = $this->wpdb->get_row(
-                $this->wpdb->prepare(
-                    "SELECT short_code, unit_id FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d AND active = 1 LIMIT 1",
-                    $sec_id
-                ),
-                ARRAY_A
-            );
-            if ( ! empty( $unit ) ) {
-                return [
-                    'short_code' => $unit['short_code'] ?: '',
-                    'unit_id'    => (int) ( $unit['unit_id'] ?? 0 ),
-                ];
-            }
+        // 2. Look up the unit where unit_id matches the explorer's section_id
+        $unit = $this->wpdb->get_row(
+            $this->wpdb->prepare(
+                "SELECT short_code, unit_id FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d AND active = 1 LIMIT 1",
+                $explorer['section_id']
+            ),
+            ARRAY_A
+        );
+
+        if ( ! empty( $unit ) ) {
+            return [
+                'short_code' => $unit['short_code'] ?: '',
+                'unit_id'    => (int) ( $unit['unit_id'] ?? 0 ),
+            ];
         }
 
         return [ 'short_code' => '', 'unit_id' => 0 ];
