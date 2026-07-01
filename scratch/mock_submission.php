@@ -58,6 +58,7 @@ $entryId = 9999;
 $formData = [
     'signup_child'          => '30001|Mary|Smith',
     'signup_unit'           => 'BO-Kelso',
+    'hidden_1'              => 10,
     'signup_level'          => 'Bronze',
     'input_radio'           => 'first-response',
     'exped_type'            => 'Hillwalking',
