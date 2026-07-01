@@ -144,7 +144,11 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->assertTrue( true ); // Verify execution finished without exception
     }
 
-    public function test_handle_payment_status_updates_signup(): void {
+    public function test_handle_payment_status_paid_marks_signup_paid(): void {
+        $this->signup_repo->shouldReceive( 'get_signup_by_submission_id' )
+            ->once()
+            ->with( 999 )
+            ->andReturn( [ 'payment_status' => 'pending' ] );
         $this->signup_repo->shouldReceive( 'update_payment_status_by_submission_id' )
             ->once()
             ->with( 999, 'paid' )
@@ -152,6 +156,53 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
         $sync->handle_payment_status( 'paid', (object) [ 'id' => 999 ] );
+
+        $this->assertTrue( true );
+    }
+
+    public function test_handle_payment_status_succeeded_alias_marks_signup_paid(): void {
+        $this->signup_repo->shouldReceive( 'get_signup_by_submission_id' )
+            ->once()
+            ->with( 999 )
+            ->andReturn( [ 'payment_status' => 'pending' ] );
+        $this->signup_repo->shouldReceive( 'update_payment_status_by_submission_id' )
+            ->once()
+            ->with( 999, 'paid' )
+            ->andReturn( true );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync->handle_payment_status( 'succeeded', (object) [ 'id' => 999 ] );
+
+        $this->assertTrue( true );
+    }
+
+    public function test_handle_payment_status_processing_maps_to_pending(): void {
+        $this->signup_repo->shouldReceive( 'get_signup_by_submission_id' )
+            ->once()
+            ->with( 999 )
+            ->andReturn( [ 'payment_status' => 'pending' ] );
+        $this->signup_repo->shouldReceive( 'update_payment_status_by_submission_id' )
+            ->once()
+            ->with( 999, 'pending' )
+            ->andReturn( true );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync->handle_payment_status( 'processing', (object) [ 'id' => 999 ] );
+
+        $this->assertTrue( true );
+    }
+
+    public function test_handle_payment_status_does_not_downgrade_paid_row(): void {
+        // Row is already paid — a stale 'processing' event must not overwrite it.
+        $this->signup_repo->shouldReceive( 'get_signup_by_submission_id' )
+            ->once()
+            ->with( 999 )
+            ->andReturn( [ 'payment_status' => 'paid' ] );
+        // update must NOT be called
+        $this->signup_repo->shouldReceive( 'update_payment_status_by_submission_id' )->never();
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync->handle_payment_status( 'processing', (object) [ 'id' => 999 ] );
 
         $this->assertTrue( true );
     }
