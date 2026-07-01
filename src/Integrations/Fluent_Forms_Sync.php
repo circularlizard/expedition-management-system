@@ -27,7 +27,7 @@ class Fluent_Forms_Sync {
 
         // Dynamic pre-population of unit default value
         add_filter( 'fluentform/input_default_value_signup_unit', [ $this, 'get_default_unit_value' ], 10, 2 );
-        add_filter( 'fluentform/input_default_value_hidden_1', [ $this, 'get_default_unit_id_value' ], 10, 2 );
+        add_filter( 'fluentform/input_default_value_signup_unitid', [ $this, 'get_default_unit_id_value' ], 10, 2 );
 
         // Form validation hook
         add_filter( 'fluentform/validation_errors', [ $this, 'validate_submission' ], 10, 2 );
@@ -299,8 +299,8 @@ class Fluent_Forms_Sync {
         }
 
         if ( empty( $unit_id ) ) {
-            if ( ! empty( $formData['hidden_1'] ) ) {
-                $unit_id = (int) $formData['hidden_1'];
+            if ( ! empty( $formData['signup_unitid'] ) ) {
+                $unit_id = (int) $formData['signup_unitid'];
             }
         }
 
