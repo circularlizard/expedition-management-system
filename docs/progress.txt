@@ -1,8 +1,18 @@
 EMS Signups & Auth Progress Report
 =================================
 
-Status: Spec 2 Completed
+Status: Spec 3 Completed
 Date: 2026-07-01
+
+Tasks Completed (Spec 3: Signup Data Model & Fluent Forms Sync):
+1. Migrated `ems_signups` table via `EMS\Core\Table_Installer` with full schema (scout_id, unit_id, dofe_level, payment_status, etc.).
+2. Implemented `EMS\Integrations\Fluent_Forms_Sync` with six FF hooks: rendering_field_data_select, validate_input_item_select, validation_errors, submission_inserted, after_payment_status_change, and before_form_render.
+3. Implemented `EMS\Data\Signup_Repository` (create, get, get_by_submission_id, update_payment_status, get_all).
+4. Client-side unit sync JS: reads `window.emsFormMappings` (PHP-rendered); uses `jQuery(el).data('choicesjs')` with 3 s polling retry for `fluentform_init` timing race; falls back to native select if Choices.js absent.
+5. Bug fix — Choices.js sync: `el.choicesInstance` is always undefined in Fluent Forms (instance stored under jQuery `.data('choicesjs')`). Fixed lookup and added polling retry.
+6. Bug fix — Payment status mapping: `completed` was dead code (not a real FF status). Corrected map: `paid`/`succeeded` → 'paid'; all else → 'pending'. Added idempotency guard to block downgrade of already-paid rows. Removed debug `file_put_contents` logger.
+7. Updated Gherkin feature (`signup-fluentforms-sync.feature`) to use correct Stripe status `paid` (not `completed`) and added two new idempotency scenarios.
+8. 8 PHPUnit tests green (323 total suite passing).
 
 Tasks Completed (Spec 2: Unit Leader Mapping Directory & Admin Menus):
 1. Created the `ems_unit_leaders` database migration inside `EMS\Core\Table_Installer` and registered the table structure.

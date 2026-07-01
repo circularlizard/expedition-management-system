@@ -45,7 +45,17 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
     When the form submits option value "99999|John|Doe" (unlinked to parent)
     Then the submission should fail validation with an ownership error
 
-  Scenario: Stripe payment success updates signup record status
+  Scenario: Stripe payment success updates signup record to paid
     Given a signup record exists in the database for submission entry ID 1234
-    When a Stripe payment status updated hook is triggered for entry ID 1234 with status "completed"
+    When a Stripe payment status updated hook is triggered for entry ID 1234 with status "paid"
     Then the signup record payment status in the database should be updated to "paid"
+
+  Scenario: Async payment in processing state leaves signup as pending
+    Given a signup record exists in the database for submission entry ID 1234 with payment_status "pending"
+    When a Stripe payment status updated hook is triggered for entry ID 1234 with status "processing"
+    Then the signup record payment status in the database should remain "pending"
+
+  Scenario: A paid signup is not downgraded by a late processing event
+    Given a signup record exists in the database for submission entry ID 1234 with payment_status "paid"
+    When a Stripe payment status updated hook is triggered for entry ID 1234 with status "processing"
+    Then the signup record payment status in the database should remain "paid"
