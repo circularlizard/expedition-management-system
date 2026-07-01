@@ -287,13 +287,20 @@ class Fluent_Forms_Sync {
         if ( ! empty( $patrol_value ) ) {
             $unit = $this->wpdb->get_row(
                 $this->wpdb->prepare(
-                    "SELECT unit_id FROM {$this->wpdb->prefix}ems_units WHERE short_code = %s AND active = 1 LIMIT 1",
+                    "SELECT unit_id FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR name = %s) LIMIT 1",
+                    $patrol_value,
                     $patrol_value
                 ),
                 ARRAY_A
             );
             if ( ! empty( $unit['unit_id'] ) ) {
                 $unit_id = (int) $unit['unit_id'];
+            }
+        }
+
+        if ( empty( $unit_id ) ) {
+            if ( ! empty( $formData['hidden_1'] ) ) {
+                $unit_id = (int) $formData['hidden_1'];
             }
         }
 

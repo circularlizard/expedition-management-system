@@ -127,7 +127,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             ]
         ] );
 
-        $this->wpdb->rows["SELECT unit_id FROM wp_ems_units WHERE short_code = 'BO-Kelso' AND active = 1 LIMIT 1"] = [
+        $this->wpdb->rows["SELECT unit_id FROM wp_ems_units WHERE (short_code = 'BO-Kelso' OR name = 'BO-Kelso') LIMIT 1"] = [
             'unit_id' => 10,
         ];
         $this->wpdb->rows["SELECT leader_email FROM wp_ems_units WHERE short_code = 'BO-Kelso' AND active = 1 LIMIT 1"] = [
