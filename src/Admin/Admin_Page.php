@@ -39,7 +39,7 @@ class Admin_Page {
     }
 
     /**
-     * Registers the Explorer List submenu.
+     * Registers the Explorer List and Signups submenus.
      */
     public function register_explorers_menu(): void {
         $explorers_hook = add_submenu_page(
@@ -51,11 +51,81 @@ class Admin_Page {
             [ $this, 'render_explorers_page' ]
         );
 
+        add_submenu_page(
+            'ems',
+            __( 'Signups', 'ems-plugin' ),
+            __( 'Signups', 'ems-plugin' ),
+            'manage_options',
+            'ems-signups',
+            [ $this, 'render_signups_page' ]
+        );
+
         add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $explorers_hook ) {
             if ( $hook === $explorers_hook ) {
                 $this->enqueue_dashboard_assets();
             }
         } );
+    }
+
+    public function render_explorers_page(): void {
+        echo '<div class="wrap">';
+        echo '<h1>' . esc_html__( 'Explorer List', 'ems-plugin' ) . '</h1>';
+        echo '<div id="ems-explorers-root"></div>';
+        echo '</div>';
+    }
+
+    public function render_signups_page(): void {
+        $repo = new \EMS\Data\Signup_Repository();
+        $signups = $repo->get_all_signups();
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e( 'Explorer Signups', 'ems-plugin' ); ?></h1>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;"><?php esc_html_e( 'ID', 'ems-plugin' ); ?></th>
+                        <th style="width: 10%;"><?php esc_html_e( 'Scout ID', 'ems-plugin' ); ?></th>
+                        <th style="width: 20%;"><?php esc_html_e( 'Explorer Name', 'ems-plugin' ); ?></th>
+                        <th style="width: 10%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
+                        <th style="width: 10%;"><?php esc_html_e( 'DofE Level', 'ems-plugin' ); ?></th>
+                        <th style="width: 15%;"><?php esc_html_e( 'First Aid Status', 'ems-plugin' ); ?></th>
+                        <th style="width: 10%;"><?php esc_html_e( 'Payment Status', 'ems-plugin' ); ?></th>
+                        <th style="width: 10%;"><?php esc_html_e( 'Signup Status', 'ems-plugin' ); ?></th>
+                        <th style="width: 10%;"><?php esc_html_e( 'Submission ID', 'ems-plugin' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ( empty( $signups ) ) : ?>
+                        <tr>
+                            <td colspan="9"><?php esc_html_e( 'No signup records found.', 'ems-plugin' ); ?></td>
+                        </tr>
+                    <?php else : ?>
+                        <?php foreach ( $signups as $s ) : ?>
+                            <tr>
+                                <td><?php echo (int) $s['id']; ?></td>
+                                <td><?php echo esc_html( $s['scout_id'] ?: '-' ); ?></td>
+                                <td><strong><?php echo esc_html( $s['explorer_first_name'] . ' ' . $s['explorer_last_name'] ); ?></strong></td>
+                                <td><?php echo esc_html( $s['unit_id'] ?: '-' ); ?></td>
+                                <td><span class="badge"><?php echo esc_html( ucfirst( $s['dofe_level'] ) ); ?></span></td>
+                                <td><?php echo esc_html( $s['first_aid_status'] ); ?></td>
+                                <td>
+                                    <span class="status-<?php echo esc_attr( $s['payment_status'] ); ?>">
+                                        <?php echo esc_html( ucfirst( $s['payment_status'] ) ); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-<?php echo esc_attr( $s['signup_status'] ); ?>">
+                                        <?php echo esc_html( ucfirst( $s['signup_status'] ) ); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo (int) $s['form_submission_id']; ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php
     }
 
     /**
@@ -137,12 +207,7 @@ class Admin_Page {
         echo '</div>';
     }
 
-    public function render_explorers_page(): void {
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'Explorer List', 'ems-plugin' ) . '</h1>';
-        echo '<div id="ems-explorers-root"></div>';
-        echo '</div>';
-    }
+
 
 
     public function render_reference_page(): void {

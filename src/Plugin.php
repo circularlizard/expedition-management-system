@@ -50,6 +50,9 @@ class Plugin {
             new \EMS\Data\OSM_Explorer_Repository()
         );
 
+        $fluent_sync = new \EMS\Integrations\Fluent_Forms_Sync();
+        $fluent_sync->init_hooks();
+
         $settings_page = new Settings_Page();
         add_action( 'admin_menu', [ $settings_page, 'register' ], 18 );
 
