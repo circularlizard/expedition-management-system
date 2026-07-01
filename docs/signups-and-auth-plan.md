@@ -169,15 +169,26 @@ Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Use
 ### [x] Phase 2.5 — Consolidated Units Directory & Settings UI (Completed)
 Tasks and scenarios implemented. See [completed-signups-and-auth.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/completed-signups-and-auth.md) for details.
 
-### Phase 3 — Fluent Forms Sync Engine & Unit Lookup Integration
-1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/signup-fluentforms-sync.feature` representing signup form submissions and unit lookup mapping logic.
+### [x] Phase 3 — Fluent Forms Sync Engine & Unit Lookup Integration (Completed)
+1. **Behavioral Design (TDD)**: Gherkin scenarios written in `tests/features/signup-fluentforms-sync.feature` covering child dropdown pre-population, valid form submission, parent ownership validation, and payment status updates.
 2. **Implementation**:
-   * Execute migration to create `ems_signups` table (containing `unit_id`).
-   * Bind callback to `fluentform/submission_inserted` to extract signup info, validate user permission, validate the `dofe_level` parameter, and ensure `scout_id` is verified.
-   * **Unit Lookup Integration**: Integrate the child ESU mapping logic: query the `ems_units` table for matches based on the child's `section_ids` array to pre-populate or resolve ESU `unit_id`, supporting parent manual override submissions.
-   * Insert/update `ems_signups` with the resolved `unit_id`.
-3. **Tests**:
-   * **PHPUnit (Forms Sync)**: Implement `tests/features/signup-fluentforms-sync.feature` to test parent user matching validation, `dofe_level` range validations, existing `scout_id` checks, automated child section IDs lookup, manual overrides, repository storage, and `wp_mail` lookup notifications.
+   * Migrated `ems_signups` table via `EMS\Core\Table_Installer`.
+   * Implemented `EMS\Integrations\Fluent_Forms_Sync` with hooks:
+     - `fluentform/rendering_field_data_select` — populates `signup_child` dropdown from `ems_children` user meta.
+     - `fluentform/validate_input_item_select` — bypasses Fluent Forms' strict value-matching for dynamic choices.
+     - `fluentform/validation_errors` — enforces parent ownership of `scout_id` and valid `dofe_level`.
+     - `fluentform/submission_inserted` — extracts fields via `ems_form_mappings` config, resolves `unit_id` from `ems_units`, and calls `Signup_Repository::create_signup()`.
+     - `fluentform/after_payment_status_change` — maps `paid`/`succeeded` → `'paid'`; all else → `'pending'`; includes idempotency guard.
+     - `fluentform/before_form_render` — enqueues inline JS that syncs the unit dropdown when the child selector changes.
+   * Client-side unit sync script: reads child→unit mapping from PHP-rendered `window.emsFormMappings`. Uses `jQuery(el).data('choicesjs')` (the correct Fluent Forms Choices.js instance key) with a 3 s polling retry to handle the `fluentform_init` timing race. Falls back to native `<select>` assignment if Choices.js is not present.
+   * Implemented `EMS\Data\Signup_Repository` with `create_signup()`, `get_signup()`, `get_signup_by_submission_id()`, `update_payment_status_by_submission_id()`, and `get_all_signups()`.
+   * Implemented `EMS\Data\Unit_Repository` with `get_unit_by_section_id()` for child→unit resolution.
+3. **Tests** (323 total, all green):
+   * `tests/Unit/Integrations/Fluent_Forms_SyncTest.php` — 8 tests covering dropdown injection, validation, submission handling, and all payment-status mapping paths (paid, succeeded alias, processing→pending, idempotency guard).
+   * `tests/Unit/Data/Signup_RepositoryTest.php` — covers create, get, update payment status.
+4. **Bug Fixes Applied**:
+   * **Choices.js sync**: Previous code used `el.choicesInstance` (a DOM property that is always `undefined`). Fixed to use `jQuery(el).data('choicesjs')` — the actual key Fluent Forms uses — with a 100 ms polling loop (3 s max) to handle the `fluentform_init` timing race.
+   * **Payment status mapping**: `completed` was dead code (never sent by Fluent Forms). Fixed map: `paid` + `succeeded` → `'paid'`; all other statuses → `'pending'`. Added idempotency guard via `get_signup_by_submission_id()` to prevent a late `processing` webhook from downgrading an already-paid row. Removed temporary `file_put_contents` debug logger.
 
 ### Phase 4 — Admin Signups Board & Reconciliation UI
 1. **Behavioral Design (TDD)**: Create Gherkin scenarios in `tests/features/admin-reconciliation.feature` covering REST API requests and manual linking constraints.
