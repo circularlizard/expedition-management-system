@@ -82,9 +82,6 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         ];
         Functions\when( 'get_user_meta' )->justReturn( $children );
 
-        $this->wpdb->rows["SELECT section_id FROM wp_ems_osm_explorers WHERE scout_id = 30001"] = [
-            'section_id' => 99001,
-        ];
         $this->wpdb->rows["SELECT short_code, unit_id FROM wp_ems_units WHERE unit_id = 99001 AND active = 1 LIMIT 1"] = [
             'short_code' => 'BO-Kelso',
             'unit_id'    => 99001,
