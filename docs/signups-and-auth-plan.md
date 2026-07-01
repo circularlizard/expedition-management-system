@@ -87,7 +87,9 @@ To decouple database ingestion from form changes and support multiple Fluent For
 5. **Leader & Unit Lookup**:
    * Map the selected/overridden ESU patrol name to the corresponding `ems_units.unit_id` and leader email.
 6. **Write Signup**: Insert/update the row in the `ems_signups` table (storing the resolved `unit_id`).
-7. **Dummy Notifications**: Send transaction notifications using standard `wp_mail()` to parent, explorer, and resolved unit leader.
+7. **Temporary Signups List Screen (Admin UI)**:
+   * A simple read-only HTML table registered under the **Explorers** menu page showing all records in `ems_signups` (First Name, Last Name, Level, ESU Unit ID, First Aid Status, Payment Status, and Created Date).
+8. **Dummy Notifications**: Send transaction notifications using standard `wp_mail()` to parent, explorer, and resolved unit leader.
 
 ---
 
