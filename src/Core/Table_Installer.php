@@ -169,6 +169,27 @@ class Table_Installer {
             KEY idx_unit_id (unit_id)
         ) {$charset};";
 
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
+            id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            scout_id               BIGINT UNSIGNED          DEFAULT NULL,
+            parent_user_id         BIGINT UNSIGNED NOT NULL,
+            unit_id                BIGINT UNSIGNED          DEFAULT NULL,
+            explorer_first_name    VARCHAR(100)    NOT NULL DEFAULT '',
+            explorer_last_name     VARCHAR(100)    NOT NULL DEFAULT '',
+            dofe_level             VARCHAR(20)     NOT NULL,
+            expedition_preferences TEXT                     DEFAULT NULL,
+            first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
+            signup_status          VARCHAR(30)     NOT NULL DEFAULT 'pending',
+            payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending',
+            form_submission_id     BIGINT UNSIGNED NOT NULL,
+            created_at             DATETIME        NOT NULL,
+            updated_at             DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_scout_id (scout_id),
+            KEY idx_parent_user_id (parent_user_id),
+            KEY idx_unit_id (unit_id)
+        ) {$charset};";
+
         return $sql;
     }
 
@@ -182,6 +203,7 @@ class Table_Installer {
             'osm_events'            => $wpdb->prefix . 'ems_osm_events',
             'osm_event_attendance'  => $wpdb->prefix . 'ems_osm_event_attendance',
             'units'                 => $wpdb->prefix . 'ems_units',
+            'signups'               => $wpdb->prefix . 'ems_signups',
         ];
     }
 }
