@@ -86,8 +86,9 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             'section_id' => 99001,
             'patrol'     => 'BO-Kelso',
         ];
-        $this->wpdb->rows["SELECT short_code FROM wp_ems_units WHERE section_id = 99001 AND (name = 'BO-Kelso' OR short_code = 'BO-Kelso') AND active = 1 LIMIT 1"] = [
+        $this->wpdb->rows["SELECT short_code, unit_id FROM wp_ems_units WHERE section_id = 99001 AND (name = 'BO-Kelso' OR short_code = 'BO-Kelso') AND active = 1 LIMIT 1"] = [
             'short_code' => 'BO-Kelso',
+            'unit_id'    => 10,
         ];
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
