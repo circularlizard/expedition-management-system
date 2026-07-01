@@ -114,84 +114,44 @@ class Fluent_Forms_Sync {
             return [ 'short_code' => '', 'unit_id' => 0 ];
         }
 
+        // Get the child's section IDs from the OIDC ems_children payload
+        $section_ids = (array) ( $child['section_ids'] ?? [] );
+
+        // Fallback: check synced explorer row for any section ID
         $explorer = $this->wpdb->get_row(
             $this->wpdb->prepare(
-                "SELECT section_id, patrol FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
+                "SELECT section_id FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
                 $scout_id
             ),
             ARRAY_A
         );
-
-        $section_ids = (array) ( $child['section_ids'] ?? [] );
         if ( ! empty( $explorer['section_id'] ) ) {
             $section_ids[] = (int) $explorer['section_id'];
         }
         $section_ids = array_unique( array_filter( $section_ids ) );
 
-        $resolved_code = '';
-        $resolved_id = 0;
+        if ( empty( $section_ids ) ) {
+            return [ 'short_code' => '', 'unit_id' => 0 ];
+        }
 
-        // 1. Try to find a unit matching both section_id and explorer patrol name
-        $patrol_name = $explorer['patrol'] ?? '';
-        if ( ! empty( $patrol_name ) ) {
-            foreach ( $section_ids as $sec_id ) {
-                $unit = $this->wpdb->get_row(
-                    $this->wpdb->prepare(
-                        "SELECT short_code, unit_id FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND (name = %s OR short_code = %s) AND active = 1 LIMIT 1",
-                        $sec_id,
-                        $patrol_name,
-                        $patrol_name
-                    ),
-                    ARRAY_A
-                );
-                if ( ! empty( $unit ) ) {
-                    $resolved_code = $unit['short_code'] ?: '';
-                    $resolved_id   = (int) ( $unit['unit_id'] ?? 0 );
-                    break;
-                }
+        // Match the child's section IDs against the unit_id column in ems_units
+        foreach ( $section_ids as $sec_id ) {
+            $unit = $this->wpdb->get_row(
+                $this->wpdb->prepare(
+                    "SELECT short_code, unit_id FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d AND active = 1 LIMIT 1",
+                    $sec_id
+                ),
+                ARRAY_A
+            );
+            if ( ! empty( $unit ) ) {
+                return [
+                    'short_code' => $unit['short_code'] ?: '',
+                    'unit_id'    => (int) ( $unit['unit_id'] ?? 0 ),
+                ];
             }
         }
 
-        // 2. Fall back to finding any unit with a valid, non-null unit_id under these sections
-        if ( empty( $resolved_code ) || ! $resolved_id ) {
-            foreach ( $section_ids as $sec_id ) {
-                $unit = $this->wpdb->get_row(
-                    $this->wpdb->prepare(
-                        "SELECT short_code, unit_id FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND active = 1 AND unit_id IS NOT NULL AND unit_id != 0 LIMIT 1",
-                        $sec_id
-                    ),
-                    ARRAY_A
-                );
-                if ( ! empty( $unit ) ) {
-                    $resolved_code = $unit['short_code'] ?: '';
-                    $resolved_id   = (int) ( $unit['unit_id'] ?? 0 );
-                    break;
-                }
-            }
-        }
-
-        // 3. Last resort fallback to any active unit in those sections (e.g. if unit_id is not mapped yet)
-        if ( empty( $resolved_code ) ) {
-            foreach ( $section_ids as $sec_id ) {
-                $unit = $this->wpdb->get_row(
-                    $this->wpdb->prepare(
-                        "SELECT short_code, unit_id FROM {$this->wpdb->prefix}ems_units WHERE section_id = %d AND active = 1 LIMIT 1",
-                        $sec_id
-                    ),
-                    ARRAY_A
-                );
-                if ( ! empty( $unit ) ) {
-                    $resolved_code = $unit['short_code'] ?: '';
-                    $resolved_id   = (int) ( $unit['unit_id'] ?? 0 );
-                    break;
-                }
-            }
-        }
-
-        return [
-            'short_code' => $resolved_code,
-            'unit_id'    => $resolved_id,
-        ];
+        return [ 'short_code' => '', 'unit_id' => 0 ];
     }
 
     /**
