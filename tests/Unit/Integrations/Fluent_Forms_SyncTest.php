@@ -46,7 +46,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->assertTrue( Filters\has( 'fluentform/input_default_value_signup_unit' ) );
         $this->assertTrue( Filters\has( 'fluentform/validation_errors' ) );
         $this->assertTrue( Actions\has( 'fluentform/submission_inserted' ) );
-        $this->assertTrue( Actions\has( 'fluentform/payment_status_updated' ) );
+        $this->assertTrue( Actions\has( 'fluentform/after_payment_status_change' ) );
     }
 
     public function test_populate_child_dropdown_injects_choices(): void {

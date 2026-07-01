@@ -36,7 +36,7 @@ class Fluent_Forms_Sync {
         add_action( 'fluentform/submission_inserted', [ $this, 'handle_submission' ], 10, 3 );
 
         // Stripe Payment status callbacks
-        add_action( 'fluentform/payment_status_updated', [ $this, 'handle_payment_status' ], 10, 2 );
+        add_action( 'fluentform/after_payment_status_change', [ $this, 'handle_payment_status' ], 10, 2 );
     }
 
     /**
@@ -337,8 +337,8 @@ class Fluent_Forms_Sync {
     /**
      * Handle Stripe/Fluent Forms payment status changes
      */
-    public function handle_payment_status( $submission, $status ): void {
-        $entryId = (int) ( $submission->id ?? $submission );
+    public function handle_payment_status( string $status, $submission ): void {
+        $entryId = (int) ( is_object( $submission ) ? ( $submission->id ?? 0 ) : ( is_array( $submission ) ? ( $submission['id'] ?? 0 ) : $submission ) );
         if ( $entryId > 0 ) {
             $mapped_status = ( $status === 'completed' || $status === 'paid' ) ? 'paid' : 'pending';
             $this->signup_repo->update_payment_status_by_submission_id( $entryId, $mapped_status );
