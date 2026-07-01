@@ -51,14 +51,13 @@ CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
    * **Payment Processing**: Register callbacks on Fluent Forms payment status change events (e.g. `fluentform/payment_status_updated`). On receipt of payment webhook, dynamically update the `payment_status` column in `ems_signups` (e.g. to `'paid'`).
 2. **Form Verification**: Retrieve the form ID from the entry and verify it matches the configuration WP option `ems_fluent_form_id`.
 3. **Pre-population & Parsing Payload**:
-   * **Pre-population**: If the parent portal opens the form for an existing synced child, the form template pre-populates the child's `scout_id` (hidden field) and automatically selects their home ESU/Unit based on the child's `patrol` field in `ems_osm_explorers`.
+   * **Pre-population**: When loading the form, EMS retrieves the child's `section_ids` array from the parent's `ems_children` metadata. EMS queries the `ems_units` table for rows matching those `section_ids` where `active = 1`.
+     - **0 Matches**: The ESU/Unit selector is left blank, prompting the form filler to select the unit manually.
+     - **1 or More Matches**: The first matched patrol name (`short_code` / patrol name) is used to pre-populate and set the dropdown unit selector in the form.
    * **Parse**: Extract `scout_id`, parent `user_id` (from `get_current_user_id()`), DofE level, expedition date/transport preferences, first aid status, and initial payment status.
 4. **Leader & Unit Lookup**:
-   * **Explorer Unit Identification**: Find the explorer's home patrol name from `ems_osm_explorers` (or section terms). Map this to `ems_osm_patrols.patrol_id` to lookup the corresponding unit in `ems_unit_leaders` (using the new `patrol_id` column).
-   * **Manual Override**: The Fluent Form registration includes a ESU/Unit dropdown field. If a parent/admin manually selects a ESU/Unit, this manual override takes precedence over the automated patrol lookup.
-   * **Handling Edge Cases (0 or >1 Unit)**:
-     - **0 Units**: If the explorer maps to 0 units in `ems_unit_leaders` (e.g. patrol not mapped), mark the signup unit as unlinked/unassigned and require manual selection in the admin dashboard.
-     - **Multiple Units (>1)**: If the explorer matches more than one unit, use the manual dropdown override if present; otherwise, select the unit mapping that matches the specific section ID the explorer is registered under. If still ambiguous, flag for manual admin reconciliation.
+   * **Explorer Unit Identification**: The Fluent Form registration includes a ESU/Unit dropdown field using ESU patrol names as values. If the parent/admin manually selects or overrides the selection, that value takes precedence. Otherwise, the pre-populated unit resolved from the child's `section_ids` is used.
+   * **Unit Resolution**: Map the selected patrol name/short_code to the corresponding `ems_units.unit_id` and leader email.
 5. **Write Signup**: Insert/update the row in the `ems_signups` table (storing the resolved `unit_id`).
 6. **Payload Validation Rules**:
    * **Authentication**: Check that the parent submitting the form is authenticated and matches the logged-in user.
