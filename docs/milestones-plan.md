@@ -102,3 +102,15 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 *   **Next Steps (Remains)**:
     *   [ ] Implement write operations in `OSM_API_Client` (`updateScout` endpoint POST delivery).
     *   [ ] Build the failed write-back recovery dispatcher (`ems_failed_pushback_queue` processor).
+
+---
+
+## Milestone 8: Environment Replication & Configuration Portability
+*Enables replicating environment setups across instances by exporting and importing system configuration, settings, and ESU unit mappings.*
+
+*   **Achieved**:
+    *   Basic Settings panel registered under `EMS -> Settings` storing configurations in standard WP Options.
+*   **Next Steps (Remains)**:
+    *   [ ] **Export/Import Engine**: Implement a backup and restore mechanism for EMS-specific database configurations and WP options.
+    *   [ ] **ESU Unit Mapping Portability**: Create an export/import utility (JSON/CSV) to migrate ESU unit leader listings, patrol linkages, and active section structures between development, staging, and production environments.
+    *   [ ] **Environment Replicator CLI/Script**: Setup automated deployment helper scripts to initialize database tables, import default settings, and verify system compliance on a clean WordPress target.
