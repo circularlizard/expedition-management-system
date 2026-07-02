@@ -1,120 +1,125 @@
-# Going forward - 29th June 2026
+# Going forward - 29th June 2026 (Updated Status: 2nd July 2026)
 
 This document outlines the next steps for the Expedition Management System, starting from the current status in [next-steps-plan.md](./next-steps-plan.md).
 
 ## Key milestones
-1. An explorer’s parent can sign them up for the next level of DofE, we can take payment, and expedition preferences are gathered at the same time. These need to become available for manual back office processing, and we need to mark which ones have been done. This should include notifying unit leaders that someone has signed up and requesting OSM share.
-2. From those who have signed up for expedition, we need to assign explorers to dates, form teams, and communicate this to Explorers / parents / leaders. This should cover progressive discovery, as we go from dates to teams to training assignments, to route planning etc. This should also enable us to note ASN, first aid requirements and see team status. We’ll need to create and manage a calendar of events to do this.
-3. We can monitor the health of a team in terms of first aid status, training completions etc. To do this we’ll need to specify what the requirements are, which will involve enrolling explorers in the tutor lms courses.
-4. We can show explorers/parents their status on a web page, which lists their expedition assignment and all of the information about that as it becomes available.
-5. We can ask adults for their availability to help with expeditions. We can map this to the expeditions and identify  which expeditions lack coverage. We can notify people they’ve been assigned, and they can login to a web page where they can see what they have signed up for.
-6. We can share sign up status with unit leaders, let them see what kit they have been asked to supply, where explorers in their units are allocated, etc.
+1. [x] (Partially Achieved) **Explorer parent signups, payment, and preferences**:
+   * [x] Parents can sign up explorers for DofE levels/expeditions via Fluent Forms.
+   * [x] Form tracks payment status (Stripe sandbox setup) and pre-populates emails (parent, explorer, leader).
+   * [x] Preferences are gathered.
+   * [ ] **Remains**: Back-office list page is read-only. Manual processing/marking signups "done" and requesting OSM unit shares from the dashboard needs to be fully implemented.
+2. [x] (Partially Achieved) **Assign explorers to dates, form teams, and communicate**:
+   * [x] React Expedition Board allows creating seasons/events, forming teams, and dragging-and-dropping/moving explorers.
+   * [x] Size checks and warnings (4–7 members) are displayed.
+   * [x] Local first-aid status is visible and editable.
+   * [ ] **Remains**: Calendar view, student-facing portal, and automated event notifications to parents/explorers/leaders are pending.
+3. [x] (Partially Achieved) **Monitor team compliance/health**:
+   * [x] Training report lists Tutor LMS completion statuses (Complete, In Progress, Not Enrolled) using optimized batch queries.
+   * [x] Event course requirements and first aid qualifications are configurable.
+   * [ ] **Remains**: Automatic enrollment of explorers in Tutor LMS courses from EMS is pending (currently queried but not written).
+4. [ ] (Pending) **Explorer/Parent Status Portal**:
+   * [ ] Front-facing web landing pages showing expedition assignments, teams, routes, and training compliance.
+5. [x] (Partially Achieved) **Adult Volunteer Availability**:
+   * [x] Database table `ems_volunteer_availability` for storing date availability and sign-offs is registered.
+   * [ ] **Remains**: React volunteers admin page is a placeholder stub. Adult-facing signup forms, availability mapping overlays, assignment engines, and notifications are pending.
+6. [ ] (Pending) **Unit Leader Sharing Portal**:
+   * [ ] Sharing allocation, unit maps, and group kit supply lists with unit leaders.
+
+---
 
 ## Architecture Components
-Wordpress - provides expeditions website
-Elementor Pro - site management tools
-“Login-with-google” - custom plugin that provides OIDC login to the website
-OSM - backend storing PII, handles event payments, handles most explorer emails
-Tutor LMS Pro - online learning system
-Fluent Forms Pro - form provider
+*   [x] **Wordpress** - provides expeditions website
+*   [x] **Elementor Pro** - site management tools
+*   [x] **“Login-with-google”** - custom plugin that provides OIDC login to the website
+*   [x] **OSM** - backend storing PII, handles event payments, handles most explorer emails
+*   [x] **Tutor LMS Pro** - online learning system
+*   [x] **Fluent Forms Pro** - form provider
 
-Other Wordpress plugins
-- User menus
-- User role editor
-- WP Consent API
-- Complianz
-- Custom Login Page Customizer
+### Other Wordpress plugins
+*   [x] User menus
+*   [x] User role editor
+*   [x] WP Consent API
+*   [x] Complianz
+*   [x] Custom Login Page Customizer
 
-## Step 1 - get authentication sorted out
+---
+
+## Step 1 - get authentication sorted out [x]
 **Objective** - Explorers, parents and leaders can sign in and be associated to the correct role.
+*   [x] Extend login hooks (`rtcamp.google_user_logged_in` and `rtcamp.google_user_created`) to fetch context.
+*   [x] Dynamically assign WordPress custom roles: `ems_parent`, `ems_explorer`, `ems_leader`.
+*   [x] Store OSM credentials and mapping metadata in User Meta.
+*   [x] Implement zero-persistence token disposal policy.
 
-We need to extend the login hooks already in the EMS to determine the role the user has, set them up correctly if that hasn’t been done already and store sufficient meta data that later processes work properly.
+---
 
-
-## Step 2 - set up forms
+## Step 2 - set up forms [x]
 **Objective** - purchase and install fluent forms, create and initial form and set up custom types within the EMS.
+*   [x] Integrate Fluent Forms Pro.
+*   [x] Implement dynamically populated options (child select from parent's OIDC context).
+*   [x] Connect Stripe payment gateway and listen to payment webhook state changes.
 
-Fluent forms is the major missing part of this architecture. We need to get it deployed and working, with some level of customisation from the EMS working so that all parts of the system are finally deployed and working.
+---
 
-This should include the elementor integration plugin.
-
-## Step 3 - build sign up process
+## Step 3 - build sign up process [x] (Partially Done)
 **Objective** - explorers can sign up for DofE levels and expedition. Common edge cases handled and exception process defined.
+*   [x] Parent login restriction before form access.
+*   [x] Dynamic child selection options from metadata.
+*   [x] Sandbox payment processing integration.
+*   [x] Hidden pre-populated emails for notifications (parent, explorer, leader).
+*   [x] Dynamic mapping of district/unit dropdowns.
+*   [x] Form screens to gather preferences and first aid levels.
+*   [x] Back office Admin view: Signups list table.
+*   [ ] **Remains**: Signups list table is currently read-only; lacks administrative validation actions or push-back to OSM.
+*   [ ] **Remains**: Account/SEEE reconciliation dashboard.
 
-User must sign in as a parent to see sign up form
-Form must present list of children for that parent
-Pre-populate form with selected child (skip selection if there’s only one)
-Payments integration (dummy)
-Email confirmation to parent, explorer and section leader (dummy)
-Linked selection of district, unit, leader email (define as custom component)
-Form screens to gather expedition preferences, first aid status
+---
 
-End result is sign up form with screens in EMS 
-- who has signed up
-- participation place status
-- expedition sign up status
-- expedition preferences
-- aggregated expedition preferences
-- SEEE section reconciliation
+## Stage 4 - Admin pages view [x] (Partially Done)
+**Objective** - Set up admin pages, even if these only have an info message on them for now.
+*   [x] **EMS Dashboard Page** (parent menu structure).
+*   [x] **Expeditions Board** (SeasonDashboard React SPA).
+    *   [x] Season creation, archival, deletion.
+    *   [x] Event/expedition creation and updates.
+    *   [x] Team setup (sequential numbering, drag-and-drop movement, duplication).
+    *   [x] Event calendar dates listing.
+*   [ ] **Explorers' Preferences** panel/surfacing.
+*   [x] **Explorers List** (OSMReference React SPA).
+    *   [x] Synced explorer profile lists.
+    *   [x] Training completions status grid (Tutor LMS data integration).
+    *   [x] Interactive first aid level editing.
+*   [x] **Sign Ups** (PHP database list table).
+*   [ ] **Volunteers Board** (UI is currently a placeholder div).
+*   [x] **OSM Sync/Reference Views** (multi-tab reference page).
+    *   [x] Sync manager logic (manual triggers, status bars, transients).
+    *   [x] Flexi-Record Column Mapper UI.
+    *   [x] Diagnostics Panel (system data, transients, raw token arrays).
+    *   [ ] Account reconciliation tools.
+*   [x] **Settings** (General settings tabs).
+    *   [x] OAuth configurations (Client ID/Secret Encryption).
+    *   [x] Managed sections registry.
+    *   [x] Unit leader contacts.
 
-Emails to units requesting share (dummy at this stage)
-Emails to units confirming sign up (dummy at this stage)
+---
 
-## Stage 4 - Admin pages view
-**Objective** - Set up admin pages, even if these only have an info message on them for now
+## Stage 5 - Sync back to OSM [ ]
+**Objective** - Write expedition team data back to OSM.
+*   [ ] Implement OSM API Client write operations (flexi-record updates, push updates to `updateScout`).
+*   [ ] Re-authentication triggers and fail-safe push-back queues.
+*   [ ] Event invitations creation from EMS to OSM.
 
-ESM
-- Expeditions
-	- Expedition Calendar
-	- Team set up (already built) (possibly to be merged with expedition detail)
-	- Expedition Detail (already built) (possibly to be merged with team set up)
-	- Explorers’ Preferences -- need to consider how and where to surface these
-- Explorers
-	- Sign Ups
-	- Explorer view (already built)
-	- Training view (already built)
-- Volunteers
-	- Sign Ups
-	- Expedition Assignment
-- OSM Sync
-	- OSM data (built)
-	- Flexi record mapping (built, but not working)
-	- Sync manager (spread in multiple places)
-	- Account reconciliation
-- Settings
-	- Oauth settings (built)
+---
 
-Then we’ll build out these screens except for volunteer sign up, which can wait later. Flexi record mapping will come in the next step.
+## Stage 5 - Adult volunteers [ ] (Partially Done)
+**Objective** - Manage volunteer sign ups.
+*   [ ] Availability calendar registration screen.
+*   [ ] React dashboard interface for cover mapping and allocations.
+*   [ ] Automated volunteer notifications.
 
-## Stage 5 - Sync back to OSM
-**Objective** - Write expedition team data back to OSM
+---
 
-Map section to flexi record
-Do we want to do event invites from EMS
-
-## Stage 5 - Adult volunteers
-**Objective** - Manage volunteer sign ups
-
-Forms to allow adults to sign up to help, see what they have signed up for.
-Views for us to see who has signed up, send reminders, and assign adults to expeditions.
-
-## Stage 6? - Website
-**Objective** - Set up website pages, even if these only have an info message on them for now
-
-Website
-- Explorer landing page
-	- What I am signed up to
-	- My team
-	- Training
-- Parent landing page
-	- Sign up form
-	- My explorer
-- Leader landing page
-	- Sign up form (public)
-	- What I have signed up to
-	- My expeditions
-
-
-
-
-
+## Stage 6? - Website [ ]
+**Objective** - Set up website pages, even if these only have an info message on them for now.
+*   [ ] **Explorer Landing Page** (Assigned teams, routing maps, compliance checklists).
+*   [ ] **Parent Landing Page** (Signup forms, active explorer status trackers).
+*   [ ] **Leader Landing Page** (Allocated team overviews, kit requirements).
