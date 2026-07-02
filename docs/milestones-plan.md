@@ -35,6 +35,7 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
     *   [ ] Implement a calendar dashboard interface showing chronological timelines of all practice/qualifying events.
     *   [ ] Add communication notifications (emails or alerts) triggered when explorers are assigned to dates or teams.
     *   [ ] Track Additional Support Needs (ASN) alongside team details.
+    *   [ ] **Cross-Screen State Synchronization**: Implement a synchronization mechanism (e.g. React Context, broadcast events, or shared local caching) so that operations completed on one dashboard page (such as team reassignments on the Expedition Board) immediately refresh or propagate changes to other dashboard views (such as the Explorer List) without requiring manual browser page refreshes.
 
 ---
 
