@@ -13,9 +13,12 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
     *   Automatic resolution of ESU units, pre-populating parent, explorer, and leader emails in hidden fields.
     *   Read-only back-office list view (`ems_signups` table mapping).
 *   **Next Steps (Remains)**:
-    *   [ ] Add actionable triggers to the Signups list view to mark registrations as "Processed" or "Archived".
-    *   [ ] Build an interface or triggers to email unit leaders requesting their OSM section share when a child signs up.
-    *   [ ] Implement a reconciliation view (Fluent Forms vs. OSM Sync reference lists).
+    *   [ ] Add actionable triggers to the Signups list view to mark registrations as "Processed" or "Archived". Capture DofE registration data for new registrations.
+    *   [ ] Configure fluent forms to email unit leaders requesting their OSM section share when a child signs up.
+    *   [ ] Add DOB to the fluent form for signup
+    *   [ ] Add views summarising explorer date preferences
+    *   [ ] Implement a reconciliation view (Fluent Forms vs. OSM Sync reference lists). Need to have a single master explorer view with reconciliation status, not multiple lists (eg use icons to indicate the various statuses)
+    *   [ ] Implement a data panel in the explorers list that shows all data, incl exped preferences, ASN and teammate preferences. Same pattern can be used for other detail panes later.
     *   [ ] **Test Data Seeding**: Create a signup test data generator. Generate multiple variants of form submissions to represent realistic test scenarios (different levels, payment statuses, and units), and scale this using AI expansion to produce a large, diverse dataset.
 
 ---
