@@ -16,6 +16,7 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
     *   [ ] Add actionable triggers to the Signups list view to mark registrations as "Processed" or "Archived".
     *   [ ] Build an interface or triggers to email unit leaders requesting their OSM section share when a child signs up.
     *   [ ] Implement a reconciliation view (Fluent Forms vs. OSM Sync reference lists).
+    *   [ ] **Test Data Seeding**: Create a signup test data generator. Generate multiple variants of form submissions to represent realistic test scenarios (different levels, payment statuses, and units), and scale this using AI expansion to produce a large, diverse dataset.
 
 ---
 
@@ -45,6 +46,7 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 *   **Next Steps (Remains)**:
     *   [ ] Develop an automated enrollment script that hooks into EMS team assignments to register explorers in corresponding Tutor LMS courses.
     *   [ ] Implement automatic warnings on the Expedition Board when a team does not have a member with an active first aid qualification.
+    *   [ ] **Test Data Seeding**: Build a mock data generator for Tutor LMS completion and enrollment states (Complete, In Progress, Not Enrolled) to test training compliance matrices at scale.
 
 ---
 
