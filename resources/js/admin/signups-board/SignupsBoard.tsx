@@ -481,6 +481,11 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.parent_email || '—'}</div>
                         </div>
 
+                        <div>
+                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Leader Email</span>
+                            <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.leader_email || '—'}</div>
+                        </div>
+
                         {type === 'participant' ? (
                             <>
                                 <div>
