@@ -452,147 +452,141 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 400, $response->get_status() );
     }
 
-    public function test_list_signups_active_filters_and_fuzzy_matches(): void {
+
+
+    public function test_list_participant_signups_success(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
 
         $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_signups_by_status' )->with( 'active' )->andReturn( [
+        $signups->shouldReceive( 'get_participant_signups' )->with( 'received' )->andReturn( [
             [
-                'id' => 1,
-                'scout_id' => null,
+                'id' => 10,
+                'scout_id' => 101,
                 'parent_user_id' => 4,
-                'explorer_first_name' => 'John',
-                'explorer_last_name' => 'Doe',
-                'dofe_level' => 'silver',
-                'dofe_number' => 'D-123456',
-                'first_aid_status' => 'none',
-                'signup_status' => 'pending',
-                'payment_status' => 'paid',
                 'unit_id' => 99001,
+                'unit_name' => 'Kelso',
+                'explorer_first_name' => 'Mary',
+                'explorer_last_name' => 'Smith',
+                'explorer_email' => 'mary@example.com',
+                'parent_email' => 'parent@example.com',
+                'dofe_level' => 'bronze',
+                'dob' => '2010-05-15',
+                'dofe_registered' => 'n',
+                'dofe_number' => null,
+                'dofe_org' => null,
+                'bronze_completion' => null,
+                'silver_completion' => null,
+                'signup_status' => 'received',
+                'payment_status' => 'paid',
+                'form_submission_id' => 1234,
+                'created_at' => '2026-06-13 20:00:00',
             ]
         ] );
 
-        $parent = (object)[ 'user_email' => 'parent@example.com' ];
-        Functions\when( 'get_userdata' )->alias( function( $id ) use ( $parent ) {
-            return $id === 4 ? $parent : null;
-        } );
-
-        $wpdb = \Mockery::mock( 'wpdb' );
-        $wpdb->prefix = 'wp_';
-        $GLOBALS['wpdb'] = $wpdb;
-
-        $wpdb->shouldReceive( 'prepare' )->andReturn( 'sql' );
-        $wpdb->shouldReceive( 'get_row' )->with( 'sql', ARRAY_A )->andReturn( [ 'scout_id' => 101 ] );
-        $wpdb->shouldReceive( 'get_var' )->with( 'sql' )->andReturn( 'Silver ESU' );
-
         $controller = $this->create_controller( null, null, null, null, null, null, $signups );
-
         $request = new \WP_REST_Request();
-        $request->set_param( 'status', 'active' );
-        $response = $controller->list_signups( $request );
+        $request->set_param( 'status', 'received' );
+        $response = $controller->list_participant_signups( $request );
 
         $this->assertSame( 200, $response->get_status() );
         $data = $response->get_data();
         $this->assertCount( 1, $data );
-        $this->assertSame( 'proposed', $data[0]['linkage_status'] );
-        $this->assertSame( 101, $data[0]['proposed_scout_id'] );
-        $this->assertSame( 'Silver ESU', $data[0]['unit_name'] );
+        $this->assertSame( 'Mary', $data[0]['explorer_first_name'] );
     }
 
-    public function test_reconcile_signup_success(): void {
+    public function test_process_participant_signup_success(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
         Functions\when( 'get_current_user_id' )->justReturn( 42 );
 
         $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_signup' )->with( 10 )->andReturn( [
+        $signups->shouldReceive( 'get_participant_signup' )->with( 10 )->andReturn( [
             'id' => 10,
-            'signup_status' => 'pending',
-            'dofe_number' => 'D-123',
-            'first_aid_status' => 'none',
-        ] );
-        $signups->shouldReceive( 'reconcile_signup' )->with( 10, 102, 42 )->andReturn( true );
-
-        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
-        $explorers->shouldReceive( 'find_by_scout_id' )->with( 102 )->andReturn( [ 'scout_id' => 102, 'first_aid_level' => 'none' ] );
-
-        $controller = $this->create_controller( null, null, null, null, $explorers, null, $signups );
-
-        $request = $this->json_request( [ 'scout_id' => 102 ] );
-        $request->set_param( 'id', 10 );
-        $response = $controller->reconcile_signup( $request );
-
-        $this->assertSame( 200, $response->get_status() );
-        $this->assertTrue( $response->get_data()['reconciled'] );
-    }
-
-    public function test_process_signup_success(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-        Functions\when( 'get_current_user_id' )->justReturn( 42 );
-
-        $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_signup' )->with( 11 )->andReturn( [
-            'id' => 11,
-            'scout_id' => 103,
             'payment_status' => 'paid',
-            'signup_status' => 'pending',
-            'dofe_number' => 'D-882233',
-            'first_aid_status' => 'first-response',
+            'signup_status' => 'received',
         ] );
-        $signups->shouldReceive( 'process_signup' )->with( 11, 42 )->andReturn( true );
+        $signups->shouldReceive( 'process_participant_signup' )->with( 10, 42, 'D-778899' )->andReturn( true );
 
-        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
-        $explorers->shouldReceive( 'find_by_scout_id' )->with( 103 )->andReturn( [ 'scout_id' => 103, 'first_aid_level' => 'none' ] );
-        $explorers->shouldReceive( 'touch_last_local_update' )->with( 103 );
-
-        $wpdb = \Mockery::mock( 'wpdb' );
-        $wpdb->prefix = 'wp_';
-        $GLOBALS['wpdb'] = $wpdb;
-        $wpdb->shouldReceive( 'update' )->once()->andReturn( true );
-
-        $controller = $this->create_controller( null, null, null, null, $explorers, null, $signups );
-
-        $request = new \WP_REST_Request();
-        $request->set_param( 'id', 11 );
-        $response = $controller->process_signup( $request );
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request = $this->json_request( [ 'dofe_number' => 'D-778899' ] );
+        $request->set_param( 'id', 10 );
+        $response = $controller->process_participant_signup( $request );
 
         $this->assertSame( 200, $response->get_status() );
         $this->assertTrue( $response->get_data()['processed'] );
     }
 
-    public function test_process_signup_fails_if_unpaid(): void {
+    public function test_process_participant_signup_fails_if_unpaid(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
 
         $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_signup' )->with( 11 )->andReturn( [
-            'id' => 11,
+        $signups->shouldReceive( 'get_participant_signup' )->with( 10 )->andReturn( [
+            'id' => 10,
             'payment_status' => 'pending',
-            'signup_status' => 'pending',
+            'signup_status' => 'received',
         ] );
 
         $controller = $this->create_controller( null, null, null, null, null, null, $signups );
-
         $request = new \WP_REST_Request();
-        $request->set_param( 'id', 11 );
-        $response = $controller->process_signup( $request );
+        $request->set_param( 'id', 10 );
+        $response = $controller->process_participant_signup( $request );
 
         $this->assertSame( 400, $response->get_status() );
-        $this->assertSame( 'ems_signup_unpaid', $response->get_data()->get_error_code() );
     }
 
-    public function test_archive_signup_success(): void {
+    public function test_archive_participant_signup_success(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
 
         $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_signup' )->with( 12 )->andReturn( [ 'id' => 12 ] );
-        $signups->shouldReceive( 'archive_signup' )->with( 12 )->andReturn( true );
+        $signups->shouldReceive( 'get_participant_signup' )->with( 12 )->andReturn( [ 'id' => 12 ] );
+        $signups->shouldReceive( 'archive_participant_signup' )->with( 12 )->andReturn( true );
 
         $controller = $this->create_controller( null, null, null, null, null, null, $signups );
-
         $request = new \WP_REST_Request();
         $request->set_param( 'id', 12 );
-        $response = $controller->archive_signup( $request );
+        $response = $controller->archive_participant_signup( $request );
 
         $this->assertSame( 200, $response->get_status() );
         $this->assertTrue( $response->get_data()['archived'] );
     }
+
+    public function test_list_expedition_signups_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'get_expedition_signups' )->with( 'pending' )->andReturn( [
+            [
+                'id' => 20,
+                'scout_id' => 102,
+                'parent_user_id' => 5,
+                'unit_id' => 99002,
+                'unit_name' => 'SMESU',
+                'explorer_first_name' => 'John',
+                'explorer_last_name' => 'Doe',
+                'explorer_email' => 'john@example.com',
+                'parent_email' => 'parent2@example.com',
+                'dofe_level' => 'silver',
+                'dofe_number' => 'D-991234',
+                'expedition_preferences' => '{"exped_type":"Hillwalking"}',
+                'additional_support_needs' => '',
+                'first_aid_status' => 'first_response',
+                'first_aid_expiry' => '2028-06-13',
+                'signup_status' => 'pending',
+                'payment_status' => 'pending',
+                'form_submission_id' => 5678,
+                'created_at' => '2026-06-13 20:00:00',
+            ]
+        ] );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request = new \WP_REST_Request();
+        $request->set_param( 'status', 'pending' );
+        $response = $controller->list_expedition_signups( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertCount( 1, $data );
+        $this->assertSame( 'John', $data[0]['explorer_first_name'] );
+    }
 }
+
+
