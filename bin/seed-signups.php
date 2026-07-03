@@ -12,11 +12,13 @@ if ( $count <= 0 ) {
     $count = 50;
 }
 
-$signups_table = $wpdb->prefix . 'ems_signups';
+$participant_table = $wpdb->prefix . 'ems_participant_signups';
+$expedition_table = $wpdb->prefix . 'ems_expedition_signups';
 $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
 
 // 1. Clean Data
-$wpdb->query( "DELETE FROM {$signups_table} WHERE form_submission_id >= 900000" );
+$wpdb->query( "DELETE FROM {$participant_table} WHERE form_submission_id >= 900000" );
+$wpdb->query( "DELETE FROM {$expedition_table} WHERE form_submission_id >= 900000" );
 WP_CLI::log( "Cleaned up old mock signup records." );
 
 // 2. Parent User Accounts
@@ -68,112 +70,140 @@ if ( count( $explorers ) < 5 ) {
 // 3. Helper arrays for generation
 $levels = ['bronze', 'silver', 'gold'];
 $payments = ['paid', 'pending', 'failed'];
-$statuses = ['pending', 'processed', 'archived'];
 
 $admin_user_id = get_current_user_id() ?: 1;
 
+// Seed Participant Signups
 for ( $i = 0; $i < $count; $i++ ) {
     $submission_id = 900000 + $i;
-
-    // Bucket distribution:
-    // 40% Directly Linked, 30% Fuzzy Matchable, 30% New Recruits
-    $bucket_rand = rand( 1, 100 );
-    $scout_id = null;
-    $first_name = '';
-    $last_name = '';
     $parent_uid = $parent_ids[ array_rand( $parent_ids ) ];
+    
+    // Choose an explorer
+    $exp = !empty( $explorers ) ? $explorers[ array_rand( $explorers ) ] : null;
+    $scout_id = $exp ? (int) $exp['scout_id'] : (900000 + rand(100, 999));
+    $first_name = $exp ? $exp['first_name'] : "Explorer" . rand( 100, 999 );
+    $last_name = $exp ? $exp['last_name'] : "Mock";
 
-    if ( $bucket_rand <= 40 && ! empty( $explorers ) ) {
-        // Directly Linked
-        $exp = $explorers[ array_rand( $explorers ) ];
-        $scout_id = (int) $exp['scout_id'];
-        $first_name = $exp['first_name'];
-        $last_name = $exp['last_name'];
-    } elseif ( $bucket_rand <= 70 && ! empty( $explorers ) ) {
-        // Fuzzy Matchable (name matching, scout_id is null)
-        $exp = $explorers[ array_rand( $explorers ) ];
-        $scout_id = null;
-        $first_name = $exp['first_name'];
-        $last_name = $exp['last_name'];
-    } else {
-        // New Recruit
-        $first_name = "Recruit" . rand( 100, 999 );
-        $last_name = "New";
-        $scout_id = null;
-    }
-
-    // State Distributions:
     // Levels: 50% Bronze, 35% Silver, 15% Gold
     $level_rand = rand( 1, 100 );
-    if ( $level_rand <= 50 ) {
-        $level = 'bronze';
-    } elseif ( $level_rand <= 85 ) {
-        $level = 'silver';
-    } else {
-        $level = 'gold';
-    }
+    $level = $level_rand <= 50 ? 'bronze' : ($level_rand <= 85 ? 'silver' : 'gold');
 
     // Payments: 70% paid, 25% pending, 5% failed
     $payment_rand = rand( 1, 100 );
-    if ( $payment_rand <= 70 ) {
-        $payment = 'paid';
-    } elseif ( $payment_rand <= 95 ) {
-        $payment = 'pending';
-    } else {
-        $payment = 'failed';
-    }
+    $payment = $payment_rand <= 70 ? 'paid' : ($payment_rand <= 95 ? 'pending' : 'failed');
 
-    // Status: 60% pending, 30% processed, 10% archived
+    // Status: 60% received, 30% allocated, 10% archived
     $status_rand = rand( 1, 100 );
-    if ( $status_rand <= 60 ) {
-        $status = 'pending';
-    } elseif ( $status_rand <= 90 ) {
-        $status = 'processed';
-    } else {
-        $status = 'archived';
+    $status = $status_rand <= 60 ? 'received' : ($status_rand <= 90 ? 'allocated' : 'archived');
+
+    $processed_by = ($status === 'allocated') ? $admin_user_id : null;
+    $processed_at = ($status === 'allocated') ? current_time( 'mysql' ) : null;
+    $dofe_number = ($status === 'allocated' || rand(0, 1) === 1) ? "D-" . rand( 100000, 999999 ) : null;
+
+    // Prior level completions
+    $bronze_comp = null;
+    $silver_comp = null;
+    if ( $level === 'silver' ) {
+        $bronze_comp = [
+            'volunteering' => rand(0, 1) ? 'completed' : 'none',
+            'skills'       => rand(0, 1) ? 'completed' : 'none',
+            'physical'     => rand(0, 1) ? 'completed' : 'none',
+            'expedition'   => rand(0, 1) ? 'completed' : 'none',
+        ];
+    } elseif ( $level === 'gold' ) {
+        $bronze_comp = [ 'volunteering' => 'completed', 'skills' => 'completed', 'physical' => 'completed', 'expedition' => 'completed' ];
+        $silver_comp = [
+            'volunteering' => rand(0, 1) ? 'completed' : 'none',
+            'skills'       => rand(0, 1) ? 'completed' : 'none',
+            'physical'     => rand(0, 1) ? 'completed' : 'none',
+            'expedition'   => rand(0, 1) ? 'completed' : 'none',
+        ];
     }
-
-    // Processed audit simulation
-    $processed_by = null;
-    $processed_at = null;
-    if ( $status === 'processed' ) {
-        $processed_by = $admin_user_id;
-        $days_ago = rand( 1, 30 );
-        $processed_at = date( 'Y-m-d H:i:s', time() - ( $days_ago * DAY_IN_SECONDS ) );
-    }
-
-    $dofe_number = "D-" . rand( 100000, 999999 );
-
-    // Preferences payload
-    $prefs = [
-        'preferred_dates' => [ date( 'Y-m-d', time() + rand( 1, 30 ) * DAY_IN_SECONDS ), date( 'Y-m-d', time() + rand( 31, 60 ) * DAY_IN_SECONDS ) ],
-        'teammate_preferences' => [ "FriendA", "FriendB" ],
-        'dietary_requirements' => array_rand( [ 'None' => 0.8, 'Vegetarian' => 0.1, 'Vegan' => 0.05, 'Gluten Free' => 0.05 ] ),
-        'notes' => "Mock seeded signup preferences.",
-    ];
 
     $wpdb->insert(
-        $signups_table,
+        $participant_table,
         [
-            'scout_id'               => $scout_id,
-            'parent_user_id'         => $parent_uid,
-            'unit_id'                => 99001,
-            'explorer_first_name'    => $first_name,
-            'explorer_last_name'     => $last_name,
-            'dofe_level'             => $level,
-            'dofe_number'            => $dofe_number,
-            'expedition_preferences' => json_encode( $prefs ),
-            'first_aid_status'       => 'none',
-            'signup_status'          => $status,
-            'payment_status'         => $payment,
-            'processed_by'           => $processed_by,
-            'processed_at'           => $processed_at,
-            'form_submission_id'     => $submission_id,
-            'created_at'             => current_time( 'mysql' ),
-            'updated_at'             => current_time( 'mysql' ),
+            'scout_id'            => $scout_id,
+            'parent_user_id'      => $parent_uid,
+            'unit_name'           => 'Kelso',
+            'explorer_first_name' => $first_name,
+            'explorer_last_name'  => $last_name,
+            'explorer_email'      => strtolower( "{$first_name}.{$last_name}@example-ems.test" ),
+            'parent_email'        => "mock.parent.1@example-ems.test",
+            'dofe_level'          => $level,
+            'dob'                 => '2010-05-15',
+            'dofe_registered'     => empty( $dofe_number ) ? 'n' : 'y',
+            'dofe_number'         => $dofe_number,
+            'dofe_org'            => 'Borders Scout Region',
+            'bronze_completion'   => $bronze_comp ? json_encode( $bronze_comp ) : null,
+            'silver_completion'   => $silver_comp ? json_encode( $silver_comp ) : null,
+            'signup_status'       => $status,
+            'payment_status'      => $payment,
+            'processed_by'        => $processed_by,
+            'processed_at'        => $processed_at,
+            'form_submission_id'  => $submission_id,
+            'created_at'          => current_time( 'mysql' ),
+            'updated_at'          => current_time( 'mysql' ),
         ],
-        [ '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
+        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
     );
 }
 
-WP_CLI::success( "Successfully seeded {$count} mock signup records." );
+// Seed Expedition Signups
+for ( $i = 0; $i < $count; $i++ ) {
+    $submission_id = 900000 + $count + $i;
+    $parent_uid = $parent_ids[ array_rand( $parent_ids ) ];
+    
+    $exp = !empty( $explorers ) ? $explorers[ array_rand( $explorers ) ] : null;
+    $scout_id = $exp ? (int) $exp['scout_id'] : (900000 + rand(100, 999));
+    $first_name = $exp ? $exp['first_name'] : "Explorer" . rand( 100, 999 );
+    $last_name = $exp ? $exp['last_name'] : "Mock";
+
+    $level_rand = rand( 1, 100 );
+    $level = $level_rand <= 50 ? 'bronze' : ($level_rand <= 85 ? 'silver' : 'gold');
+
+    // Status: 60% pending, 30% processed, 10% archived
+    $status_rand = rand( 1, 100 );
+    $status = $status_rand <= 60 ? 'pending' : ($status_rand <= 90 ? 'processed' : 'archived');
+
+    $processed_by = ($status === 'processed') ? $admin_user_id : null;
+    $processed_at = ($status === 'processed') ? current_time( 'mysql' ) : null;
+
+    $dofe_number = "D-" . rand( 100000, 999999 );
+
+    $prefs = [
+        'exped_type' => rand(0, 1) ? 'Hillwalking' : 'Paddling',
+        'exped_practice_dates' => 'August 2026',
+        'exped_qualifier_dates' => 'September 2026',
+        'exped_team_names' => 'Team Alpha',
+    ];
+
+    $wpdb->insert(
+        $expedition_table,
+        [
+            'scout_id'                 => $scout_id,
+            'parent_user_id'           => $parent_uid,
+            'unit_name'                => 'SMESU',
+            'explorer_first_name'      => $first_name,
+            'explorer_last_name'       => $last_name,
+            'explorer_email'           => strtolower( "{$first_name}.{$last_name}@example-ems.test" ),
+            'parent_email'             => "mock.parent.1@example-ems.test",
+            'dofe_level'               => $level,
+            'dofe_number'              => $dofe_number,
+            'expedition_preferences'   => json_encode( $prefs ),
+            'additional_support_needs' => rand(0, 10) > 8 ? 'Asthma inhaler required.' : '',
+            'first_aid_status'         => 'first-response',
+            'first_aid_expiry'         => '2028-06-13',
+            'signup_status'            => $status,
+            'payment_status'           => 'pending',
+            'processed_by'             => $processed_by,
+            'processed_at'             => $processed_at,
+            'form_submission_id'       => $submission_id,
+            'created_at'               => current_time( 'mysql' ),
+            'updated_at'               => current_time( 'mysql' ),
+        ],
+        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
+    );
+}
+
+WP_CLI::success( "Successfully seeded {$count} mock participant and expedition signup records." );

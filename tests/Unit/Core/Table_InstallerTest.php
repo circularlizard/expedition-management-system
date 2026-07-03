@@ -32,7 +32,7 @@ class Table_InstallerTest extends EMSTestCase {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( 'wp_', '' );
 
-        $this->assertCount( 8, $sql );
+        $this->assertCount( 9, $sql );
 
         $all_sql = implode( ' ', $sql );
         $this->assertStringContainsString( 'ems_team_members', $all_sql );
@@ -42,7 +42,8 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'ems_osm_events', $all_sql );
         $this->assertStringContainsString( 'ems_osm_event_attendance', $all_sql );
         $this->assertStringContainsString( 'ems_units', $all_sql );
-        $this->assertStringContainsString( 'ems_signups', $all_sql );
+        $this->assertStringContainsString( 'ems_participant_signups', $all_sql );
+        $this->assertStringContainsString( 'ems_expedition_signups', $all_sql );
     }
 
     public function test_generate_sql_with_charset(): void {
@@ -68,7 +69,8 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertEquals( 'wp_ems_osm_events', $names['osm_events'] );
         $this->assertEquals( 'wp_ems_osm_event_attendance', $names['osm_event_attendance'] );
         $this->assertEquals( 'wp_ems_units', $names['units'] );
-        $this->assertEquals( 'wp_ems_signups', $names['signups'] );
+        $this->assertEquals( 'wp_ems_participant_signups', $names['participant_signups'] );
+        $this->assertEquals( 'wp_ems_expedition_signups', $names['expedition_signups'] );
     }
 
     public function test_route_submissions_includes_status_and_feedback(): void {
@@ -112,24 +114,52 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'UNIQUE KEY idx_scout_id', $explorers_sql );
     }
 
-    public function test_signups_has_dofe_number_and_processing_columns(): void {
+    public function test_participant_signups_columns(): void {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( '', '' );
 
-        $signups_sql = null;
+        $participant_sql = null;
         foreach ( $sql as $statement ) {
-            if ( strpos( $statement, 'ems_signups' ) !== false ) {
-                $signups_sql = $statement;
+            if ( strpos( $statement, 'ems_participant_signups' ) !== false ) {
+                $participant_sql = $statement;
                 break;
             }
         }
 
-        $this->assertNotNull( $signups_sql );
-        $this->assertStringContainsString( 'dofe_number', $signups_sql );
-        $this->assertStringContainsString( 'processed_by', $signups_sql );
-        $this->assertStringContainsString( 'processed_at', $signups_sql );
-        $this->assertStringContainsString( 'reconciled_by', $signups_sql );
-        $this->assertStringContainsString( 'reconciled_at', $signups_sql );
+        $this->assertNotNull( $participant_sql );
+        $this->assertStringContainsString( 'scout_id', $participant_sql );
+        $this->assertStringContainsString( 'dob', $participant_sql );
+        $this->assertStringContainsString( 'dofe_registered', $participant_sql );
+        $this->assertStringContainsString( 'dofe_number', $participant_sql );
+        $this->assertStringContainsString( 'dofe_org', $participant_sql );
+        $this->assertStringContainsString( 'bronze_completion', $participant_sql );
+        $this->assertStringContainsString( 'silver_completion', $participant_sql );
+        $this->assertStringContainsString( "DEFAULT 'received'", $participant_sql );
+        $this->assertStringContainsString( 'processed_by', $participant_sql );
+        $this->assertStringContainsString( 'processed_at', $participant_sql );
+    }
+
+    public function test_expedition_signups_columns(): void {
+        $installer = new Table_Installer();
+        $sql = $installer->generate_sql( '', '' );
+
+        $exped_sql = null;
+        foreach ( $sql as $statement ) {
+            if ( strpos( $statement, 'ems_expedition_signups' ) !== false ) {
+                $exped_sql = $statement;
+                break;
+            }
+        }
+
+        $this->assertNotNull( $exped_sql );
+        $this->assertStringContainsString( 'scout_id', $exped_sql );
+        $this->assertStringContainsString( 'expedition_preferences', $exped_sql );
+        $this->assertStringContainsString( 'additional_support_needs', $exped_sql );
+        $this->assertStringContainsString( 'first_aid_status', $exped_sql );
+        $this->assertStringContainsString( 'first_aid_expiry', $exped_sql );
+        $this->assertStringContainsString( "DEFAULT 'pending'", $exped_sql );
+        $this->assertStringContainsString( 'processed_by', $exped_sql );
+        $this->assertStringContainsString( 'processed_at', $exped_sql );
     }
 
     public function test_osm_explorers_has_timestamp_columns(): void {

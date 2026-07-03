@@ -47,19 +47,7 @@ class Table_Installer {
             $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN last_ems_push_at DATETIME DEFAULT NULL AFTER last_local_update_at" );
         }
 
-        $signups_table = $wpdb->prefix . 'ems_signups';
-        if ( ! $this->column_exists( $wpdb, $signups_table, 'dofe_number' ) ) {
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER dofe_level" );
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN processed_by BIGINT UNSIGNED DEFAULT NULL AFTER payment_status" );
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN processed_at DATETIME DEFAULT NULL AFTER processed_by" );
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN reconciled_by BIGINT UNSIGNED DEFAULT NULL AFTER processed_at" );
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN reconciled_at DATETIME DEFAULT NULL AFTER reconciled_by" );
-        }
+
 
         if ( ! $this->column_exists( $wpdb, $explorers_table, 'dofe_number' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -189,23 +177,56 @@ class Table_Installer {
             KEY idx_unit_id (unit_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_signups (
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_participant_signups (
             id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            scout_id               BIGINT UNSIGNED          DEFAULT NULL,
+            scout_id               BIGINT UNSIGNED NOT NULL,
             parent_user_id         BIGINT UNSIGNED NOT NULL,
             unit_id                BIGINT UNSIGNED          DEFAULT NULL,
+            unit_name              VARCHAR(100)             DEFAULT NULL,
             explorer_first_name    VARCHAR(100)    NOT NULL DEFAULT '',
             explorer_last_name     VARCHAR(100)    NOT NULL DEFAULT '',
+            explorer_email         VARCHAR(100)    NOT NULL DEFAULT '',
+            parent_email           VARCHAR(100)             DEFAULT NULL,
             dofe_level             VARCHAR(20)     NOT NULL,
-            dofe_number            VARCHAR(50)              DEFAULT NULL,
+            dob                    DATE                     DEFAULT NULL,
+            dofe_registered        VARCHAR(30)     NOT NULL DEFAULT 'n',
+            dofe_number            VARCHAR(20)              DEFAULT NULL,
+            dofe_org               VARCHAR(100)             DEFAULT NULL,
+            bronze_completion      TEXT                     DEFAULT NULL,
+            silver_completion      TEXT                     DEFAULT NULL,
+            signup_status          VARCHAR(30)     NOT NULL DEFAULT 'received',
+            payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending',
+            processed_by           BIGINT UNSIGNED          DEFAULT NULL,
+            processed_at           DATETIME                 DEFAULT NULL,
+            form_submission_id     BIGINT UNSIGNED NOT NULL,
+            created_at             DATETIME        NOT NULL,
+            updated_at             DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_scout_id (scout_id),
+            KEY idx_parent_user_id (parent_user_id),
+            KEY idx_unit_id (unit_id)
+        ) {$charset};";
+
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_expedition_signups (
+            id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            scout_id               BIGINT UNSIGNED NOT NULL,
+            parent_user_id         BIGINT UNSIGNED NOT NULL,
+            unit_id                BIGINT UNSIGNED          DEFAULT NULL,
+            unit_name              VARCHAR(100)             DEFAULT NULL,
+            explorer_first_name    VARCHAR(100)    NOT NULL DEFAULT '',
+            explorer_last_name     VARCHAR(100)    NOT NULL DEFAULT '',
+            explorer_email         VARCHAR(100)    NOT NULL DEFAULT '',
+            parent_email           VARCHAR(100)             DEFAULT NULL,
+            dofe_level             VARCHAR(20)     NOT NULL,
+            dofe_number            VARCHAR(20)              DEFAULT NULL,
             expedition_preferences TEXT                     DEFAULT NULL,
+            additional_support_needs TEXT                   DEFAULT NULL,
             first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
+            first_aid_expiry       DATE                     DEFAULT NULL,
             signup_status          VARCHAR(30)     NOT NULL DEFAULT 'pending',
             payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending',
             processed_by           BIGINT UNSIGNED          DEFAULT NULL,
             processed_at           DATETIME                 DEFAULT NULL,
-            reconciled_by          BIGINT UNSIGNED          DEFAULT NULL,
-            reconciled_at          DATETIME                 DEFAULT NULL,
             form_submission_id     BIGINT UNSIGNED NOT NULL,
             created_at             DATETIME        NOT NULL,
             updated_at             DATETIME        NOT NULL,
@@ -228,7 +249,8 @@ class Table_Installer {
             'osm_events'            => $wpdb->prefix . 'ems_osm_events',
             'osm_event_attendance'  => $wpdb->prefix . 'ems_osm_event_attendance',
             'units'                 => $wpdb->prefix . 'ems_units',
-            'signups'               => $wpdb->prefix . 'ems_signups',
+            'participant_signups'   => $wpdb->prefix . 'ems_participant_signups',
+            'expedition_signups'    => $wpdb->prefix . 'ems_expedition_signups',
         ];
     }
 }
