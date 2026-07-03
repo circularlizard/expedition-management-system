@@ -15,7 +15,7 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 *   **Next Steps (Remains)**:
     *   [ ] **Manual Actions**: Add triggers to the Signups list view to mark registrations as "Processed" or "Archived".
     *   [ ] **Leader Outreach**: Build an interface or triggers to email unit leaders requesting their OSM section share when a child signs up.
-    *   [ ] **Reconciliation View**: Build an admin dashboard tab to reconcile Fluent Forms signups against the OSM sync explorer reference list.
+    *   [ ] **Reconciliation View**: Build an admin dashboard tab to reconcile Fluent Forms signups against the OSM sync explorer reference list (including SEEE section reconciliation to allocate new recruits to correct managed Explorer Scout Units).
     *   [ ] **Fuzzy Matching Logic**: Implement ordered matching priority: hidden Scout ID match, fallback to case-insensitive email match, and second fallback to first/last name matches. Displays unlinked accounts as "Proposed Link" or "New Recruit".
     *   [ ] **Manual Link Dialog**: Create a search dialog dialog overlay to manually link a signup to a synced `scout_id` (triggering `/reconcile` REST endpoint).
     *   [ ] **ESU Unit Override Dropdown**: Render an editable select dropdown allowing admins to manually override or assign ESU units, showing warnings for unassigned units or options for multiple mapped units.
@@ -95,9 +95,10 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 *   **Achieved**:
     *   ESU unit leader contact configurations mapping directory.
 *   **Next Steps (Remains)**:
-    *   [ ] Create a Unit Leader portal showing all explorer allocations from their ESU unit.
-    *   [ ] Implement kit lists tracking tool mapping equipment requests to specific units.
+    *   [ ] **Unit Leader Portal**: Create a Unit Leader portal showing all explorer allocations from their ESU unit.
+    *   [ ] **Kit List Supply**: Implement kit lists tracking tool mapping equipment requests to specific units.
     *   [ ] **Tent & Gear Allocations**: Create custom table `ems_team_tent_groups` and build a UI in the Expedition Board to assign members to tents and map the ESU unit responsible for supplying gear.
+    *   [ ] **Frontend Leader Landing Page**: Create a frontend website portal page `[ems-leader-portal]` and public signup forms allowing leaders to log in, review their own assigned expeditions/dates, and preview who they have signed up to support without logging into the WordPress admin backend.
 
 ---
 
