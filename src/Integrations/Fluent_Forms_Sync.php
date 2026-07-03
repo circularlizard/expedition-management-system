@@ -211,6 +211,7 @@ class Fluent_Forms_Sync {
                 'esu_patrol_field'        => 'signup_unit',
                 'explorer_email_field'    => 'signup_explorer_email',
                 'parent_email_field'      => 'signup_parent_email',
+                'leader_email_field'      => 'signup_leader_email',
             ], $config );
             
             $this->save_participant_submission( $entryId, $formData, $config );
@@ -225,6 +226,7 @@ class Fluent_Forms_Sync {
                 'esu_patrol_field'        => 'signup_unit',
                 'explorer_email_field'    => 'signup_explorer_email',
                 'parent_email_field'      => 'signup_parent_email',
+                'leader_email_field'      => 'signup_leader_email',
                 'exped_type_field'        => 'exped_type',
                 'practice_dates_field'    => 'exped_practice_dates',
                 'qualifier_dates_field'   => 'exped_qualifier_dates',
@@ -309,11 +311,14 @@ class Fluent_Forms_Sync {
             'form_submission_id'  => $entryId,
         ];
 
-        // Resolve unit_id
+        $leader_email = sanitize_email( $formData[ $config['leader_email_field'] ] ?? '' );
+        $leader_email_resolved = '';
+
+        // Resolve unit_id & leader_email
         if ( ! empty( $insert_data['unit_name'] ) ) {
             $unit = $this->wpdb->get_row(
                 $this->wpdb->prepare(
-                    "SELECT unit_id FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR name = %s) LIMIT 1",
+                    "SELECT unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR name = %s) LIMIT 1",
                     $insert_data['unit_name'],
                     $insert_data['unit_name']
                 ),
@@ -322,11 +327,16 @@ class Fluent_Forms_Sync {
             if ( ! empty( $unit['unit_id'] ) ) {
                 $insert_data['unit_id'] = (int) $unit['unit_id'];
             }
+            if ( ! empty( $unit['leader_email'] ) ) {
+                $leader_email_resolved = $unit['leader_email'];
+            }
         }
 
         if ( empty( $insert_data['unit_id'] ) && ! empty( $formData['signup_unitid'] ) ) {
             $insert_data['unit_id'] = (int) $formData['signup_unitid'];
         }
+
+        $insert_data['leader_email'] = ! empty( $leader_email ) ? $leader_email : $leader_email_resolved;
 
         $this->signup_repo->create_participant_signup( $insert_data );
     }
@@ -377,11 +387,14 @@ class Fluent_Forms_Sync {
             'form_submission_id'       => $entryId,
         ];
 
-        // Resolve unit_id
+        $leader_email = sanitize_email( $formData[ $config['leader_email_field'] ] ?? '' );
+        $leader_email_resolved = '';
+
+        // Resolve unit_id & leader_email
         if ( ! empty( $insert_data['unit_name'] ) ) {
             $unit = $this->wpdb->get_row(
                 $this->wpdb->prepare(
-                    "SELECT unit_id FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR name = %s) LIMIT 1",
+                    "SELECT unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR name = %s) LIMIT 1",
                     $insert_data['unit_name'],
                     $insert_data['unit_name']
                 ),
@@ -390,11 +403,16 @@ class Fluent_Forms_Sync {
             if ( ! empty( $unit['unit_id'] ) ) {
                 $insert_data['unit_id'] = (int) $unit['unit_id'];
             }
+            if ( ! empty( $unit['leader_email'] ) ) {
+                $leader_email_resolved = $unit['leader_email'];
+            }
         }
 
         if ( empty( $insert_data['unit_id'] ) && ! empty( $formData['signup_unitid'] ) ) {
             $insert_data['unit_id'] = (int) $formData['signup_unitid'];
         }
+
+        $insert_data['leader_email'] = ! empty( $leader_email ) ? $leader_email : $leader_email_resolved;
 
         $this->signup_repo->create_expedition_signup( $insert_data );
     }

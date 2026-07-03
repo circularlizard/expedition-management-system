@@ -26,6 +26,7 @@ class Signup_Repository {
             'explorer_last_name'  => sanitize_text_field( $data['explorer_last_name'] ?? '' ),
             'explorer_email'      => sanitize_email( $data['explorer_email'] ?? '' ),
             'parent_email'        => sanitize_email( $data['parent_email'] ?? '' ),
+            'leader_email'        => sanitize_email( $data['leader_email'] ?? '' ),
             'dofe_level'          => strtolower( sanitize_text_field( $data['dofe_level'] ?? '' ) ),
             'dob'                 => ! empty( $data['dob'] ) ? sanitize_text_field( $data['dob'] ) : null,
             'dofe_registered'     => sanitize_text_field( $data['dofe_registered'] ?? 'n' ),
@@ -41,7 +42,7 @@ class Signup_Repository {
         ];
 
         $format = [
-            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
+            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
         ];
 
         $result = $this->wpdb->insert(
@@ -72,6 +73,7 @@ class Signup_Repository {
             'explorer_last_name'       => sanitize_text_field( $data['explorer_last_name'] ?? '' ),
             'explorer_email'           => sanitize_email( $data['explorer_email'] ?? '' ),
             'parent_email'             => sanitize_email( $data['parent_email'] ?? '' ),
+            'leader_email'             => sanitize_email( $data['leader_email'] ?? '' ),
             'dofe_level'               => strtolower( sanitize_text_field( $data['dofe_level'] ?? '' ) ),
             'dofe_number'              => ! empty( $data['dofe_number'] ) ? sanitize_text_field( $data['dofe_number'] ) : null,
             'expedition_preferences'   => ! empty( $data['expedition_preferences'] ) ? ( is_array( $data['expedition_preferences'] ) ? json_encode( $data['expedition_preferences'] ) : $data['expedition_preferences'] ) : null,
@@ -86,7 +88,7 @@ class Signup_Repository {
         ];
 
         $format = [
-            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
+            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
         ];
 
         $result = $this->wpdb->insert(

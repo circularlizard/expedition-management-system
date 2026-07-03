@@ -130,6 +130,7 @@ for ( $i = 0; $i < $count; $i++ ) {
             'explorer_last_name'  => $last_name,
             'explorer_email'      => strtolower( "{$first_name}.{$last_name}@example-ems.test" ),
             'parent_email'        => "mock.parent.1@example-ems.test",
+            'leader_email'        => "kelso.leader@example-ems.test",
             'dofe_level'          => $level,
             'dob'                 => '2010-05-15',
             'dofe_registered'     => empty( $dofe_number ) ? 'n' : 'y',
@@ -145,7 +146,7 @@ for ( $i = 0; $i < $count; $i++ ) {
             'created_at'          => current_time( 'mysql' ),
             'updated_at'          => current_time( 'mysql' ),
         ],
-        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
+        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
     );
 }
 
@@ -188,6 +189,7 @@ for ( $i = 0; $i < $count; $i++ ) {
             'explorer_last_name'       => $last_name,
             'explorer_email'           => strtolower( "{$first_name}.{$last_name}@example-ems.test" ),
             'parent_email'             => "mock.parent.1@example-ems.test",
+            'leader_email'             => "smesu.leader@example-ems.test",
             'dofe_level'               => $level,
             'dofe_number'              => $dofe_number,
             'expedition_preferences'   => json_encode( $prefs ),
@@ -202,7 +204,7 @@ for ( $i = 0; $i < $count; $i++ ) {
             'created_at'               => current_time( 'mysql' ),
             'updated_at'               => current_time( 'mysql' ),
         ],
-        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
+        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
     );
 }
 

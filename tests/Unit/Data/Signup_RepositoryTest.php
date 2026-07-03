@@ -27,6 +27,7 @@ class Signup_RepositoryTest extends EMSTestCase {
             'explorer_first_name' => 'Mary',
             'explorer_last_name'  => 'Smith',
             'explorer_email'      => 'mary@example.com',
+            'leader_email'        => 'leader@example.com',
             'dofe_level'          => 'Bronze',
             'dob'                 => '2010-05-15',
             'dofe_registered'     => 'n',
@@ -41,6 +42,7 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertEquals( 30001, $inserted_data['scout_id'] );
         $this->assertEquals( 'Mary', $inserted_data['explorer_first_name'] );
         $this->assertEquals( 'Smith', $inserted_data['explorer_last_name'] );
+        $this->assertEquals( 'leader@example.com', $inserted_data['leader_email'] );
         $this->assertEquals( 'bronze', $inserted_data['dofe_level'] );
         $this->assertEquals( '2010-05-15', $inserted_data['dob'] );
         $this->assertEquals( 'received', $inserted_data['signup_status'] );
@@ -67,6 +69,7 @@ class Signup_RepositoryTest extends EMSTestCase {
             'explorer_first_name'    => 'John',
             'explorer_last_name'     => 'Doe',
             'explorer_email'         => 'john@example.com',
+            'leader_email'           => 'leader@example.com',
             'dofe_level'             => 'Silver',
             'expedition_preferences' => [ 'exped_type' => 'Paddling' ],
             'first_aid_status'       => 'first-response',
@@ -78,6 +81,7 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertCount( 1, $wpdb->inserted );
         $inserted_data = $wpdb->inserted[0]['data'];
         $this->assertEquals( 'wp_ems_expedition_signups', $wpdb->inserted[0]['table'] );
+        $this->assertEquals( 'leader@example.com', $inserted_data['leader_email'] );
 
         $this->assertEquals( 30001, $inserted_data['scout_id'] );
         $this->assertEquals( 'silver', $inserted_data['dofe_level'] );
