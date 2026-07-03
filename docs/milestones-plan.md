@@ -14,8 +14,10 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
     *   Read-only back-office list view (`ems_signups` table mapping).
 *   **Next Steps (Remains)**:
     *   [ ] **Manual Actions**: Add triggers to the Signups list view to mark registrations as "Processed" or "Archived".
-    *   [ ] **Leader Outreach**: Build an interface or triggers to email unit leaders requesting their OSM section share when a child signs up.
-    *   [ ] **Reconciliation View**: Build an admin dashboard tab to reconcile Fluent Forms signups against the OSM sync explorer reference list (including SEEE section reconciliation to allocate new recruits to correct managed Explorer Scout Units).
+    *   [ ] **Leader Outreach**: Build an interface or triggers to email unit leaders requesting their OSM section share when a child signs up. The form will be configured to do a per-entry notification, but we should be able to do a bulk notification.
+    *   [ ] **Participant download**: Build an interface that allows the admin user to download some or all of the participant records.
+    *   [ ] **Single Explorer List**: Build a single list of explorers that highlights sync status, has a detail panel (flyout from right of screen or modal dialogue) that shows all detail about that explorer.
+    *   [ ] **Reconciliation Status**: Build an admin function to reconcile Fluent Forms signups against the OSM sync explorer reference list (including SEEE section reconciliation to allocate new recruits to correct managed Explorer Scout Units) and wordpress logins.
     *   [ ] **Fuzzy Matching Logic**: Implement ordered matching priority: hidden Scout ID match, fallback to case-insensitive email match, and second fallback to first/last name matches. Displays unlinked accounts as "Proposed Link" or "New Recruit".
     *   [ ] **Manual Link Dialog**: Create a search dialog dialog overlay to manually link a signup to a synced `scout_id` (triggering `/reconcile` REST endpoint).
     *   [ ] **ESU Unit Override Dropdown**: Render an editable select dropdown allowing admins to manually override or assign ESU units, showing warnings for unassigned units or options for multiple mapped units.
