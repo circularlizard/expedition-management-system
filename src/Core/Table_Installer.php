@@ -202,7 +202,6 @@ class Table_Installer {
             dob                    DATE                     DEFAULT NULL,
             dofe_registered        VARCHAR(30)     NOT NULL DEFAULT 'n',
             dofe_number            VARCHAR(20)              DEFAULT NULL,
-            dofe_org               VARCHAR(100)             DEFAULT NULL,
             bronze_completion      TEXT                     DEFAULT NULL,
             silver_completion      TEXT                     DEFAULT NULL,
             signup_status          VARCHAR(30)     NOT NULL DEFAULT 'received',

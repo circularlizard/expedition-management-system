@@ -31,7 +31,6 @@ class Signup_Repository {
             'dob'                 => ! empty( $data['dob'] ) ? sanitize_text_field( $data['dob'] ) : null,
             'dofe_registered'     => sanitize_text_field( $data['dofe_registered'] ?? 'n' ),
             'dofe_number'         => ! empty( $data['dofe_number'] ) ? sanitize_text_field( $data['dofe_number'] ) : null,
-            'dofe_org'            => ! empty( $data['dofe_org'] ) ? sanitize_text_field( $data['dofe_org'] ) : null,
             'bronze_completion'   => ! empty( $data['bronze_completion'] ) ? ( is_array( $data['bronze_completion'] ) ? json_encode( $data['bronze_completion'] ) : $data['bronze_completion'] ) : null,
             'silver_completion'   => ! empty( $data['silver_completion'] ) ? ( is_array( $data['silver_completion'] ) ? json_encode( $data['silver_completion'] ) : $data['silver_completion'] ) : null,
             'signup_status'       => sanitize_text_field( $data['signup_status'] ?? 'received' ),
@@ -42,7 +41,7 @@ class Signup_Repository {
         ];
 
         $format = [
-            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
+            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
         ];
 
         $result = $this->wpdb->insert(

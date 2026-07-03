@@ -471,6 +471,42 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             </div>
                         </div>
 
+                        {type === 'participant' && (
+                            <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DofE Registration Status</span>
+                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>
+                                            {selectedSignup.dofe_registered === 'y' ? 'Registered' : 'Needs Registration'}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DOB</span>
+                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.dob || '—'}</div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="inspector-dofe-num" style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600', display: 'block' }}>eDofE Number</label>
+                                    <input 
+                                        id="inspector-dofe-num"
+                                        type="text" 
+                                        value={editedDofeNumber} 
+                                        onChange={(e) => setEditedDofeNumber(e.target.value)}
+                                        placeholder="Enter eDofE number..."
+                                        style={{ width: '100%', padding: '6px 10px', border: '1px solid #ccd0d4', borderRadius: '4px', marginTop: '4px' }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Prior Level Completions</span>
+                                    <div style={{ marginTop: '4px' }}>
+                                        {renderPriorCompletions(selectedSignup)}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
                         <div>
                             <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Explorer Email</span>
                             <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.explorer_email || '—'}</div>
@@ -516,43 +552,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             </div>
                         </div>
 
-                        {type === 'participant' ? (
-                            <>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <div>
-                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DOB</span>
-                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.dob || '—'}</div>
-                                    </div>
-                                    <div>
-                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DofE Organisation</span>
-                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.dofe_org || '—'}</div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Prior Level Completions</span>
-                                    <div style={{ marginTop: '4px' }}>
-                                        {renderPriorCompletions(selectedSignup)}
-                                    </div>
-                                </div>
-                                <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DofE Registration Status</span>
-                                    <div style={{ fontSize: '13px', marginTop: '2px' }}>
-                                        {selectedSignup.dofe_registered === 'y' ? 'Registered' : 'Needs Registration'}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label htmlFor="inspector-dofe-num" style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600', display: 'block' }}>eDofE Number</label>
-                                    <input 
-                                        id="inspector-dofe-num"
-                                        type="text" 
-                                        value={editedDofeNumber} 
-                                        onChange={(e) => setEditedDofeNumber(e.target.value)}
-                                        placeholder="Enter eDofE number..."
-                                        style={{ width: '100%', padding: '6px 10px', border: '1px solid #ccd0d4', borderRadius: '4px', marginTop: '4px' }}
-                                    />
-                                </div>
-                            </>
-                        ) : (
+                        {type === 'expedition' && (
                             <>
                                 <div>
                                     <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>First Aid Status</span>
