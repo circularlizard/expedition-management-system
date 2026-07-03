@@ -103,7 +103,7 @@ All created by `Table_Installer` on plugin activation. Tables are created and qu
 | `ems_osm_explorers` | `id, scout_id (UNIQUE), wp_user_id (nullable), section_id, first_name, last_name, email, parent_email, patrol, synced_at` |
 | `ems_osm_events` | `id, event_id, section_id, name, start_date, end_date, location, synced_at` |
 | `ems_osm_event_attendance` | `id, event_id, scout_id, status, synced_at` |
-| `ems_unit_leaders` | `id, unit_name (UNIQUE), leader_first_name, leader_last_name, leader_email, created_at, updated_at` |
+| `ems_units` | `id, patrol_id, section_id, name, active, unit_id (nullable), short_code, leader_first_name, leader_last_name, leader_email, updated_at, synced_at` |
 | `ems_signups` | `id, scout_id (nullable), parent_user_id, dofe_level, expedition_preferences, first_aid_status, signup_status, payment_status, form_submission_id, created_at, updated_at` |
 
 ---
@@ -169,7 +169,8 @@ Programmatically registered on plugin activation and mapped dynamically on OIDC 
 | `ems_osm_api_base_url` | OSM API origin (e.g. `https://www.onlinescoutmanager.co.uk`) |
 | `ems_osm_scope` | OAuth scope string |
 | `ems_failed_pushback_queue` | Serialized array of failed OSM write jobs |
-| `ems_osm_field_map` | `{section_id: {flexi_id, field_map: {ems_field: column_id}}}` |
+| `ems_flexirecord_column_map` | `{ems_field: column_id}` — mapping EMS fields to OSM flexi-record columns |
+| `ems_form_mappings` | `{form_id: {scout_id_field, dofe_level_field, ...}}` — maps Fluent Forms fields to signup fields |
 | `ems_fluent_form_id` | int — The Fluent Forms expedition/level signup form ID |
 
 ---
