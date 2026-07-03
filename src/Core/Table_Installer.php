@@ -47,11 +47,21 @@ class Table_Installer {
             $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN last_ems_push_at DATETIME DEFAULT NULL AFTER last_local_update_at" );
         }
 
-
-
         if ( ! $this->column_exists( $wpdb, $explorers_table, 'dofe_number' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER first_aid_level" );
+        }
+
+        $participant_table = $wpdb->prefix . 'ems_participant_signups';
+        if ( ! $this->column_exists( $wpdb, $participant_table, 'leader_email' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
+        }
+
+        $expedition_table = $wpdb->prefix . 'ems_expedition_signups';
+        if ( ! $this->column_exists( $wpdb, $expedition_table, 'leader_email' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$expedition_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
         }
     }
 
@@ -187,6 +197,7 @@ class Table_Installer {
             explorer_last_name     VARCHAR(100)    NOT NULL DEFAULT '',
             explorer_email         VARCHAR(100)    NOT NULL DEFAULT '',
             parent_email           VARCHAR(100)             DEFAULT NULL,
+            leader_email           VARCHAR(100)             DEFAULT NULL,
             dofe_level             VARCHAR(20)     NOT NULL,
             dob                    DATE                     DEFAULT NULL,
             dofe_registered        VARCHAR(30)     NOT NULL DEFAULT 'n',
@@ -217,6 +228,7 @@ class Table_Installer {
             explorer_last_name     VARCHAR(100)    NOT NULL DEFAULT '',
             explorer_email         VARCHAR(100)    NOT NULL DEFAULT '',
             parent_email           VARCHAR(100)             DEFAULT NULL,
+            leader_email           VARCHAR(100)             DEFAULT NULL,
             dofe_level             VARCHAR(20)     NOT NULL,
             dofe_number            VARCHAR(20)              DEFAULT NULL,
             expedition_preferences TEXT                     DEFAULT NULL,

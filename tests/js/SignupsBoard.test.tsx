@@ -20,6 +20,7 @@ const mockParticipantSignups = [
         explorer_last_name: 'Smith',
         explorer_email: 'mary@example.com',
         parent_email: 'parent@example.com',
+        leader_email: 'leader@example.com',
         dofe_level: 'bronze',
         dob: '2010-05-15',
         dofe_registered: 'n',
@@ -43,6 +44,7 @@ const mockExpeditionSignups = [
         explorer_last_name: 'Doe',
         explorer_email: 'john@example.com',
         parent_email: 'parent2@example.com',
+        leader_email: 'leader@example.com',
         dofe_level: 'silver',
         dofe_number: 'D-991234',
         expedition_preferences: { exped_type: 'Hillwalking' },
@@ -85,6 +87,7 @@ describe('SignupsBoard', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Explorer Details')).toBeInTheDocument();
+            expect(screen.getByText('leader@example.com')).toBeInTheDocument();
         });
 
         // Click Allocate Slot
@@ -116,6 +119,7 @@ describe('SignupsBoard', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Explorer Details')).toBeInTheDocument();
+            expect(screen.getByText('leader@example.com')).toBeInTheDocument();
         });
 
         // Click Process Entry
