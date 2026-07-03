@@ -2,6 +2,22 @@
 
 This document outlines the roadmap for the remaining deliverables of the Expedition Management System (EMS). It details what has been achieved for each milestone, what needs to be implemented next, and serves as a planning workspace to expand on requirements.
 
+## Roadmap Summary & Progress
+
+| Phase | Milestone | Focus Area | Status |
+|---|---|---|---|
+| Phase 1 | [Milestone 1: Signup Processing & Unit Leader Outreach](#milestone-1-signup-processing--unit-leader-outreach) | Fluent Forms sync, Payments, and Reconciliation | In Progress |
+| Phase 2 | [Milestone 2: Team Formation, Event Dates & Calendar Management](#milestone-2-team-formation-event-dates--calendar-management) | React Expedition Board, Calendar view, and State Sync | In Progress |
+| Phase 3 | [Milestone 3: Compliance & Training Progress Monitoring](#milestone-3-compliance--training-progress-monitoring) | Tutor LMS automated enrollments and first aid warning flags | In Progress |
+| Phase 4 | [Milestone 4: Explorer & Parent Front-Facing Web Portal](#milestone-4-explorer--parent-front-facing-web-portal) | Explorer & Parent shortcode SPAs and timeline tracking | Pending |
+| Phase 5 | [Milestone 5: Adult Volunteer Availability Mapping](#milestone-5-adult-volunteer-availability-mapping) | Scheduling grids and supervisor deficit calculations | Pending |
+| Phase 6 | [Milestone 6: Unit Leader Integration Portal & Kit Supply](#milestone-6-unit-leader-integration-portal--kit-supply) | ESU unit visibility, tent groups, and Leader Portal | Pending |
+| Phase 7 | [Milestone 7: Offline/Online Scout Manager Write-Back (Push-Back Sync)](#milestone-7-offlineonline-scout-manager-write-back-push-back-sync) | Writing back status updates and invitations to OSM | Pending |
+| Phase 8 | [Milestone 8: Environment Replication & Configuration Portability](#milestone-8-environment-replication--configuration-portability) | Backup/restore tools, CLI scripts, and configuration exports | Pending |
+| Phase 9 | [Milestone 9: Route Submission & LiC Review Workflow](#milestone-9-route-submission--lic-review-workflow) | GPX/PDF secure uploads, permissions check proxy, and review panel | Pending |
+| Phase 10 | [Milestone 10: Email Notification Engine & SMTP Logging](#milestone-10-email-notification-engine--smtp-logging) | State-triggered notifications and mail audit logs | Pending |
+| Phase 11 | [Milestone 11: Expedition Board Enhancements & Document Export](#milestone-11-expedition-board-enhancements--document-export) | Drag-and-drop drawers, safeguarding warnings, and printable exports | Pending |
+
 ---
 
 ## Milestone 1: Signup Processing & Unit Leader Outreach
