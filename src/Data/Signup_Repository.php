@@ -24,6 +24,7 @@ class Signup_Repository {
             'explorer_first_name'    => sanitize_text_field( $data['explorer_first_name'] ?? '' ),
             'explorer_last_name'     => sanitize_text_field( $data['explorer_last_name'] ?? '' ),
             'dofe_level'             => strtolower( sanitize_text_field( $data['dofe_level'] ?? '' ) ),
+            'dofe_number'            => ! empty( $data['dofe_number'] ) ? sanitize_text_field( $data['dofe_number'] ) : null,
             'expedition_preferences' => ! empty( $data['expedition_preferences'] ) ? ( is_array( $data['expedition_preferences'] ) ? json_encode( $data['expedition_preferences'] ) : $data['expedition_preferences'] ) : null,
             'first_aid_status'       => sanitize_text_field( $data['first_aid_status'] ?? 'none' ),
             'signup_status'          => sanitize_text_field( $data['signup_status'] ?? 'pending' ),
@@ -40,6 +41,7 @@ class Signup_Repository {
             '%s', // explorer_first_name
             '%s', // explorer_last_name
             '%s', // dofe_level
+            '%s', // dofe_number
             '%s', // expedition_preferences
             '%s', // first_aid_status
             '%s', // signup_status
@@ -104,5 +106,80 @@ class Signup_Repository {
     public function get_all_signups(): array {
         $sql = "SELECT * FROM {$this->wpdb->prefix}ems_signups ORDER BY created_at DESC";
         return $this->wpdb->get_results( $sql, ARRAY_A ) ?: [];
+    }
+
+    /**
+     * Get signups filtered by status
+     */
+    public function get_signups_by_status( string $status = 'active' ): array {
+        if ( $status === 'all' ) {
+            $sql = "SELECT * FROM {$this->wpdb->prefix}ems_signups ORDER BY created_at DESC";
+            return $this->wpdb->get_results( $sql, ARRAY_A ) ?: [];
+        }
+
+        $db_status = 'pending';
+        if ( $status === 'processed' ) {
+            $db_status = 'processed';
+        } elseif ( $status === 'archived' ) {
+            $db_status = 'archived';
+        }
+
+        $sql = "SELECT * FROM {$this->wpdb->prefix}ems_signups WHERE signup_status = %s ORDER BY created_at DESC";
+        return $this->wpdb->get_results( $this->wpdb->prepare( $sql, $db_status ), ARRAY_A ) ?: [];
+    }
+
+    /**
+     * Reconcile a signup to a scout ID
+     */
+    public function reconcile_signup( int $id, int $scout_id, int $user_id ): bool {
+        $result = $this->wpdb->update(
+            "{$this->wpdb->prefix}ems_signups",
+            [
+                'scout_id'      => $scout_id,
+                'reconciled_by' => $user_id,
+                'reconciled_at' => current_time( 'mysql' ),
+                'updated_at'    => current_time( 'mysql' ),
+            ],
+            [ 'id' => $id ],
+            [ '%d', '%d', '%s', '%s' ],
+            [ '%d' ]
+        );
+        return $result !== false;
+    }
+
+    /**
+     * Process a signup
+     */
+    public function process_signup( int $id, int $user_id ): bool {
+        $result = $this->wpdb->update(
+            "{$this->wpdb->prefix}ems_signups",
+            [
+                'signup_status' => 'processed',
+                'processed_by'  => $user_id,
+                'processed_at'  => current_time( 'mysql' ),
+                'updated_at'    => current_time( 'mysql' ),
+            ],
+            [ 'id' => $id ],
+            [ '%s', '%d', '%s', '%s' ],
+            [ '%d' ]
+        );
+        return $result !== false;
+    }
+
+    /**
+     * Archive a signup
+     */
+    public function archive_signup( int $id ): bool {
+        $result = $this->wpdb->update(
+            "{$this->wpdb->prefix}ems_signups",
+            [
+                'signup_status' => 'archived',
+                'updated_at'    => current_time( 'mysql' ),
+            ],
+            [ 'id' => $id ],
+            [ '%s', '%s' ],
+            [ '%d' ]
+        );
+        return $result !== false;
     }
 }

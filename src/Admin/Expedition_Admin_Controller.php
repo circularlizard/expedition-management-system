@@ -7,6 +7,7 @@ use EMS\Data\Team_Repository;
 use EMS\Data\Team_Member_Repository;
 use EMS\Data\OSM_Explorer_Repository;
 use EMS\Data\OSM_Event_Repository;
+use EMS\Data\Signup_Repository;
 use EMS\Core\CPT_Registry;
 
 class Expedition_Admin_Controller {
@@ -18,6 +19,7 @@ class Expedition_Admin_Controller {
     private OSM_Explorer_Repository $explorers;
     private OSM_Event_Repository $osm_events;
     private CPT_Registry $cpt_registry;
+    private Signup_Repository $signups;
 
     public function __construct(
         Season_Repository $seasons,
@@ -26,7 +28,8 @@ class Expedition_Admin_Controller {
         Team_Member_Repository $team_members,
         ?OSM_Explorer_Repository $explorers = null,
         ?OSM_Event_Repository $osm_events = null,
-        ?CPT_Registry $cpt_registry = null
+        ?CPT_Registry $cpt_registry = null,
+        ?Signup_Repository $signups = null
     ) {
         $this->seasons      = $seasons;
         $this->expeditions  = $expeditions;
@@ -35,6 +38,7 @@ class Expedition_Admin_Controller {
         $this->explorers    = $explorers ?: new OSM_Explorer_Repository();
         $this->osm_events   = $osm_events ?: new OSM_Event_Repository();
         $this->cpt_registry = $cpt_registry ?: new CPT_Registry();
+        $this->signups      = $signups ?: new Signup_Repository();
     }
 
     public function register_routes(): void {
@@ -44,6 +48,7 @@ class Expedition_Admin_Controller {
         $this->register_member_routes();
         $this->register_osm_event_route();
         $this->register_board_route();
+        $this->register_signup_routes();
     }
 
     private function register_season_routes(): void {
@@ -650,5 +655,224 @@ class Expedition_Admin_Controller {
 
     private function error( string $code, string $message, int $status ): \WP_REST_Response {
         return new \WP_REST_Response( new \WP_Error( $code, $message, [ 'status' => $status ] ), $status );
+    }
+
+    private function register_signup_routes(): void {
+        register_rest_route( 'ems/v1', '/signups', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'list_signups' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/signups/(?P<id>\d+)/reconcile', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'reconcile_signup' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/signups/(?P<id>\d+)/process', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'process_signup' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/signups/(?P<id>\d+)/archive', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'archive_signup' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+    }
+
+    public function list_signups( \WP_REST_Request $request ): \WP_REST_Response {
+        global $wpdb;
+        $status = $request->get_param( 'status' ) ?: 'active';
+        $rows = $this->signups->get_signups_by_status( $status );
+
+        $response_data = [];
+        foreach ( $rows as $row ) {
+            $unit_id = ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null;
+            $unit_name = 'Unassigned';
+            if ( $unit_id ) {
+                $unit_name = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT name FROM {$wpdb->prefix}ems_units WHERE unit_id = %d LIMIT 1",
+                    $unit_id
+                ) ) ?: 'Unassigned';
+            }
+
+            $scout_id = ! empty( $row['scout_id'] ) ? (int) $row['scout_id'] : null;
+            $linkage_status = 'unlinked';
+            $proposed_scout_id = null;
+
+            if ( $scout_id ) {
+                $linkage_status = 'linked';
+            } else {
+                // Fuzzy matching
+                $parent_email = '';
+                if ( ! empty( $row['parent_user_id'] ) ) {
+                    $parent_user = get_userdata( $row['parent_user_id'] );
+                    if ( $parent_user ) {
+                        $parent_email = $parent_user->user_email;
+                    }
+                }
+
+                $proposed = null;
+                if ( ! empty( $parent_email ) ) {
+                    $proposed = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT scout_id FROM {$wpdb->prefix}ems_osm_explorers 
+                         WHERE LOWER(email) = %s OR LOWER(parent_email) = %s LIMIT 1",
+                        strtolower( $parent_email ),
+                        strtolower( $parent_email )
+                    ), ARRAY_A );
+                }
+
+                if ( ! $proposed ) {
+                    $proposed = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT scout_id FROM {$wpdb->prefix}ems_osm_explorers 
+                         WHERE LOWER(first_name) = %s AND LOWER(last_name) = %s LIMIT 1",
+                        strtolower( $row['explorer_first_name'] ),
+                        strtolower( $row['explorer_last_name'] )
+                    ), ARRAY_A );
+                }
+
+                if ( $proposed ) {
+                    $linkage_status = 'proposed';
+                    $proposed_scout_id = (int) $proposed['scout_id'];
+                }
+            }
+
+            $response_data[] = [
+                'id'                  => (int) $row['id'],
+                'scout_id'            => $scout_id,
+                'parent_user_id'      => (int) $row['parent_user_id'],
+                'explorer_first_name' => $row['explorer_first_name'],
+                'explorer_last_name'  => $row['explorer_last_name'],
+                'dofe_level'          => $row['dofe_level'],
+                'dofe_number'         => $row['dofe_number'],
+                'first_aid_status'    => $row['first_aid_status'],
+                'signup_status'       => $row['signup_status'],
+                'payment_status'      => $row['payment_status'],
+                'unit_id'             => $unit_id,
+                'unit_name'           => $unit_name,
+                'linkage_status'      => $linkage_status,
+                'proposed_scout_id'   => $proposed_scout_id,
+            ];
+        }
+
+        return new \WP_REST_Response( $response_data );
+    }
+
+    public function reconcile_signup( \WP_REST_Request $request ): \WP_REST_Response {
+        $id = (int) $request->get_param( 'id' );
+        $body = $request->get_json_params() ?: [];
+        $scout_id = isset( $body['scout_id'] ) ? (int) $body['scout_id'] : 0;
+
+        if ( ! $scout_id ) {
+            return $this->error( 'ems_reconcile_missing_scout_id', 'scout_id is required.', 400 );
+        }
+
+        $signup = $this->signups->get_signup( $id );
+        if ( ! $signup ) {
+            return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
+        }
+
+        $explorer = $this->explorers->find_by_scout_id( $scout_id );
+        if ( ! $explorer ) {
+            return $this->error( 'ems_explorer_not_found', 'Explorer not found.', 404 );
+        }
+
+        $this->signups->reconcile_signup( $id, $scout_id, get_current_user_id() );
+
+        // Post-Linkage Data Sync: Check if ems_signups.signup_status is 'processed'
+        if ( $signup['signup_status'] === 'processed' ) {
+            $this->sync_data_to_explorer( $scout_id, $signup['dofe_number'], $signup['first_aid_status'] );
+        }
+
+        return new \WP_REST_Response( [ 'reconciled' => true ] );
+    }
+
+    public function process_signup( \WP_REST_Request $request ): \WP_REST_Response {
+        $id = (int) $request->get_param( 'id' );
+
+        $signup = $this->signups->get_signup( $id );
+        if ( ! $signup ) {
+            return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
+        }
+
+        if ( $signup['payment_status'] !== 'paid' ) {
+            return $this->error( 'ems_signup_unpaid', 'Cannot process unpaid signup.', 400 );
+        }
+
+        if ( $signup['signup_status'] === 'processed' ) {
+            return $this->error( 'ems_signup_already_processed', 'Signup is already processed.', 400 );
+        }
+
+        $this->signups->process_signup( $id, get_current_user_id() );
+
+        // Immediate Sync (If Linked)
+        $scout_id = ! empty( $signup['scout_id'] ) ? (int) $signup['scout_id'] : null;
+        if ( $scout_id ) {
+            $this->sync_data_to_explorer( $scout_id, $signup['dofe_number'], $signup['first_aid_status'] );
+        }
+
+        return new \WP_REST_Response( [ 'processed' => true ] );
+    }
+
+    public function archive_signup( \WP_REST_Request $request ): \WP_REST_Response {
+        $id = (int) $request->get_param( 'id' );
+
+        $signup = $this->signups->get_signup( $id );
+        if ( ! $signup ) {
+            return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
+        }
+
+        $this->signups->archive_signup( $id );
+
+        return new \WP_REST_Response( [ 'archived' => true ] );
+    }
+
+    private function sync_data_to_explorer( int $scout_id, ?string $dofe_number, string $first_aid_status ): void {
+        global $wpdb;
+        $explorer = $this->explorers->find_by_scout_id( $scout_id );
+        if ( ! $explorer ) {
+            return;
+        }
+
+        $update_data = [];
+        $format = [];
+
+        if ( ! empty( $dofe_number ) ) {
+            $update_data['dofe_number'] = $dofe_number;
+            $format[] = '%s';
+        }
+
+        // Copy first_aid_status only if current verified level is 'none' or lower/empty
+        $current_fa = $explorer['first_aid_level'] ?? 'none';
+        if ( in_array( $current_fa, [ 'none', '' ], true ) && ! empty( $first_aid_status ) ) {
+            $normalized_fa = str_replace( '-', '_', $first_aid_status );
+            if ( in_array( $normalized_fa, [ 'none', 'first_response', 'full_first_aid' ], true ) ) {
+                $update_data['first_aid_level'] = $normalized_fa;
+                $format[] = '%s';
+            }
+        }
+
+        if ( ! empty( $update_data ) ) {
+            $wpdb->update(
+                $wpdb->prefix . 'ems_osm_explorers',
+                $update_data,
+                [ 'scout_id' => $scout_id ],
+                $format,
+                [ '%d' ]
+            );
+            $this->explorers->touch_last_local_update( $scout_id );
+        }
     }
 }

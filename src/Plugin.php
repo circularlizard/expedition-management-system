@@ -83,7 +83,11 @@ class Plugin {
                 new \EMS\Data\Season_Repository(),
                 new \EMS\Data\Expedition_Repository(),
                 new \EMS\Data\Team_Repository(),
-                new \EMS\Data\Team_Member_Repository()
+                new \EMS\Data\Team_Member_Repository(),
+                null,
+                null,
+                null,
+                new \EMS\Data\Signup_Repository()
             );
             $expedition_controller->register_routes();
 
