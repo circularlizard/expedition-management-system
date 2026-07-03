@@ -301,6 +301,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     <>
                                         <th style={{ padding: '12px 16px' }}>Prior Level Completed</th>
                                         <th style={{ padding: '12px 16px' }}>DofE Number</th>
+                                        <th style={{ padding: '12px 16px' }}>Status</th>
                                     </>
                                 ) : (
                                     <>
@@ -313,7 +314,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         <tbody>
                             {filteredSignups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#646970' }}>
+                                    <td colSpan={type === 'participant' ? 8 : 7} style={{ padding: '24px', textAlign: 'center', color: '#646970' }}>
                                         No signup records found for this filter state.
                                     </td>
                                 </tr>
@@ -363,6 +364,21 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                                 </td>
                                                 <td style={{ padding: '16px', fontFamily: 'monospace' }}>
                                                     {s.dofe_number || '—'}
+                                                </td>
+                                                <td style={{ padding: '16px' }}>
+                                                    <span style={{
+                                                        display: 'inline-block',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '12px',
+                                                        fontSize: '11px',
+                                                        fontWeight: 'bold',
+                                                        textTransform: 'uppercase',
+                                                        background: s.signup_status === 'allocated' ? '#e5f8eb' : (s.signup_status === 'archived' ? '#f5f5f5' : '#fef8e2'),
+                                                        color: s.signup_status === 'allocated' ? '#00a32a' : (s.signup_status === 'archived' ? '#646970' : '#b28900'),
+                                                        border: `1px solid ${s.signup_status === 'allocated' ? '#a3e2b2' : (s.signup_status === 'archived' ? '#dcdcde' : '#f8e39d')}`
+                                                    }}>
+                                                        {s.signup_status}
+                                                    </span>
                                                 </td>
                                             </>
                                         ) : (
@@ -447,7 +463,25 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Status</span>
+                                <div style={{ marginTop: '2px' }}>
+                                    <span style={{
+                                        display: 'inline-block',
+                                        padding: '2px 8px',
+                                        borderRadius: '12px',
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                        textTransform: 'uppercase',
+                                        background: selectedSignup.signup_status === 'allocated' || selectedSignup.signup_status === 'processed' ? '#e5f8eb' : (selectedSignup.signup_status === 'archived' ? '#f5f5f5' : '#fef8e2'),
+                                        color: selectedSignup.signup_status === 'allocated' || selectedSignup.signup_status === 'processed' ? '#00a32a' : (selectedSignup.signup_status === 'archived' ? '#646970' : '#b28900'),
+                                        border: `1px solid ${selectedSignup.signup_status === 'allocated' || selectedSignup.signup_status === 'processed' ? '#a3e2b2' : (selectedSignup.signup_status === 'archived' ? '#dcdcde' : '#f8e39d')}`
+                                    }}>
+                                        {selectedSignup.signup_status}
+                                    </span>
+                                </div>
+                            </div>
                             <div>
                                 <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Level</span>
                                 <div style={{ marginTop: '2px' }}>
