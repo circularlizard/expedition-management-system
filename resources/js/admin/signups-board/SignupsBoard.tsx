@@ -486,11 +486,47 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.leader_email || '—'}</div>
                         </div>
 
+                        <div>
+                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Payment Status</span>
+                            <div style={{ marginTop: '2px' }}>
+                                <span style={{
+                                    display: 'inline-block',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '11px',
+                                    fontWeight: 'bold',
+                                    textTransform: 'uppercase',
+                                    background: selectedSignup.payment_status === 'paid' ? '#e5f8eb' : '#fcf0f1',
+                                    color: selectedSignup.payment_status === 'paid' ? '#00a32a' : '#d63638',
+                                    border: `1px solid ${selectedSignup.payment_status === 'paid' ? '#a3e2b2' : '#f5c2c3'}`
+                                }}>
+                                    {selectedSignup.payment_status === 'paid' ? 'Paid' : selectedSignup.payment_status === 'failed' ? 'Failed' : 'Pending'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Submission ID</span>
+                                <div style={{ fontSize: '13px', marginTop: '2px' }}>#{selectedSignup.form_submission_id || '—'}</div>
+                            </div>
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Submitted At</span>
+                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.created_at || '—'}</div>
+                            </div>
+                        </div>
+
                         {type === 'participant' ? (
                             <>
-                                <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DOB</span>
-                                    <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.dob || '—'}</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DOB</span>
+                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.dob || '—'}</div>
+                                    </div>
+                                    <div>
+                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DofE Organisation</span>
+                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.dofe_org || '—'}</div>
+                                    </div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Prior Level Completions</span>
