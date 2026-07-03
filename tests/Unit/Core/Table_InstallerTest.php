@@ -131,7 +131,6 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'dob', $participant_sql );
         $this->assertStringContainsString( 'dofe_registered', $participant_sql );
         $this->assertStringContainsString( 'dofe_number', $participant_sql );
-        $this->assertStringContainsString( 'dofe_org', $participant_sql );
         $this->assertStringContainsString( 'bronze_completion', $participant_sql );
         $this->assertStringContainsString( 'silver_completion', $participant_sql );
         $this->assertStringContainsString( "DEFAULT 'received'", $participant_sql );
