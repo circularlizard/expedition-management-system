@@ -469,6 +469,19 @@ class Fluent_Forms_Sync {
             if ( ! empty( $row['email'] ) ) {
                 $data['attributes']['value'] = $row['email'];
                 $data['settings']['value']   = $row['email'];
+                
+                // Add ff-read-only class
+                if ( isset( $data['attributes']['class'] ) && is_array( $data['attributes']['class'] ) ) {
+                    if ( ! in_array( 'ff-read-only', $data['attributes']['class'], true ) ) {
+                        $data['attributes']['class'][] = 'ff-read-only';
+                    }
+                } else {
+                    $current_class = $data['attributes']['class'] ?? '';
+                    if ( strpos( $current_class, 'ff-read-only' ) === false ) {
+                        $data['attributes']['class'] = trim( $current_class . ' ff-read-only' );
+                    }
+                }
+                
                 return $data;
             }
         }
@@ -621,6 +634,11 @@ class Fluent_Forms_Sync {
                         if (explorerEmailInput) {
                             explorerEmailInput.value = mapping.explorerEmail || '';
                             explorerEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            if (mapping.explorerEmail) {
+                                explorerEmailInput.classList.add('ff-read-only');
+                            } else {
+                                explorerEmailInput.classList.remove('ff-read-only');
+                            }
                         }
 
                         var leaderEmailInput = document.querySelector('input[name="signup_leader_email"]');
