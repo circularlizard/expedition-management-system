@@ -135,7 +135,6 @@ for ( $i = 0; $i < $count; $i++ ) {
             'dob'                 => '2010-05-15',
             'dofe_registered'     => empty( $dofe_number ) ? 'n' : 'y',
             'dofe_number'         => $dofe_number,
-            'dofe_org'            => 'Borders Scout Region',
             'bronze_completion'   => $bronze_comp ? json_encode( $bronze_comp ) : null,
             'silver_completion'   => $silver_comp ? json_encode( $silver_comp ) : null,
             'signup_status'       => $status,
@@ -146,7 +145,7 @@ for ( $i = 0; $i < $count; $i++ ) {
             'created_at'          => current_time( 'mysql' ),
             'updated_at'          => current_time( 'mysql' ),
         ],
-        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
+        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
     );
 }
 
