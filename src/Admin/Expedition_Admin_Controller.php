@@ -658,33 +658,50 @@ class Expedition_Admin_Controller {
     }
 
     private function register_signup_routes(): void {
-        register_rest_route( 'ems/v1', '/signups', [
+        // Participant Places Endpoints
+        register_rest_route( 'ems/v1', '/signups/participants', [
             'methods'             => \WP_REST_Server::READABLE,
-            'callback'            => [ $this, 'list_signups' ],
+            'callback'            => [ $this, 'list_participant_signups' ],
             'permission_callback' => [ $this, 'check_permission' ],
         ] );
 
-        register_rest_route( 'ems/v1', '/signups/(?P<id>\d+)/reconcile', [
+        register_rest_route( 'ems/v1', '/signups/participants/(?P<id>\d+)/process', [
             'methods'             => \WP_REST_Server::CREATABLE,
-            'callback'            => [ $this, 'reconcile_signup' ],
-            'permission_callback' => [ $this, 'check_permission' ],
-            'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
-            ],
-        ] );
-
-        register_rest_route( 'ems/v1', '/signups/(?P<id>\d+)/process', [
-            'methods'             => \WP_REST_Server::CREATABLE,
-            'callback'            => [ $this, 'process_signup' ],
+            'callback'            => [ $this, 'process_participant_signup' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
                 'id' => [ 'type' => 'integer', 'required' => true ],
             ],
         ] );
 
-        register_rest_route( 'ems/v1', '/signups/(?P<id>\d+)/archive', [
+        register_rest_route( 'ems/v1', '/signups/participants/(?P<id>\d+)/archive', [
             'methods'             => \WP_REST_Server::CREATABLE,
-            'callback'            => [ $this, 'archive_signup' ],
+            'callback'            => [ $this, 'archive_participant_signup' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+
+        // Expedition Entries Endpoints
+        register_rest_route( 'ems/v1', '/signups/expeditions', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'list_expedition_signups' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/signups/expeditions/(?P<id>\d+)/process', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'process_expedition_signup' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/signups/expeditions/(?P<id>\d+)/archive', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'archive_expedition_signup' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
                 'id' => [ 'type' => 'integer', 'required' => true ],
@@ -692,117 +709,49 @@ class Expedition_Admin_Controller {
         ] );
     }
 
-    public function list_signups( \WP_REST_Request $request ): \WP_REST_Response {
-        global $wpdb;
-        $status = $request->get_param( 'status' ) ?: 'active';
-        $rows = $this->signups->get_signups_by_status( $status );
+    public function list_participant_signups( \WP_REST_Request $request ): \WP_REST_Response {
+        $status = $request->get_param( 'status' ) ?: 'received';
+        $rows = $this->signups->get_participant_signups( $status );
 
         $response_data = [];
         foreach ( $rows as $row ) {
-            $unit_id = ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null;
-            $unit_name = 'Unassigned';
-            if ( $unit_id ) {
-                $unit_name = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT name FROM {$wpdb->prefix}ems_units WHERE unit_id = %d LIMIT 1",
-                    $unit_id
-                ) ) ?: 'Unassigned';
-            }
-
-            $scout_id = ! empty( $row['scout_id'] ) ? (int) $row['scout_id'] : null;
-            $linkage_status = 'unlinked';
-            $proposed_scout_id = null;
-
-            if ( $scout_id ) {
-                $linkage_status = 'linked';
-            } else {
-                // Fuzzy matching
-                $parent_email = '';
-                if ( ! empty( $row['parent_user_id'] ) ) {
-                    $parent_user = get_userdata( $row['parent_user_id'] );
-                    if ( $parent_user ) {
-                        $parent_email = $parent_user->user_email;
-                    }
-                }
-
-                $proposed = null;
-                if ( ! empty( $parent_email ) ) {
-                    $proposed = $wpdb->get_row( $wpdb->prepare(
-                        "SELECT scout_id FROM {$wpdb->prefix}ems_osm_explorers 
-                         WHERE LOWER(email) = %s OR LOWER(parent_email) = %s LIMIT 1",
-                        strtolower( $parent_email ),
-                        strtolower( $parent_email )
-                    ), ARRAY_A );
-                }
-
-                if ( ! $proposed ) {
-                    $proposed = $wpdb->get_row( $wpdb->prepare(
-                        "SELECT scout_id FROM {$wpdb->prefix}ems_osm_explorers 
-                         WHERE LOWER(first_name) = %s AND LOWER(last_name) = %s LIMIT 1",
-                        strtolower( $row['explorer_first_name'] ),
-                        strtolower( $row['explorer_last_name'] )
-                    ), ARRAY_A );
-                }
-
-                if ( $proposed ) {
-                    $linkage_status = 'proposed';
-                    $proposed_scout_id = (int) $proposed['scout_id'];
-                }
-            }
+            $bronze = ! empty( $row['bronze_completion'] ) ? json_decode( $row['bronze_completion'], true ) : null;
+            $silver = ! empty( $row['silver_completion'] ) ? json_decode( $row['silver_completion'], true ) : null;
 
             $response_data[] = [
                 'id'                  => (int) $row['id'],
-                'scout_id'            => $scout_id,
+                'scout_id'            => (int) $row['scout_id'],
                 'parent_user_id'      => (int) $row['parent_user_id'],
+                'unit_id'             => ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null,
+                'unit_name'           => $row['unit_name'] ?: 'Unassigned',
                 'explorer_first_name' => $row['explorer_first_name'],
                 'explorer_last_name'  => $row['explorer_last_name'],
+                'explorer_email'      => $row['explorer_email'],
+                'parent_email'        => $row['parent_email'],
                 'dofe_level'          => $row['dofe_level'],
+                'dob'                 => $row['dob'],
+                'dofe_registered'     => $row['dofe_registered'],
                 'dofe_number'         => $row['dofe_number'],
-                'first_aid_status'    => $row['first_aid_status'],
+                'dofe_org'            => $row['dofe_org'],
+                'bronze_completion'   => $bronze,
+                'silver_completion'   => $silver,
                 'signup_status'       => $row['signup_status'],
                 'payment_status'      => $row['payment_status'],
-                'unit_id'             => $unit_id,
-                'unit_name'           => $unit_name,
-                'linkage_status'      => $linkage_status,
-                'proposed_scout_id'   => $proposed_scout_id,
+                'form_submission_id'  => (int) $row['form_submission_id'],
+                'created_at'          => $row['created_at'],
+                'updated_at'          => $row['updated_at'],
             ];
         }
 
         return new \WP_REST_Response( $response_data );
     }
 
-    public function reconcile_signup( \WP_REST_Request $request ): \WP_REST_Response {
+    public function process_participant_signup( \WP_REST_Request $request ): \WP_REST_Response {
         $id = (int) $request->get_param( 'id' );
         $body = $request->get_json_params() ?: [];
-        $scout_id = isset( $body['scout_id'] ) ? (int) $body['scout_id'] : 0;
+        $dofe_number = isset( $body['dofe_number'] ) ? sanitize_text_field( $body['dofe_number'] ) : null;
 
-        if ( ! $scout_id ) {
-            return $this->error( 'ems_reconcile_missing_scout_id', 'scout_id is required.', 400 );
-        }
-
-        $signup = $this->signups->get_signup( $id );
-        if ( ! $signup ) {
-            return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
-        }
-
-        $explorer = $this->explorers->find_by_scout_id( $scout_id );
-        if ( ! $explorer ) {
-            return $this->error( 'ems_explorer_not_found', 'Explorer not found.', 404 );
-        }
-
-        $this->signups->reconcile_signup( $id, $scout_id, get_current_user_id() );
-
-        // Post-Linkage Data Sync: Check if ems_signups.signup_status is 'processed'
-        if ( $signup['signup_status'] === 'processed' ) {
-            $this->sync_data_to_explorer( $scout_id, $signup['dofe_number'], $signup['first_aid_status'] );
-        }
-
-        return new \WP_REST_Response( [ 'reconciled' => true ] );
-    }
-
-    public function process_signup( \WP_REST_Request $request ): \WP_REST_Response {
-        $id = (int) $request->get_param( 'id' );
-
-        $signup = $this->signups->get_signup( $id );
+        $signup = $this->signups->get_participant_signup( $id );
         if ( ! $signup ) {
             return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
         }
@@ -811,68 +760,91 @@ class Expedition_Admin_Controller {
             return $this->error( 'ems_signup_unpaid', 'Cannot process unpaid signup.', 400 );
         }
 
-        if ( $signup['signup_status'] === 'processed' ) {
+        if ( $signup['signup_status'] === 'allocated' ) {
             return $this->error( 'ems_signup_already_processed', 'Signup is already processed.', 400 );
         }
 
-        $this->signups->process_signup( $id, get_current_user_id() );
-
-        // Immediate Sync (If Linked)
-        $scout_id = ! empty( $signup['scout_id'] ) ? (int) $signup['scout_id'] : null;
-        if ( $scout_id ) {
-            $this->sync_data_to_explorer( $scout_id, $signup['dofe_number'], $signup['first_aid_status'] );
-        }
+        $this->signups->process_participant_signup( $id, get_current_user_id(), $dofe_number );
 
         return new \WP_REST_Response( [ 'processed' => true ] );
     }
 
-    public function archive_signup( \WP_REST_Request $request ): \WP_REST_Response {
+    public function archive_participant_signup( \WP_REST_Request $request ): \WP_REST_Response {
         $id = (int) $request->get_param( 'id' );
 
-        $signup = $this->signups->get_signup( $id );
+        $signup = $this->signups->get_participant_signup( $id );
         if ( ! $signup ) {
             return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
         }
 
-        $this->signups->archive_signup( $id );
+        $this->signups->archive_participant_signup( $id );
 
         return new \WP_REST_Response( [ 'archived' => true ] );
     }
 
-    private function sync_data_to_explorer( int $scout_id, ?string $dofe_number, string $first_aid_status ): void {
-        global $wpdb;
-        $explorer = $this->explorers->find_by_scout_id( $scout_id );
-        if ( ! $explorer ) {
-            return;
+    public function list_expedition_signups( \WP_REST_Request $request ): \WP_REST_Response {
+        $status = $request->get_param( 'status' ) ?: 'pending';
+        $rows = $this->signups->get_expedition_signups( $status );
+
+        $response_data = [];
+        foreach ( $rows as $row ) {
+            $prefs = ! empty( $row['expedition_preferences'] ) ? json_decode( $row['expedition_preferences'], true ) : null;
+
+            $response_data[] = [
+                'id'                       => (int) $row['id'],
+                'scout_id'                 => (int) $row['scout_id'],
+                'parent_user_id'           => (int) $row['parent_user_id'],
+                'unit_id'                  => ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null,
+                'unit_name'                => $row['unit_name'] ?: 'Unassigned',
+                'explorer_first_name'      => $row['explorer_first_name'],
+                'explorer_last_name'       => $row['explorer_last_name'],
+                'explorer_email'           => $row['explorer_email'],
+                'parent_email'             => $row['parent_email'],
+                'dofe_level'               => $row['dofe_level'],
+                'dofe_number'              => $row['dofe_number'],
+                'expedition_preferences'   => $prefs,
+                'additional_support_needs' => $row['additional_support_needs'],
+                'first_aid_status'         => $row['first_aid_status'],
+                'first_aid_expiry'         => $row['first_aid_expiry'],
+                'signup_status'            => $row['signup_status'],
+                'payment_status'           => $row['payment_status'],
+                'form_submission_id'       => (int) $row['form_submission_id'],
+                'created_at'               => $row['created_at'],
+                'updated_at'               => $row['updated_at'],
+            ];
         }
 
-        $update_data = [];
-        $format = [];
+        return new \WP_REST_Response( $response_data );
+    }
 
-        if ( ! empty( $dofe_number ) ) {
-            $update_data['dofe_number'] = $dofe_number;
-            $format[] = '%s';
+    public function process_expedition_signup( \WP_REST_Request $request ): \WP_REST_Response {
+        $id = (int) $request->get_param( 'id' );
+
+        $signup = $this->signups->get_expedition_signup( $id );
+        if ( ! $signup ) {
+            return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
         }
 
-        // Copy first_aid_status only if current verified level is 'none' or lower/empty
-        $current_fa = $explorer['first_aid_level'] ?? 'none';
-        if ( in_array( $current_fa, [ 'none', '' ], true ) && ! empty( $first_aid_status ) ) {
-            $normalized_fa = str_replace( '-', '_', $first_aid_status );
-            if ( in_array( $normalized_fa, [ 'none', 'first_response', 'full_first_aid' ], true ) ) {
-                $update_data['first_aid_level'] = $normalized_fa;
-                $format[] = '%s';
-            }
+        if ( $signup['signup_status'] === 'processed' ) {
+            return $this->error( 'ems_signup_already_processed', 'Signup is already processed.', 400 );
         }
 
-        if ( ! empty( $update_data ) ) {
-            $wpdb->update(
-                $wpdb->prefix . 'ems_osm_explorers',
-                $update_data,
-                [ 'scout_id' => $scout_id ],
-                $format,
-                [ '%d' ]
-            );
-            $this->explorers->touch_last_local_update( $scout_id );
+        $this->signups->process_expedition_signup( $id, get_current_user_id() );
+
+        return new \WP_REST_Response( [ 'processed' => true ] );
+    }
+
+    public function archive_expedition_signup( \WP_REST_Request $request ): \WP_REST_Response {
+        $id = (int) $request->get_param( 'id' );
+
+        $signup = $this->signups->get_expedition_signup( $id );
+        if ( ! $signup ) {
+            return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
         }
+
+        $this->signups->archive_expedition_signup( $id );
+
+        return new \WP_REST_Response( [ 'archived' => true ] );
     }
 }
+

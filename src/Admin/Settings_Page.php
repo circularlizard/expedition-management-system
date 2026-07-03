@@ -478,99 +478,42 @@ class Settings_Page {
     }
 
     private function save_form_mappings( array $post ): void {
-        $form_id = (int) ($post['ems_fluent_form_id'] ?? 4);
-        update_option( 'ems_fluent_form_id', $form_id );
+        $p_id = (int) ($post['ems_fluent_participant_form_id'] ?? 6);
+        update_option( 'ems_fluent_participant_form_id', $p_id );
 
-        $mappings = get_option( 'ems_form_mappings', [] );
-        $pref_fields = array_map( 'trim', explode( ',', $post['ems_mapping_pref_fields'] ?? '' ) );
+        $e_id = (int) ($post['ems_fluent_expedition_form_id'] ?? 7);
+        update_option( 'ems_fluent_expedition_form_id', $e_id );
 
-        $mappings[ $form_id ] = [
-            'scout_id_field'   => sanitize_key( $post['ems_mapping_scout_id'] ?? 'signup_child' ),
-            'first_name_field' => sanitize_key( $post['ems_mapping_first_name'] ?? '' ),
-            'last_name_field'  => sanitize_key( $post['ems_mapping_last_name'] ?? '' ),
-            'dofe_level_field' => sanitize_key( $post['ems_mapping_dofe_level'] ?? 'signup_level' ),
-            'esu_patrol_field' => sanitize_key( $post['ems_mapping_esu_patrol'] ?? 'signup_unit' ),
-            'first_aid_field'  => sanitize_key( $post['ems_mapping_first_aid'] ?? 'input_radio' ),
-            'pref_fields'      => array_filter( $pref_fields ),
-        ];
-
-        update_option( 'ems_form_mappings', $mappings );
-        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Form mappings saved.', 'ems-plugin' ) . '</p></div>';
+        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Form configurations saved.', 'ems-plugin' ) . '</p></div>';
     }
 
     private function render_form_mappings_tab(): void {
-        $form_id = (int) get_option( 'ems_fluent_form_id', 4 );
-        $mappings = get_option( 'ems_form_mappings', [] );
-        $config = $mappings[ $form_id ] ?? [
-            'scout_id_field'   => 'signup_child',
-            'first_name_field' => '',
-            'last_name_field'  => '',
-            'dofe_level_field' => 'signup_level',
-            'esu_patrol_field' => 'signup_unit',
-            'first_aid_field'  => 'input_radio',
-            'pref_fields'      => [ 'exped_practice_dates', 'exped_qualifier_dates', 'exped_type', 'exped_team_names', 'exped_asn' ],
-        ];
+        $p_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
+        $e_id = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
         ?>
-        <h2><?php esc_html_e( 'Fluent Form Field Mapping Configuration', 'ems-plugin' ); ?></h2>
+        <h2><?php esc_html_e( 'Fluent Form ID Configurations', 'ems-plugin' ); ?></h2>
         <form method="post">
             <?php wp_nonce_field( 'ems_settings_form_mappings' ); ?>
             <table class="form-table" role="presentation">
                 <tbody>
                     <tr>
-                        <th scope="row"><label for="ems_fluent_form_id"><?php esc_html_e( 'Fluent Form ID', 'ems-plugin' ); ?></label></th>
+                        <th scope="row"><label for="ems_fluent_participant_form_id"><?php esc_html_e( 'Participant Place Form ID', 'ems-plugin' ); ?></label></th>
                         <td>
-                            <input name="ems_fluent_form_id" type="number" id="ems_fluent_form_id" value="<?php echo esc_attr( $form_id ); ?>" class="small-text" />
-                            <p class="description"><?php esc_html_e( 'The ID of the Fluent Form used for registrations.', 'ems-plugin' ); ?></p>
+                            <input name="ems_fluent_participant_form_id" type="number" id="ems_fluent_participant_form_id" value="<?php echo esc_attr( $p_id ); ?>" class="small-text" />
+                            <p class="description"><?php esc_html_e( 'The Fluent Form ID for Participant Place registration requests.', 'ems-plugin' ); ?></p>
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><label for="ems_mapping_scout_id"><?php esc_html_e( 'Child Dropdown / Scout ID Field Name', 'ems-plugin' ); ?></label></th>
+                        <th scope="row"><label for="ems_fluent_expedition_form_id"><?php esc_html_e( 'Expedition Signup Form ID', 'ems-plugin' ); ?></label></th>
                         <td>
-                            <input name="ems_mapping_scout_id" type="text" id="ems_mapping_scout_id" value="<?php echo esc_attr( $config['scout_id_field'] ); ?>" class="regular-text" />
-                            <p class="description"><?php esc_html_e( 'Dropdown select field key (e.g. signup_child). Supports "scout_id|first_name|last_name" dynamic options format.', 'ems-plugin' ); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="ems_mapping_first_name"><?php esc_html_e( 'Explorer First Name Field Name (Optional)', 'ems-plugin' ); ?></label></th>
-                        <td>
-                            <input name="ems_mapping_first_name" type="text" id="ems_mapping_first_name" value="<?php echo esc_attr( $config['first_name_field'] ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="ems_mapping_last_name"><?php esc_html_e( 'Explorer Last Name Field Name (Optional)', 'ems-plugin' ); ?></label></th>
-                        <td>
-                            <input name="ems_mapping_last_name" type="text" id="ems_mapping_last_name" value="<?php echo esc_attr( $config['last_name_field'] ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="ems_mapping_dofe_level"><?php esc_html_e( 'DofE Level Field Name', 'ems-plugin' ); ?></label></th>
-                        <td>
-                            <input name="ems_mapping_dofe_level" type="text" id="ems_mapping_dofe_level" value="<?php echo esc_attr( $config['dofe_level_field'] ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="ems_mapping_esu_patrol"><?php esc_html_e( 'ESU / Unit Field Name', 'ems-plugin' ); ?></label></th>
-                        <td>
-                            <input name="ems_mapping_esu_patrol" type="text" id="ems_mapping_esu_patrol" value="<?php echo esc_attr( $config['esu_patrol_field'] ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="ems_mapping_first_aid"><?php esc_html_e( 'First Aid Field Name', 'ems-plugin' ); ?></label></th>
-                        <td>
-                            <input name="ems_mapping_first_aid" type="text" id="ems_mapping_first_aid" value="<?php echo esc_attr( $config['first_aid_field'] ); ?>" class="regular-text" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="ems_mapping_pref_fields"><?php esc_html_e( 'Serialized Preference Fields', 'ems-plugin' ); ?></label></th>
-                        <td>
-                            <textarea name="ems_mapping_pref_fields" id="ems_mapping_pref_fields" rows="5" class="large-text code"><?php echo esc_textarea( implode( ', ', $config['pref_fields'] ) ); ?></textarea>
-                            <p class="description"><?php esc_html_e( 'Comma-separated input field names to be serialized together into the JSON expedition_preferences column.', 'ems-plugin' ); ?></p>
+                            <input name="ems_fluent_expedition_form_id" type="number" id="ems_fluent_expedition_form_id" value="<?php echo esc_attr( $e_id ); ?>" class="small-text" />
+                            <p class="description"><?php esc_html_e( 'The Fluent Form ID for Expedition Preferences/Details requests.', 'ems-plugin' ); ?></p>
                         </td>
                     </tr>
                 </tbody>
             </table>
             <p class="submit">
-                <input type="submit" name="ems_save_form_mappings" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Form Mappings', 'ems-plugin' ); ?>" />
+                <input type="submit" name="ems_save_form_mappings" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Form IDs', 'ems-plugin' ); ?>" />
             </p>
         </form>
         <?php
