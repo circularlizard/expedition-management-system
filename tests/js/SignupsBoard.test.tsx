@@ -31,6 +31,28 @@ const mockParticipantSignups = [
         payment_status: 'paid',
         form_submission_id: 1234,
         created_at: '2026-06-13 20:00:00',
+    },
+    {
+        id: 11,
+        scout_id: 30003,
+        parent_user_id: 4,
+        unit_name: 'Selkirk',
+        explorer_first_name: 'Bob',
+        explorer_last_name: 'Jones',
+        explorer_email: 'bob@example.com',
+        parent_email: 'parent@example.com',
+        leader_email: 'leader@example.com',
+        dofe_level: 'bronze',
+        dob: '2010-05-15',
+        dofe_registered: 'y-other',
+        dofe_number: 'D-998877',
+        dofe_org: 'Borders Scout Region',
+        bronze_completion: null,
+        silver_completion: null,
+        signup_status: 'received',
+        payment_status: 'paid',
+        form_submission_id: 1235,
+        created_at: '2026-06-13 20:00:00',
     }
 ];
 
@@ -131,6 +153,26 @@ describe('SignupsBoard', () => {
                 expect.stringContaining('/signups/expeditions/20/process'),
                 expect.objectContaining({ method: 'POST' })
             );
+        });
+    });
+
+    it('flags and displays transfer required when dofe_registered is y-other', async () => {
+        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockParticipantSignups });
+
+        render(<SignupsBoard type="participant" />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Bob Jones')).toBeInTheDocument();
+            expect(screen.getByText('⚠️ Transfer Req.')).toBeInTheDocument();
+        });
+
+        // Open inspector
+        fireEvent.click(screen.getByText('Bob Jones'));
+
+        await waitFor(() => {
+            expect(screen.getByText('Registered (Other)')).toBeInTheDocument();
+            expect(screen.getByText('Transfer Required')).toBeInTheDocument();
+            expect(screen.getByText('Borders Scout Region')).toBeInTheDocument();
         });
     });
 });

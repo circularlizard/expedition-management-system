@@ -100,6 +100,18 @@ for ( $i = 0; $i < $count; $i++ ) {
     $processed_at = ($status === 'allocated') ? current_time( 'mysql' ) : null;
     $dofe_number = ($status === 'allocated' || rand(0, 1) === 1) ? "D-" . rand( 100000, 999999 ) : null;
 
+    $dofe_reg = 'y';
+    $dofe_org_seeded = null;
+    if ( empty( $dofe_number ) ) {
+        $dofe_reg = 'n';
+    } else {
+        // 20% of registered are from another organisation
+        if ( rand( 1, 10 ) <= 2 ) {
+            $dofe_reg = 'y-other';
+            $dofe_org_seeded = 'Borders Scout Region';
+        }
+    }
+
     // Prior level completions
     $bronze_comp = null;
     $silver_comp = null;
@@ -133,8 +145,9 @@ for ( $i = 0; $i < $count; $i++ ) {
             'leader_email'        => "kelso.leader@example-ems.test",
             'dofe_level'          => $level,
             'dob'                 => '2010-05-15',
-            'dofe_registered'     => empty( $dofe_number ) ? 'n' : 'y',
+            'dofe_registered'     => $dofe_reg,
             'dofe_number'         => $dofe_number,
+            'dofe_org'            => $dofe_org_seeded,
             'bronze_completion'   => $bronze_comp ? json_encode( $bronze_comp ) : null,
             'silver_completion'   => $silver_comp ? json_encode( $silver_comp ) : null,
             'signup_status'       => $status,
@@ -145,7 +158,7 @@ for ( $i = 0; $i < $count; $i++ ) {
             'created_at'          => current_time( 'mysql' ),
             'updated_at'          => current_time( 'mysql' ),
         ],
-        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
+        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
     );
 }
 
