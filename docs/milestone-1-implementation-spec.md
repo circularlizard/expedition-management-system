@@ -111,25 +111,26 @@ Manually links a signup record to a verified synced explorer profile.
     ```
 *   **Validation**:
     *   Verify signup record and target `scout_id` exist.
-    *   Verify the signup's current `signup_status` is not `'processed'`.
+    *   Verify the signup's current `signup_status` is not already `'processed'` or allow reconciliation of processed rows to support deferred data copying.
 *   **Execution**:
     *   Update `ems_signups.scout_id` to the selected `scout_id`.
     *   Update `reconciled_by = get_current_user_id()` and `reconciled_at = current_time('mysql')`.
+    *   **Post-Linkage Data Sync**: Check if `ems_signups.signup_status` is `'processed'`. If it is, execute the master profile updates immediately: copy `dofe_number` and parent-submitted `first_aid_status` (initial value) to `ems_osm_explorers`.
 
 ### 3.3 `POST ems/v1/signups/{id}/process`
 Marks the registration as completed/processed and binds the DofE number.
 *   **Validation**:
-    *   Verify the signup record has a valid `scout_id` (must be linked).
     *   Verify `payment_status` is `'paid'`.
     *   Verify the signup is not already `'processed'`.
+    *   *Note*: The signup is **not required** to be linked to a `scout_id` to be processed (handles cases where the explorer has not yet been synced or created in OSM).
 *   **Execution**:
     *   Update `ems_signups.signup_status = 'processed'`.
     *   Update `processed_by = get_current_user_id()` and `processed_at = current_time('mysql')`.
-    *   Copy `ems_signups.dofe_number` to `ems_osm_explorers.dofe_number` for the linked explorer profile.
-    *   Copy parent-submitted `ems_signups.first_aid_status` to `ems_osm_explorers.first_aid_level` (only if the explorer's current verified level is `'none'` or lower than the submitted status).
+    *   **Immediate Sync (If Linked)**: If `scout_id` is populated, copy `dofe_number` to `ems_osm_explorers.dofe_number` and copy parent-submitted `ems_signups.first_aid_status` to `ems_osm_explorers.first_aid_level` (only if current verified level is `'none'` or lower).
+    *   **Deferred Sync (If Unlinked)**: If `scout_id` is null or 0, do not perform copying; the updates are deferred to the reconciliation/linkage phase.
 *   **Sequencing Rationale**:
     > [!NOTE]
-    > Since new recruits do not have an `ems_osm_explorers` record when they submit the signup form (they must be added to OSM and synced first), copying master profile attributes (such as the DofE registration number and first aid qualification) is strictly deferred to this processing phase. This ensures that the target explorer record is guaranteed to exist and is linked to the signup record before copying.
+    > To prevent back-office administrative bottlenecks, signups can be marked as `'processed'` even if the recruit has not yet been created in OSM or synced. When the OSM record is created and a manual link (`/reconcile`) or background fuzzy sync resolves the `scout_id`, the system intercepts the event to perform the deferred copy operations.
 
 ### 3.4 `POST ems/v1/signups/{id}/archive`
 Archives the signup, removing it from active views.
