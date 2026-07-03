@@ -138,6 +138,45 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->assertTrue( true );
     }
 
+    public function test_handle_submission_creates_signup_record_with_dofe_number(): void {
+        Functions\when( 'get_option' )->justReturn( [
+            4 => [
+                'scout_id_field'    => 'signup_child',
+                'dofe_level_field'  => 'signup_level',
+                'dofe_number_field' => 'signup_dofe_number',
+                'esu_patrol_field'  => 'signup_unit',
+                'pref_fields'       => [ 'exped_type' ],
+            ]
+        ] );
+
+        $this->wpdb->rows["SELECT unit_id FROM wp_ems_units WHERE (short_code = 'BO-Kelso' OR name = 'BO-Kelso') LIMIT 1"] = [
+            'unit_id' => 10,
+        ];
+
+        $this->signup_repo->shouldReceive( 'create_signup' )
+            ->once()
+            ->with( Mockery::on( function( $data ) {
+                return $data['scout_id'] === 30001 &&
+                       $data['explorer_first_name'] === 'Mary' &&
+                       $data['explorer_last_name'] === 'Smith' &&
+                       $data['unit_id'] === 10 &&
+                       $data['dofe_level'] === 'Bronze' &&
+                       $data['dofe_number'] === 'D-123456';
+            } ) )
+            ->andReturn( 123 );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync->handle_submission( 999, [
+            'signup_child'       => '30001|Mary|Smith',
+            'signup_level'       => 'Bronze',
+            'signup_dofe_number' => 'D-123456',
+            'signup_unit'        => 'BO-Kelso',
+            'exped_type'         => 'Hillwalking',
+        ], (object) [ 'id' => 4 ] );
+
+        $this->assertTrue( true );
+    }
+
     public function test_populate_parent_email_sets_value(): void {
         $user = Mockery::mock( \WP_User::class );
         $user->user_email = 'parent@example.com';

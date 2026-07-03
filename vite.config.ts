@@ -25,6 +25,7 @@ export default defineConfig({
             input: {
                 'column-mapper': resolve( __dirname, 'resources/js/admin/column-mapper/index.tsx' ),
                 'expedition-board': resolve( __dirname, 'resources/js/admin/expedition-board/index.tsx' ),
+                'signups-board': resolve( __dirname, 'resources/js/admin/signups-board/index.tsx' ),
             },
             output: {
                 entryFileNames: '[name].js',
