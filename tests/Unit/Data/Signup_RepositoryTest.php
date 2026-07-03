@@ -30,7 +30,9 @@ class Signup_RepositoryTest extends EMSTestCase {
             'leader_email'        => 'leader@example.com',
             'dofe_level'          => 'Bronze',
             'dob'                 => '2010-05-15',
-            'dofe_registered'     => 'n',
+            'dofe_registered'     => 'y-other',
+            'dofe_number'         => '123456',
+            'dofe_org'            => 'Borders Scout Region',
             'form_submission_id'  => 1234,
         ] );
 
@@ -43,6 +45,9 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertEquals( 'Mary', $inserted_data['explorer_first_name'] );
         $this->assertEquals( 'Smith', $inserted_data['explorer_last_name'] );
         $this->assertEquals( 'leader@example.com', $inserted_data['leader_email'] );
+        $this->assertEquals( 'y-other', $inserted_data['dofe_registered'] );
+        $this->assertEquals( '123456', $inserted_data['dofe_number'] );
+        $this->assertEquals( 'Borders Scout Region', $inserted_data['dofe_org'] );
         $this->assertEquals( 'bronze', $inserted_data['dofe_level'] );
         $this->assertEquals( '2010-05-15', $inserted_data['dob'] );
         $this->assertEquals( 'received', $inserted_data['signup_status'] );

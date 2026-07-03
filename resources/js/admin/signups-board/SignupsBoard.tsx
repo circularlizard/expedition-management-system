@@ -359,12 +359,24 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                         </td>
                                         {type === 'participant' ? (
                                             <>
-                                                <td style={{ padding: '16px' }}>
-                                                    {renderPriorCompletions(s)}
-                                                </td>
-                                                <td style={{ padding: '16px', fontFamily: 'monospace' }}>
-                                                    {s.dofe_number || '—'}
-                                                </td>
+                                                 <td style={{ padding: '16px' }}>
+                                                     {renderPriorCompletions(s)}
+                                                 </td>
+                                                 <td style={{ padding: '16px', fontFamily: 'monospace' }}>
+                                                     {s.dofe_number || '—'}
+                                                     {s.dofe_registered === 'y-other' && (
+                                                         <div style={{
+                                                             fontSize: '10px',
+                                                             color: '#d63638',
+                                                             fontWeight: 'bold',
+                                                             textTransform: 'uppercase',
+                                                             marginTop: '2px',
+                                                             fontFamily: 'sans-serif'
+                                                         }}>
+                                                             ⚠️ Transfer Req.
+                                                         </div>
+                                                     )}
+                                                 </td>
                                                 <td style={{ padding: '16px' }}>
                                                     <span style={{
                                                         display: 'inline-block',
@@ -511,7 +523,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     <div>
                                         <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DofE Registration Status</span>
                                         <div style={{ fontSize: '13px', marginTop: '2px' }}>
-                                            {selectedSignup.dofe_registered === 'y' ? 'Registered' : 'Needs Registration'}
+                                            {selectedSignup.dofe_registered === 'y' ? 'Registered' : (selectedSignup.dofe_registered === 'y-other' ? 'Registered (Other)' : 'Needs Registration')}
                                         </div>
                                     </div>
                                     <div>
@@ -519,6 +531,29 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                         <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.dob || '—'}</div>
                                     </div>
                                 </div>
+
+                                {selectedSignup.dofe_registered === 'y-other' && (
+                                    <div style={{
+                                        padding: '10px 12px',
+                                        background: '#fdf3f4',
+                                        color: '#d63638',
+                                        border: '1px solid #fbc4c5',
+                                        borderRadius: '6px',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '2px',
+                                        marginTop: '-4px'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span>⚠️</span> <strong>Transfer Required</strong>
+                                        </div>
+                                        <div style={{ fontWeight: 'normal', color: '#50575e', fontSize: '11px', marginTop: '2px' }}>
+                                            From: <strong style={{ color: '#1d2327' }}>{selectedSignup.dofe_org || 'Unknown Organisation'}</strong>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label htmlFor="inspector-dofe-num" style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600', display: 'block' }}>eDofE Number</label>
