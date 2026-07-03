@@ -16,7 +16,7 @@ class Table_Installer {
         $this->run_migrations( $wpdb );
     }
 
-    /**
+     /**
      * Idempotent column/index migrations for tables that already existed before
      * a schema change. dbDelta is unreliable at ALTERing existing tables, so we
      * apply additive changes explicitly here.
@@ -45,6 +45,25 @@ class Table_Installer {
         if ( ! $this->column_exists( $wpdb, $explorers_table, 'last_ems_push_at' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN last_ems_push_at DATETIME DEFAULT NULL AFTER last_local_update_at" );
+        }
+
+        $signups_table = $wpdb->prefix . 'ems_signups';
+        if ( ! $this->column_exists( $wpdb, $signups_table, 'dofe_number' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER dofe_level" );
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN processed_by BIGINT UNSIGNED DEFAULT NULL AFTER payment_status" );
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN processed_at DATETIME DEFAULT NULL AFTER processed_by" );
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN reconciled_by BIGINT UNSIGNED DEFAULT NULL AFTER processed_at" );
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN reconciled_at DATETIME DEFAULT NULL AFTER reconciled_by" );
+        }
+
+        if ( ! $this->column_exists( $wpdb, $explorers_table, 'dofe_number' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER first_aid_level" );
         }
     }
 
@@ -113,6 +132,7 @@ class Table_Installer {
             parent_email         VARCHAR(100)    NOT NULL DEFAULT '',
             patrol               VARCHAR(100)    NOT NULL DEFAULT '',
             first_aid_level      VARCHAR(30)     NOT NULL DEFAULT 'none',
+            dofe_number          VARCHAR(50)              DEFAULT NULL,
             last_local_update_at DATETIME                 DEFAULT NULL,
             last_ems_push_at     DATETIME                 DEFAULT NULL,
             synced_at            DATETIME        NOT NULL,
@@ -177,10 +197,15 @@ class Table_Installer {
             explorer_first_name    VARCHAR(100)    NOT NULL DEFAULT '',
             explorer_last_name     VARCHAR(100)    NOT NULL DEFAULT '',
             dofe_level             VARCHAR(20)     NOT NULL,
+            dofe_number            VARCHAR(50)              DEFAULT NULL,
             expedition_preferences TEXT                     DEFAULT NULL,
             first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
             signup_status          VARCHAR(30)     NOT NULL DEFAULT 'pending',
             payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending',
+            processed_by           BIGINT UNSIGNED          DEFAULT NULL,
+            processed_at           DATETIME                 DEFAULT NULL,
+            reconciled_by          BIGINT UNSIGNED          DEFAULT NULL,
+            reconciled_at          DATETIME                 DEFAULT NULL,
             form_submission_id     BIGINT UNSIGNED NOT NULL,
             created_at             DATETIME        NOT NULL,
             updated_at             DATETIME        NOT NULL,

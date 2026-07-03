@@ -257,6 +257,7 @@ class Fluent_Forms_Sync {
         $patrol_field     = $config['esu_patrol_field'] ?? 'signup_unit';
         $first_aid_field  = $config['first_aid_field'] ?? 'input_radio';
         $pref_keys        = $config['pref_fields'] ?? [];
+        $dofe_num_field   = $config['dofe_number_field'] ?? '';
 
         $submitted_child = $formData[ $scout_field ] ?? '';
         $scout_id        = null;
@@ -308,6 +309,8 @@ class Fluent_Forms_Sync {
             }
         }
 
+        $dofe_number = ! empty( $dofe_num_field ) ? ( $formData[ $dofe_num_field ] ?? '' ) : '';
+
         $signup_data = [
             'scout_id'               => $scout_id,
             'parent_user_id'         => get_current_user_id() ?: 1,
@@ -315,6 +318,7 @@ class Fluent_Forms_Sync {
             'explorer_first_name'    => $first_name,
             'explorer_last_name'     => $last_name,
             'dofe_level'             => $formData[ $level_field ] ?? '',
+            'dofe_number'            => $dofe_number,
             'expedition_preferences' => $preferences,
             'first_aid_status'       => $formData[ $first_aid_field ] ?? 'none',
             'form_submission_id'     => $entryId,

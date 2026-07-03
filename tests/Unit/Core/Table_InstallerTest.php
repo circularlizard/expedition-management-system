@@ -107,8 +107,29 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'wp_user_id', $explorers_sql );
         $this->assertStringContainsString( 'section_id', $explorers_sql );
         $this->assertStringContainsString( 'first_aid_level', $explorers_sql );
+        $this->assertStringContainsString( 'dofe_number', $explorers_sql );
         $this->assertStringContainsString( "DEFAULT 'none'", $explorers_sql );
         $this->assertStringContainsString( 'UNIQUE KEY idx_scout_id', $explorers_sql );
+    }
+
+    public function test_signups_has_dofe_number_and_processing_columns(): void {
+        $installer = new Table_Installer();
+        $sql = $installer->generate_sql( '', '' );
+
+        $signups_sql = null;
+        foreach ( $sql as $statement ) {
+            if ( strpos( $statement, 'ems_signups' ) !== false ) {
+                $signups_sql = $statement;
+                break;
+            }
+        }
+
+        $this->assertNotNull( $signups_sql );
+        $this->assertStringContainsString( 'dofe_number', $signups_sql );
+        $this->assertStringContainsString( 'processed_by', $signups_sql );
+        $this->assertStringContainsString( 'processed_at', $signups_sql );
+        $this->assertStringContainsString( 'reconciled_by', $signups_sql );
+        $this->assertStringContainsString( 'reconciled_at', $signups_sql );
     }
 
     public function test_osm_explorers_has_timestamp_columns(): void {
