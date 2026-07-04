@@ -127,22 +127,14 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
         void savedEvent;
     };
 
-    const tabStyle = (tab: DashboardTab): React.CSSProperties => ({
-        padding: '8px 20px',
-        border: 'none',
-        borderBottom: activeTab === tab ? '3px solid #2271b1' : '3px solid transparent',
-        background: 'none',
-        color: activeTab === tab ? '#2271b1' : '#50575e',
-        fontWeight: activeTab === tab ? 600 : 400,
-        fontSize: '14px',
-        cursor: 'pointer',
-    });
+    const tabClass = (tab: DashboardTab): string =>
+        `ems-tab-nav__button${activeTab === tab ? ' ems-tab-nav__button--active' : ''}`;
 
     return (
         <div className="ems-events-dashboard">
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h2 style={{ margin: 0, fontSize: '20px', color: '#1d2327' }}>Events</h2>
+            <div className="ems-flex-between ems-mb-16">
+                <h2 className="ems-dashboard-title">Events</h2>
                 <button
                     id="ems-create-event-btn"
                     type="button"
@@ -155,8 +147,8 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
 
             {/* Inline create form */}
             {showCreateForm && (
-                <div style={{ marginBottom: '20px', padding: '20px', background: '#f6f7f7', border: '1px solid #dcdcde', borderRadius: '4px' }}>
-                    <h3 style={{ margin: '0 0 16px', fontSize: '16px' }}>New Event</h3>
+                <div className="ems-new-event-card">
+                    <h3>New Event</h3>
                     <EventForm
                         seasonId={0}
                         osmEvents={osmEvents}
@@ -167,14 +159,14 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
             )}
 
             {/* Tab bar */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #dcdcde', marginBottom: '16px', alignItems: 'center', gap: '0' }}>
-                <button id="ems-tab-upcoming" style={tabStyle('upcoming')} onClick={() => switchTab('upcoming')}>
+            <div className="ems-tab-nav">
+                <button id="ems-tab-upcoming" className={tabClass('upcoming')} onClick={() => switchTab('upcoming')}>
                     Upcoming Events
                 </button>
-                <button id="ems-tab-past" style={tabStyle('past')} onClick={() => switchTab('past')}>
+                <button id="ems-tab-past" className={tabClass('past')} onClick={() => switchTab('past')}>
                     Past Events
                 </button>
-                <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#50575e', cursor: 'pointer' }}>
+                <label className="ems-tab-nav__checkbox-label">
                     <input
                         id="ems-show-archived"
                         type="checkbox"
@@ -187,9 +179,9 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
 
             {/* Content */}
             {loading && (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#50575e' }}>
-                    <span className="spinner is-active" style={{ float: 'none', display: 'inline-block' }} />
-                    <p style={{ marginTop: '8px' }}>Loading events…</p>
+                <div className="ems-loading-state">
+                    <span className="spinner is-active" />
+                    <p>Loading events…</p>
                 </div>
             )}
 
@@ -198,7 +190,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
             )}
 
             {!loading && !error && events.length === 0 && (
-                <div className="notice notice-info" style={{ marginTop: '10px' }}>
+                <div className="notice notice-info ems-mt-10">
                     <p>No {activeTab} events found.{' '}
                         <button
                             type="button"
@@ -212,7 +204,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
             )}
 
             {!loading && !error && events.length > 0 && (
-                <table className="widefat striped" style={{ marginTop: 0 }}>
+                <table className="widefat striped ems-mt-0">
                     <thead>
                         <tr>
                             <th>Name</th>
@@ -221,53 +213,53 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                             <th>Transport</th>
                             <th>Level</th>
                             <th>Dates</th>
-                            <th style={{ textAlign: 'center' }}>Teams</th>
-                            <th style={{ textAlign: 'center' }}>Members</th>
+                            <th className="ems-table-cell--center">Teams</th>
+                            <th className="ems-table-cell--center">Members</th>
                             <th>Route Status</th>
-                            <th style={{ textAlign: 'right' }}>Actions</th>
+                            <th className="ems-table-cell--right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {events.map((event) => (
                             <tr
                                 key={event.ID}
-                                style={{ cursor: 'pointer', opacity: event.ems_status === 'archived' ? 0.6 : 1 }}
+                                className={`ems-row-hoverable${event.ems_status === 'archived' ? ' ems-table-row--archived' : ''}`}
                                 onClick={() => onSelectEvent(event)}
                             >
                                 <td>
-                                    <a
-                                        href="#"
-                                        style={{ fontWeight: 600, textDecoration: 'none', color: '#2271b1' }}
-                                        onClick={(e) => { e.preventDefault(); onSelectEvent(event); }}
-                                    >
+                      <a
+                                         href="#"
+                                         className="ems-table__link"
+                                         onClick={(e) => { e.preventDefault(); onSelectEvent(event); }}
+                                     >
                                         {event.post_title || event.ems_event_code}
                                         {event.ems_status === 'archived' && (
-                                            <span style={{ fontSize: '11px', fontStyle: 'italic', color: '#666', marginLeft: '6px' }}>(Archived)</span>
+                                            <span className="ems-meta-text ems-ml-6">(Archived)</span>
                                         )}
                                     </a>
                                 </td>
                                 <td>
-                                    <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: '3px', fontSize: '12px' }}>
+                                    <code className="ems-code-badge">
                                         {event.ems_event_code}
                                     </code>
                                 </td>
                                 <td>{typePill(event.ems_type)}</td>
-                                <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{transportLabel(event.ems_transport)}</td>
+                                <td className="ems-table-cell--small">{transportLabel(event.ems_transport)}</td>
                                 <td>{levelPill(event.ems_level)}</td>
-                                <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                <td className="ems-table-cell--small">
                                     {formatDate(event.ems_start_date)}
                                     {event.ems_end_date !== event.ems_start_date && (
                                         <> – {formatDate(event.ems_end_date)}</>
                                     )}
                                 </td>
-                                <td style={{ textAlign: 'center' }}>
+                                <td className="ems-table-cell--center">
                                     <span style={{ fontWeight: 600 }}>{(event.teams ?? []).length}</span>
                                 </td>
-                                <td style={{ textAlign: 'center' }}>
+                                <td className="ems-table-cell--center">
                                     <span>{event.member_count ?? 0}</span>
                                 </td>
                                 <td>{statusBadge(event.ems_route_status || 'draft')}</td>
-                                <td style={{ textAlign: 'right' }}>
+                                <td className="ems-table-cell--right">
                                     <button
                                         type="button"
                                         className="button button-small"
@@ -303,7 +295,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                 </table>
             )}
 
-            {osmEventsLoading && <p style={{ marginTop: '8px', fontSize: '12px', color: '#aaa' }}>Loading OSM events…</p>}
+            {osmEventsLoading && <p className="ems-osm-loading">Loading OSM events…</p>}
         </div>
     );
 };
