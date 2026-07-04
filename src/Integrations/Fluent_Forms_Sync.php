@@ -153,7 +153,7 @@ class Fluent_Forms_Sync {
             $config = get_option( 'ems_expedition_form_mappings', [] );
             $config = array_merge( [
                 'scout_id_field'   => 'signup_child',
-                'dofe_level_field' => 'input_radio_1',
+                'dofe_level_field' => 'signup_level',
             ], $config );
         } else {
             return $errors;
@@ -219,7 +219,7 @@ class Fluent_Forms_Sync {
                 'scout_id_field'          => 'signup_child',
                 'first_name_field'        => 'signup_child_name',
                 'last_name_field'         => 'signup_child_name',
-                'dofe_level_field'        => 'input_radio_1',
+                'dofe_level_field'        => 'signup_level',
                 'dofe_number_field'       => 'signup_dofe_number',
                 'esu_patrol_field'        => 'signup_unit',
                 'explorer_email_field'    => 'signup_explorer_email',
