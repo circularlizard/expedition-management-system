@@ -44,8 +44,8 @@ const ExpeditionBoard: React.FC = () => {
 
     return (
         <div className="ems-board">
-            <div className="ems-board-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <span style={{ color: '#666', fontSize: '0.9em' }}>
+            <div className="ems-board-header">
+                <span className="ems-board-synced">
                     Last synced with OSM: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
                 </span>
             </div>
@@ -73,7 +73,7 @@ const ExpeditionBoard: React.FC = () => {
                 </nav>
             )}
 
-            <div className="tab-content" style={{ marginTop: activeTab === 'detail' ? '0' : '20px' }}>
+            <div className={`tab-content ${activeTab === 'detail' ? '' : 'ems-mt-20'}`}>
                 {activeTab === 'dashboard' && (
                     <EventsDashboard
                         onSelectEvent={handleSelectEvent}

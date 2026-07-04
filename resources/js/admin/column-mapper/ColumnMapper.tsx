@@ -94,8 +94,8 @@ const ColumnMapper: React.FC = () => {
                 </div>
             )}
 
-            <div className="section-selector" style={{ marginBottom: '20px' }}>
-                <label htmlFor="ems-section-select" style={{ marginRight: '10px' }}>Select Section to Load Columns From:</label>
+            <div className="ems-section-selector">
+                <label htmlFor="ems-section-select">Select Section to Load Columns From:</label>
                 <select 
                     id="ems-section-select"
                     value={selectedSection} 

@@ -659,6 +659,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         ] );
 
         $teams = \Mockery::mock( Team_Repository::class );
+        $teams->shouldReceive( 'list_by_expedition' )->with( 103 )->andReturn( [
+            [ 'ID' => 201, 'ems_team_code' => 'H-SP2-1' ]
+        ] );
         $team_members = \Mockery::mock( Team_Member_Repository::class );
 
         // Mock Alice as unallocated, Bob as allocated to H-SP2-1 on event 102
@@ -674,7 +677,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $wpdb->shouldReceive( 'get_var' )->andReturn( 103 ); // query event ID is 103
         $wpdb->shouldReceive( 'get_row' )->andReturn( [ 'team_post_id' => 201 ] ); // Bob is in team 201
         $wpdb->shouldReceive( 'get_results' )->andReturnUsing( function($sql) {
-            if ( strpos( $sql, 'scout_id: 4002' ) !== false ) {
+            if ( strpos( $sql, 'wp_ems_team_members' ) !== false && strpos( $sql, 'scout_id: 4002' ) !== false ) {
                 return [ [ 'team_post_id' => 201 ] ];
             }
             return [];
@@ -708,11 +711,16 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
         $this->assertSame( 200, $response->get_status() );
         $data = $response->get_data();
-        $this->assertCount( 2, $data );
-        $this->assertSame( 'Alice', $data[0]['first_name'] );
-        $this->assertNull( $data[0]['allocated_event_code'] );
-        $this->assertSame( 'Bob', $data[1]['first_name'] );
-        $this->assertSame( 'H-SP2-1', $data[1]['allocated_team_code'] );
+        $this->assertArrayHasKey( 'explorers', $data );
+        $this->assertArrayHasKey( 'teams', $data );
+        $this->assertCount( 2, $data['explorers'] );
+        $this->assertSame( 'Alice', $data['explorers'][0]['first_name'] );
+        $this->assertNull( $data['explorers'][0]['allocated_event_code'] );
+        $this->assertSame( 'Bob', $data['explorers'][1]['first_name'] );
+        $this->assertSame( 'H-SP2-1', $data['explorers'][1]['allocated_team_code'] );
+        $this->assertCount( 1, $data['teams'] );
+        $this->assertSame( 'H-SP2-1', $data['teams'][0]['ems_team_code'] );
+
     }
 
     public function test_allocate_planning_board_unallocated_success(): void {
@@ -736,6 +744,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
             return $sql;
         } );
         $wpdb->shouldReceive( 'get_results' )->andReturn( [] );
+        $wpdb->shouldReceive( 'get_var' )->with( \Mockery::on(function($sql) {
+            return strpos($sql, "meta_key = 'ems_event_code'") !== false;
+        }) )->andReturn( 101 );
         
         // Explorer 4001 has no current team
         $wpdb->shouldReceive( 'get_row' )->with( \Mockery::on(function($sql) {
@@ -748,9 +759,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $controller = $this->create_controller( null, $expeditions, $teams, $team_members );
         
         $request = $this->json_request( [
-            'scout_ids' => [ 4001 ],
-            'event_id' => 101,
-            'allocation_mode' => 'unallocated',
+            'scout_ids'  => [ 4001 ],
+            'event_code' => 'H-SP1',
+            'mode'       => 'unallocated',
         ] );
         
         $response = $controller->allocate_planning_explorers( $request );
@@ -779,6 +790,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         } );
         $wpdb->shouldReceive( 'get_row' )->andReturn( [ 'team_post_id' => 201 ] );
         $wpdb->shouldReceive( 'get_results' )->andReturn( [ [ 'team_post_id' => 201 ] ] );
+        $wpdb->shouldReceive( 'get_var' )->with( \Mockery::on(function($sql) {
+            return strpos($sql, "meta_key = 'ems_event_code'") !== false;
+        }) )->andReturn( 101 );
 
         // Stub get_post for old team check
         $post_obj = (object) [ 'ID' => 201, 'post_type' => 'team', 'post_parent' => 102, 'post_title' => 'Team H-SP2-1' ];
@@ -806,9 +820,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $controller = $this->create_controller( null, $expeditions, $teams, $team_members );
         
         $request = $this->json_request( [
-            'scout_ids' => [ 4001 ],
-            'event_id' => 101,
-            'allocation_mode' => 'new_team',
+            'scout_ids'  => [ 4001 ],
+            'event_code' => 'H-SP1',
+            'mode'       => 'new_team',
         ] );
 
         $response = $controller->allocate_planning_explorers( $request );

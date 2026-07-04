@@ -49,29 +49,29 @@ export const SeasonForm: React.FC<SeasonFormProps> = ({ onSaved, onCancel }) => 
     };
 
     return (
-        <form onSubmit={handleSubmit} className="ems-season-form" style={{ marginBottom: '20px', padding: '16px', border: '1px solid #ddd', background: '#fff' }}>
+        <form onSubmit={handleSubmit} className="ems-season-form ems-form-wrapper">
             {errors.form && <div className="notice notice-error"><p>{errors.form}</p></div>}
 
-            <label style={{ display: 'block', marginBottom: '12px' }}>
+            <label className="ems-form-label-block">
                 Season Year
                 <input
                     name="year"
                     placeholder="e.g. 2026-27"
                     value={year}
                     onChange={(e) => { setYear(e.target.value); setErrors((p) => ({ ...p, year: '' })); }}
-                    style={{ display: 'block', marginTop: '4px' }}
+                    className="ems-form-hint"
                 />
-                {errors.year && <span className="ems-field-error" style={{ color: '#d63638' }}>{errors.year}</span>}
+                {errors.year && <span className="ems-field-error">{errors.year}</span>}
             </label>
 
-            <label style={{ display: 'block', marginBottom: '12px' }}>
-                Title <span style={{ color: '#888' }}>(optional)</span>
+            <label className="ems-form-label-block">
+                Title <span className="ems-meta-text">(optional)</span>
                 <input
                     name="post_title"
-                    placeholder="Defaults to '<year> Season'"
+                    placeholder="Defaults to '&lt;year&gt; Season'"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    style={{ display: 'block', marginTop: '4px' }}
+                    className="ems-form-hint"
                 />
             </label>
 
@@ -79,7 +79,7 @@ export const SeasonForm: React.FC<SeasonFormProps> = ({ onSaved, onCancel }) => 
                 <button type="submit" className="button button-primary" disabled={saving}>
                     {saving ? 'Saving…' : 'Create Season'}
                 </button>
-                {onCancel && <button type="button" className="button" onClick={onCancel} style={{ marginLeft: '8px' }}>Cancel</button>}
+                {onCancel && <button type="button" className="button ems-btn-cancel" onClick={onCancel}>Cancel</button>}
             </div>
         </form>
     );

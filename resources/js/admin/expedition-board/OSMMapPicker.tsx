@@ -214,13 +214,12 @@ export const OSMMapPicker: React.FC<OSMMapPickerProps> = ({
     }, [leafletLoaded, startValue, endValue]);
 
     return (
-        <div className="ems-osm-picker" style={{ marginBottom: '16px', background: '#fafafa', border: '1px solid #dcdcde', borderRadius: '4px', padding: '12px' }}>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#1d2327' }}>📍 Interactive OSM Map Picker</span>
+        <div className="ems-map-picker">
+            <div className="ems-map-picker__header">
+                <span className="ems-map-picker__title">📍 Interactive OSM Map Picker</span>
                 <button
                     type="button"
                     className={`button ${mode === 'setStart' ? 'button-primary' : ''}`}
-                    style={{ fontSize: '12px' }}
                     onClick={() => setMode(mode === 'setStart' ? 'idle' : 'setStart')}
                 >
                     {mode === 'setStart' ? 'Click map to set Start...' : '🗺️ Set Start Point'}
@@ -228,29 +227,28 @@ export const OSMMapPicker: React.FC<OSMMapPickerProps> = ({
                 <button
                     type="button"
                     className={`button ${mode === 'setEnd' ? 'button-primary' : ''}`}
-                    style={{ fontSize: '12px' }}
                     onClick={() => setMode(mode === 'setEnd' ? 'idle' : 'setEnd')}
                 >
                     {mode === 'setEnd' ? 'Click map to set End...' : '🗺️ Set End Point'}
                 </button>
                 {mode !== 'idle' && (
-                    <button type="button" className="button-link" style={{ fontSize: '12px', color: '#d63638' }} onClick={() => setMode('idle')}>
+                    <button type="button" className="button-link ems-import-error" onClick={() => setMode('idle')}>
                         Cancel
                     </button>
                 )}
             </div>
             
             {!leafletLoaded ? (
-                <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f1', color: '#646970', borderRadius: '3px' }}>
+                <div className="ems-map-placeholder">
                     Loading OpenStreetMaps widget…
                 </div>
             ) : (
                 <div 
                     ref={mapContainerRef} 
-                    style={{ height: '300px', borderRadius: '3px', border: '1px solid #dcdcde', zIndex: 1 }} 
+                    className="ems-map-canvas" 
                 />
             )}
-            <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#646970' }}>
+            <p className="ems-map-help">
                 💡 Click one of the buttons above, then click on the map to set the starting or ending coordinates (lat, lng).
             </p>
         </div>

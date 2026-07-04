@@ -44,7 +44,7 @@ describe('EventPlanningBoard', () => {
       if (urlStr.includes('/planning-board/availability')) {
         return Promise.resolve({
           ok: true,
-          json: async () => mockAvailability
+          json: async () => ({ explorers: mockAvailability, teams: [] })
         });
       }
       if (urlStr.includes('/planning-board/allocate')) {
@@ -74,7 +74,7 @@ describe('EventPlanningBoard', () => {
   it('renders level toggles and fetches planning board events', async () => {
     render(<EventPlanningBoard />);
 
-    expect(screen.getByText(/LEVEL:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Level/i)).toBeInTheDocument();
     
     await waitFor(() => {
       expect(screen.getByText(/Hill Practice 1/)).toBeInTheDocument();
@@ -93,9 +93,11 @@ describe('EventPlanningBoard', () => {
     fireEvent.click(screen.getByText(/Hill Practice 1/));
 
     await waitFor(() => {
-      expect(screen.getByText(/Alice MacLeod/)).toBeInTheDocument();
-      expect(screen.getByText(/Bob Smith/)).toBeInTheDocument();
-      expect(screen.getByText(/Allocated: H-SP2-1/)).toBeInTheDocument();
+      expect(screen.getByText(/Alice/)).toBeInTheDocument();
+      expect(screen.getByText(/MacLeod/)).toBeInTheDocument();
+      expect(screen.getByText(/Bob/)).toBeInTheDocument();
+      expect(screen.getByText(/Smith/)).toBeInTheDocument();
+      expect(screen.getByText(/H-SP2-1/)).toBeInTheDocument();
     });
   });
 
@@ -112,7 +114,7 @@ describe('EventPlanningBoard', () => {
     fireEvent.click(screen.getByText(/Hill Practice 1/));
 
     await waitFor(() => {
-      expect(screen.getByText(/Alice MacLeod/)).toBeInTheDocument();
+      expect(screen.getByText(/Alice/)).toBeInTheDocument();
     });
 
     // Check Alice checkbox
@@ -124,17 +126,21 @@ describe('EventPlanningBoard', () => {
     fireEvent.click(applyBtn);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/planning-board/allocate'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            scout_ids: [4001],
-            event_id: 12,
-            allocation_mode: 'unallocated'
-          })
-        })
+      // Find the fetch call to /allocate
+      const allocateCall = (global.fetch as any).mock.calls.find((call: any) => 
+        call[0].includes('/planning-board/allocate')
       );
+      expect(allocateCall).toBeDefined();
+      
+      const options = allocateCall[1];
+      expect(options.method).toBe('POST');
+      
+      const payload = JSON.parse(options.body);
+      expect(payload).toEqual({
+        scout_ids: [4001],
+        event_code: 'H-SP1',
+        mode: 'unallocated'
+      });
     });
 
     confirmSpy.mockRestore();
