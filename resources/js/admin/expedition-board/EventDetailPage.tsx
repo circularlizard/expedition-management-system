@@ -31,10 +31,9 @@ function capitalize(s: string): string {
 
 function statusBadge(status?: string): React.ReactNode {
     const s = status || 'active';
-    const bg = s === 'archived' ? '#f3f4f6' : '#d1fae5';
-    const color = s === 'archived' ? '#6b7280' : '#065f46';
+    const modifier = s === 'archived' ? 'ems-status-badge--archived' : 'ems-status-badge--active';
     return (
-        <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600, background: bg, color, textTransform: 'capitalize' }}>{s}</span>
+        <span className={`ems-status-badge ${modifier}`}>{s}</span>
     );
 }
 
@@ -47,9 +46,9 @@ async function apiFetch(path: string, options?: RequestInit): Promise<Response> 
 }
 
 const FieldVal: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
-    <div>
-        <div style={{ fontSize: '11px', fontWeight: 600, color: '#888', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
-        <div style={{ fontSize: '14px', color: value ? '#1d2327' : '#bbb' }}>{value || '—'}</div>
+    <div className="ems-meta-field">
+        <div className="ems-meta-field__label">{label}</div>
+        <div className={value ? 'ems-meta-field__value' : 'ems-meta-field__value ems-meta-field__value--empty'}>{value || '—'}</div>
     </div>
 );
 
@@ -96,12 +95,12 @@ const LocationDisplay: React.FC<{ value?: string }> = ({ value }) => {
 
     return (
         <div>
-            <a href={mapUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#2271b1', textDecoration: 'none', fontWeight: 600 }}>
+            <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="ems-detail-link">
                 {lat}, {lng} ↗
             </a>
-            {loading && <div style={{ fontSize: '12px', color: '#888', fontStyle: 'italic', marginTop: '2px' }}>Resolving address…</div>}
+            {loading && <div className="ems-detail-link-loading">Resolving address…</div>}
             {!loading && resolvedName && (
-                <div style={{ fontSize: '12px', color: '#555', fontStyle: 'italic', marginTop: '2px' }}>
+                <div className="ems-detail-link-resolved">
                     {resolvedName}
                 </div>
             )}
@@ -109,37 +108,32 @@ const LocationDisplay: React.FC<{ value?: string }> = ({ value }) => {
     );
 };
 
-function grd(cols: number): React.CSSProperties {
-    return { display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 220px))`, gap: '16px 32px', marginBottom: '20px' };
+function grd(cols: number): string {
+    return cols === 4 ? 'ems-form-grid-4' : cols === 3 ? 'ems-form-grid-3' : 'ems-form-grid-2';
 }
-
-const secHdr: React.CSSProperties = {
-    fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase',
-    letterSpacing: '0.06em', marginBottom: '14px', paddingBottom: '6px', borderBottom: '1px solid #f0f0f0',
-};
 
 /* Overview */
 const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdated?: (e: Expedition) => void }> = ({ event, osmEvents = [], onUpdated }) => {
     const [editing, setEditing] = useState(false);
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+            <div className="ems-edit-bar">
                 <button className="button" onClick={() => setEditing((v) => !v)}>{editing ? 'Cancel' : 'Edit Event'}</button>
             </div>
             {editing ? (
                 <EventForm seasonId={0} initialEvent={event} osmEvents={osmEvents} onSaved={(u) => { setEditing(false); onUpdated?.(u); }} onCancel={() => setEditing(false)} />
             ) : (
                 <>
-                    <div style={{ marginBottom: '24px' }}><div style={secHdr}>Event Details</div>
-                        <div style={grd(4)}>
+                    <div className="ems-section"><div className="ems-section__header">Event Details</div>
+                        <div className={grd(4)}>
                             <FieldVal label="Type" value={capitalize(event.ems_type)} />
                             <FieldVal label="Transport" value={capitalize(event.ems_transport || '')} />
                             <FieldVal label="Level" value={capitalize(event.ems_level)} />
                             <FieldVal label="First Aid" value={FA_LABELS[event.ems_first_aid_level as FirstAidLevel] ?? event.ems_first_aid_level} />
                         </div>
                     </div>
-                    <div style={{ marginBottom: '24px' }}><div style={secHdr}>Schedule & Locations</div>
-                        <div style={grd(4)}>
+                    <div className="ems-section"><div className="ems-section__header">Schedule & Locations</div>
+                        <div className={grd(4)}>
                             <FieldVal label="Start Date" value={formatDate(event.ems_start_date)} />
                             <FieldVal label="Start Time" value={event.ems_start_time} />
                             <FieldVal label="End Date" value={formatDate(event.ems_end_date)} />
@@ -149,46 +143,29 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                         </div>
                         <OSMReadOnlyMap startLocation={event.ems_start_location} endLocation={event.ems_end_location} />
                     </div>
-                    <div style={{ marginBottom: '24px' }}><div style={secHdr}>Leader in Charge</div>
-                        <div style={grd(3)}>
+                    <div className="ems-section"><div className="ems-section__header">Leader in Charge</div>
+                        <div className={grd(3)}>
                             <FieldVal label="Name" value={event.ems_lic_name} />
                             <FieldVal label="Email" value={event.ems_lic_email} />
                             <FieldVal label="Phone" value={event.ems_lic_phone} />
                             <FieldVal label="LIC ID" value={event.ems_lic_id} />
                         </div>
                     </div>
-                    <div style={{ marginBottom: '24px' }}><div style={secHdr}>OSM & Route</div>
-                        <div style={grd(3)}>
+                    <div className="ems-section"><div className="ems-section__header">OSM & Route</div>
+                        <div className={grd(3)}>
                             <FieldVal label="OSM Event ID" value={event.ems_osm_event_id} />
                             <FieldVal label="Route Deadline" value={formatDate(event.ems_route_deadline)} />
                             <FieldVal label="Route Status" value={capitalize(event.ems_route_status || 'draft')} />
                         </div>
-                        {event.ems_route_info && (
-                            <div>
-                                <style dangerouslySetInnerHTML={{ __html: `
-                                    .ems-rte-readonly ul {
-                                        list-style-type: disc !important;
-                                        margin: 8px 0 8px 20px !important;
-                                        padding: 0 !important;
-                                    }
-                                    .ems-rte-readonly ol {
-                                        list-style-type: decimal !important;
-                                        margin: 8px 0 8px 20px !important;
-                                        padding: 0 !important;
-                                    }
-                                    .ems-rte-readonly li {
-                                        display: list-item !important;
-                                        margin-bottom: 4px !important;
-                                    }
-                                `}} />
-                                <div style={{ ...secHdr, marginTop: '12px' }}>Notes</div>
-                                <div 
-                                    className="ems-rte-readonly" 
-                                    style={{ fontSize: '14px', lineHeight: '1.6' }} 
-                                    dangerouslySetInnerHTML={{ __html: event.ems_route_info }} 
-                                />
-                            </div>
-                        )}
+                       {event.ems_route_info && (
+                             <div>
+                                 <div className="ems-section__header ems-section__header--mt">Notes</div>
+                                 <div
+                                     className="ems-rte-readonly ems-rte-readonly__content"
+                                     dangerouslySetInnerHTML={{ __html: event.ems_route_info }}
+                                 />
+                             </div>
+                         )}
                     </div>
                 </>
             )}
@@ -309,53 +286,53 @@ const TeamCard: React.FC<TeamCardProps> = ({
     };
 
     return (
-        <div style={{ border: `1px solid ${sizeWarning || faWarning ? '#f0b849' : '#dcdcde'}`, borderRadius: '4px', padding: '16px', background: isVirtual ? '#f8fafc' : '#fff', minWidth: '260px', flex: '1 1 260px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
+        <div className={`ems-team-card ${isVirtual ? 'ems-team-card--virtual' : ''} ${sizeWarning || faWarning ? 'ems-team-card--warning' : ''}`}>
+            <div className="ems-team-card__header">
                 <div>
-                    <strong style={{ fontSize: '15px', color: isVirtual ? '#1e293b' : '#0f172a' }}>{isVirtual ? 'Unallocated Pool' : team.ems_team_code}</strong>
-                    <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, padding: '2px 6px', borderRadius: '10px', background: isVirtual ? '#e2e8f0' : '#f0fdf4', color: isVirtual ? '#475569' : '#166534' }}>
+                    <strong className={`ems-team-card__title ${isVirtual ? 'ems-team-card__title--virtual' : ''}`}>{isVirtual ? 'Unallocated Pool' : team.ems_team_code}</strong>
+                    <span className={`ems-team-card__count ${isVirtual ? 'ems-team-card__count--virtual' : ''}`}>
                         {size}
                     </span>
                 </div>
                 {!isVirtual && (
-                    <button type="button" className="button-link" style={{ color: '#d63638', fontSize: '12px' }} onClick={deleteTeam} disabled={deleting}>Delete</button>
+                    <button type="button" className="button-link ems-team-card__delete" onClick={deleteTeam} disabled={deleting}>Delete</button>
                 )}
             </div>
 
             {/* Warnings Alert Block */}
             {sizeWarning && (
-                <div style={{ background: '#fffbeb', borderLeft: '3px solid #d97706', padding: '6px 10px', fontSize: '11px', color: '#b45309' }}>
+                <div className="ems-alert ems-alert--warning">
                     ⚠️ Team size must be 4–7 members (currently {size})
                 </div>
             )}
             {faWarning && (
-                <div style={{ background: '#fef2f2', borderLeft: '3px solid #dc2626', padding: '6px 10px', fontSize: '11px', color: '#b91c1c' }}>
+                <div className="ems-alert ems-alert--danger">
                     ⚕️ Requires at least 1 qualified First Aider
                 </div>
             )}
 
             {/* Members List */}
-            <ul style={{ listStyle: 'none', margin: '0', padding: '0', flexGrow: 1 }}>
+            <ul className="ems-member-list">
                 {sortByName(members).map((m) => (
-                    <li key={m.scout_id ?? m.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: '13px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <li key={m.scout_id ?? m.user_id} className="ems-member-item">
+                        <span className="ems-member-name">
                             {m.has_asn && (
                                 <span
+                                    className="ems-member-asn"
                                     title="Additional Support Needs (Click to view PII)"
-                                    style={{ color: '#d97706', cursor: 'pointer', marginRight: '2px', fontWeight: 'bold' }}
                                     onClick={() => onViewAsn(m.scout_id ?? 0)}
                                 >
                                     ⚠️
                                 </span>
                             )}
-                            {m.first_aid_level === 'full_first_aid' && <span title="Full First Aid" style={{ color: '#1b5e20', fontWeight: 'bold' }}>⊕</span>}
-                            {m.first_aid_level === 'first_response' && <span title="First Response" style={{ color: '#2e7d32', fontWeight: 'bold' }}>✚</span>}
+                            {m.first_aid_level === 'full_first_aid' && <span className="ems-member-fa-full" title="Full First Aid">⊕</span>}
+                            {m.first_aid_level === 'first_response' && <span className="ems-member-fa-response" title="First Response">✚</span>}
                             {m.first_name} {m.last_name}
                         </span>
-                        
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            {/* Move member control */}
+
+                        <div className="ems-member-actions">
                             <select
+                                className="ems-member-move"
                                 aria-label="Move explorer to team"
                                 value=""
                                 onChange={(e) => {
@@ -363,39 +340,38 @@ const TeamCard: React.FC<TeamCardProps> = ({
                                         onMoveMember(m, team.ID, Number(e.target.value));
                                     }
                                 }}
-                                style={{ fontSize: '11px', padding: '2px', width: '70px', height: '22px' }}
                             >
                                 <option value="">Move…</option>
                                 {event.teams.map(t => t.ID !== team.ID && (
                                     <option key={t.ID} value={t.ID}>{t.ems_team_code === 'UNALLOCATED' ? 'Unallocated' : t.ems_team_code}</option>
                                 ))}
                             </select>
-                            
-                            <button type="button" className="button-link" style={{ color: '#d63638', fontSize: '14px', lineHeight: 1 }} onClick={() => removeMember(m.scout_id ?? 0)} disabled={removing === m.scout_id}>✕</button>
+
+                            <button type="button" className="button-link ems-member-remove" onClick={() => removeMember(m.scout_id ?? 0)} disabled={removing === m.scout_id}>✕</button>
                         </div>
                     </li>
                 ))}
-                {members.length === 0 && <li style={{ color: '#aaa', fontSize: '13px', padding: '8px 0', textAlign: 'center' }}>No members</li>}
+                {members.length === 0 && <li className="ems-member-empty">No members</li>}
             </ul>
 
             {/* Actions for Team Move / Duplicate */}
             {!isVirtual && (
-                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', borderTop: '1px solid #f3f4f6', paddingTop: '8px' }}>
-                    <button type="button" className="button button-small" style={{ flex: 1 }} onClick={() => { setShowMoveTeam(!showMoveTeam); setShowDuplicateTeam(false); }}>
-                        ✈️ Move Team
+                <div className="ems-team-actions">
+                    <button type="button" className="button button-small" onClick={() => { setShowMoveTeam(!showMoveTeam); setShowDuplicateTeam(false); }}>
+                        Move Team
                     </button>
-                    <button type="button" className="button button-small" style={{ flex: 1 }} onClick={() => { setShowDuplicateTeam(!showDuplicateTeam); setShowMoveTeam(false); }}>
-                        👯 Duplicate
+                    <button type="button" className="button button-small" onClick={() => { setShowDuplicateTeam(!showDuplicateTeam); setShowMoveTeam(false); }}>
+                        Duplicate
                     </button>
                 </div>
             )}
 
             {/* Move Team Dialog Box */}
             {showMoveTeam && (
-                <div style={{ background: '#f8fafc', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '12px' }}>
-                    <label style={{ display: 'block', marginBottom: '6px' }}>
+                <div className="ems-dialog">
+                    <label className="ems-dialog__label">
                         Select Target Event:
-                        <select value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)} style={{ display: 'block', width: '100%', marginTop: '4px' }}>
+                        <select className="ems-dialog__select" value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)}>
                             <option value="">— Choose Event —</option>
                             {allEvents.filter(e => e.ID !== event.ID).map(e => (
                                 <option key={e.ID} value={e.ID}>{e.post_title || e.ems_event_code}</option>
@@ -410,10 +386,10 @@ const TeamCard: React.FC<TeamCardProps> = ({
 
             {/* Duplicate Team Dialog Box */}
             {showDuplicateTeam && (
-                <div style={{ background: '#f8fafc', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '12px' }}>
-                    <label style={{ display: 'block', marginBottom: '6px' }}>
+                <div className="ems-dialog">
+                    <label className="ems-dialog__label">
                         Select Target Event:
-                        <select value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)} style={{ display: 'block', width: '100%', marginTop: '4px' }}>
+                        <select className="ems-dialog__select" value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)}>
                             <option value="">— Choose Event —</option>
                             {allEvents.filter(e => e.ID !== event.ID).map(e => (
                                 <option key={e.ID} value={e.ID}>{e.post_title || e.ems_event_code}</option>
@@ -427,12 +403,12 @@ const TeamCard: React.FC<TeamCardProps> = ({
             )}
 
             {/* Add Member Pool */}
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '8px', borderTop: '1px solid #f3f4f6', paddingTop: '8px' }}>
-                <select value={selected} onChange={(e) => setSelected(e.target.value)} style={{ flex: 1, fontSize: '12px', height: '30px' }} aria-label={`Add member to ${team.ems_team_code}`}>
+            <div className="ems-add-member">
+                <select className="ems-add-member__select" value={selected} onChange={(e) => setSelected(e.target.value)} aria-label={`Add member to ${team.ems_team_code}`}>
                     <option value="">Add member…</option>
                     {available.map((exp) => <option key={exp.scout_id} value={exp.scout_id}>{exp.first_name} {exp.last_name}</option>)}
                 </select>
-                <button type="button" className="button" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={addMember} disabled={!selected || adding}>{adding ? '…' : 'Add'}</button>
+                <button type="button" className="button ems-add-member__button" onClick={addMember} disabled={!selected || adding}>{adding ? '…' : 'Add'}</button>
             </div>
         </div>
     );
@@ -503,14 +479,14 @@ const TeamsTab: React.FC<{ event: Expedition; explorers?: Explorer[]; allEvents?
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ fontSize: '13px', color: '#50575e' }}>
+            <div className="ems-teams-header">
+                <div className="ems-teams-header__summary">
                     {teams.filter(t => t.ems_team_code !== 'UNALLOCATED').length} teams • {teams.reduce((s, t) => s + (t.member_count ?? (t.members?.length ?? 0)), 0)} members
                 </div>
                 <button id="ems-add-team-btn" type="button" className="button" onClick={createTeam} disabled={creating}>{creating ? 'Creating…' : '+ Add Team'}</button>
             </div>
             {visibleTeams.length === 0 && <div className="notice notice-info"><p>No teams yet. Click "Add Team" to create the first one.</p></div>}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+            <div className="ems-teams-grid">
                 {visibleTeams.map((team) => (
                     <TeamCard
                         key={team.ID}
@@ -587,13 +563,13 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
 
     return (
         <div>
-            <h3 style={{ marginTop: 0 }}>Tutor LMS Training Requirements</h3>
-            <p style={{ color: '#646970' }}>Select the training courses required for participants in this expedition:</p>
-            
+            <h3 className="ems-training-header">Tutor LMS Training Requirements</h3>
+            <p className="ems-training-desc">Select the training courses required for participants in this expedition:</p>
+
             {/* Course Selector Checklist */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '10px', background: '#f6f7f7', padding: '16px', border: '1px solid #dcdcde', borderRadius: '4px', marginBottom: '16px' }}>
+            <div className="ems-course-grid">
                 {courses.map(course => (
-                    <label key={course.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                    <label key={course.id} className="ems-course-item">
                         <input
                             type="checkbox"
                             checked={selectedIds.includes(course.id)}
@@ -602,21 +578,21 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
                         {course.title}
                     </label>
                 ))}
-                {courses.length === 0 && <p style={{ color: '#aaa', margin: 0 }}>No Tutor LMS courses found.</p>}
+                {courses.length === 0 && <p className="ems-course-empty">No Tutor LMS courses found.</p>}
             </div>
-            
+
             <button type="button" className="button button-primary" onClick={handleSave} disabled={saving || courses.length === 0}>
                 {saving ? 'Saving…' : 'Save Training Requirements'}
             </button>
 
             {/* Participant Completion Matrix */}
-            <h4 style={{ marginTop: '28px', marginBottom: '10px' }}>Explorer Completion Status</h4>
+            <h4 className="ems-completion-header">Explorer Completion Status</h4>
             {requiredCourses.length === 0 ? (
-                <div style={{ background: '#f0f6fc', padding: '12px', borderLeft: '4px solid #2271b1', color: '#1d2327', fontSize: '13px' }}>
+                <div className="ems-info-box">
                     No training requirements selected. Select courses above to track participant completion.
                 </div>
             ) : (
-                <table className="widefat striped" style={{ marginTop: '10px' }}>
+                <table className="widefat striped ems-completion-table">
                     <thead>
                         <tr>
                             <th>Explorer</th>
@@ -628,20 +604,13 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
                     <tbody>
                         {completion.map(row => (
                             <tr key={row.scout_id}>
-                                <td style={{ fontWeight: 600 }}>{row.first_name} {row.last_name}</td>
+                                <td className="ems-completion-name">{row.first_name} {row.last_name}</td>
                                 {requiredCourses.map(c => {
                                     const status = row.matrix[c.id];
                                     const isComplete = status === 'complete';
                                     return (
                                         <td key={c.id}>
-                                            <span style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                color: isComplete ? '#1b5e20' : '#b71c1c',
-                                                fontWeight: 600,
-                                                fontSize: '12px',
-                                            }}>
+                                            <span className={`ems-status-badge ems-status-badge--${isComplete ? 'success' : 'danger'}`}>
                                                 {isComplete ? '✅ Complete' : '❌ Incomplete'}
                                             </span>
                                         </td>
@@ -651,7 +620,7 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
                         ))}
                         {completion.length === 0 && (
                             <tr>
-                                <td colSpan={requiredCourses.length + 1} style={{ textAlign: 'center', color: '#aaa' }}>
+                                <td colSpan={requiredCourses.length + 1} className="ems-empty-cell">
                                     No participants assigned to this event yet.
                                 </td>
                             </tr>
@@ -739,16 +708,16 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
 
     return (
         <div>
-            <h3 style={{ marginTop: 0 }}>Additional Support Needs (Medical / PII)</h3>
-            <p style={{ color: '#646970' }}>Secure directory of registered medical or accessibility requirements for this expedition.</p>
-            
-            <table className="widefat striped">
+            <h3 className="ems-asn-header">Additional Support Needs (Medical / PII)</h3>
+            <p className="ems-asn-desc">Secure directory of registered medical or accessibility requirements for this expedition.</p>
+
+            <table className="widefat striped ems-asn-table">
                 <thead>
                     <tr>
-                        <th style={{ width: '200px' }}>Explorer / Team</th>
+                        <th className="ems-asn-th-name">Explorer / Team</th>
                         <th>Information Provided by Parent (Sign Up)</th>
                         <th>Organiser's Confidential Notes</th>
-                        <th style={{ width: '120px', textAlign: 'right' }}>Actions</th>
+                        <th className="ems-asn-th-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -756,23 +725,23 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                         <tr key={exp.scout_id}>
                             <td>
                                 <strong>{exp.first_name} {exp.last_name}</strong>
-                                <div style={{ fontSize: '11px', color: '#646970', marginTop: '4px' }}>
+                                <div className="ems-asn-team">
                                     Team: <code>{exp.teamName === 'UNALLOCATED' ? 'Unallocated' : exp.teamName}</code>
                                 </div>
                             </td>
-                            <td style={{ verticalAlign: 'top', color: parentAsn[exp.scout_id] ? '#b45309' : '#646970', fontWeight: parentAsn[exp.scout_id] ? 600 : 400 }}>
+                            <td className={`ems-asn-parent ${parentAsn[exp.scout_id] ? 'ems-asn-parent--has' : 'ems-asn-parent--none'}`}>
                                 {parentAsn[exp.scout_id] || '— No support needs declared by parent —'}
                             </td>
                             <td>
                                 <textarea
+                                    className="ems-asn-notes"
                                     aria-label={`Organiser notes for ${exp.first_name} ${exp.last_name}`}
                                     value={notes[exp.scout_id ?? 0] || ''}
                                     onChange={(e) => setNotes(prev => ({ ...prev, [exp.scout_id ?? 0]: e.target.value }))}
-                                    style={{ width: '100%', height: '60px', boxSizing: 'border-box', fontSize: '13px' }}
                                     placeholder="Enter private organiser notes here (e.g. medication details, actions needed)…"
                                 />
                             </td>
-                            <td style={{ verticalAlign: 'middle', textAlign: 'right' }}>
+                            <td className="ems-asn-actions">
                                 <button
                                     type="button"
                                     className="button button-primary"
@@ -782,14 +751,14 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                                     {savingId === exp.scout_id ? 'Saving…' : 'Save Notes'}
                                 </button>
                                 {savedStatus[exp.scout_id ?? 0] && (
-                                    <div style={{ color: '#00a32a', fontSize: '11px', fontWeight: 600, marginTop: '4px' }}>✓ Saved</div>
+                                    <div className="ems-asn-saved">✓ Saved</div>
                                 )}
                             </td>
                         </tr>
                     ))}
                     {explorers.length === 0 && (
                         <tr>
-                            <td colSpan={4} style={{ textAlign: 'center', color: '#aaa', padding: '16px' }}>
+                            <td colSpan={4} className="ems-empty-cell">
                                 No participants assigned to this event yet.
                             </td>
                         </tr>
@@ -817,33 +786,33 @@ const QRCodesTab: React.FC<{ event: Expedition }> = ({ event }) => {
 
     return (
         <div>
-            <h3 style={{ marginTop: 0 }}>WhatsApp Group Links & QR Codes</h3>
-            <form onSubmit={save} style={{ maxWidth: '600px', marginBottom: '32px' }}>
-                <table className="form-table" style={{ marginBottom: '16px' }}>
+            <h3 className="ems-qr-header">WhatsApp Group Links & QR Codes</h3>
+            <form onSubmit={save} className="ems-qr-form">
+                <table className="form-table ems-qr-table">
                     <tbody>
-                        <tr><th scope="row" style={{ width: '200px', paddingLeft: 0 }}>Explorers WhatsApp Link</th><td><input id="ems-whatsapp-explorers" type="url" className="large-text" value={explorerLink} onChange={(e) => setExplorerLink(e.target.value)} placeholder="https://chat.whatsapp.com/…" /></td></tr>
-                        <tr><th scope="row" style={{ paddingLeft: 0 }}>Parents WhatsApp Link</th><td><input id="ems-whatsapp-parents" type="url" className="large-text" value={parentLink} onChange={(e) => setParentLink(e.target.value)} placeholder="https://chat.whatsapp.com/…" /></td></tr>
+                        <tr><th scope="row" className="ems-qr-th">Explorers WhatsApp Link</th><td><input id="ems-whatsapp-explorers" type="url" className="large-text" value={explorerLink} onChange={(e) => setExplorerLink(e.target.value)} placeholder="https://chat.whatsapp.com/…" /></td></tr>
+                        <tr><th scope="row" className="ems-qr-th">Parents WhatsApp Link</th><td><input id="ems-whatsapp-parents" type="url" className="large-text" value={parentLink} onChange={(e) => setParentLink(e.target.value)} placeholder="https://chat.whatsapp.com/…" /></td></tr>
                     </tbody>
                 </table>
                 <button type="submit" className="button button-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Links'}</button>
-                {saved && <span style={{ marginLeft: '12px', color: '#00a32a', fontWeight: 600 }}>✓ Saved</span>}
+                {saved && <span className="ems-saved-indicator">✓ Saved</span>}
             </form>
-            <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+            <div className="ems-qr-grid">
                 {explorerLink && (
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontWeight: 600, marginBottom: '8px' }}>🧭 Explorers Group</div>
-                        <a href={explorerLink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>Open link ↗</a>
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(explorerLink)}`} alt="Explorers WhatsApp QR Code" style={{ border: '1px solid #dcdcde', borderRadius: '4px' }} />
+                    <div className="ems-qr-card">
+                        <div className="ems-qr-card__title">🧭 Explorers Group</div>
+                        <a href={explorerLink} target="_blank" rel="noopener noreferrer" className="ems-qr-card__link">Open link ↗</a>
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(explorerLink)}`} alt="Explorers WhatsApp QR Code" className="ems-qr-card__image" />
                     </div>
                 )}
                 {parentLink && (
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontWeight: 600, marginBottom: '8px' }}>👨‍👩‍👧 Parents Group</div>
-                        <a href={parentLink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>Open link ↗</a>
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(parentLink)}`} alt="Parents WhatsApp QR Code" style={{ border: '1px solid #dcdcde', borderRadius: '4px' }} />
+                    <div className="ems-qr-card">
+                        <div className="ems-qr-card__title">👨‍👩‍👧 Parents Group</div>
+                        <a href={parentLink} target="_blank" rel="noopener noreferrer" className="ems-qr-card__link">Open link ↗</a>
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(parentLink)}`} alt="Parents WhatsApp QR Code" className="ems-qr-card__image" />
                     </div>
                 )}
-                {!explorerLink && !parentLink && <p style={{ color: '#aaa' }}>No WhatsApp links set yet.</p>}
+                {!explorerLink && !parentLink && <p className="ems-qr-empty">No WhatsApp links set yet.</p>}
             </div>
         </div>
     );
@@ -905,42 +874,42 @@ const ASNDrawer: React.FC<ASNDrawerProps> = ({ scoutId, onClose, onSaved }) => {
     };
 
     return (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '400px', background: '#fff', boxShadow: '-2px 0 10px rgba(0,0,0,0.15)', zIndex: 100000, display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
-            <div style={{ padding: '16px 20px', background: '#1d2327', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600, fontSize: '15px' }}>🔒 Support Needs (Confidential)</span>
-                <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}>×</button>
+        <div className="ems-asn-drawer">
+            <div className="ems-asn-drawer__header">
+                <span className="ems-asn-drawer__title">🔒 Support Needs (Confidential)</span>
+                <button type="button" className="ems-asn-drawer__close" onClick={onClose}>×</button>
             </div>
-            
-            <div style={{ padding: '20px', flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            <div className="ems-asn-drawer__content">
                 {loading ? (
                     <p>Loading medical support records…</p>
                 ) : !data ? (
-                    <p style={{ color: '#d63638' }}>Failed to retrieve data safely.</p>
+                    <p className="ems-asn-drawer__error">Failed to retrieve data safely.</p>
                 ) : (
                     <>
                         <div>
-                            <h3 style={{ margin: '0 0 6px' }}>{data.first_name} {data.last_name}</h3>
-                            <code style={{ fontSize: '11px', color: '#646970' }}>Scout ID: {data.scout_id}</code>
+                            <h3 className="ems-asn-drawer__name">{data.first_name} {data.last_name}</h3>
+                            <code className="ems-asn-drawer__scout-id">Scout ID: {data.scout_id}</code>
                         </div>
 
                         <div>
-                            <strong style={{ display: 'block', fontSize: '12px', color: '#646970', textTransform: 'uppercase', marginBottom: '6px' }}>
+                            <strong className="ems-asn-drawer__label">
                                 Declared by Parent (Sign Up)
                             </strong>
-                            <div style={{ padding: '10px', background: '#fffbeb', borderLeft: '4px solid #d97706', borderRadius: '4px', fontSize: '13px', color: '#78350f', minHeight: '60px', whiteSpace: 'pre-wrap' }}>
+                            <div className="ems-asn-drawer__parent-asn">
                                 {data.parent_asn || 'No support needs declared by parent.'}
                             </div>
                         </div>
 
                         <div>
-                            <strong style={{ display: 'block', fontSize: '12px', color: '#646970', textTransform: 'uppercase', marginBottom: '6px' }}>
+                            <strong className="ems-asn-drawer__label">
                                 Organiser notes
                             </strong>
                             <textarea
+                                className="ems-asn-drawer__notes"
                                 aria-label="Organiser notes"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
-                                style={{ width: '100%', height: '120px', boxSizing: 'border-box', fontSize: '13px', padding: '8px' }}
                                 placeholder="Add confidential leader notes (e.g. details of inhalers, food allergies, action plans)…"
                             />
                         </div>
@@ -948,8 +917,8 @@ const ASNDrawer: React.FC<ASNDrawerProps> = ({ scoutId, onClose, onSaved }) => {
                 )}
             </div>
 
-            <div style={{ padding: '16px 20px', borderTop: '1px solid #dcdcde', background: '#f6f7f7', display: 'flex', justifyContent: 'flex-end', gap: '10px', alignItems: 'center' }}>
-                {success && <span style={{ color: '#00a32a', fontWeight: 600, fontSize: '13px' }}>✓ Saved</span>}
+            <div className="ems-asn-drawer__footer">
+                {success && <span className="ems-saved-indicator">✓ Saved</span>}
                 <button type="button" className="button" onClick={onClose}>Close</button>
                 <button type="button" className="button button-primary" onClick={handleSave} disabled={loading || saving}>
                     {saving ? 'Saving…' : 'Save Notes'}
@@ -1021,44 +990,43 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
     const visibleTeams = (event.teams ?? []).filter(t => t.ems_team_code !== 'UNALLOCATED' || (t.members ?? []).length > 0);
 
     return (
-        <div className="ems-event-detail" style={{ position: 'relative' }}>
-            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button id="ems-back-to-events" type="button" className="button-link" style={{ color: '#2271b1', fontSize: '13px' }} onClick={onBack}>← Back to Events</button>
-                
+        <div className="ems-event-detail">
+            <div className="ems-event-detail__toolbar">
+                <button id="ems-back-to-events" type="button" className="button-link ems-event-detail__back" onClick={onBack}>← Back to Events</button>
+
                 <button
                     type="button"
-                    className="button"
-                    style={{ color: event.ems_status === 'archived' ? '#2271b1' : '#d63638' }}
+                    className={`button ${event.ems_status === 'archived' ? 'ems-event-detail__archive--archived' : 'ems-event-detail__archive'}`}
                     onClick={handleArchiveEventDetail}
                 >
                     {event.ems_status === 'archived' ? 'Restore Event' : 'Archive Event'}
                 </button>
             </div>
-            
-            <div style={{ padding: '20px 24px', background: '#fff', border: '1px solid #dcdcde', borderRadius: '4px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+
+            <div className="ems-event-detail__header">
                 <div>
-                    <h1 style={{ margin: '0 0 4px', fontSize: '22px', color: '#1d2327' }}>{event.post_title || event.ems_event_code}</h1>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <code style={{ background: '#f0f0f0', padding: '3px 8px', borderRadius: '3px', fontSize: '13px' }}>{event.ems_event_code}</code>
+                    <h1 className="ems-event-detail__title">{event.post_title || event.ems_event_code}</h1>
+                    <div className="ems-event-detail__meta">
+                        <code className="ems-event-detail__code">{event.ems_event_code}</code>
                         {statusBadge(event.ems_status)}
-                        <span style={{ fontSize: '13px', color: '#50575e' }}>{formatDate(event.ems_start_date)} – {formatDate(event.ems_end_date)}</span>
+                        <span className="ems-event-detail__date">{formatDate(event.ems_start_date)} – {formatDate(event.ems_end_date)}</span>
                     </div>
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '13px', color: '#50575e' }}>
-                    <div style={{ fontWeight: 600 }}>{visibleTeams.filter(t => t.ems_team_code !== 'UNALLOCATED').length} team{visibleTeams.filter(t => t.ems_team_code !== 'UNALLOCATED').length !== 1 ? 's' : ''}</div>
+                <div className="ems-event-detail__stats">
+                    <div>{visibleTeams.filter(t => t.ems_team_code !== 'UNALLOCATED').length} team{visibleTeams.filter(t => t.ems_team_code !== 'UNALLOCATED').length !== 1 ? 's' : ''}</div>
                     <div>{event.member_count ?? 0} members</div>
                 </div>
             </div>
-            
-            <nav className="nav-tab-wrapper" style={{ marginBottom: 0 }}>
+
+            <nav className="nav-tab-wrapper ems-event-detail__tabs">
                 {tabBtn('overview', 'Overview', 'ems-detail-tab-overview')}
                 {tabBtn('teams', 'Teams', 'ems-detail-tab-teams')}
                 {tabBtn('training', 'Training', 'ems-detail-tab-training')}
                 {tabBtn('asn', 'Support Needs', 'ems-detail-tab-asn')}
                 {tabBtn('qrcodes', 'QR Codes', 'ems-detail-tab-qrcodes')}
             </nav>
-            
-            <div style={{ padding: '24px', background: '#fff', border: '1px solid #dcdcde', borderTop: 'none' }}>
+
+            <div className="ems-event-detail__content">
                 {activeTab === 'overview' && <OverviewTab event={event} osmEvents={osmEvents} onUpdated={handleUpdated} />}
                 {activeTab === 'teams' && (
                     <TeamsTab
