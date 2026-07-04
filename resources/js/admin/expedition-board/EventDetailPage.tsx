@@ -307,7 +307,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
             )}
             {faWarning && (
                 <div className="ems-alert ems-alert--danger">
-                    ⚕️ Requires at least 1 qualified First Aider
+                    ⚕️ Requires at least 2 qualified First Aiders
                 </div>
             )}
 
