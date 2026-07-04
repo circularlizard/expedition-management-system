@@ -1421,3 +1421,35 @@
     margin-left: 4px;
 }
 
+/* ─── Phase 2: EventPlanningBoard ───────────────────────────────────────────── */
+
+/* Toolbar override for right-column header row */
+.ems-planning-toolbar {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 12px;
+}
+
+/* Spinner wrapper */
+.ems-planning-spinner {
+    padding: 20px;
+}
+
+/* Empty state italic text */
+.ems-planning-empty {
+    color: #646970;
+    font-style: italic;
+}
+
+/* Right-column header heading */
+.ems-planning-header {
+    margin: 0;
+    flex: 1;
+}
+
+/* Checkbox column header */
+.ems-planning-checkbox-col {
+    width: 36px;
+    text-align: center;
+}
+
