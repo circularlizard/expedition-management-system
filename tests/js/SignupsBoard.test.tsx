@@ -74,7 +74,6 @@ const mockExpeditionSignups = [
         first_aid_status: 'first_response',
         first_aid_expiry: '2028-06-13',
         signup_status: 'pending',
-        payment_status: 'pending',
         form_submission_id: 5678,
         created_at: '2026-06-13 20:00:00',
     }
@@ -124,10 +123,9 @@ describe('SignupsBoard', () => {
         });
     });
 
-    it('renders the expedition signups list and allows processing', async () => {
+    it('renders the expedition signups list and inspector details without process buttons', async () => {
         (global.fetch as any)
-            .mockResolvedValueOnce({ ok: true, json: async () => mockExpeditionSignups })
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ processed: true }) });
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExpeditionSignups });
 
         render(<SignupsBoard type="expedition" />);
 
@@ -144,16 +142,12 @@ describe('SignupsBoard', () => {
             expect(screen.getByText('leader@example.com')).toBeInTheDocument();
         });
 
-        // Click Process Entry
-        const processBtn = screen.getByRole('button', { name: /Process Entry/i });
-        fireEvent.click(processBtn);
+        // Verify Process/Allocate buttons are NOT visible
+        expect(screen.queryByRole('button', { name: /Process Entry/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Allocate Slot/i })).not.toBeInTheDocument();
 
-        await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledWith(
-                expect.stringContaining('/signups/expeditions/20/process'),
-                expect.objectContaining({ method: 'POST' })
-            );
-        });
+        // Verify Archive button is visible
+        expect(screen.getByRole('button', { name: /Archive/i })).toBeInTheDocument();
     });
 
     it('flags and displays transfer required when dofe_registered is y-other', async () => {
