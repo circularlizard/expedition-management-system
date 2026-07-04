@@ -1217,18 +1217,47 @@ class Expedition_Admin_Controller {
             }
         }
 
-        return new \WP_REST_Response( $available );
+        // Fetch teams for this event so the UI can populate the "existing team" dropdown
+        $query_event_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'ems_event_code' AND meta_value = %s LIMIT 1",
+            $event_code
+        ) );
+        $teams_out = [];
+        if ( $query_event_id ) {
+            $raw_teams = $this->teams->list_by_expedition( (int) $query_event_id );
+            foreach ( $raw_teams as $t ) {
+                $teams_out[] = [
+                    'ID'            => (int) $t['ID'],
+                    'ems_team_code' => $t['ems_team_code'] ?? '',
+                ];
+            }
+        }
+
+        return new \WP_REST_Response( [
+            'explorers' => $available,
+            'teams'     => $teams_out,
+        ] );
     }
 
     public function allocate_planning_explorers( \WP_REST_Request $request ): \WP_REST_Response {
-        $body = $request->get_json_params() ?: [];
-        $scout_ids = $body['scout_ids'] ?? [];
-        $event_id = (int) ( $body['event_id'] ?? 0 );
-        $mode = $body['allocation_mode'] ?? 'unallocated';
-        $target_team_id = (int) ( $body['target_team_id'] ?? 0 );
+        $body       = $request->get_json_params() ?: [];
+        $scout_ids  = $body['scout_ids']  ?? [];
+        $event_code = $body['event_code'] ?? '';
+        $mode       = $body['mode']       ?? 'unallocated';
+        $target_team_id = (int) ( $body['team_id'] ?? 0 );
 
-        if ( empty( $scout_ids ) || $event_id <= 0 ) {
-            return $this->error( 'ems_invalid_parameters', 'scout_ids and event_id are required.', 400 );
+        if ( empty( $scout_ids ) || empty( $event_code ) ) {
+            return $this->error( 'ems_invalid_parameters', 'scout_ids and event_code are required.', 400 );
+        }
+
+        global $wpdb;
+        $event_id = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'ems_event_code' AND meta_value = %s LIMIT 1",
+            $event_code
+        ) );
+
+        if ( ! $event_id ) {
+            return $this->error( 'ems_event_not_found', "No expedition found with event_code '{$event_code}'.", 404 );
         }
 
         $event = $this->expeditions->get_by_id( $event_id );
@@ -1254,8 +1283,7 @@ class Expedition_Admin_Controller {
             return $this->error( 'ems_invalid_mode', 'Invalid allocation_mode.', 400 );
         }
 
-        global $wpdb;
-        $table = $wpdb->prefix . 'ems_team_members';
+        $table    = $wpdb->prefix . 'ems_team_members';
         $added_by = get_current_user_id() ?: 1;
 
         foreach ( $scout_ids as $scout_id ) {
