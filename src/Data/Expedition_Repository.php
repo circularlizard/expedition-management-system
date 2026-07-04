@@ -13,6 +13,10 @@ class Expedition_Repository {
             throw new \InvalidArgumentException( "Duplicate event code in season: {$code}." );
         }
 
+        if ( ! isset( $data['ems_status'] ) || $data['ems_status'] === '' ) {
+            $data['ems_status'] = 'active';
+        }
+
         $post_data = [
             'post_type'   => 'expedition',
             'post_title'  => $data['post_title'] ?? '',
@@ -190,9 +194,16 @@ class Expedition_Repository {
                     'type'    => 'DATE',
                 ],
                 [
-                    'key'     => 'ems_status',
-                    'value'   => 'archived',
-                    'compare' => '!=',
+                    'relation' => 'OR',
+                    [
+                        'key'     => 'ems_status',
+                        'value'   => 'archived',
+                        'compare' => '!=',
+                    ],
+                    [
+                        'key'     => 'ems_status',
+                        'compare' => 'NOT EXISTS',
+                    ],
                 ],
             ],
         ] );
@@ -218,9 +229,16 @@ class Expedition_Repository {
                     'type'    => 'DATE',
                 ],
                 [
-                    'key'     => 'ems_status',
-                    'value'   => 'archived',
-                    'compare' => '!=',
+                    'relation' => 'OR',
+                    [
+                        'key'     => 'ems_status',
+                        'value'   => 'archived',
+                        'compare' => '!=',
+                    ],
+                    [
+                        'key'     => 'ems_status',
+                        'compare' => 'NOT EXISTS',
+                    ],
                 ],
             ],
         ] );

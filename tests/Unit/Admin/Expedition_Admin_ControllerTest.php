@@ -153,7 +153,10 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $expeditions->shouldReceive( 'create' )->andReturn( 20 );
         $expeditions->shouldReceive( 'get_by_id' )->with( 20 )->andReturn( [ 'ID' => 20, 'ems_event_code' => 'H-SP1' ] );
 
-        $controller = $this->create_controller( null, $expeditions );
+        $teams = \Mockery::mock( Team_Repository::class );
+        $teams->shouldReceive( 'create' )->once()->with( 20, 'H-SP1', 'UNALLOCATED' )->andReturn( 100 );
+
+        $controller = $this->create_controller( null, $expeditions, $teams );
         $response   = $controller->create_event( $this->json_request( [
             'season_id'      => 10,
             'ems_event_code' => 'H-SP1',
