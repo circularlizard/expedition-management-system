@@ -3,11 +3,10 @@ import { useBoard } from './useBoard';
 import { useOSMEvents } from './useOSMEvents';
 import { EventsDashboard } from './EventsDashboard';
 import { EventDetailPage } from './EventDetailPage';
-import { ExpeditionView } from './ExpeditionView';
 import { Expedition } from './types';
 import EventPlanningBoard from './EventPlanningBoard';
 
-type BoardTab = 'dashboard' | 'detail' | 'expedition-view' | 'planning';
+type BoardTab = 'dashboard' | 'detail' | 'planning';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
@@ -59,12 +58,6 @@ const ExpeditionBoard: React.FC = () => {
                         Events Dashboard
                     </button>
                     <button
-                        className={`nav-tab ${activeTab === 'expedition-view' ? 'nav-tab-active' : ''}`}
-                        onClick={() => setActiveTab('expedition-view')}
-                    >
-                        Expedition View
-                    </button>
-                    <button
                         className={`nav-tab ${activeTab === 'planning' ? 'nav-tab-active' : ''}`}
                         onClick={() => setActiveTab('planning')}
                     >
@@ -90,9 +83,6 @@ const ExpeditionBoard: React.FC = () => {
                         allEvents={data.seasons[0]?.events ?? []}
                         onEventUpdated={handleEventUpdated}
                     />
-                )}
-                {activeTab === 'expedition-view' && (
-                    <ExpeditionView data={data} osmEvents={osmEvents} />
                 )}
                 {activeTab === 'planning' && (
                     <EventPlanningBoard />
