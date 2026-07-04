@@ -83,9 +83,10 @@ Eliminate inline styles on metadata fields, lists of team members, training requ
 
 ---
 
-## Step 2.3: Refactor `OSMReference.tsx`
+## Step 2.3: Refactor `OSMReference.tsx` ✅ DONE
 
 **Target File**: `resources/js/admin/expedition-board/OSMReference.tsx`
+**Status**: Completed 2026-07-04. Commit: `b382145`.
 
 ### Objective
 Clean up the inline styles within the OSM member synchronization and reference table.
