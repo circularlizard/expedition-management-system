@@ -50,6 +50,7 @@ class Expedition_Admin_Controller {
         $this->register_board_route();
         $this->register_signup_routes();
         $this->register_whatsapp_routes();
+        $this->register_planning_routes();
     }
 
     private function register_season_routes(): void {
@@ -794,6 +795,29 @@ class Expedition_Admin_Controller {
         ] );
     }
 
+    private function register_planning_routes(): void {
+        register_rest_route( 'ems/v1', '/planning-board', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'list_planning_board' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/planning-board/availability/(?P<event_code>[a-zA-Z0-9\-]+)', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'list_planning_availability' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'event_code' => [ 'type' => 'string', 'required' => true ],
+            ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/planning-board/allocate', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'allocate_planning_explorers' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+        ] );
+    }
+
     private function register_signup_routes(): void {
         // Participant Places Endpoints
         register_rest_route( 'ems/v1', '/signups/participants', [
@@ -1034,6 +1058,219 @@ class Expedition_Admin_Controller {
             'success'         => true,
             'organiser_notes' => $notes,
         ] );
+    }
+
+    public function list_planning_board( \WP_REST_Request $request ): \WP_REST_Response {
+        $raw_events = $this->expeditions->list_all_chronological();
+        $filtered = [];
+
+        foreach ( $raw_events as $event ) {
+            $level = strtolower( $event['ems_level'] ?? '' );
+            $status = strtolower( $event['ems_status'] ?? '' );
+
+            if ( $status === 'archived' ) {
+                continue;
+            }
+            if ( $level !== 'silver' && $level !== 'gold' ) {
+                continue;
+            }
+
+            $event_code = $event['ems_event_code'] ?? '';
+            if ( empty( $event_code ) ) {
+                continue;
+            }
+
+            // Get available count from signups
+            $signups_list = $this->signups->get_expedition_signups( 'pending' );
+            $available_count = 0;
+            foreach ( $signups_list as $signup ) {
+                if ( ( $signup['signup_status'] ?? '' ) === 'archived' ) {
+                    continue;
+                }
+                $prefs = ! empty( $signup['expedition_preferences'] ) ? json_decode( $signup['expedition_preferences'], true ) : null;
+                if ( ! is_array( $prefs ) ) {
+                    continue;
+                }
+
+                $practice = $prefs['exped_practice_dates'] ?? [];
+                $qualifier = $prefs['exped_qualifier_dates'] ?? [];
+
+                if ( in_array( $event_code, $practice, true ) || in_array( $event_code, $qualifier, true ) ) {
+                    $available_count++;
+                }
+            }
+
+            // Get allocated count: get all teams of this event, then count team members
+            $allocated_count = 0;
+            $teams_list = $this->teams->list_by_expedition( $event['ID'] );
+            
+            $unallocated = $this->teams->get_unallocated_team( $event['ID'] );
+            if ( $unallocated ) {
+                $teams_list[] = $unallocated;
+            }
+
+            foreach ( $teams_list as $team ) {
+                $members = $this->team_members->list_by_team( $team['ID'] );
+                $allocated_count += count( $members );
+            }
+
+            $filtered[] = [
+                'id'              => (int) $event['ID'],
+                'title'           => $event['post_title'],
+                'event_code'      => $event_code,
+                'type'            => $event['ems_type'] ?? '',
+                'level'           => $level,
+                'start_date'      => $event['ems_start_date'] ?? '',
+                'end_date'        => $event['ems_end_date'] ?? '',
+                'available_count' => $available_count,
+                'allocated_count' => $allocated_count,
+            ];
+        }
+
+        return new \WP_REST_Response( $filtered );
+    }
+
+    public function list_planning_availability( \WP_REST_Request $request ): \WP_REST_Response {
+        $event_code = $request->get_param( 'event_code' );
+
+        $signups_list = $this->signups->get_expedition_signups( 'pending' );
+        $available = [];
+
+        foreach ( $signups_list as $signup ) {
+            if ( ( $signup['signup_status'] ?? '' ) === 'archived' ) {
+                continue;
+            }
+            $prefs = ! empty( $signup['expedition_preferences'] ) ? json_decode( $signup['expedition_preferences'], true ) : null;
+            if ( ! is_array( $prefs ) ) {
+                continue;
+            }
+
+            $practice = $prefs['exped_practice_dates'] ?? [];
+            $qualifier = $prefs['exped_qualifier_dates'] ?? [];
+
+            if ( in_array( $event_code, $practice, true ) || in_array( $event_code, $qualifier, true ) ) {
+                $scout_id = (int) $signup['scout_id'];
+                
+                global $wpdb;
+                $table = $wpdb->prefix . 'ems_team_members';
+                $allocations = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT team_post_id FROM {$table} WHERE scout_id = %d",
+                    $scout_id
+                ), ARRAY_A ) ?: [];
+
+                $allocated_event_code = null;
+                $allocated_team_code = null;
+
+                foreach ( $allocations as $alloc ) {
+                    $team_id = (int) $alloc['team_post_id'];
+                    $team = get_post( $team_id );
+                    if ( $team && $team->post_type === 'team' ) {
+                        $team_code = get_post_meta( $team_id, 'ems_team_code', true );
+                        
+                        $event_id = $team->post_parent;
+                        $event_level = get_post_meta( $event_id, 'ems_level', true );
+                        $event_type = get_post_meta( $event_id, 'ems_type', true );
+                        $e_code = get_post_meta( $event_id, 'ems_event_code', true );
+
+                        $query_event_id = $wpdb->get_var( $wpdb->prepare(
+                            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'ems_event_code' AND meta_value = %s LIMIT 1",
+                            $event_code
+                        ) );
+                        if ( $query_event_id ) {
+                            $query_level = get_post_meta( $query_event_id, 'ems_level', true );
+                            $query_type = get_post_meta( $query_event_id, 'ems_type', true );
+
+                            if ( strtolower( $event_level ) === strtolower( $query_level ) && strtolower( $event_type ) === strtolower( $query_type ) ) {
+                                $allocated_event_code = $e_code;
+                                $allocated_team_code = $team_code;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                $available[] = [
+                    'scout_id'             => $scout_id,
+                    'first_name'           => $signup['explorer_first_name'] ?? '',
+                    'last_name'            => $signup['explorer_last_name'] ?? '',
+                    'unit_name'            => $signup['unit_name'] ?: 'Unassigned',
+                    'allocated_event_code' => $allocated_event_code,
+                    'allocated_team_code'  => $allocated_team_code,
+                ];
+            }
+        }
+
+        return new \WP_REST_Response( $available );
+    }
+
+    public function allocate_planning_explorers( \WP_REST_Request $request ): \WP_REST_Response {
+        $body = $request->get_json_params() ?: [];
+        $scout_ids = $body['scout_ids'] ?? [];
+        $event_id = (int) ( $body['event_id'] ?? 0 );
+        $mode = $body['allocation_mode'] ?? 'unallocated';
+        $target_team_id = (int) ( $body['target_team_id'] ?? 0 );
+
+        if ( empty( $scout_ids ) || $event_id <= 0 ) {
+            return $this->error( 'ems_invalid_parameters', 'scout_ids and event_id are required.', 400 );
+        }
+
+        $event = $this->expeditions->get_by_id( $event_id );
+        if ( ! $event ) {
+            return $this->error( 'ems_event_not_found', 'Event not found.', 404 );
+        }
+
+        if ( $mode === 'unallocated' ) {
+            $unallocated = $this->teams->get_unallocated_team( $event_id );
+            if ( ! $unallocated ) {
+                $dest_team_id = $this->teams->create( $event_id, $event['ems_event_code'], 'UNALLOCATED' );
+            } else {
+                $dest_team_id = (int) $unallocated['ID'];
+            }
+        } elseif ( $mode === 'existing_team' ) {
+            if ( $target_team_id <= 0 ) {
+                return $this->error( 'ems_invalid_team', 'target_team_id is required for existing_team allocation.', 400 );
+            }
+            $dest_team_id = $target_team_id;
+        } elseif ( $mode === 'new_team' ) {
+            $dest_team_id = $this->teams->create( $event_id, $event['ems_event_code'] );
+        } else {
+            return $this->error( 'ems_invalid_mode', 'Invalid allocation_mode.', 400 );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'ems_team_members';
+        $added_by = get_current_user_id() ?: 1;
+
+        foreach ( $scout_ids as $scout_id ) {
+            $scout_id = (int) $scout_id;
+            
+            $allocations = $wpdb->get_results( $wpdb->prepare(
+                "SELECT team_post_id FROM {$table} WHERE scout_id = %d",
+                $scout_id
+            ), ARRAY_A ) ?: [];
+
+            foreach ( $allocations as $alloc ) {
+                $old_team_id = (int) $alloc['team_post_id'];
+                $old_team = get_post( $old_team_id );
+                if ( $old_team && $old_team->post_type === 'team' ) {
+                    $old_event_id = $old_team->post_parent;
+                    $old_level = get_post_meta( $old_event_id, 'ems_level', true );
+                    $old_type = get_post_meta( $old_event_id, 'ems_type', true );
+
+                    if ( strtolower( $old_level ) === strtolower( $event['ems_level'] ?? '' ) && strtolower( $old_type ) === strtolower( $event['ems_type'] ?? '' ) ) {
+                        $this->team_members->remove( $old_team_id, $scout_id );
+                    }
+                }
+            }
+
+            try {
+                $this->team_members->assign( $dest_team_id, $scout_id, $added_by, 0 );
+            } catch ( \InvalidArgumentException $e ) {
+                // Already assigned, ignore
+            }
+        }
+
+        return new \WP_REST_Response( [ 'success' => true ] );
     }
 }
 

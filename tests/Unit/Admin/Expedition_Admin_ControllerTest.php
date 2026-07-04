@@ -610,6 +610,213 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertCount( 1, $data );
         $this->assertSame( 'John', $data[0]['explorer_first_name'] );
     }
+
+    public function test_list_planning_board_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $expeditions = \Mockery::mock( Expedition_Repository::class );
+        $expeditions->shouldReceive( 'list_all_chronological' )->andReturn( [
+            [ 'ID' => 101, 'ems_event_code' => 'H-SP1', 'ems_status' => 'active', 'ems_level' => 'silver', 'ems_type' => 'practice', 'post_title' => 'Hill Practice 1' ],
+            [ 'ID' => 102, 'ems_event_code' => 'H-BP1', 'ems_status' => 'active', 'ems_level' => 'bronze', 'ems_type' => 'practice', 'post_title' => 'Bronze Practice' ],
+        ] );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'get_expedition_signups' )->with( 'pending' )->andReturn( [
+            [ 'scout_id' => 4001, 'dofe_level' => 'silver', 'expedition_preferences' => '{"exped_type":"Hillwalking","exped_practice_dates":["H-SP1"],"exped_qualifier_dates":[]}' ],
+            [ 'scout_id' => 4002, 'dofe_level' => 'silver', 'expedition_preferences' => '{"exped_type":"Hillwalking","exped_practice_dates":["H-SP1"],"exped_qualifier_dates":[]}' ],
+        ] );
+
+        $teams = \Mockery::mock( Team_Repository::class );
+        $teams->shouldReceive( 'list_by_expedition' )->with( 101 )->andReturn( [
+            [ 'ID' => 201, 'ems_team_code' => 'H-SP1-1' ]
+        ] );
+        $teams->shouldReceive( 'get_unallocated_team' )->with( 101 )->andReturn(
+            [ 'ID' => 202, 'ems_team_code' => 'UNALLOCATED' ]
+        );
+
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+        $team_members->shouldReceive( 'list_by_team' )->with( 201 )->andReturn( [ [ 'scout_id' => 4001 ] ] );
+        $team_members->shouldReceive( 'list_by_team' )->with( 202 )->andReturn( [] );
+
+        $controller = $this->create_controller( null, $expeditions, $teams, $team_members, null, null, $signups );
+        $response = $controller->list_planning_board( new \WP_REST_Request() );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertCount( 1, $data ); // Bronze event excluded
+        $this->assertSame( 'H-SP1', $data[0]['event_code'] );
+        $this->assertSame( 2, $data[0]['available_count'] );
+        $this->assertSame( 1, $data[0]['allocated_count'] );
+    }
+
+    public function test_list_planning_board_availability_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'get_expedition_signups' )->with( 'pending' )->andReturn( [
+            [ 'scout_id' => 4001, 'explorer_first_name' => 'Alice', 'explorer_last_name' => 'MacLeod', 'unit_name' => 'SMESU', 'dofe_level' => 'silver', 'expedition_preferences' => '{"exped_type":"Hillwalking","exped_practice_dates":["H-SP1"],"exped_qualifier_dates":[]}' ],
+            [ 'scout_id' => 4002, 'explorer_first_name' => 'Bob', 'explorer_last_name' => 'Smith', 'unit_name' => 'Kelso', 'dofe_level' => 'silver', 'expedition_preferences' => '{"exped_type":"Hillwalking","exped_practice_dates":["H-SP1"],"exped_qualifier_dates":[]}' ],
+        ] );
+
+        $teams = \Mockery::mock( Team_Repository::class );
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+
+        // Mock Alice as unallocated, Bob as allocated to H-SP2-1 on event 102
+        global $wpdb;
+        $wpdb = \Mockery::mock( \wpdb::class );
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( function( $sql, ...$args ) {
+            if ( isset( $args[0] ) ) {
+                return $sql . ' /* scout_id: ' . $args[0] . ' */';
+            }
+            return $sql;
+        } );
+        $wpdb->shouldReceive( 'get_var' )->andReturn( 103 ); // query event ID is 103
+        $wpdb->shouldReceive( 'get_row' )->andReturn( [ 'team_post_id' => 201 ] ); // Bob is in team 201
+        $wpdb->shouldReceive( 'get_results' )->andReturnUsing( function($sql) {
+            if ( strpos( $sql, 'scout_id: 4002' ) !== false ) {
+                return [ [ 'team_post_id' => 201 ] ];
+            }
+            return [];
+        } );
+
+        // Stub get_post and get_post_meta for Bob's allocation
+        $post_obj = (object) [ 'ID' => 201, 'post_type' => 'team', 'post_parent' => 102, 'post_title' => 'Team H-SP2-1' ];
+        Functions\when( 'get_post' )->alias( function( $id ) use ( $post_obj ) {
+            return $id === 201 ? $post_obj : null;
+        } );
+        Functions\when( 'get_post_meta' )->alias( function( $post_id, $key ) {
+            if ( $post_id === 201 && $key === 'ems_team_code' ) {
+                return 'H-SP2-1';
+            }
+            if ( ( $post_id === 102 || $post_id === 103 ) && $key === 'ems_level' ) {
+                return 'silver';
+            }
+            if ( ( $post_id === 102 || $post_id === 103 ) && $key === 'ems_type' ) {
+                return 'practice';
+            }
+            if ( $post_id === 102 && $key === 'ems_event_code' ) {
+                return 'H-SP2';
+            }
+            return '';
+        } );
+
+        $controller = $this->create_controller( null, null, $teams, $team_members, null, null, $signups );
+        $request = new \WP_REST_Request();
+        $request->set_param( 'event_code', 'H-SP1' );
+        $response = $controller->list_planning_availability( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertCount( 2, $data );
+        $this->assertSame( 'Alice', $data[0]['first_name'] );
+        $this->assertNull( $data[0]['allocated_event_code'] );
+        $this->assertSame( 'Bob', $data[1]['first_name'] );
+        $this->assertSame( 'H-SP2-1', $data[1]['allocated_team_code'] );
+    }
+
+    public function test_allocate_planning_board_unallocated_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $expeditions = \Mockery::mock( Expedition_Repository::class );
+        $expeditions->shouldReceive( 'get_by_id' )->with( 101 )->andReturn( [ 'ID' => 101, 'ems_event_code' => 'H-SP1', 'ems_level' => 'silver', 'ems_type' => 'practice' ] );
+
+        // Mock teams and team_members
+        $teams = \Mockery::mock( Team_Repository::class );
+        // Virtual team with ID 202
+        $teams->shouldReceive( 'get_unallocated_team' )->with( 101 )->andReturn( [ 'ID' => 202, 'ems_team_code' => 'UNALLOCATED' ] );
+
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+        
+        // Mock DB table name and wpdb
+        global $wpdb;
+        $wpdb = \Mockery::mock( \wpdb::class );
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( function( $sql, ...$args ) {
+            return $sql;
+        } );
+        $wpdb->shouldReceive( 'get_results' )->andReturn( [] );
+        
+        // Explorer 4001 has no current team
+        $wpdb->shouldReceive( 'get_row' )->with( \Mockery::on(function($sql) {
+            return strpos($sql, 'FROM wp_ems_team_members') !== false;
+        }), ARRAY_A )->andReturn( null );
+
+        // Expect assignment to team 202
+        $team_members->shouldReceive( 'assign' )->once()->with( 202, 4001, 1, 0 )->andReturn( 15 );
+
+        $controller = $this->create_controller( null, $expeditions, $teams, $team_members );
+        
+        $request = $this->json_request( [
+            'scout_ids' => [ 4001 ],
+            'event_id' => 101,
+            'allocation_mode' => 'unallocated',
+        ] );
+        
+        $response = $controller->allocate_planning_explorers( $request );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['success'] );
+    }
+
+    public function test_allocate_planning_board_new_team_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $expeditions = \Mockery::mock( Expedition_Repository::class );
+        $expeditions->shouldReceive( 'get_by_id' )->with( 101 )->andReturn( [ 'ID' => 101, 'ems_event_code' => 'H-SP1', 'ems_level' => 'silver', 'ems_type' => 'practice' ] );
+
+        $teams = \Mockery::mock( Team_Repository::class );
+        // Creates a new team with ID 203
+        $teams->shouldReceive( 'create' )->once()->with( 101, 'H-SP1' )->andReturn( 203 );
+
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+        
+        // Explorer 4001 is currently in team 201 (which is empty after removal)
+        global $wpdb;
+        $wpdb = \Mockery::mock( \wpdb::class );
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( function( $sql, ...$args ) {
+            return $sql;
+        } );
+        $wpdb->shouldReceive( 'get_row' )->andReturn( [ 'team_post_id' => 201 ] );
+        $wpdb->shouldReceive( 'get_results' )->andReturn( [ [ 'team_post_id' => 201 ] ] );
+
+        // Stub get_post for old team check
+        $post_obj = (object) [ 'ID' => 201, 'post_type' => 'team', 'post_parent' => 102, 'post_title' => 'Team H-SP2-1' ];
+        Functions\when( 'get_post' )->alias( function( $id ) use ( $post_obj ) {
+            return $id === 201 ? $post_obj : null;
+        } );
+        Functions\when( 'get_post_meta' )->alias( function( $post_id, $key ) {
+            if ( $post_id === 201 && $key === 'ems_team_code' ) {
+                return 'H-SP2-1';
+            }
+            if ( $post_id === 102 && $key === 'ems_level' ) {
+                return 'silver';
+            }
+            if ( $post_id === 102 && $key === 'ems_type' ) {
+                return 'practice';
+            }
+            return '';
+        } );
+
+        // Remove from 201
+        $team_members->shouldReceive( 'remove' )->once()->with( 201, 4001 )->andReturn( true );
+        // Assign to 203
+        $team_members->shouldReceive( 'assign' )->once()->with( 203, 4001, 1, 0 )->andReturn( 16 );
+
+        $controller = $this->create_controller( null, $expeditions, $teams, $team_members );
+        
+        $request = $this->json_request( [
+            'scout_ids' => [ 4001 ],
+            'event_id' => 101,
+            'allocation_mode' => 'new_team',
+        ] );
+
+        $response = $controller->allocate_planning_explorers( $request );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['success'] );
+    }
 }
+
+
 
 

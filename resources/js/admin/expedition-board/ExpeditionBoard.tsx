@@ -5,8 +5,9 @@ import { EventsDashboard } from './EventsDashboard';
 import { EventDetailPage } from './EventDetailPage';
 import { ExpeditionView } from './ExpeditionView';
 import { Expedition } from './types';
+import EventPlanningBoard from './EventPlanningBoard';
 
-type BoardTab = 'dashboard' | 'detail' | 'expedition-view';
+type BoardTab = 'dashboard' | 'detail' | 'expedition-view' | 'planning';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
@@ -63,6 +64,12 @@ const ExpeditionBoard: React.FC = () => {
                     >
                         Expedition View
                     </button>
+                    <button
+                        className={`nav-tab ${activeTab === 'planning' ? 'nav-tab-active' : ''}`}
+                        onClick={() => setActiveTab('planning')}
+                    >
+                        Event Planning
+                    </button>
                 </nav>
             )}
 
@@ -86,6 +93,9 @@ const ExpeditionBoard: React.FC = () => {
                 )}
                 {activeTab === 'expedition-view' && (
                     <ExpeditionView data={data} osmEvents={osmEvents} />
+                )}
+                {activeTab === 'planning' && (
+                    <EventPlanningBoard />
                 )}
             </div>
         </div>

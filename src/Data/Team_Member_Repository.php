@@ -75,7 +75,10 @@ class Team_Member_Repository {
 
         $remaining = $this->list_by_team( $team_post_id );
         if ( empty( $remaining ) ) {
-            $this->teams->delete( $team_post_id );
+            $team_code = get_post_meta( $team_post_id, 'ems_team_code', true );
+            if ( $team_code !== 'UNALLOCATED' ) {
+                $this->teams->delete( $team_post_id );
+            }
         }
 
         return true;
