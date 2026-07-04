@@ -117,9 +117,8 @@ Returns all registered events.
     ]
     ```
 
-### 4.2 `GET ems/v1/calendar`
-Returns calendar events overlays for scheduling views.
-*   **Logic**: Queries all `expedition` CPT posts with status `active` and aggregates explorer date preferences.
+### 4.2 Calendar & Scheduling Board
+The full specification, mapping configurations, REST endpoints, and UI designs for the planning/calendar features are detailed in the dedicated [calendar-planning-spec.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/calendar-planning-spec.md) document.
 
 ### 4.3 `GET ems/v1/explorers/{scout_id}/asn`
 Retrieves sensitive Additional Support Needs (ASN) for a linked explorer and writes to `ems_audit_logs`.
