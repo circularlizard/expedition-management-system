@@ -292,10 +292,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         Functions\when( 'get_option' )->justReturn( '2026-06-13 20:00:00' );
 
         $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'list_all' )->andReturn( [ [ 'ID' => 10, 'ems_season_year' => '2026-27' ] ] );
 
         $expeditions = \Mockery::mock( Expedition_Repository::class );
-        $expeditions->shouldReceive( 'list_by_season' )->with( 10 )->andReturn( [ [ 'ID' => 20, 'ems_event_code' => 'H-SP1' ] ] );
+        $expeditions->shouldReceive( 'list_all_chronological' )->andReturn( [ [ 'ID' => 20, 'ems_event_code' => 'H-SP1' ] ] );
 
         $teams = \Mockery::mock( Team_Repository::class );
         $teams->shouldReceive( 'list_by_expedition' )->with( 20 )->andReturn( [ [ 'ID' => 30, 'ems_team_code' => 'H-SP1-1' ] ] );
@@ -313,6 +312,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 200, $response->get_status() );
         $seasons_data = $response->get_data()['seasons'];
         $this->assertCount( 1, $seasons_data );
+        $this->assertSame( 'All Events', $seasons_data[0]['post_title'] );
         $this->assertCount( 1, $seasons_data[0]['events'] );
         $this->assertSame( 4, $seasons_data[0]['events'][0]['teams'][0]['member_count'] );
         $this->assertFalse( $seasons_data[0]['events'][0]['teams'][0]['size_warning'] );
@@ -323,10 +323,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         Functions\when( 'get_option' )->justReturn( null );
 
         $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'list_all' )->andReturn( [ [ 'ID' => 10, 'ems_season_year' => '2026-27' ] ] );
 
         $expeditions = \Mockery::mock( Expedition_Repository::class );
-        $expeditions->shouldReceive( 'list_by_season' )->with( 10 )->andReturn( [] );
+        $expeditions->shouldReceive( 'list_all_chronological' )->andReturn( [] );
 
         $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
         $explorers->shouldReceive( 'list_all' )->andReturn( [] );

@@ -137,4 +137,63 @@ class Team_RepositoryTest extends EMSTestCase {
 
         $this->assertCount( 2, $teams );
     }
+
+    public function test_list_by_expedition_excludes_unallocated_team(): void {
+        $captured_args = null;
+        Functions\when( 'get_posts' )->alias(
+            static function ( $args ) use ( &$captured_args ) {
+                $captured_args = $args;
+                return [
+                    (object) [ 'ID' => 20, 'post_title' => 'Team A', 'post_status' => 'publish', 'post_type' => 'team', 'post_parent' => 10 ],
+                ];
+            }
+        );
+        Functions\when( 'get_post_meta' )->justReturn( '' );
+
+        $repo = new Team_Repository( $this->mock_team_members() );
+        $repo->list_by_expedition( 10 );
+
+        $this->assertArrayHasKey( 'meta_query', $captured_args );
+        $meta_query = $captured_args['meta_query'];
+        $has_exclusion = false;
+        foreach ( $meta_query as $clause ) {
+            if ( is_array( $clause ) &&
+                 ( $clause['key'] ?? '' ) === 'ems_team_code' &&
+                 ( $clause['value'] ?? '' ) === 'UNALLOCATED' &&
+                 ( $clause['compare'] ?? '' ) === '!=' ) {
+                $has_exclusion = true;
+            }
+        }
+        $this->assertTrue( $has_exclusion, 'meta_query must exclude ems_team_code = UNALLOCATED' );
+    }
+
+    public function test_get_unallocated_team_returns_team_with_correct_code(): void {
+        Functions\when( 'get_posts' )->alias(
+            static function ( $args ) {
+                $is_unallocated_query = false;
+                foreach ( $args['meta_query'] ?? [] as $clause ) {
+                    if ( is_array( $clause ) && ( $clause['value'] ?? '' ) === 'UNALLOCATED' ) {
+                        $is_unallocated_query = true;
+                    }
+                }
+                if ( $is_unallocated_query ) {
+                    return [ (object) [ 'ID' => 99, 'post_title' => 'Team UNALLOCATED', 'post_status' => 'publish', 'post_type' => 'team', 'post_parent' => 10 ] ];
+                }
+                return [];
+            }
+        );
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $id, $key, $single ) {
+                if ( $key === 'ems_team_code' ) return 'UNALLOCATED';
+                return '';
+            }
+        );
+
+        $repo = new Team_Repository( $this->mock_team_members() );
+        $team = $repo->get_unallocated_team( 10 );
+
+        $this->assertNotNull( $team );
+        $this->assertSame( 99, $team['ID'] );
+        $this->assertSame( 'UNALLOCATED', $team['ems_team_code'] );
+    }
 }
