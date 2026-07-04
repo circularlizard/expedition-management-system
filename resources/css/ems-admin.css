@@ -411,6 +411,7 @@
 .ems-mb-24 { margin-bottom: 24px; }
 
 /* Margin top scale */
+.ems-mt-0  { margin-top: 0; }
 .ems-mt-4  { margin-top: 4px; }
 .ems-mt-8  { margin-top: 8px; }
 .ems-mt-10 { margin-top: 10px; }
@@ -967,5 +968,102 @@
     width: 100%;
     padding: 8px;
     box-sizing: border-box;
+}
+
+/* ─── Phase 2: EventsDashboard ───────────────────────────────────────────────── */
+
+.ems-dashboard-title {
+    margin: 0;
+    font-size: 20px;
+    color: #1d2327;
+}
+
+/* New event card */
+.ems-new-event-card {
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+}
+
+.ems-new-event-card h3 {
+    margin: 0 0 16px;
+    font-size: 16px;
+}
+
+/* Tab navigation */
+.ems-tab-nav {
+    display: flex;
+    border-bottom: 1px solid #dcdcde;
+    margin-bottom: 16px;
+    align-items: center;
+    gap: 0;
+}
+
+.ems-tab-nav__button {
+    padding: 8px 20px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: #50575e;
+    font-weight: 400;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.ems-tab-nav__button--active {
+    border-bottom-color: var(--ems-theme-color);
+    color: var(--ems-theme-color);
+    font-weight: 600;
+}
+
+.ems-tab-nav__checkbox-label {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #50575e;
+    cursor: pointer;
+}
+
+/* Loading state */
+.ems-loading-state {
+    text-align: center;
+    padding: 40px;
+    color: #50575e;
+}
+
+.ems-loading-state p {
+    margin-top: 8px;
+}
+
+/* Table link */
+.ems-table__link {
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--ems-theme-color);
+}
+
+/* Code badge */
+.ems-code-badge {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* Small text helper for table cells */
+.ems-table-cell--small {
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* OSM events loading text */
+.ems-osm-loading {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #aaa;
 }
 
