@@ -68,18 +68,20 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 value={value}
                 aria-label={ariaLabel}
                 onChange={(e) => onChange(e.target.value)}
-                style={{ width: '100%', minHeight, padding: '8px', boxSizing: 'border-box' }}
+                className="ems-textarea-fallback"
+                style={{ minHeight }}
             />
         );
     }
 
     return (
-        <div className="ems-wp-editor-wrapper" style={{ marginTop: '4px' }}>
+        <div className="ems-editor-wrapper">
             <textarea
                 id={idRef.current}
                 defaultValue={value}
                 aria-label={ariaLabel}
-                style={{ width: '100%', minHeight }}
+                className="ems-textarea-fallback"
+                style={{ minHeight }}
             />
         </div>
     );

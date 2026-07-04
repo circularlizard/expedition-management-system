@@ -160,108 +160,57 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         }
     };
 
-    const fieldStyle: React.CSSProperties = {
-        display: 'block',
-        marginBottom: '16px',
-    };
-
-    const inputStyle: React.CSSProperties = {
-        display: 'block',
-        marginTop: '4px',
-        width: '100%',
-        boxSizing: 'border-box',
-        padding: '6px 8px',
-        fontSize: '14px',
-        height: '35px',
-        lineHeight: '1.4',
-    };
-
-    const gridStyle: React.CSSProperties = {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr 1fr',
-        gap: '16px',
-        marginBottom: '16px',
-    };
-
-    const grid2Style: React.CSSProperties = {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '16px',
-        marginBottom: '16px',
-    };
-
-    const grid3Style: React.CSSProperties = {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
-        gap: '16px',
-        marginBottom: '16px',
-    };
-
-    const sectionStyle: React.CSSProperties = {
-        marginBottom: '24px',
-        paddingBottom: '16px',
-        borderBottom: '1px solid #eee',
-    };
-
-    const sectionLabelStyle: React.CSSProperties = {
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#666',
-        textTransform: 'uppercase',
-        marginBottom: '12px',
-    };
-
     const todayStr = new Date().toISOString().split('T')[0];
 
     return (
-        <form onSubmit={handleSubmit} noValidate className="ems-event-form" style={{ padding: '20px', background: '#fff' }}>
+        <form onSubmit={handleSubmit} noValidate className="ems-event-form ems-form-wrapper--lg">
             {errors.form && <div className="notice notice-error"><p>{errors.form}</p></div>}
 
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>Identification</div>
+            <div className="ems-form-section">
+                <div className="ems-form-section-label">Identification</div>
 
-                <label style={fieldStyle}>
+                <label className="ems-form-group">
                     Expedition Title
-                    <input name="post_title" value={formData.post_title} onChange={handleChange} style={inputStyle} />
+                    <input name="post_title" value={formData.post_title} onChange={handleChange} className="ems-form-input" />
                 </label>
 
-                <label style={fieldStyle}>
+                <label className="ems-form-group">
                     Event Code *
-                    <input name="ems_event_code" value={formData.ems_event_code} onChange={handleChange} style={inputStyle} />
-                    {errors.ems_event_code && <span className="ems-field-error" style={{ color: '#d63638', fontSize: '13px' }}>{errors.ems_event_code}</span>}
+                    <input name="ems_event_code" value={formData.ems_event_code} onChange={handleChange} className="ems-form-input" />
+                    {errors.ems_event_code && <span className="ems-field-error">{errors.ems_event_code}</span>}
                 </label>
 
-                <div style={gridStyle}>
-                    <label style={fieldStyle}>
+                <div className="ems-form-grid-4">
+                    <label className="ems-form-group">
                         Type
-                        <select name="ems_type" value={formData.ems_type} onChange={handleChange} style={inputStyle}>
+                        <select name="ems_type" value={formData.ems_type} onChange={handleChange} className="ems-form-input">
                             <option value="training">Training</option>
                             <option value="practice">Practice</option>
                             <option value="qualifying">Qualifying</option>
                         </select>
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         Transport
-                        <select name="ems_transport" value={formData.ems_transport} onChange={handleChange} style={inputStyle}>
+                        <select name="ems_transport" value={formData.ems_transport} onChange={handleChange} className="ems-form-input">
                             <option value="hillwalking">Hillwalking</option>
                             <option value="biking">Biking</option>
                             <option value="paddling">Paddling</option>
                         </select>
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         Level
-                        <select name="ems_level" value={formData.ems_level} onChange={handleChange} style={inputStyle}>
+                        <select name="ems_level" value={formData.ems_level} onChange={handleChange} className="ems-form-input">
                             <option value="bronze">Bronze</option>
                             <option value="silver">Silver</option>
                             <option value="gold">Gold</option>
                         </select>
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         First Aid Required
-                        <select name="ems_first_aid_level" value={formData.ems_first_aid_level} onChange={handleChange} style={inputStyle}>
+                        <select name="ems_first_aid_level" value={formData.ems_first_aid_level} onChange={handleChange} className="ems-form-input">
                             <option value="none">None</option>
                             <option value="first_response">First Response</option>
                             <option value="full_first_aid">Full First Aid</option>
@@ -270,75 +219,75 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 </div>
             </div>
 
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>Schedule</div>
+            <div className="ems-form-section">
+                <div className="ems-form-section-label">Schedule</div>
 
-                <div style={gridStyle}>
-                    <label style={fieldStyle}>
+                <div className="ems-form-grid-4">
+                    <label className="ems-form-group">
                         Start Date *
                         <input
                             type="date"
                             name="ems_start_date"
                             value={formData.ems_start_date}
                             onChange={handleChange}
-                            style={inputStyle}
+                            className="ems-form-input"
                             min={initialEvent ? undefined : todayStr}
                         />
-                        {errors.ems_start_date && <span className="ems-field-error" style={{ color: '#d63638', fontSize: '13px' }}>{errors.ems_start_date}</span>}
+                        {errors.ems_start_date && <span className="ems-field-error">{errors.ems_start_date}</span>}
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         Start Time
-                        <input type="time" name="ems_start_time" value={formData.ems_start_time} onChange={handleChange} style={inputStyle} />
+                        <input type="time" name="ems_start_time" value={formData.ems_start_time} onChange={handleChange} className="ems-form-input" />
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         End Date *
-                        <input type="date" name="ems_end_date" value={formData.ems_end_date} onChange={handleChange} style={inputStyle} />
-                        {errors.ems_end_date && <span className="ems-field-error" style={{ color: '#d63638', fontSize: '13px' }}>{errors.ems_end_date}</span>}
+                        <input type="date" name="ems_end_date" value={formData.ems_end_date} onChange={handleChange} className="ems-form-input" />
+                        {errors.ems_end_date && <span className="ems-field-error">{errors.ems_end_date}</span>}
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         End Time
-                        <input type="time" name="ems_end_time" value={formData.ems_end_time} onChange={handleChange} style={inputStyle} />
+                        <input type="time" name="ems_end_time" value={formData.ems_end_time} onChange={handleChange} className="ems-form-input" />
                     </label>
                 </div>
             </div>
 
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>Locations</div>
+            <div className="ems-form-section">
+                <div className="ems-form-section-label">Locations</div>
 
-                <label style={fieldStyle}>
+                <label className="ems-form-group">
                     Leader in Charge Name
-                    <input name="ems_lic_name" value={formData.ems_lic_name} onChange={handleChange} style={inputStyle} />
+                    <input name="ems_lic_name" value={formData.ems_lic_name} onChange={handleChange} className="ems-form-input" />
                 </label>
 
-                <div style={grid3Style}>
-                    <label style={fieldStyle}>
+                <div className="ems-form-grid-3">
+                    <label className="ems-form-group">
                         Leader Email
-                        <input type="email" name="ems_lic_email" value={formData.ems_lic_email} onChange={handleChange} style={inputStyle} />
-                        {errors.ems_lic_email && <span className="ems-field-error" style={{ color: '#d63638', fontSize: '13px' }}>{errors.ems_lic_email}</span>}
+                        <input type="email" name="ems_lic_email" value={formData.ems_lic_email} onChange={handleChange} className="ems-form-input" />
+                        {errors.ems_lic_email && <span className="ems-field-error">{errors.ems_lic_email}</span>}
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         Leader Phone
-                        <input type="tel" name="ems_lic_phone" value={formData.ems_lic_phone} onChange={handleChange} style={inputStyle} />
+                        <input type="tel" name="ems_lic_phone" value={formData.ems_lic_phone} onChange={handleChange} className="ems-form-input" />
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         Leader ID
-                        <input name="ems_lic_id" value={formData.ems_lic_id} onChange={handleChange} style={inputStyle} />
+                        <input name="ems_lic_id" value={formData.ems_lic_id} onChange={handleChange} className="ems-form-input" />
                     </label>
                 </div>
             </div>
 
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>OSM Integration & WhatsApp</div>
+            <div className="ems-form-section">
+                <div className="ems-form-section-label">OSM Integration & WhatsApp</div>
 
-                <div style={grid3Style}>
-                    <label style={fieldStyle}>
+                <div className="ems-form-grid-3">
+                    <label className="ems-form-group">
                         OSM Event
-                        <select name="ems_osm_event_id" value={formData.ems_osm_event_id} onChange={handleChange} style={inputStyle}>
+                        <select name="ems_osm_event_id" value={formData.ems_osm_event_id} onChange={handleChange} className="ems-form-input">
                             <option value="">None</option>
                             {osmEvents.map((event) => (
                                 <option key={event.id} value={event.id}>{event.name}</option>
@@ -346,30 +295,30 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                         </select>
                     </label>
                     
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         Explorers WhatsApp Link
-                        <input type="url" name="ems_expedition_whatsapp_explorers" value={formData.ems_expedition_whatsapp_explorers} onChange={handleChange} style={inputStyle} placeholder="https://chat.whatsapp.com/..." />
+                        <input type="url" name="ems_expedition_whatsapp_explorers" value={formData.ems_expedition_whatsapp_explorers} onChange={handleChange} className="ems-form-input" placeholder="https://chat.whatsapp.com/..." />
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         Parents WhatsApp Link
-                        <input type="url" name="ems_expedition_whatsapp_parents" value={formData.ems_expedition_whatsapp_parents} onChange={handleChange} style={inputStyle} placeholder="https://chat.whatsapp.com/..." />
+                        <input type="url" name="ems_expedition_whatsapp_parents" value={formData.ems_expedition_whatsapp_parents} onChange={handleChange} className="ems-form-input" placeholder="https://chat.whatsapp.com/..." />
                     </label>
                 </div>
             </div>
 
-            <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>Route Planning</div>
+            <div className="ems-form-section">
+                <div className="ems-form-section-label">Route Planning</div>
 
-                <div style={grid2Style}>
-                    <label style={fieldStyle}>
+                <div className="ems-form-grid-2">
+                    <label className="ems-form-group">
                         Start Location Coordinates (lat, lng)
-                        <input name="ems_start_location" value={formData.ems_start_location} onChange={handleChange} style={inputStyle} placeholder="e.g. 55.9533, -3.1883" />
+                        <input name="ems_start_location" value={formData.ems_start_location} onChange={handleChange} className="ems-form-input" placeholder="e.g. 55.9533, -3.1883" />
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         End Location Coordinates (lat, lng)
-                        <input name="ems_end_location" value={formData.ems_end_location} onChange={handleChange} style={inputStyle} placeholder="e.g. 55.9877, -3.2012" />
+                        <input name="ems_end_location" value={formData.ems_end_location} onChange={handleChange} className="ems-form-input" placeholder="e.g. 55.9877, -3.2012" />
                     </label>
                 </div>
 
@@ -380,22 +329,22 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                     onSelectEnd={(val) => setFormData(prev => ({ ...prev, ems_end_location: val }))}
                 />
 
-                <div style={grid2Style}>
-                    <label style={fieldStyle}>
+                <div className="ems-form-grid-2">
+                    <label className="ems-form-group">
                         Route Planning Status
-                        <select name="ems_route_status" value={formData.ems_route_status} onChange={handleChange} style={inputStyle}>
+                        <select name="ems_route_status" value={formData.ems_route_status} onChange={handleChange} className="ems-form-input">
                             <option value="draft">Draft</option>
                             <option value="confirmed">Confirmed</option>
                         </select>
                     </label>
 
-                    <label style={fieldStyle}>
+                    <label className="ems-form-group">
                         Route Deadline
-                        <input type="date" name="ems_route_deadline" value={formData.ems_route_deadline} onChange={handleChange} style={inputStyle} />
+                        <input type="date" name="ems_route_deadline" value={formData.ems_route_deadline} onChange={handleChange} className="ems-form-input" />
                     </label>
                 </div>
 
-                <label style={fieldStyle}>
+                <label className="ems-form-group">
                     Notes / Description
                     <RichTextEditor
                         value={formData.ems_route_info}
@@ -407,14 +356,15 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 </label>
             </div>
 
-            <div className="ems-form-actions" style={{ marginTop: '8px' }}>
+            <div className="ems-form-actions">
                 <button type="submit" className="button button-primary" disabled={saving}>
                     {saving ? 'Saving…' : (initialEvent ? 'Update Event' : 'Create Event')}
                 </button>
-                {onCancel && <button type="button" className="button" onClick={onCancel} style={{ marginLeft: '8px' }}>Cancel</button>}
+                {onCancel && <button type="button" className="button ems-btn-cancel" onClick={onCancel}>Cancel</button>}
             </div>
         </form>
     );
+
 };
 
 export default EventForm;

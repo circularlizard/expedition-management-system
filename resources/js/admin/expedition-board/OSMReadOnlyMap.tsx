@@ -124,16 +124,10 @@ export const OSMReadOnlyMap: React.FC<OSMReadOnlyMapProps> = ({ startLocation, e
     }, [leafletLoaded, startLocation, endLocation]);
 
     return (
-        <div style={{ marginTop: '16px' }} data-testid="read-only-map">
+        <div className="ems-map-readonly-wrapper" data-testid="read-only-map">
             <div 
                 ref={mapContainerRef} 
-                style={{ 
-                    height: '250px', 
-                    width: '100%', 
-                    borderRadius: '4px', 
-                    border: '1px solid #ccd0d4',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.07)'
-                }} 
+                className="ems-map-readonly-canvas" 
             />
         </div>
     );
