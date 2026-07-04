@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ExplorerMovePanel } from '../../resources/js/admin/expedition-board/ExplorerMovePanel';
 import { Season } from '../../resources/js/admin/expedition-board/types';
 
@@ -35,27 +35,40 @@ describe('ExplorerMovePanel', () => {
         global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     });
 
-    it('moves explorer within the same event and updates counts', () => {
-        render(<ExplorerMovePanel season={baseSeason()} />);
+    it('moves explorer within the same event and triggers callback', async () => {
+        const onMoved = vi.fn();
+        render(<ExplorerMovePanel season={baseSeason()} onMoved={onMoved} />);
+        
         fireEvent.change(screen.getByLabelText('Select explorer'), { target: { value: '100:1' } });
         fireEvent.change(screen.getByLabelText('Select target team'), { target: { value: '101' } });
         fireEvent.click(screen.getByText('Move'));
 
-        expect(within(screen.getByTestId('team-H-SP1-1')).getByText(/shows 2 members/)).toBeInTheDocument();
-        expect(within(screen.getByTestId('team-H-SP1-2')).getByText(/shows 3 members/)).toBeInTheDocument();
-        expect(screen.getByTestId('member-H-SP1-2-1')).toBeInTheDocument();
-        expect(screen.queryByTestId('member-H-SP1-1-1')).not.toBeInTheDocument();
+        expect(onMoved).toHaveBeenCalledWith('1', 101);
+        expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/explorers/1/move-team'),
+            expect.objectContaining({
+                method: 'POST',
+                body: JSON.stringify({ target_team_id: 101 }),
+            })
+        );
     });
 
     it('moves explorer across same-type events', () => {
-        render(<ExplorerMovePanel season={baseSeason()} />);
+        const onMoved = vi.fn();
+        render(<ExplorerMovePanel season={baseSeason()} onMoved={onMoved} />);
+        
         fireEvent.change(screen.getByLabelText('Select explorer'), { target: { value: '100:1' } });
         fireEvent.change(screen.getByLabelText('Select target team'), { target: { value: '200' } });
         fireEvent.click(screen.getByText('Move'));
 
-        expect(screen.getByTestId('member-H-SP2-1-1')).toBeInTheDocument();
-        expect(screen.queryByTestId('member-H-SP1-1-1')).not.toBeInTheDocument();
-        expect(within(screen.getByTestId('team-H-SP2-1')).getByText(/shows 2 members/)).toBeInTheDocument();
+        expect(onMoved).toHaveBeenCalledWith('1', 200);
+        expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/explorers/1/move-team'),
+            expect.objectContaining({
+                method: 'POST',
+                body: JSON.stringify({ target_team_id: 200 }),
+            })
+        );
     });
 
     it('target dropdown lists teams in same event and other same-type events', () => {
@@ -64,18 +77,6 @@ describe('ExplorerMovePanel', () => {
         const options = Array.from(screen.getByLabelText('Select target team').querySelectorAll('option')).map((o) => o.textContent);
         expect(options).toContain('H-SP1-2');
         expect(options).toContain('H-SP2-1');
-    });
-
-    it('removes a team from the view when its last member is moved out', () => {
-        const season = baseSeason();
-        season.events[0].teams.push({ ID: 102, post_title: 'T3', ems_team_code: 'H-SP1-3', ems_team_number: 3, event_id: 10, members: [m(7, 'Gillian', 'Ross')] });
-        render(<ExplorerMovePanel season={season} />);
-        fireEvent.change(screen.getByLabelText('Select explorer'), { target: { value: '102:7' } });
-        fireEvent.change(screen.getByLabelText('Select target team'), { target: { value: '100' } });
-        fireEvent.click(screen.getByText('Move'));
-
-        expect(screen.queryByTestId('team-H-SP1-3')).not.toBeInTheDocument();
-        expect(screen.getByTestId('member-H-SP1-1-7')).toBeInTheDocument();
     });
 
     it('does not list teams from a different event type', () => {
@@ -88,5 +89,11 @@ describe('ExplorerMovePanel', () => {
         fireEvent.change(screen.getByLabelText('Select explorer'), { target: { value: '100:1' } });
         const options = Array.from(screen.getByLabelText('Select target team').querySelectorAll('option')).map((o) => o.textContent);
         expect(options).not.toContain('H-SQ1-1');
+    });
+
+    it('does not duplicate the full season event tree', () => {
+        render(<ExplorerMovePanel season={baseSeason()} />);
+        expect(screen.queryByTestId('team-H-SP1-1')).not.toBeInTheDocument();
+        expect(screen.queryByText('Alice MacLeod')).not.toBeInTheDocument();
     });
 });

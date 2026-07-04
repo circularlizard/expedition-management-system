@@ -102,7 +102,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'update_event' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -111,7 +111,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'delete_event' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
     }
@@ -122,7 +122,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'create_team' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'event_id' => [ 'type' => 'integer', 'required' => true ],
+                'event_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -131,7 +131,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'list_event_teams' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'event_id' => [ 'type' => 'integer', 'required' => true ],
+                'event_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -140,7 +140,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'delete_team' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -149,7 +149,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'move_team' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -158,7 +158,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'duplicate_team' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -167,8 +167,8 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'populate_event' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'source_id' => [ 'type' => 'integer', 'required' => true ],
-                'target_id' => [ 'type' => 'integer', 'required' => true ],
+                'source_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
+                'target_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
     }
@@ -179,7 +179,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'add_member' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'team_id' => [ 'type' => 'integer', 'required' => true ],
+                'team_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -188,8 +188,8 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'remove_member' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'team_id'  => [ 'type' => 'integer', 'required' => true ],
-                'scout_id' => [ 'type' => 'integer', 'required' => true ],
+                'team_id'  => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
+                'scout_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -198,7 +198,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'move_explorer' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'scout_id' => [ 'type' => 'integer', 'required' => true ],
+                'scout_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -207,7 +207,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'update_first_aid_level' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'scout_id' => [ 'type' => 'integer', 'required' => true ],
+                'scout_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -216,7 +216,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'get_explorer_asn' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'scout_id' => [ 'type' => 'integer', 'required' => true ],
+                'scout_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -225,7 +225,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'update_explorer_asn' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'scout_id' => [ 'type' => 'integer', 'required' => true ],
+                'scout_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
     }
@@ -780,7 +780,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'get_whatsapp_links' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -789,7 +789,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'update_whatsapp_links' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
     }
@@ -807,7 +807,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'process_participant_signup' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -816,7 +816,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'archive_participant_signup' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
 
@@ -834,7 +834,7 @@ class Expedition_Admin_Controller {
             'callback'            => [ $this, 'archive_expedition_signup' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
+                'id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
     }

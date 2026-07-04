@@ -203,6 +203,38 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 'ems_invalid_field_value', $response->get_data()->get_error_code() );
     }
 
+    public function test_update_event_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $expeditions = \Mockery::mock( Expedition_Repository::class );
+        $expeditions->shouldReceive( 'get_by_id' )->with( 20 )->andReturn( [ 'ID' => 20, 'ems_event_code' => 'H-SP1' ] );
+        $expeditions->shouldReceive( 'update' )->once()->with( 20, [ 'ems_lic_name' => 'Jane Smith' ] )->andReturn( true );
+
+        $controller = $this->create_controller( null, $expeditions );
+        $request    = $this->json_request( [ 'ems_lic_name' => 'Jane Smith' ] );
+        $request->set_param( 'id', 20 );
+        $response   = $controller->update_event( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( 'H-SP1', $response->get_data()['ems_event_code'] );
+    }
+
+    public function test_update_event_invalid_enum_returns_400(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $expeditions = \Mockery::mock( Expedition_Repository::class );
+        $expeditions->shouldReceive( 'get_by_id' )->with( 20 )->andReturn( [ 'ID' => 20 ] );
+
+        $controller = $this->create_controller( null, $expeditions );
+        $request    = $this->json_request( [ 'ems_type' => 'invalid_type' ] );
+        $request->set_param( 'id', 20 );
+        $response   = $controller->update_event( $request );
+
+        $this->assertSame( 400, $response->get_status() );
+        $this->assertSame( 'ems_invalid_field_value', $response->get_data()->get_error_code() );
+    }
+
+
     public function test_delete_event_with_teams_returns_409(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
 

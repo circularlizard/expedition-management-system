@@ -52,6 +52,62 @@ const FieldVal: React.FC<{ label: string; value?: React.ReactNode }> = ({ label,
     </div>
 );
 
+const LocationDisplay: React.FC<{ value?: string }> = ({ value }) => {
+    const [resolvedName, setResolvedName] = useState<string>('');
+    const [loading, setLoading] = useState(false);
+
+    const coordsMatch = value ? value.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/) : null;
+
+    useEffect(() => {
+        if (!coordsMatch) {
+            setResolvedName('');
+            return;
+        }
+        const lat = parseFloat(coordsMatch[1]);
+        const lng = parseFloat(coordsMatch[2]);
+        setLoading(true);
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+            headers: { 'Accept-Language': 'en' }
+        })
+            .then(res => {
+                if (res.ok) return res.json();
+                throw new Error();
+            })
+            .then(data => {
+                const addr = data.address;
+                const name = addr.road || addr.suburb || addr.town || addr.city || addr.county || '';
+                const county = addr.county || addr.state || '';
+                setResolvedName(name ? (county ? `${name}, ${county}` : name) : '');
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, [value]);
+
+    if (!value) return <span>—</span>;
+
+    if (!coordsMatch) {
+        return <span>{value}</span>;
+    }
+
+    const lat = coordsMatch[1];
+    const lng = coordsMatch[2];
+    const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+
+    return (
+        <div>
+            <a href={mapUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#2271b1', textDecoration: 'none', fontWeight: 600 }}>
+                {lat}, {lng} ↗
+            </a>
+            {loading && <div style={{ fontSize: '12px', color: '#888', fontStyle: 'italic', marginTop: '2px' }}>Resolving address…</div>}
+            {!loading && resolvedName && (
+                <div style={{ fontSize: '12px', color: '#555', fontStyle: 'italic', marginTop: '2px' }}>
+                    {resolvedName}
+                </div>
+            )}
+        </div>
+    );
+};
+
 function grd(cols: number): React.CSSProperties {
     return { display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 220px))`, gap: '16px 32px', marginBottom: '20px' };
 }
@@ -87,8 +143,8 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                             <FieldVal label="Start Time" value={event.ems_start_time} />
                             <FieldVal label="End Date" value={formatDate(event.ems_end_date)} />
                             <FieldVal label="End Time" value={event.ems_end_time} />
-                            <FieldVal label="Start Location" value={event.ems_start_location} />
-                            <FieldVal label="End Location" value={event.ems_end_location} />
+                            <FieldVal label="Start Location" value={<LocationDisplay value={event.ems_start_location} />} />
+                            <FieldVal label="End Location" value={<LocationDisplay value={event.ems_end_location} />} />
                         </div>
                     </div>
                     <div style={{ marginBottom: '24px' }}><div style={secHdr}>Leader in Charge</div>
@@ -157,11 +213,12 @@ const TeamCard: React.FC<TeamCardProps> = ({
     
     // First Aid Warning:
     const faReq = event.ems_first_aid_level;
-    const hasFaCover = !faReq || faReq === 'none' || members.some(m => {
-        const lvl = m.first_aid_level;
+    const faCount = members.filter(m => {
+        const lvl = m.first_aid_level ?? 'none';
         if (faReq === 'full_first_aid') return lvl === 'full_first_aid';
         return lvl === 'first_response' || lvl === 'full_first_aid';
-    });
+    }).length;
+    const hasFaCover = !faReq || faReq === 'none' || faCount >= 2;
     const faWarning = !isVirtual && !hasFaCover;
 
     const available = explorers.filter((e) => !assignedScoutIds.has(e.scout_id) || members.some((m) => m.scout_id === e.scout_id));
@@ -586,6 +643,7 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
     const [loading, setLoading] = useState(true);
     const [savingId, setSavingId] = useState<number | null>(null);
     const [notes, setNotes] = useState<Record<number, string>>({});
+    const [parentAsn, setParentAsn] = useState<Record<number, string>>({});
     const [savedStatus, setSavedStatus] = useState<Record<number, boolean>>({});
 
     const load = useCallback(async () => {
@@ -602,6 +660,7 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                 
                 // Fetch details/organiser notes for each
                 const notesMap: Record<number, string> = {};
+                const parentAsnMap: Record<number, string> = {};
                 await Promise.all(allMembers.map(async (m) => {
                     if (m.scout_id) {
                         try {
@@ -609,6 +668,7 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                             if (asnRes.ok) {
                                 const data = await asnRes.json();
                                 notesMap[m.scout_id] = data.organiser_notes || '';
+                                parentAsnMap[m.scout_id] = data.parent_asn || '';
                             }
                         } catch (err) {
                             console.error(err);
@@ -616,6 +676,7 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                     }
                 }));
                 setNotes(notesMap);
+                setParentAsn(parentAsnMap);
             }
         } catch (e) {
             console.error(e);
@@ -672,8 +733,8 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                                     Team: <code>{exp.teamName === 'UNALLOCATED' ? 'Unallocated' : exp.teamName}</code>
                                 </div>
                             </td>
-                            <td style={{ verticalAlign: 'top', color: exp.additional_support_needs ? '#b45309' : '#646970', fontWeight: exp.additional_support_needs ? 600 : 400 }}>
-                                {exp.additional_support_needs || '— No support needs declared by parent —'}
+                            <td style={{ verticalAlign: 'top', color: parentAsn[exp.scout_id] ? '#b45309' : '#646970', fontWeight: parentAsn[exp.scout_id] ? 600 : 400 }}>
+                                {parentAsn[exp.scout_id] || '— No support needs declared by parent —'}
                             </td>
                             <td>
                                 <textarea

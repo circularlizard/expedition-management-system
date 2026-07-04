@@ -772,51 +772,66 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                 </div>
 
                 {dialog && (
-                    <div className="ems-team-dialog" style={{ marginTop: '12px', padding: '10px', border: '1px solid #ddd', background: '#fff' }}>
+                    <div className="ems-team-dialog" style={{ marginTop: '12px', padding: '8px', border: '1px solid #ccd0d4', borderRadius: '4px', background: '#f6f7f7', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                         {dialog === 'moveTeam' && (
                             <>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>
-                                    Move {team.ems_team_code} to event
-                                    <select value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)} style={{ display: 'block', marginTop: '4px', maxWidth: '100%' }}>
-                                        <option value="">— Select event —</option>
-                                        {targetEvents.map((e) => (<option key={e.ID} value={e.ID}>{e.ems_event_code}</option>))}
-                                    </select>
-                                </label>
-                                {preview && <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Will be re-coded to {preview}</p>}
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button type="button" className="button button-primary" onClick={moveTeam} disabled={busy || !targetEvent}>Move</button>
-                                    <button type="button" className="button" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#3c434a', marginBottom: '4px' }}>
+                                    Move Team to Event:
+                                </div>
+                                <select 
+                                    value={targetEventId} 
+                                    onChange={(e) => setTargetEventId(e.target.value)} 
+                                    style={{ display: 'block', width: '100%', fontSize: '12px', height: '28px', padding: '2px 6px', marginBottom: '6px' }}
+                                >
+                                    <option value="">— Select event —</option>
+                                    {targetEvents.map((e) => (<option key={e.ID} value={e.ID}>{e.ems_event_code}</option>))}
+                                </select>
+                                {preview && <p style={{ fontSize: '11px', color: '#666', margin: '0 0 6px 0', fontStyle: 'italic' }}>Re-coded to: {preview}</p>}
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                    <button type="button" className="button button-small" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                    <button type="button" className="button button-small button-primary" onClick={moveTeam} disabled={busy || !targetEvent}>Move</button>
                                 </div>
                             </>
                         )}
                         {dialog === 'duplicateTeam' && (
                             <>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>
-                                    Duplicate {team.ems_team_code} to event
-                                    <select value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)} style={{ display: 'block', marginTop: '4px', maxWidth: '100%' }}>
-                                        <option value="">— Select event —</option>
-                                        {targetEvents.map((e) => (<option key={e.ID} value={e.ID}>{e.ems_event_code}</option>))}
-                                    </select>
-                                </label>
-                                {preview && <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>New team will be coded {preview}</p>}
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button type="button" className="button button-primary" onClick={duplicateTeam} disabled={busy || !targetEvent}>Duplicate</button>
-                                    <button type="button" className="button" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#3c434a', marginBottom: '4px' }}>
+                                    Duplicate Team to Event:
+                                </div>
+                                <select 
+                                    value={targetEventId} 
+                                    onChange={(e) => setTargetEventId(e.target.value)} 
+                                    style={{ display: 'block', width: '100%', fontSize: '12px', height: '28px', padding: '2px 6px', marginBottom: '6px' }}
+                                >
+                                    <option value="">— Select event —</option>
+                                    {targetEvents.map((e) => (<option key={e.ID} value={e.ID}>{e.ems_event_code}</option>))}
+                                </select>
+                                {preview && <p style={{ fontSize: '11px', color: '#666', margin: '0 0 6px 0', fontStyle: 'italic' }}>New team code: {preview}</p>}
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                    <button type="button" className="button button-small" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                    <button type="button" className="button button-small button-primary" onClick={duplicateTeam} disabled={busy || !targetEvent}>Duplicate</button>
                                 </div>
                             </>
                         )}
                         {dialog === 'moveExplorer' && selectedMember && (
                             <>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>
-                                    Move {selectedMember.first_name} {selectedMember.last_name} to team
-                                    <select value={targetTeamId} onChange={(e) => setTargetTeamId(e.target.value)} style={{ display: 'block', marginTop: '4px', maxWidth: '100%' }}>
-                                        <option value="">— Select team —</option>
-                                        {explorerTargetTeams.map((t) => (<option key={t.ID} value={t.ID}>{t.ems_team_code}</option>))}
-                                    </select>
-                                </label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button type="button" className="button button-primary" onClick={moveExplorer} disabled={busy || !targetTeamId}>Move</button>
-                                    <button type="button" className="button" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#3c434a', marginBottom: '2px' }}>
+                                    Move explorer:
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#666', marginBottom: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {selectedMember.first_name} {selectedMember.last_name}
+                                </div>
+                                <select 
+                                    value={targetTeamId} 
+                                    onChange={(e) => setTargetTeamId(e.target.value)} 
+                                    style={{ display: 'block', width: '100%', fontSize: '12px', height: '28px', padding: '2px 6px', marginBottom: '6px' }}
+                                >
+                                    <option value="">— Select team —</option>
+                                    {explorerTargetTeams.map((t) => (<option key={t.ID} value={t.ID}>{t.ems_team_code}</option>))}
+                                </select>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                    <button type="button" className="button button-small" onClick={closeDialog} disabled={busy}>Cancel</button>
+                                    <button type="button" className="button button-small button-primary" onClick={moveExplorer} disabled={busy || !targetTeamId}>Move</button>
                                 </div>
                             </>
                         )}

@@ -224,7 +224,6 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                             <th style={{ textAlign: 'center' }}>Teams</th>
                             <th style={{ textAlign: 'center' }}>Members</th>
                             <th>Route Status</th>
-                            <th>Event Status</th>
                             <th style={{ textAlign: 'right' }}>Actions</th>
                         </tr>
                     </thead>
@@ -232,7 +231,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                         {events.map((event) => (
                             <tr
                                 key={event.ID}
-                                style={{ cursor: 'pointer' }}
+                                style={{ cursor: 'pointer', opacity: event.ems_status === 'archived' ? 0.6 : 1 }}
                                 onClick={() => onSelectEvent(event)}
                             >
                                 <td>
@@ -242,6 +241,9 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                         onClick={(e) => { e.preventDefault(); onSelectEvent(event); }}
                                     >
                                         {event.post_title || event.ems_event_code}
+                                        {event.ems_status === 'archived' && (
+                                            <span style={{ fontSize: '11px', fontStyle: 'italic', color: '#666', marginLeft: '6px' }}>(Archived)</span>
+                                        )}
                                     </a>
                                 </td>
                                 <td>
@@ -265,7 +267,6 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                     <span>{event.member_count ?? 0}</span>
                                 </td>
                                 <td>{statusBadge(event.ems_route_status || 'draft')}</td>
-                                <td>{statusBadge(event.ems_status || 'active')}</td>
                                 <td style={{ textAlign: 'right' }}>
                                     <button
                                         type="button"
