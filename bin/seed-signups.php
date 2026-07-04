@@ -177,12 +177,7 @@ for ( $i = 0; $i < $count; $i++ ) {
 
     // Status: 60% pending, 30% processed, 10% archived
     $status_rand = rand( 1, 100 );
-    $status = $status_rand <= 60 ? 'pending' : ($status_rand <= 90 ? 'processed' : 'archived');
-
-    $processed_by = ($status === 'processed') ? $admin_user_id : null;
-    $processed_at = ($status === 'processed') ? current_time( 'mysql' ) : null;
-
-    $dofe_number = "D-" . rand( 100000, 999999 );
+    $status = rand(0, 10) <= 8 ? 'pending' : 'archived';
 
     $prefs = [
         'exped_type' => rand(0, 1) ? 'Hillwalking' : 'Paddling',
@@ -203,20 +198,16 @@ for ( $i = 0; $i < $count; $i++ ) {
             'parent_email'             => "mock.parent.1@example-ems.test",
             'leader_email'             => "smesu.leader@example-ems.test",
             'dofe_level'               => $level,
-            'dofe_number'              => $dofe_number,
             'expedition_preferences'   => json_encode( $prefs ),
             'additional_support_needs' => rand(0, 10) > 8 ? 'Asthma inhaler required.' : '',
             'first_aid_status'         => 'first-response',
             'first_aid_expiry'         => '2028-06-13',
             'signup_status'            => $status,
-            'payment_status'           => 'pending',
-            'processed_by'             => $processed_by,
-            'processed_at'             => $processed_at,
             'form_submission_id'       => $submission_id,
             'created_at'               => current_time( 'mysql' ),
             'updated_at'               => current_time( 'mysql' ),
         ],
-        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
+        [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ]
     );
 }
 

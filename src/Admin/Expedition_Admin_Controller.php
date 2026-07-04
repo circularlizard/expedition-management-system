@@ -690,14 +690,7 @@ class Expedition_Admin_Controller {
             'permission_callback' => [ $this, 'check_permission' ],
         ] );
 
-        register_rest_route( 'ems/v1', '/signups/expeditions/(?P<id>\d+)/process', [
-            'methods'             => \WP_REST_Server::CREATABLE,
-            'callback'            => [ $this, 'process_expedition_signup' ],
-            'permission_callback' => [ $this, 'check_permission' ],
-            'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
-            ],
-        ] );
+
 
         register_rest_route( 'ems/v1', '/signups/expeditions/(?P<id>\d+)/archive', [
             'methods'             => \WP_REST_Server::CREATABLE,
@@ -803,7 +796,6 @@ class Expedition_Admin_Controller {
                 'first_aid_status'         => $row['first_aid_status'],
                 'first_aid_expiry'         => $row['first_aid_expiry'],
                 'signup_status'            => $row['signup_status'],
-                'payment_status'           => $row['payment_status'],
                 'form_submission_id'       => (int) $row['form_submission_id'],
                 'created_at'               => $row['created_at'],
                 'updated_at'               => $row['updated_at'],
@@ -813,22 +805,7 @@ class Expedition_Admin_Controller {
         return new \WP_REST_Response( $response_data );
     }
 
-    public function process_expedition_signup( \WP_REST_Request $request ): \WP_REST_Response {
-        $id = (int) $request->get_param( 'id' );
 
-        $signup = $this->signups->get_expedition_signup( $id );
-        if ( ! $signup ) {
-            return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
-        }
-
-        if ( $signup['signup_status'] === 'processed' ) {
-            return $this->error( 'ems_signup_already_processed', 'Signup is already processed.', 400 );
-        }
-
-        $this->signups->process_expedition_signup( $id, get_current_user_id() );
-
-        return new \WP_REST_Response( [ 'processed' => true ] );
-    }
 
     public function archive_expedition_signup( \WP_REST_Request $request ): \WP_REST_Response {
         $id = (int) $request->get_param( 'id' );

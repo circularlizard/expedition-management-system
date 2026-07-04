@@ -555,7 +555,6 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
                 'first_aid_status' => 'first_response',
                 'first_aid_expiry' => '2028-06-13',
                 'signup_status' => 'pending',
-                'payment_status' => 'pending',
                 'form_submission_id' => 5678,
                 'created_at' => '2026-06-13 20:00:00',
             ]

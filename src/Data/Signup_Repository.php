@@ -75,20 +75,18 @@ class Signup_Repository {
             'parent_email'             => sanitize_email( $data['parent_email'] ?? '' ),
             'leader_email'             => sanitize_email( $data['leader_email'] ?? '' ),
             'dofe_level'               => strtolower( sanitize_text_field( $data['dofe_level'] ?? '' ) ),
-            'dofe_number'              => ! empty( $data['dofe_number'] ) ? sanitize_text_field( $data['dofe_number'] ) : null,
             'expedition_preferences'   => ! empty( $data['expedition_preferences'] ) ? ( is_array( $data['expedition_preferences'] ) ? json_encode( $data['expedition_preferences'] ) : $data['expedition_preferences'] ) : null,
             'additional_support_needs' => ! empty( $data['additional_support_needs'] ) ? sanitize_textarea_field( $data['additional_support_needs'] ) : null,
             'first_aid_status'         => sanitize_text_field( $data['first_aid_status'] ?? 'none' ),
             'first_aid_expiry'         => ! empty( $data['first_aid_expiry'] ) ? sanitize_text_field( $data['first_aid_expiry'] ) : null,
             'signup_status'            => sanitize_text_field( $data['signup_status'] ?? 'pending' ),
-            'payment_status'           => sanitize_text_field( $data['payment_status'] ?? 'pending' ),
             'form_submission_id'       => (int) ( $data['form_submission_id'] ?? 0 ),
             'created_at'               => $now,
             'updated_at'               => $now,
         ];
 
         $format = [
-            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
+            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'
         ];
 
         $result = $this->wpdb->insert(
@@ -117,7 +115,19 @@ class Signup_Repository {
      * Get an expedition signup record by ID
      */
     public function get_expedition_signup( int $id ): ?array {
-        $sql = "SELECT * FROM {$this->wpdb->prefix}ems_expedition_signups WHERE id = %d";
+        $sql = "SELECT e.*, p.dofe_number
+                FROM {$this->wpdb->prefix}ems_expedition_signups e
+                LEFT JOIN (
+                    SELECT p1.scout_id, p1.dofe_number
+                    FROM {$this->wpdb->prefix}ems_participant_signups p1
+                    INNER JOIN (
+                        SELECT scout_id, MAX(id) as max_id
+                        FROM {$this->wpdb->prefix}ems_participant_signups
+                        WHERE dofe_number IS NOT NULL AND dofe_number != ''
+                        GROUP BY scout_id
+                    ) p2 ON p1.id = p2.max_id
+                ) p ON e.scout_id = p.scout_id
+                WHERE e.id = %d";
         $row = $this->wpdb->get_row( $this->wpdb->prepare( $sql, $id ), ARRAY_A );
         return $row ?: null;
     }
@@ -137,15 +147,7 @@ class Signup_Repository {
             [ '%d' ]
         );
 
-        $e_result = $this->wpdb->update(
-            "{$this->wpdb->prefix}ems_expedition_signups",
-            [ 'payment_status' => $sanitized_status, 'updated_at' => $now ],
-            [ 'form_submission_id' => $form_submission_id ],
-            [ '%s', '%s' ],
-            [ '%d' ]
-        );
-
-        return $p_result !== false || $e_result !== false;
+        return $p_result !== false;
     }
 
     /**
@@ -172,19 +174,35 @@ class Signup_Repository {
      * Get expedition signups filtered by status
      */
     public function get_expedition_signups( string $status = 'all' ): array {
+        $join_sql = "LEFT JOIN (
+            SELECT p1.scout_id, p1.dofe_number
+            FROM {$this->wpdb->prefix}ems_participant_signups p1
+            INNER JOIN (
+                SELECT scout_id, MAX(id) as max_id
+                FROM {$this->wpdb->prefix}ems_participant_signups
+                WHERE dofe_number IS NOT NULL AND dofe_number != ''
+                GROUP BY scout_id
+            ) p2 ON p1.id = p2.max_id
+        ) p ON e.scout_id = p.scout_id";
+
         if ( $status === 'all' ) {
-            $sql = "SELECT * FROM {$this->wpdb->prefix}ems_expedition_signups ORDER BY created_at DESC";
+            $sql = "SELECT e.*, p.dofe_number 
+                    FROM {$this->wpdb->prefix}ems_expedition_signups e 
+                    {$join_sql}
+                    ORDER BY e.created_at DESC";
             return $this->wpdb->get_results( $sql, ARRAY_A ) ?: [];
         }
 
         $db_status = 'pending';
-        if ( $status === 'processed' ) {
-            $db_status = 'processed';
-        } elseif ( $status === 'archived' ) {
+        if ( $status === 'archived' ) {
             $db_status = 'archived';
         }
 
-        $sql = "SELECT * FROM {$this->wpdb->prefix}ems_expedition_signups WHERE signup_status = %s ORDER BY created_at DESC";
+        $sql = "SELECT e.*, p.dofe_number 
+                FROM {$this->wpdb->prefix}ems_expedition_signups e 
+                {$join_sql}
+                WHERE e.signup_status = %s 
+                ORDER BY e.created_at DESC";
         return $this->wpdb->get_results( $this->wpdb->prepare( $sql, $db_status ), ARRAY_A ) ?: [];
     }
 
@@ -216,24 +234,7 @@ class Signup_Repository {
         return $result !== false;
     }
 
-    /**
-     * Process an expedition signup
-     */
-    public function process_expedition_signup( int $id, int $user_id ): bool {
-        $result = $this->wpdb->update(
-            "{$this->wpdb->prefix}ems_expedition_signups",
-            [
-                'signup_status' => 'processed',
-                'processed_by'  => $user_id,
-                'processed_at'  => current_time( 'mysql' ),
-                'updated_at'    => current_time( 'mysql' ),
-            ],
-            [ 'id' => $id ],
-            [ '%s', '%d', '%s', '%s' ],
-            [ '%d' ]
-        );
-        return $result !== false;
-    }
+
 
     /**
      * Archive a participant signup

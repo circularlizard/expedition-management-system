@@ -375,13 +375,11 @@ class Fluent_Forms_Sync {
             'explorer_email'           => sanitize_email( $formData[ $config['explorer_email_field'] ] ?? '' ),
             'parent_email'             => sanitize_email( $formData[ $config['parent_email_field'] ] ?? '' ),
             'dofe_level'               => strtolower( sanitize_text_field( $formData[ $config['dofe_level_field'] ] ?? '' ) ),
-            'dofe_number'              => sanitize_text_field( $formData[ $config['dofe_number_field'] ] ?? '' ),
             'expedition_preferences'   => $prefs,
             'additional_support_needs' => sanitize_textarea_field( $formData[ $config['asn_field'] ] ?? '' ),
             'first_aid_status'         => sanitize_text_field( $formData[ $config['first_aid_field'] ] ?? 'none' ),
             'first_aid_expiry'         => $fa_expiry,
             'signup_status'            => 'pending',
-            'payment_status'           => 'pending',
             'form_submission_id'       => $entryId,
         ];
 
