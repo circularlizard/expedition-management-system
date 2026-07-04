@@ -46,15 +46,21 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 *Assigns explorers to specific dates and teams, and handles progressive details (dates → teams → route cards).*
 
 *   **Achieved**:
-    *   React Expedition Board SPA allowing seasons, events, and teams CRUD.
+    *   React Expedition Board SPA allowing events and teams CRUD (Season concept deprecated).
     *   Interactive drag-and-drop movement of explorers between teams/events.
     *   Automatic sequential team code generation (e.g. `H-SP1-1`).
     *   Contiguous layout and team size warning validation (checks for 4–7 members).
 *   **Next Steps (Remains)**:
+    *   [ ] Deprecate CPT `season` and transition the home dashboard to a chronological Events Dashboard (showing upcoming/past events, sorting by start date).
+    *   [ ] Add event status filtering ('active' or 'archived') to toggle archived events in listings.
+    *   [ ] Show Name, Short Code, Mode of Transport, Level, First Aid Requirements, and Dates on the events roster grid.
+    *   [ ] Move all team formation and CRUD rosters strictly to the Event Detail Page.
+    *   [ ] Expand event post meta with parent/explorer WhatsApp links and generate corresponding QR codes on the detail page.
+    *   [ ] Allow assigning unallocated explorers to an event via a virtual unallocated team.
     *   [ ] Implement a calendar dashboard interface showing chronological timelines of all practice/qualifying events.
     *   [ ] Add communication notifications (emails or alerts) triggered when explorers are assigned to dates or teams.
     *   [ ] Track Additional Support Needs (ASN) alongside team details.
-    *   [ ] **Cross-Screen State Synchronization**: Implement a synchronization mechanism (e.g. React Context, broadcast events, or shared local caching) so that operations completed on one dashboard page (such as team reassignments on the Expedition Board) immediately refresh or propagate changes to other dashboard views (such as the Explorer List) without requiring manual browser page refreshes.
+    *   [ ] **Cross-Screen State Synchronization**: Implement a synchronization mechanism (e.g. BroadcastChannel) to sync updates between Expedition Board rosters and Explorer Lists.
 
 ---
 
