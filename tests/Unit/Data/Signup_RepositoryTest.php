@@ -110,9 +110,8 @@ class Signup_RepositoryTest extends EMSTestCase {
         $result = $repo->update_payment_status_by_submission_id( 1234, 'paid' );
 
         $this->assertTrue( $result );
-        $this->assertCount( 2, $wpdb->updated );
+        $this->assertCount( 1, $wpdb->updated );
         $this->assertEquals( 'wp_ems_participant_signups', $wpdb->updated[0]['table'] );
-        $this->assertEquals( 'wp_ems_expedition_signups', $wpdb->updated[1]['table'] );
         $this->assertEquals( 'paid', $wpdb->updated[0]['data']['payment_status'] );
         $this->assertEquals( 1234, $wpdb->updated[0]['where']['form_submission_id'] );
     }

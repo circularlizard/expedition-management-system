@@ -158,8 +158,6 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'first_aid_status', $exped_sql );
         $this->assertStringContainsString( 'first_aid_expiry', $exped_sql );
         $this->assertStringContainsString( "DEFAULT 'pending'", $exped_sql );
-        $this->assertStringContainsString( 'processed_by', $exped_sql );
-        $this->assertStringContainsString( 'processed_at', $exped_sql );
     }
 
     public function test_osm_explorers_has_timestamp_columns(): void {

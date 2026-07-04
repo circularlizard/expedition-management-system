@@ -26,6 +26,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
     const defaultStatus = type === 'participant' ? 'received' : 'pending';
     const [statusFilter, setStatusFilter] = useState<string>(defaultStatus);
     const [levelFilter, setLevelFilter] = useState<string>('all');
+    const [expedTypeFilter, setExpedTypeFilter] = useState<string>('all');
 
     // Selected signup for Inspector Panel
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
@@ -55,9 +56,16 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
     };
 
     useEffect(() => {
+        setStatusFilter(type === 'participant' ? 'received' : 'pending');
+        setLevelFilter('all');
+        setExpedTypeFilter('all');
+        setSelectedSignup(null);
+    }, [type]);
+
+    useEffect(() => {
         fetchSignups();
         setSelectedSignup(null);
-    }, [statusFilter]);
+    }, [type, statusFilter]);
 
     useEffect(() => {
         if (selectedSignup) {
@@ -78,25 +86,6 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
             if (!response.ok) {
                 const data = await response.json();
                 throw new Error(data.message || 'Failed to allocate place');
-            }
-            setSelectedSignup(null);
-            fetchSignups();
-        } catch (err: any) {
-            alert(err.message);
-        }
-    };
-
-    const handleProcessExpedition = async (signupId: number) => {
-        try {
-            const response = await fetch(`${config.root_url}/signups/expeditions/${signupId}/process`, {
-                method: 'POST',
-                headers: {
-                    'X-WP-Nonce': config.nonce
-                }
-            });
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to process signup');
             }
             setSelectedSignup(null);
             fetchSignups();
@@ -128,8 +117,16 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
 
     // Filter signups in memory by Level
     const filteredSignups = signups.filter(s => {
-        if (levelFilter === 'all') return true;
-        return s.dofe_level === levelFilter;
+        if (levelFilter !== 'all' && s.dofe_level !== levelFilter) {
+            return false;
+        }
+        if (type === 'expedition' && expedTypeFilter !== 'all') {
+            const expedType = s.expedition_preferences?.exped_type || '';
+            if (expedType.toLowerCase() !== expedTypeFilter.toLowerCase()) {
+                return false;
+            }
+        }
+        return true;
     });
 
     // Paging list of unprocessed signups inside the Inspector Panel
@@ -257,10 +254,6 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     <input type="radio" name="statusFilter" value="pending" checked={statusFilter === 'pending'} onChange={() => setStatusFilter('pending')} style={{ display: 'none' }} />
                                     Active (Pending)
                                 </label>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '6px 12px', background: statusFilter === 'processed' ? '#e5f3ff' : '#fff', border: `1px solid ${statusFilter === 'processed' ? '#2271b1' : '#ccd0d4'}`, borderRadius: '20px', color: statusFilter === 'processed' ? '#1d2327' : '#646970', fontWeight: '500', transition: 'all 0.2s' }}>
-                                    <input type="radio" name="statusFilter" value="processed" checked={statusFilter === 'processed'} onChange={() => setStatusFilter('processed')} style={{ display: 'none' }} />
-                                    Processed
-                                </label>
                             </>
                         )}
                         <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '6px 12px', background: statusFilter === 'archived' ? '#e5f3ff' : '#fff', border: `1px solid ${statusFilter === 'archived' ? '#2271b1' : '#ccd0d4'}`, borderRadius: '20px', color: statusFilter === 'archived' ? '#1d2327' : '#646970', fontWeight: '500', transition: 'all 0.2s' }}>
@@ -269,21 +262,41 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         </label>
                     </div>
 
-                    {/* Level Filter */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label htmlFor="level-filter" style={{ fontWeight: '600' }}>Filter Level:</label>
-                        <select
-                            id="level-filter"
-                            aria-label="Filter Level"
-                            value={levelFilter}
-                            onChange={(e) => setLevelFilter(e.target.value)}
-                            style={{ padding: '6px 12px', border: '1px solid #ccd0d4', borderRadius: '4px', background: '#fff', fontSize: '13px' }}
-                        >
-                            <option value="all">All Levels</option>
-                            <option value="bronze">Bronze</option>
-                            <option value="silver">Silver</option>
-                            <option value="gold">Gold</option>
-                        </select>
+                    {/* Level & Expedition Type Filters */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <label htmlFor="level-filter" style={{ fontWeight: '600' }}>Filter Level:</label>
+                            <select
+                                id="level-filter"
+                                aria-label="Filter Level"
+                                value={levelFilter}
+                                onChange={(e) => setLevelFilter(e.target.value)}
+                                style={{ padding: '6px 12px', border: '1px solid #ccd0d4', borderRadius: '4px', background: '#fff', fontSize: '13px' }}
+                            >
+                                <option value="all">All Levels</option>
+                                <option value="bronze">Bronze</option>
+                                <option value="silver">Silver</option>
+                                <option value="gold">Gold</option>
+                            </select>
+                        </div>
+
+                        {type === 'expedition' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <label htmlFor="exped-type-filter" style={{ fontWeight: '600' }}>Expedition Type:</label>
+                                <select
+                                    id="exped-type-filter"
+                                    aria-label="Filter Expedition Type"
+                                    value={expedTypeFilter}
+                                    onChange={(e) => setExpedTypeFilter(e.target.value)}
+                                    style={{ padding: '6px 12px', border: '1px solid #ccd0d4', borderRadius: '4px', background: '#fff', fontSize: '13px' }}
+                                >
+                                    <option value="all">All Types</option>
+                                    <option value="hillwalking">Hillwalking</option>
+                                    <option value="paddling">Paddling</option>
+                                    <option value="biking">Biking</option>
+                                </select>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -305,6 +318,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     </>
                                 ) : (
                                     <>
+                                        <th style={{ padding: '12px 16px' }}>Expedition</th>
                                         <th style={{ padding: '12px 16px' }}>First Aid</th>
                                         <th style={{ padding: '12px 16px' }}>DofE Number</th>
                                     </>
@@ -314,7 +328,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         <tbody>
                             {filteredSignups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={type === 'participant' ? 8 : 7} style={{ padding: '24px', textAlign: 'center', color: '#646970' }}>
+                                    <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#646970' }}>
                                         No signup records found for this filter state.
                                     </td>
                                 </tr>
@@ -396,6 +410,23 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                         ) : (
                                             <>
                                                 <td style={{ padding: '16px' }}>
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        padding: '4px 8px',
+                                                        borderRadius: '12px',
+                                                        fontSize: '11px',
+                                                        fontWeight: 'bold',
+                                                        textTransform: 'uppercase',
+                                                        background: '#f0f6fc',
+                                                        color: '#00438a',
+                                                        border: '1px solid #c2dbf5'
+                                                    }}>
+                                                        {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '16px' }}>
                                                     {s.first_aid_status}
                                                 </td>
                                                 <td style={{ padding: '16px', fontFamily: 'monospace' }}>
@@ -475,7 +506,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
                             <div>
                                 <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Status</span>
                                 <div style={{ marginTop: '2px' }}>
@@ -511,6 +542,14 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     </span>
                                 </div>
                             </div>
+                            {type === 'expedition' && (
+                                <div>
+                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Expedition</span>
+                                    <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
+                                    </div>
+                                </div>
+                            )}
                             <div>
                                 <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Unit</span>
                                 <div style={{ fontSize: '13px', fontWeight: '500', marginTop: '2px' }}>{selectedSignup.unit_name}</div>
@@ -573,78 +612,61 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                         {renderPriorCompletions(selectedSignup)}
                                     </div>
                                 </div>
+
+                                <div>
+                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Payment Status</span>
+                                    <div style={{ marginTop: '2px' }}>
+                                        <span style={{
+                                            display: 'inline-block',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            textTransform: 'uppercase',
+                                            background: selectedSignup.payment_status === 'paid' ? '#e5f8eb' : '#fcf0f1',
+                                            color: selectedSignup.payment_status === 'paid' ? '#00a32a' : '#d63638',
+                                            border: `1px solid ${selectedSignup.payment_status === 'paid' ? '#a3e2b2' : '#f5c2c3'}`
+                                        }}>
+                                            {selectedSignup.payment_status === 'paid' ? 'Paid' : selectedSignup.payment_status === 'failed' ? 'Failed' : 'Pending'}
+                                        </span>
+                                    </div>
+                                </div>
                             </>
                         )}
 
-                        <div>
-                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Explorer Email</span>
-                            <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.explorer_email || '—'}</div>
-                        </div>
-
-                        <div>
-                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Parent Email</span>
-                            <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.parent_email || '—'}</div>
-                        </div>
-
-                        <div>
-                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Leader Email</span>
-                            <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.leader_email || '—'}</div>
-                        </div>
-
-                        <div>
-                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Payment Status</span>
-                            <div style={{ marginTop: '2px' }}>
-                                <span style={{
-                                    display: 'inline-block',
-                                    padding: '2px 8px',
-                                    borderRadius: '12px',
-                                    fontSize: '11px',
-                                    fontWeight: 'bold',
-                                    textTransform: 'uppercase',
-                                    background: selectedSignup.payment_status === 'paid' ? '#e5f8eb' : '#fcf0f1',
-                                    color: selectedSignup.payment_status === 'paid' ? '#00a32a' : '#d63638',
-                                    border: `1px solid ${selectedSignup.payment_status === 'paid' ? '#a3e2b2' : '#f5c2c3'}`
-                                }}>
-                                    {selectedSignup.payment_status === 'paid' ? 'Paid' : selectedSignup.payment_status === 'failed' ? 'Failed' : 'Pending'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Submission ID</span>
-                                <div style={{ fontSize: '13px', marginTop: '2px' }}>#{selectedSignup.form_submission_id || '—'}</div>
-                            </div>
-                            <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Submitted At</span>
-                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.created_at || '—'}</div>
-                            </div>
-                        </div>
-
+                        {/* Expedition Specific Content */}
                         {type === 'expedition' && (
                             <>
                                 <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>First Aid Status</span>
-                                    <div style={{ fontSize: '13px', marginTop: '2px', fontWeight: '500' }}>{selectedSignup.first_aid_status}</div>
+                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>eDofE Number</span>
+                                    <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '2px', fontFamily: 'monospace' }}>{selectedSignup.dofe_number || '—'}</div>
                                 </div>
-                                {selectedSignup.first_aid_expiry && (
-                                    <div>
-                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>First Aid Expiry</span>
-                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.first_aid_expiry}</div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>First Aid Status</span>
+                                        <div style={{ fontSize: '13px', marginTop: '2px', fontWeight: '500' }}>{selectedSignup.first_aid_status}</div>
                                     </div>
-                                )}
+                                    {selectedSignup.first_aid_expiry && (
+                                        <div style={{ flex: 1 }}>
+                                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>First Aid Expiry</span>
+                                            <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.first_aid_expiry}</div>
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div>
                                     <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Additional Support Needs</span>
                                     <div style={{ fontSize: '13px', marginTop: '4px', padding: '10px', background: '#f6f7f7', border: '1px solid #ccd0d4', borderRadius: '4px', fontStyle: 'italic' }}>
                                         {selectedSignup.additional_support_needs || 'None declared.'}
                                     </div>
                                 </div>
+
                                 <div>
                                     <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Expedition Preferences</span>
                                     <div style={{ fontSize: '12px', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {selectedSignup.expedition_preferences ? (
                                             <>
-                                                <div><strong>Type:</strong> {selectedSignup.expedition_preferences.exped_type || '—'}</div>
                                                 <div><strong>Practice Dates:</strong> {selectedSignup.expedition_preferences.exped_practice_dates || '—'}</div>
                                                 <div><strong>Qualifier Dates:</strong> {selectedSignup.expedition_preferences.exped_qualifier_dates || '—'}</div>
                                                 <div><strong>Teammates:</strong> {selectedSignup.expedition_preferences.exped_team_names || '—'}</div>
@@ -656,6 +678,36 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                 </div>
                             </>
                         )}
+
+                        {/* Emails Block (rendered just above Submission Info) */}
+                        <div style={{ borderTop: '1px dashed #ccd0d4', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Explorer Email</span>
+                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.explorer_email || '—'}</div>
+                            </div>
+
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Parent Email</span>
+                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.parent_email || '—'}</div>
+                            </div>
+
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Leader Email</span>
+                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.leader_email || '—'}</div>
+                            </div>
+                        </div>
+
+                        {/* Submission ID & Date Block (rendered at bottom) */}
+                        <div style={{ borderTop: '1px dashed #ccd0d4', paddingTop: '16px', display: 'flex', justifyContent: 'space-between' }}>
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Submission ID</span>
+                                <div style={{ fontSize: '13px', marginTop: '2px' }}>#{selectedSignup.form_submission_id || '—'}</div>
+                            </div>
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Submitted At</span>
+                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.created_at || '—'}</div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Actions Footer */}
@@ -673,24 +725,13 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         </div>
                         <div style={{ display: 'flex', gap: '6px' }}>
                             <button onClick={() => setSelectedSignup(null)} className="button">Close</button>
-                            {type === 'participant' ? (
-                                selectedSignup.signup_status === 'received' && (
-                                    <button 
-                                        onClick={() => handleProcessParticipant(selectedSignup.id, editedDofeNumber)}
-                                        className="button button-primary"
-                                    >
-                                        Allocate Slot
-                                    </button>
-                                )
-                            ) : (
-                                selectedSignup.signup_status === 'pending' && (
-                                    <button 
-                                        onClick={() => handleProcessExpedition(selectedSignup.id)}
-                                        className="button button-primary"
-                                    >
-                                        Process Entry
-                                    </button>
-                                )
+                            {type === 'participant' && selectedSignup.signup_status === 'received' && (
+                                <button 
+                                    onClick={() => handleProcessParticipant(selectedSignup.id, editedDofeNumber)}
+                                    className="button button-primary"
+                                >
+                                    Allocate Slot
+                                </button>
                             )}
                         </div>
                     </div>
