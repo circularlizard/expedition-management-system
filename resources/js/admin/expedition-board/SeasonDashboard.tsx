@@ -55,8 +55,8 @@ export const SeasonDashboard: React.FC<SeasonDashboardProps> = ({ data, osmEvent
 
     return (
         <div className="ems-season-dashboard">
-            <div className="ems-board-filters" style={{ marginBottom: '16px', padding: '12px', background: '#fff', border: '1px solid #ddd', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <label style={{ fontWeight: 600 }}>Filter expeditions:</label>
+            <div className="ems-board-filters ems-season-filter-bar">
+                <label className="ems-season-filter-label">Filter expeditions:</label>
                 <select aria-label="Filter by type" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
                     <option value="">All types</option>
                     <option value="training">Training</option>
@@ -159,15 +159,14 @@ const SeasonCard: React.FC<{
     const canDeleteSeason = season.events.length === 0;
 
     return (
-        <div className="ems-season-card" style={{ marginBottom: '24px', border: '1px solid #ddd', padding: '16px', background: '#fff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ margin: 0 }}>{seasonTitle(season)}</h2>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="ems-season-card">
+            <div className="ems-season-header">
+                <h2 className="ems-season-title">{seasonTitle(season)}</h2>
+                <div className="ems-season-actions">
                     {canDeleteSeason && (
                         <button
                             type="button"
-                            className="button-link"
-                            style={{ color: '#d63638' }}
+                            className="button-link ems-btn-danger"
                             onClick={deleteSeason}
                             disabled={deleting}
                             aria-label={`Delete season ${seasonTitle(season)}`}
@@ -186,7 +185,7 @@ const SeasonCard: React.FC<{
             </div>
 
             {showEventForm && (
-                <div style={{ margin: '12px 0' }}>
+                <div className="ems-event-form-container">
                     <EventForm
                         seasonId={season.ID}
                         osmEvents={osmEvents}
@@ -308,44 +307,42 @@ const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explor
     ].filter(Boolean);
 
     return (
-        <div className="ems-event-card" style={{ marginBottom: '12px', border: '1px solid #eee', padding: '12px', background: '#fff' }}>
+        <div className="ems-event-card ems-event-card-wrapper">
             <div
-                className="ems-event-header"
+                className={`ems-event-header ems-event-card-header ems-event-header--${event.ems_level || 'default'}`}
                 onClick={onToggle}
-                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', padding: '10px 12px', margin: '-12px -12px 12px -12px', background: eventHeaderBackground(event.ems_level), borderBottom: '1px solid #eee' }}
                 data-testid={`event-header-${event.ID}`}
                 aria-expanded={expanded}
             >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: '1', minWidth: 0 }}>
-                    <span style={{ fontSize: '14px', color: '#666', marginTop: '3px', flexShrink: 0 }} aria-hidden="true">
+                <div className="ems-event-header__content">
+                    <span className="ems-event-header__toggle" aria-hidden="true">
                         {expanded ? '▾' : '▸'}
                     </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                            <strong style={{ fontSize: '17px' }}>{event.post_title || 'Untitled expedition'} ({event.ems_event_code})</strong>
+                    <div className="ems-event-header__info">
+                        <div className="ems-event-header__title-row">
+                            <strong className="ems-event-header__title">{event.post_title || 'Untitled expedition'} ({event.ems_event_code})</strong>
                             {dateRange && (
-                                <span style={{ fontSize: '15px', color: '#333', fontWeight: 500 }}>
+                                <span className="ems-event-header__date">
                                     {dateRange}
                                 </span>
                             )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px' }}>
-                            <span style={typePillStyle(event.ems_type)}>{typeIcon(event.ems_type)}</span>
-                            <span style={transportPillStyle(event.ems_transport)}>{transportIcon(event.ems_transport)}</span>
-                            <span style={levelPillStyle(event.ems_level)}>{levelIcon(event.ems_level)}</span>
-                            <span style={firstAidPillStyle(event.ems_first_aid_level)}>{firstAidIcon(event.ems_first_aid_level)}</span>
-                            <span style={{ color: '#666' }}>{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}, {event.member_count ?? 0} member{(event.member_count ?? 0) !== 1 ? 's' : ''}</span>
+                        <div className="ems-event-header__pills">
+                            <span className={`ems-pill ems-pill--${event.ems_type}`}>{typeIcon(event.ems_type)}</span>
+                            <span className={`ems-pill ems-pill--${event.ems_transport}`}>{transportIcon(event.ems_transport)}</span>
+                            <span className={`ems-pill ems-pill--${event.ems_level}`}>{levelIcon(event.ems_level)}</span>
+                            <span className={`ems-pill ems-pill--fa-${event.ems_first_aid_level || 'none'}`}>{firstAidIcon(event.ems_first_aid_level)}</span>
+                            <span className="ems-event-header__counts">{event.teams.length} team{event.teams.length !== 1 ? 's' : ''}, {event.member_count ?? 0} member{(event.member_count ?? 0) !== 1 ? 's' : ''}</span>
                         </div>
                     </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <div className="ems-event-header__actions">
                     {canDeleteEvent && (
                         <button
                             type="button"
-                            className="button-link"
+                            className="button-link ems-btn-danger"
                             onClick={deleteEvent}
                             disabled={busy}
-                            style={{ color: '#d63638', fontSize: '12px' }}
                             aria-label={`Delete expedition ${event.post_title}`}
                         >
                             Delete
@@ -355,21 +352,20 @@ const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explor
                         type="button"
                         className="button"
                         onClick={handleEdit}
-                        style={{ fontSize: '12px' }}
                     >
                         Edit
                     </button>
                 </div>
             </div>
             {metaItems.length > 0 && (
-                <div className="ems-event-meta" style={{ marginBottom: '12px', fontSize: '12px', color: '#666', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <div className="ems-event-meta ems-event-meta-row">
                     {metaItems.map((item, index) => (
                         <span key={index}>{item}</span>
                     ))}
                 </div>
             )}
             {isEditing && event.season_id && (
-                <div className="ems-event-edit" style={{ marginTop: '12px' }}>
+                <div className="ems-event-edit ems-event-edit-container">
                     <EventForm
                         seasonId={event.season_id}
                         initialEvent={event}
@@ -392,14 +388,14 @@ const EventCard: React.FC<{ season: Season; event: Expedition; explorers: Explor
                 </div>
             )}
             {expanded && !isEditing && (
-                <div className="ems-event-teams" style={{ marginTop: '16px' }}>
-                    <div style={{ marginBottom: '12px' }}>
+                <div className="ems-event-teams ems-event-teams-section">
+                    <div className="ems-event-teams__actions">
                         <button type="button" className="button" onClick={addTeam} disabled={busy}>+ Add Team</button>
                     </div>
                     {event.teams.length === 0 ? (
                         <p>No teams in this event.</p>
                     ) : (
-                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                        <div className="ems-team-columns">
                             {event.teams.map((team) => (
                                 <TeamColumn key={team.ID} team={team} event={event} season={season} explorers={explorers} updateBoard={updateBoard} />
                             ))}
@@ -664,25 +660,24 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
     })();
 
     return (
-        <div className="ems-team-column" style={{ flex: '1 1 200px', minWidth: '180px', maxWidth: '260px', border: '1px solid #eee', background: '#fafafa' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#f0f0f0', borderBottom: '1px solid #eee', fontWeight: 600 }}>
+        <div className="ems-team-column">
+            <div className="ems-team-column__header">
                 <span>{team.ems_team_code}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span className="ems-team-column__actions">
                     {members.length}
                     {team.size_warning && (
-                        <span className="ems-size-warning" title="Team size outside 4–7" style={{ color: '#d63638', fontWeight: 'bold' }}>
+                        <span className="ems-size-warning" title="Team size outside 4–7">
                             !
                         </span>
                     )}
                     {firstAidWarning && (
-                        <span className="ems-first-aid-warning" title="Fewer than 2 qualified first aiders" style={{ color: '#d63638', fontWeight: 'bold' }}>
+                        <span className="ems-first-aid-warning" title="Fewer than 2 qualified first aiders">
                             ⚕
                         </span>
                     )}
                     <button
                         type="button"
-                        className="button-link"
-                        style={{ fontSize: '14px', lineHeight: 1, padding: '0 3px' }}
+                        className="button-link ems-team-icon-btn"
                         title="Move team to another event"
                         aria-label={`Move team ${team.ems_team_code} to another event`}
                         onClick={() => { setDialog('moveTeam'); setTargetEventId(''); }}
@@ -692,8 +687,7 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                     </button>
                     <button
                         type="button"
-                        className="button-link"
-                        style={{ fontSize: '14px', lineHeight: 1, padding: '0 3px' }}
+                        className="button-link ems-team-icon-btn"
                         title="Duplicate team to another event"
                         aria-label={`Duplicate team ${team.ems_team_code} to another event`}
                         onClick={() => { setDialog('duplicateTeam'); setTargetEventId(''); }}
@@ -702,37 +696,36 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                         ⧺
                     </button>
                     {members.length === 0 && (
-                        <button type="button" className="button-link" style={{ color: '#d63638', fontSize: '12px' }} onClick={deleteTeam} disabled={busy} aria-label={`Delete team ${team.ems_team_code}`}>
+                        <button type="button" className="button-link ems-team-icon-btn--danger" onClick={deleteTeam} disabled={busy} aria-label={`Delete team ${team.ems_team_code}`}>
                             ×
                         </button>
                     )}
                 </span>
             </div>
-            <div style={{ padding: '10px' }}>
+            <div className="ems-team-column__body">
                 {firstAidWarning && (
-                    <div className="ems-first-aid-alert" style={{ marginBottom: '10px', padding: '6px 8px', background: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', borderRadius: '4px', fontSize: '12px', fontWeight: 500 }}>
+                    <div className="ems-first-aid-alert">
                         ⚠ First aid requirement not met
                     </div>
                 )}
                 {team.size_warning && (
-                    <div className="ems-size-alert" style={{ marginBottom: '10px', padding: '6px 8px', background: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '4px', fontSize: '12px', fontWeight: 500 }}>
+                    <div className="ems-size-alert">
                         ⚠ Team size requirement not met
                     </div>
                 )}
-                <ul style={{ margin: '0 0 12px 0', padding: 0, listStyle: 'none' }}>
+                <ul className="ems-team-member-list">
                     {sortedMembers.map((member) => (
-                        <li key={member.scout_id ?? member.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', gap: '6px' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {member.first_aid_level === 'first_response' && <span title="First Response" style={{ color: '#2e7d32', fontWeight: 'bold' }}>✚</span>}
-                                {member.first_aid_level === 'full_first_aid' && <span title="Full First Aid" style={{ color: '#2e7d32', fontWeight: 'bold' }}>⊕</span>}
+                        <li key={member.scout_id ?? member.user_id} className="ems-team-member__item">
+                            <span className="ems-team-member__name">
+                                {member.first_aid_level === 'first_response' && <span className="ems-fa-icon-response" title="First Response">✚</span>}
+                                {member.first_aid_level === 'full_first_aid' && <span className="ems-fa-icon-full" title="Full First Aid">⊕</span>}
                                 {member.first_name} {member.last_name}
-                                {member.patrol && <span style={{ fontSize: '11px', color: '#888' }}>({member.patrol})</span>}
+                                {member.patrol && <span className="ems-team-member__patrol">({member.patrol})</span>}
                             </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            <span className="ems-team-member__actions">
                                 <button
                                     type="button"
-                                    className="button-link"
-                                    style={{ color: '#666', fontSize: '14px', lineHeight: 1, padding: '0 3px' }}
+                                    className="button-link ems-member-move-btn"
                                     title="Move explorer to another team"
                                     aria-label={`Move ${member.first_name} ${member.last_name} to another team`}
                                     onClick={() => { setSelectedMember(member); setDialog('moveExplorer'); setTargetTeamId(''); }}
@@ -742,8 +735,7 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                                 </button>
                                 <button
                                     type="button"
-                                    className="button-link"
-                                    style={{ color: '#d63638', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}
+                                    className="button-link ems-member-remove-btn"
                                     aria-label={`Remove ${member.first_name} ${member.last_name}`}
                                     onClick={() => removeMember(member.scout_id ?? 0)}
                                     disabled={busy}
@@ -754,12 +746,12 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                         </li>
                     ))}
                 </ul>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div className="ems-explorer-add">
                     <select
                         aria-label={`Add explorer to ${team.ems_team_code}`}
+                        className="ems-explorer-add__select"
                         value={selected}
                         onChange={(e) => setSelected(e.target.value)}
-                        style={{ maxWidth: '100%', flex: '1 1 auto' }}
                     >
                         <option value="">Add…</option>
                         {available.map((e) => (
@@ -772,22 +764,22 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                 </div>
 
                 {dialog && (
-                    <div className="ems-team-dialog" style={{ marginTop: '12px', padding: '8px', border: '1px solid #ccd0d4', borderRadius: '4px', background: '#f6f7f7', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                    <div className="ems-team-dialog">
                         {dialog === 'moveTeam' && (
                             <>
-                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#3c434a', marginBottom: '4px' }}>
+                                <div className="ems-team-dialog__label">
                                     Move Team to Event:
                                 </div>
-                                <select 
-                                    value={targetEventId} 
-                                    onChange={(e) => setTargetEventId(e.target.value)} 
-                                    style={{ display: 'block', width: '100%', fontSize: '12px', height: '28px', padding: '2px 6px', marginBottom: '6px' }}
+                                <select
+                                    className="ems-team-dialog__select"
+                                    value={targetEventId}
+                                    onChange={(e) => setTargetEventId(e.target.value)}
                                 >
                                     <option value="">— Select event —</option>
                                     {targetEvents.map((e) => (<option key={e.ID} value={e.ID}>{e.ems_event_code}</option>))}
                                 </select>
-                                {preview && <p style={{ fontSize: '11px', color: '#666', margin: '0 0 6px 0', fontStyle: 'italic' }}>Re-coded to: {preview}</p>}
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                {preview && <p className="ems-team-dialog__preview">Re-coded to: {preview}</p>}
+                                <div className="ems-team-dialog__actions">
                                     <button type="button" className="button button-small" onClick={closeDialog} disabled={busy}>Cancel</button>
                                     <button type="button" className="button button-small button-primary" onClick={moveTeam} disabled={busy || !targetEvent}>Move</button>
                                 </div>
@@ -795,19 +787,19 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                         )}
                         {dialog === 'duplicateTeam' && (
                             <>
-                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#3c434a', marginBottom: '4px' }}>
+                                <div className="ems-team-dialog__label">
                                     Duplicate Team to Event:
                                 </div>
-                                <select 
-                                    value={targetEventId} 
-                                    onChange={(e) => setTargetEventId(e.target.value)} 
-                                    style={{ display: 'block', width: '100%', fontSize: '12px', height: '28px', padding: '2px 6px', marginBottom: '6px' }}
+                                <select
+                                    className="ems-team-dialog__select"
+                                    value={targetEventId}
+                                    onChange={(e) => setTargetEventId(e.target.value)}
                                 >
                                     <option value="">— Select event —</option>
                                     {targetEvents.map((e) => (<option key={e.ID} value={e.ID}>{e.ems_event_code}</option>))}
                                 </select>
-                                {preview && <p style={{ fontSize: '11px', color: '#666', margin: '0 0 6px 0', fontStyle: 'italic' }}>New team code: {preview}</p>}
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                {preview && <p className="ems-team-dialog__preview">New team code: {preview}</p>}
+                                <div className="ems-team-dialog__actions">
                                     <button type="button" className="button button-small" onClick={closeDialog} disabled={busy}>Cancel</button>
                                     <button type="button" className="button button-small button-primary" onClick={duplicateTeam} disabled={busy || !targetEvent}>Duplicate</button>
                                 </div>
@@ -815,21 +807,21 @@ const TeamColumn: React.FC<{ team: Team; event: Expedition; season: Season; expl
                         )}
                         {dialog === 'moveExplorer' && selectedMember && (
                             <>
-                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#3c434a', marginBottom: '2px' }}>
+                                <div className="ems-team-dialog__label ems-team-dialog__label--mt-2">
                                     Move explorer:
                                 </div>
-                                <div style={{ fontSize: '11px', color: '#666', marginBottom: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <div className="ems-team-dialog__explorer">
                                     {selectedMember.first_name} {selectedMember.last_name}
                                 </div>
-                                <select 
-                                    value={targetTeamId} 
-                                    onChange={(e) => setTargetTeamId(e.target.value)} 
-                                    style={{ display: 'block', width: '100%', fontSize: '12px', height: '28px', padding: '2px 6px', marginBottom: '6px' }}
+                                <select
+                                    className="ems-team-dialog__select"
+                                    value={targetTeamId}
+                                    onChange={(e) => setTargetTeamId(e.target.value)}
                                 >
                                     <option value="">— Select team —</option>
                                     {explorerTargetTeams.map((t) => (<option key={t.ID} value={t.ID}>{t.ems_team_code}</option>))}
                                 </select>
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                <div className="ems-team-dialog__actions">
                                     <button type="button" className="button button-small" onClick={closeDialog} disabled={busy}>Cancel</button>
                                     <button type="button" className="button button-small button-primary" onClick={moveExplorer} disabled={busy || !targetTeamId}>Move</button>
                                 </div>
