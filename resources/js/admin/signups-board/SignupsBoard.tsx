@@ -408,13 +408,13 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                             <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
                                         </td>
                                         <td>
-                                            <span className={`ems-signups-level-pill ems-signups-level-pill--${s.dofe_level}`}>
+                                            <span className={`ems-pill ems-pill--${s.dofe_level}`}>
                                                 {s.dofe_level}
                                             </span>
                                         </td>
                                         {type === 'expedition' && (
                                             <td>
-                                                <span className="ems-signups-type-badge">
+                                                <span className={`ems-pill ems-pill--${(s.expedition_preferences?.exped_type || '').toLowerCase()}`}>
                                                     {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
                                                 </span>
                                             </td>
@@ -439,7 +439,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                                      )}
                                                  </td>
                                                 <td>
-                                                    <span className={`ems-signups-status-badge ems-signups-status-badge--${s.signup_status}`}>
+                                                    <span className={`ems-status-badge ems-status-badge--${s.signup_status}`}>
                                                         {s.signup_status}
                                                     </span>
                                                 </td>
@@ -517,7 +517,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             <div>
                                 <span className="ems-signups-inspector__label">Status</span>
                                 <div className="ems-mt-4">
-                                    <span className={`ems-signups-status-badge ems-signups-status-badge--${selectedSignup.signup_status}`}>
+                                    <span className={`ems-status-badge ems-status-badge--${selectedSignup.signup_status}`}>
                                         {selectedSignup.signup_status}
                                     </span>
                                 </div>
@@ -525,7 +525,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             <div>
                                 <span className="ems-signups-inspector__label">Level</span>
                                 <div className="ems-mt-4">
-                                    <span className={`ems-signups-level-pill ems-signups-level-pill--${selectedSignup.dofe_level}`}>
+                                    <span className={`ems-pill ems-pill--${selectedSignup.dofe_level}`}>
                                         {selectedSignup.dofe_level}
                                     </span>
                                 </div>
@@ -533,8 +533,10 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             {type === 'expedition' && (
                                 <div>
                                     <span className="ems-signups-inspector__label">Expedition</span>
-                                    <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4 ems-flex-center ems-gap-4">
-                                        {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
+                                    <div className="ems-mt-4">
+                                        <span className={`ems-pill ems-pill--${(selectedSignup.expedition_preferences?.exped_type || '').toLowerCase()}`}>
+                                            {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
+                                        </span>
                                     </div>
                                 </div>
                             )}
@@ -592,7 +594,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                 <div>
                                     <span className="ems-signups-inspector__label">Payment Status</span>
                                     <div className="ems-mt-4">
-                                        <span className={`ems-signups-payment-badge ems-signups-payment-badge--${selectedSignup.payment_status}`}>
+                                        <span className={`ems-status-badge ems-status-badge--${selectedSignup.payment_status}`}>
                                             {selectedSignup.payment_status === 'paid' ? 'Paid' : selectedSignup.payment_status === 'failed' ? 'Failed' : 'Pending'}
                                         </span>
                                     </div>

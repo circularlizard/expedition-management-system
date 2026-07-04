@@ -1884,14 +1884,42 @@
 }
 
 /* Status badge modifiers */
-.ems-status-badge--active {
+.ems-status-badge--active,
+.ems-status-badge--open,
+.ems-status-badge--allocated,
+.ems-status-badge--processed,
+.ems-status-badge--paid {
     background: #d1fae5;
     color: #065f46;
 }
 
-.ems-status-badge--archived {
+.ems-status-badge--archived,
+.ems-status-badge--completed {
     background: #f3f4f6;
     color: #6b7280;
+}
+
+.ems-status-badge--draft,
+.ems-status-badge--pending,
+.ems-status-badge--received {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.ems-status-badge--failed,
+.ems-status-badge--rejected {
+    background: #fdf2f2;
+    color: #b91c1c;
+}
+
+.ems-status-badge--planning {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.ems-status-badge--confirmed {
+    background: #c7d2fe;
+    color: #3730a3;
 }
 
 /* Event detail header area */
@@ -2484,107 +2512,6 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
 }
 
-/* Signup Table Level Badges */
-.ems-signups-level-pill {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: bold;
-    text-transform: uppercase;
-    border: 1px solid transparent;
-}
-.ems-signups-level-pill--bronze {
-    background: #fbf0e6;
-    color: #c86f26;
-    border-color: #f5d3b3;
-}
-.ems-signups-level-pill--silver {
-    background: #f0f0f1;
-    color: #50575e;
-    border-color: #dcdcde;
-}
-.ems-signups-level-pill--gold {
-    background: #fef8e2;
-    color: #b28900;
-    border-color: #f8e39d;
-}
-
-/* Signup Table Expedition Type Badges */
-.ems-signups-type-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: bold;
-    text-transform: uppercase;
-    background: #f0f6fc;
-    color: #00438a;
-    border: 1px solid #c2dbf5;
-    white-space: nowrap;
-}
-
-/* Signup Transfer Warning */
-.ems-signups-transfer-warning {
-    font-size: 10px;
-    color: #d63638;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-top: 2px;
-    font-family: sans-serif;
-}
-
-/* Signup Status Badges */
-.ems-signups-status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: bold;
-    text-transform: uppercase;
-    border: 1px solid transparent;
-}
-.ems-signups-status-badge--allocated,
-.ems-signups-status-badge--processed {
-    background: #e5f8eb;
-    color: #00a32a;
-    border-color: #a3e2b2;
-}
-.ems-signups-status-badge--archived {
-    background: #f5f5f5;
-    color: #646970;
-    border-color: #dcdcde;
-}
-.ems-signups-status-badge--pending,
-.ems-signups-status-badge--received {
-    background: #fef8e2;
-    color: #b28900;
-    border-color: #f8e39d;
-}
-
-/* Payment Status Badges */
-.ems-signups-payment-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: bold;
-    text-transform: uppercase;
-    border: 1px solid transparent;
-}
-.ems-signups-payment-badge--paid {
-    background: #e5f8eb;
-    color: #00a32a;
-    border-color: #a3e2b2;
-}
-.ems-signups-payment-badge--pending,
-.ems-signups-payment-badge--failed {
-    background: #fcf0f1;
-    color: #d63638;
-    border-color: #f5c2c3;
-}
 
 /* Slide-out Inspector Panel */
 .ems-signups-inspector {
