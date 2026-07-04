@@ -150,12 +150,12 @@ class Signup_Repository {
         return $p_result !== false;
     }
 
-    /**
-     * Get participant signups filtered by status
-     */
     public function get_participant_signups( string $status = 'all' ): array {
         if ( $status === 'all' ) {
-            $sql = "SELECT * FROM {$this->wpdb->prefix}ems_participant_signups ORDER BY created_at DESC";
+            $sql = "SELECT p.*, (o.scout_id IS NOT NULL) AS is_synced_osm 
+                    FROM {$this->wpdb->prefix}ems_participant_signups p
+                    LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON p.scout_id = o.scout_id
+                    ORDER BY p.created_at DESC";
             return $this->wpdb->get_results( $sql, ARRAY_A ) ?: [];
         }
 
@@ -166,7 +166,11 @@ class Signup_Repository {
             $db_status = 'archived';
         }
 
-        $sql = "SELECT * FROM {$this->wpdb->prefix}ems_participant_signups WHERE signup_status = %s ORDER BY created_at DESC";
+        $sql = "SELECT p.*, (o.scout_id IS NOT NULL) AS is_synced_osm 
+                FROM {$this->wpdb->prefix}ems_participant_signups p
+                LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON p.scout_id = o.scout_id
+                WHERE p.signup_status = %s 
+                ORDER BY p.created_at DESC";
         return $this->wpdb->get_results( $this->wpdb->prepare( $sql, $db_status ), ARRAY_A ) ?: [];
     }
 
@@ -183,10 +187,11 @@ class Signup_Repository {
                 WHERE dofe_number IS NOT NULL AND dofe_number != ''
                 GROUP BY scout_id
             ) p2 ON p1.id = p2.max_id
-        ) p ON e.scout_id = p.scout_id";
+        ) p ON e.scout_id = p.scout_id
+        LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON e.scout_id = o.scout_id";
 
         if ( $status === 'all' ) {
-            $sql = "SELECT e.*, p.dofe_number 
+            $sql = "SELECT e.*, p.dofe_number, (o.scout_id IS NOT NULL) AS is_synced_osm 
                     FROM {$this->wpdb->prefix}ems_expedition_signups e 
                     {$join_sql}
                     ORDER BY e.created_at DESC";
@@ -198,7 +203,7 @@ class Signup_Repository {
             $db_status = 'archived';
         }
 
-        $sql = "SELECT e.*, p.dofe_number 
+        $sql = "SELECT e.*, p.dofe_number, (o.scout_id IS NOT NULL) AS is_synced_osm 
                 FROM {$this->wpdb->prefix}ems_expedition_signups e 
                 {$join_sql}
                 WHERE e.signup_status = %s 
