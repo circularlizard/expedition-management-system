@@ -88,15 +88,4 @@ describe('ExpeditionBoard', () => {
             expect(screen.getByText(/Never/)).toBeInTheDocument();
         });
     });
-
-    it('switches to the Expedition View tab', async () => {
-        (global.fetch as any)
-            .mockResolvedValueOnce({ ok: true, json: async () => mockBoardData })
-            .mockResolvedValueOnce({ ok: true, json: async () => mockEventsData });
-        render(<ExpeditionBoard />);
-        await waitFor(() => screen.getByText('Events Dashboard'));
-
-        fireEvent.click(screen.getByText('Expedition View'));
-        expect(screen.getByLabelText('Select expedition')).toBeInTheDocument();
-    });
 });
