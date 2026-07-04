@@ -1453,3 +1453,387 @@
     text-align: center;
 }
 
+/* ─── Phase 3: SeasonDashboard ──────────────────────────────────────────────── */
+
+/* Season filter bar */
+.ems-season-filter-bar {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #ddd;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ems-season-filter-label {
+    font-weight: 600;
+}
+
+/* Season card */
+.ems-season-card {
+    margin-bottom: 24px;
+    border: 1px solid #ddd;
+    padding: 16px;
+    background: #fff;
+}
+
+/* Season header row */
+.ems-season-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.ems-season-title {
+    margin: 0;
+}
+
+.ems-season-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ems-btn-danger {
+    color: #d63638;
+}
+
+/* Event form container */
+.ems-event-form-container {
+    margin: 12px 0;
+}
+
+/* Event card wrapper */
+.ems-event-card-wrapper {
+    margin-bottom: 12px;
+    border: 1px solid #eee;
+    padding: 12px;
+    background: #fff;
+}
+
+/* Event card header */
+.ems-event-card-header {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    margin: -12px -12px 12px -12px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Level-based header backgrounds */
+.ems-event-header--bronze {
+    background: #f9f0e8;
+}
+
+.ems-event-header--silver {
+    background: #f2f2f2;
+}
+
+.ems-event-header--gold {
+    background: #fff9e6;
+}
+
+.ems-event-header--default {
+    background: #f7f7f7;
+}
+
+/* Event header content area */
+.ems-event-header__content {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.ems-event-header__toggle {
+    font-size: 14px;
+    color: #666;
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.ems-event-header__info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.ems-event-header__title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ems-event-header__title {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.ems-event-header__date {
+    font-size: 15px;
+    color: #333;
+    font-weight: 500;
+}
+
+.ems-event-header__pills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+}
+
+.ems-event-header__counts {
+    color: #666;
+}
+
+.ems-event-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Event metadata row */
+.ems-event-meta-row {
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: #666;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Event edit container */
+.ems-event-edit-container {
+    margin-top: 12px;
+}
+
+/* Event teams section */
+.ems-event-teams-section {
+    margin-top: 16px;
+}
+
+.ems-event-teams__actions {
+    margin-bottom: 12px;
+}
+
+.ems-team-columns {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+/* Team column */
+.ems-team-column {
+    flex: 1 1 200px;
+    min-width: 180px;
+    max-width: 260px;
+    border: 1px solid #eee;
+    background: #fafafa;
+}
+
+/* Team column header */
+.ems-team-column__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+}
+
+.ems-team-column__actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Size warning icon */
+.ems-size-warning {
+    color: #d63638;
+    font-weight: bold;
+}
+
+/* First aid warning icon */
+.ems-first-aid-warning {
+    color: #d63638;
+    font-weight: bold;
+}
+
+/* Team icon buttons */
+.ems-team-icon-btn {
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 3px;
+}
+
+.ems-team-icon-btn--danger {
+    color: #d63638;
+    font-size: 12px;
+}
+
+/* Team column body */
+.ems-team-column__body {
+    padding: 10px;
+}
+
+/* First aid alert banner */
+.ems-first-aid-alert {
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Size alert banner */
+.ems-size-alert {
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Team member list */
+.ems-team-member-list {
+    margin: 0 0 12px 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ems-team-member__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    gap: 6px;
+}
+
+.ems-team-member__name {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ems-team-member__patrol {
+    font-size: 11px;
+    color: #888;
+}
+
+.ems-team-member__actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* First aid icons in member list */
+.ems-fa-icon-response {
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+.ems-fa-icon-full {
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+/* Member action buttons */
+.ems-member-move-btn {
+    color: #666;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 3px;
+}
+
+.ems-member-remove-btn {
+    color: #d63638;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 4px;
+}
+
+/* Explorer add row */
+.ems-explorer-add {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ems-explorer-add__select {
+    max-width: 100%;
+    flex: 1 1 auto;
+}
+
+/* Team dialog */
+.ems-team-dialog {
+    margin-top: 12px;
+    padding: 8px;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    background: #f6f7f7;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.ems-team-dialog__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3c434a;
+    margin-bottom: 4px;
+}
+
+.ems-team-dialog__label--mt-2 {
+    margin-bottom: 2px;
+}
+
+.ems-team-dialog__select {
+    display: block;
+    width: 100%;
+    font-size: 12px;
+    height: 28px;
+    padding: 2px 6px;
+    margin-bottom: 6px;
+}
+
+.ems-team-dialog__preview {
+    font-size: 11px;
+    color: #666;
+    margin: 0 0 6px 0;
+    font-style: italic;
+}
+
+.ems-team-dialog__actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+}
+
+/* Explorer name in dialog */
+.ems-team-dialog__explorer {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
