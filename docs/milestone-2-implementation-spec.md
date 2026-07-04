@@ -216,6 +216,10 @@ Based on configuration alignment, the following design paths are established for
 *   **Decision**: Create a virtual team (CPT `team`) with the hardcoded name `Unallocated` and team code `UNALLOCATED` to act as the default unallocated pool for every event without changing the underlying `ems_team_members` relational schema.
 *   **Creation Trigger**: When a new event is created, the system must automatically create a linked `team` CPT post representing this roster.
 *   **Roster Cleanup**: When an event is deleted, the virtual `UNALLOCATED` team post is cleaned up alongside the event's regular teams.
+*   **Exclusion from Code Generation & Renumbering (Critical)**:
+    *   To prevent breaking sequential shortcode calculations and team renumbering, `Team_Repository` must exclude the virtual `UNALLOCATED` team from `list_by_expedition()`, `renumber_event()`, and `generate_next_code()`.
+    *   This is achieved by adding a meta query to exclude `ems_team_code = 'UNALLOCATED'` when querying active event teams.
+    *   A dedicated helper `get_unallocated_team_id(int $event_id)` will be added to the repository for retrieving the default unallocated roster.
 *   **UI Visibility**: The React app filters out the virtual team from standard "Teams" grids and renders its members inside the left-hand "Unallocated" sidebar roster.
 
 ### 8.5 QR Code Generator Library Selection
