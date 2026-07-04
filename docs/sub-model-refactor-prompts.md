@@ -106,9 +106,10 @@ Clean up the inline styles within the OSM member synchronization and reference t
 
 ---
 
-## Step 2.4: Refactor `EventPlanningBoard.tsx`
+## Step 2.4: Refactor `EventPlanningBoard.tsx` ✅ DONE
 
 **Target File**: `resources/js/admin/expedition-board/EventPlanningBoard.tsx`
+**Status**: Completed 2026-07-04. Commit: `73f2b38`.
 
 ### Objective
 Remove any remaining inline styles on the main planning board view.
