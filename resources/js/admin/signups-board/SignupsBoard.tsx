@@ -677,7 +677,6 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                 selectedSignup.signup_status === 'received' && (
                                     <button 
                                         onClick={() => handleProcessParticipant(selectedSignup.id, editedDofeNumber)}
-                                        disabled={selectedSignup.payment_status !== 'paid'}
                                         className="button button-primary"
                                     >
                                         Allocate Slot

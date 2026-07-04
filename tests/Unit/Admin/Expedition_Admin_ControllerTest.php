@@ -515,23 +515,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertTrue( $response->get_data()['processed'] );
     }
 
-    public function test_process_participant_signup_fails_if_unpaid(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
 
-        $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_participant_signup' )->with( 10 )->andReturn( [
-            'id' => 10,
-            'payment_status' => 'pending',
-            'signup_status' => 'received',
-        ] );
-
-        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
-        $request = new \WP_REST_Request();
-        $request->set_param( 'id', 10 );
-        $response = $controller->process_participant_signup( $request );
-
-        $this->assertSame( 400, $response->get_status() );
-    }
 
     public function test_archive_participant_signup_success(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
