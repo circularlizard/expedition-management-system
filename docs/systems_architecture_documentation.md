@@ -199,13 +199,38 @@ Cached Scout Explorer Units (mapped from OSM patrols).
 *   `name` / `short_code` (VARCHAR): Identification properties.
 *   `leader_first_name` / `leader_last_name` / `leader_email` (VARCHAR): Unit leader contact details (configured in EMS settings).
 
-#### H. Explorer Signups (`ems_signups`)
-DofE/Expedition registration records submitted via Fluent Forms.
-*   `scout_id` (BIGINT UNSIGNED, Nullable): Links to the synced explorer.
-*   `parent_user_id` (BIGINT UNSIGNED): The WordPress User ID of the submitting parent.
-*   `dofe_level` (VARCHAR): `bronze` | `silver` | `gold`
-*   `signup_status` / `payment_status` (VARCHAR): State flags.
-*   `form_submission_id` (BIGINT UNSIGNED): Submission record ID.
+#### H. Participant Signups (`ems_participant_signups`)
+DofE Participation Place registrations (Form 6) submitted via Fluent Forms.
+*   `scout_id` (BIGINT UNSIGNED): Synced explorer scout ID (link anchor).
+*   `parent_user_id` (BIGINT UNSIGNED): WordPress User ID of parent submitting.
+*   `unit_id` (BIGINT UNSIGNED, Nullable): Selected/detected ESU Unit ID.
+*   `unit_name` (VARCHAR): ESU Unit Name from form dropdown.
+*   `explorer_first_name` / `explorer_last_name` / `explorer_email` (VARCHAR): Explorer's details.
+*   `parent_email` / `leader_email` (VARCHAR): Parent and local unit leader emails.
+*   `dofe_level` (VARCHAR): `bronze` | `silver` | `gold`.
+*   `dob` (DATE, Nullable): Explorer's date of birth.
+*   `dofe_registered` (VARCHAR): `y`, `y-other`, `n` status.
+*   `dofe_number` / `dofe_org` (VARCHAR): Existing eDofE ID and other transferring organisation name.
+*   `bronze_completion` / `silver_completion` (TEXT): JSON of completed sections.
+*   `signup_status` / `payment_status` (VARCHAR): State flags (`received` | `allocated` | `archived`).
+*   `form_submission_id` (BIGINT UNSIGNED): Fluent Forms entry ID.
+
+#### I. Expedition Signups (`ems_expedition_signups`)
+Specific expedition event signup entries (Form 7) submitted via Fluent Forms.
+*   `scout_id` (BIGINT UNSIGNED): Synced explorer scout ID (link anchor).
+*   `parent_user_id` (BIGINT UNSIGNED): WordPress User ID of parent submitting.
+*   `unit_id` (BIGINT UNSIGNED, Nullable): ESU Unit ID.
+*   `unit_name` (VARCHAR): ESU Unit Name from form dropdown.
+*   `explorer_first_name` / `explorer_last_name` / `explorer_email` (VARCHAR): Explorer's details.
+*   `parent_email` / `leader_email` (VARCHAR): Parent and local unit leader emails.
+*   `dofe_level` (VARCHAR): `bronze` | `silver` | `gold`.
+*   `dofe_number` (VARCHAR, Nullable): eDofE ID number.
+*   `expedition_preferences` (TEXT): JSON string of type (`exped_type`), practice/qualifier dates, teammate list.
+*   `additional_support_needs` (TEXT): Travel/health details.
+*   `first_aid_status` (VARCHAR): `none`, `online`, `first-response`, `full-first-aid`.
+*   `first_aid_expiry` (DATE, Nullable): Qualification expiry date.
+*   `signup_status` / `payment_status` (VARCHAR): State flags (`pending` | `processed` | `archived`).
+*   `form_submission_id` (BIGINT UNSIGNED): Fluent Forms entry ID.
 
 ### 3.3 WordPress User Roles & Metadata
 EMS registers custom user roles managed via [Role_Manager](file:///Users/davidstrachan/Projects/expedition-management-system/src/Core/Role_Manager.php):
@@ -229,8 +254,10 @@ EMS stores global configurations in standard WP Options:
 *   `ems_osm_client_id` / `ems_osm_client_secret`: Enclosed OAuth parameters (secret is stored encrypted at rest using AES-256-CBC).
 *   `ems_osm_api_base_url` / `ems_osm_scope` / `ems_osm_auth_url` / `ems_osm_token_url`: OAuth endpoint roots.
 *   `ems_failed_pushback_queue`: Serialized array containing payloads of failed OSM writes.
-*   `ems_fluent_form_id`: The target ID of the Fluent Forms signup questionnaire.
-*   `ems_form_mappings`: Maps Fluent Form fields to database columns.
+*   `ems_fluent_participant_form_id`: The target ID of the Fluent Forms Participant Places signup questionnaire.
+*   `ems_fluent_expedition_form_id`: The target ID of the Fluent Forms Expedition signup questionnaire.
+*   `ems_participant_form_mappings`: Maps Fluent Form fields to `ems_participant_signups` columns.
+*   `ems_expedition_form_mappings`: Maps Fluent Form fields to `ems_expedition_signups` columns.
 
 ---
 
@@ -263,6 +290,12 @@ All endpoints are registered under the `/wp-json/ems/v1/` namespace. Endpoints v
 | `/events/{id}/training-requirements` | `GET` | `manage_options` | Lists mapped Tutor LMS course IDs required for the event. |
 | `/events/{id}/training-requirements` | `POST` | `manage_options` | Saves mapped Tutor LMS course requirement IDs for the event. |
 | `/sync-status` | `GET` | `manage_options` | Returns execution status of background OSM sync cron. |
+| `/signups/participants` | `GET` | `manage_options` | Returns DofE Participation Place registrations. |
+| `/signups/participants/{id}/process` | `POST` | `manage_options` | Allocates a Participation Place slot for the explorer. |
+| `/signups/participants/{id}/archive` | `POST` | `manage_options` | Archives a Participation Place registration. |
+| `/signups/expeditions` | `GET` | `manage_options` | Returns specific expedition signups. |
+| `/signups/expeditions/{id}/process` | `POST` | `manage_options` | Processes an expedition entry. |
+| `/signups/expeditions/{id}/archive` | `POST` | `manage_options` | Archives an expedition entry. |
 | `/flexi-structure` | `GET` | `manage_options` | Returns structure of an OSM flexi-record. |
 | `/flexi-column-map` | `GET` / `POST` | `manage_options` | Configures and saves OSM flexi-record column maps. |
 | `/flexi-review` | `GET` | `manage_options` | Fetches flexi-record rows and buckets them (clean, partial, unparseable). |
@@ -300,7 +333,9 @@ EMS connects with **Fluent Forms** to process parent signups and payments.
 
 *   **Dropdown Filters**: [Fluent_Forms_Sync](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Fluent_Forms_Sync.php) filters the child select dropdown (`signup_child`), dynamically listing children mapped under user meta (`ems_children`).
 *   **Parent Validation**: Gates submissions to verify that the selected explorer is associated with the logged-in parent.
-*   **Stripe Webhook Mappings**: Listens to Stripe payment webhook changes. If a payment status completes (`paid` or `succeeded`), the sync engine updates `payment_status` in the custom `ems_signups` table, maintaining an idempotent guard to prevent payment downgrades.
+*   **Explorer Email Pre-population**: If an explorer email is found, the system pre-populates the input field and appends the `"ff-read-only"` style class to prevent parental modification.
+*   **Leader Email Resolution**: Retrieves and stores the local unit leader's email by performing unit database lookups matching the selected ESU.
+*   **Stripe Webhook Mappings**: Listens to Stripe payment webhook changes. If a payment status completes (`paid` or `succeeded`), the sync engine updates `payment_status` in the custom `ems_participant_signups` or `ems_expedition_signups` table (based on the matching submission type), maintaining an idempotent guard to prevent payment downgrades.
 
 ---
 

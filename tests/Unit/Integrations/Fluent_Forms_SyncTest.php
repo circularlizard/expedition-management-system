@@ -35,6 +35,11 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         };
 
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_fluent_expedition_form_id' ) return 7;
+            return $default ?? [];
+        } );
     }
 
     public function test_init_hooks_adds_filters_and_actions(): void {
@@ -76,12 +81,6 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
     }
 
     public function test_handle_submission_creates_participant_signup_record(): void {
-        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
-            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
-            if ( $key === 'ems_fluent_expedition_form_id' ) return 7;
-            return [];
-        } );
-
         $this->signup_repo->shouldReceive( 'create_participant_signup' )
             ->once()
             ->with( Mockery::on( function( $data ) {
@@ -105,12 +104,6 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
     }
 
     public function test_handle_submission_creates_expedition_signup_record(): void {
-        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
-            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
-            if ( $key === 'ems_fluent_expedition_form_id' ) return 7;
-            return [];
-        } );
-
         $this->signup_repo->shouldReceive( 'create_expedition_signup' )
             ->once()
             ->with( Mockery::on( function( $data ) {
