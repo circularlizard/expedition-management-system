@@ -1837,3 +1837,614 @@
     white-space: nowrap;
 }
 
+/* ─── Phase 3: EventDetailPage ─────────────────────────────────────────────── */
+
+/* Detail section header */
+.ems-detail-sec-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Detail notes text */
+.ems-detail-notes {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Detail links and states */
+.ems-detail-link {
+    color: var(--ems-theme-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.ems-detail-link-loading {
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+    margin-top: 2px;
+}
+
+.ems-detail-link-resolved {
+    font-size: 12px;
+    color: #555;
+    font-style: italic;
+    margin-top: 2px;
+}
+
+/* Field value component */
+.ems-field-val {
+    margin-bottom: 8px;
+}
+
+/* Status badge modifiers */
+.ems-status-badge--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.ems-status-badge--archived {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Event detail header area */
+.ems-event-detail-header {
+    padding: 20px 24px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.ems-event-detail__title {
+    margin: 0 0 4px;
+    font-size: 22px;
+    color: #1d2327;
+}
+
+.ems-event-detail__meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ems-event-detail__stats {
+    text-align: right;
+    font-size: 13px;
+    color: #50575e;
+}
+
+.ems-event-detail__stats strong {
+    font-weight: 600;
+}
+
+/* Team card */
+.ems-team-card {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 16px;
+    background: #fff;
+    min-width: 260px;
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ems-team-card--warning {
+    border-color: #f0b849;
+}
+
+.ems-team-card--virtual {
+    background: #f8fafc;
+}
+
+/* Team card header */
+.ems-team-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 8px;
+}
+
+.ems-team-card__title {
+    font-size: 15px;
+}
+
+.ems-team-card__title--virtual {
+    color: #1e293b;
+}
+
+.ems-team-card__title--regular {
+    color: #0f172a;
+}
+
+/* Team card size badge */
+.ems-team-card__size {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.ems-team-card__size--virtual {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.ems-team-card__size--regular {
+    background: #f0fdf4;
+    color: #166534;
+}
+
+/* Team card member row */
+.ems-team-card__member-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex-grow: 1;
+}
+
+.ems-team-card__member {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 13px;
+}
+
+.ems-team-card__member-name {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ems-team-card__member-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ems-team-card__empty-member {
+    color: #aaa;
+    font-size: 13px;
+    padding: 8px 0;
+    text-align: center;
+}
+
+/* Team card actions bar */
+.ems-team-card__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 8px;
+}
+
+/* Team card add member */
+.ems-team-card__add-member {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 8px;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 8px;
+}
+
+/* Team card dialog (move/duplicate) */
+.ems-team-card__dialog {
+    background: #f8fafc;
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.ems-team-card__dialog label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.ems-team-card__dialog select {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+}
+
+/* ASN warning icon */
+.ems-asn-warning {
+    color: #d97706;
+    cursor: pointer;
+    margin-right: 2px;
+    font-weight: bold;
+}
+
+/* Move member select */
+.ems-move-select {
+    font-size: 11px;
+    padding: 2px;
+    width: 70px;
+    height: 22px;
+}
+
+/* Training tab */
+.ems-training-header {
+    margin-top: 0;
+}
+
+.ems-training-description {
+    color: #646970;
+}
+
+.ems-training-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+    background: #f6f7f7;
+    padding: 16px;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.ems-training-course {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.ems-training-empty {
+    color: #aaa;
+    margin: 0;
+}
+
+.ems-training-info-box {
+    background: #f0f6fc;
+    padding: 12px;
+    border-left: 4px solid #2271b1;
+    color: #1d2327;
+    font-size: 13px;
+}
+
+.ems-training-complete {
+    color: #1b5e20;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.ems-training-incomplete {
+    color: #b71c1c;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+/* ASN tab */
+.ems-asn-tab-header {
+    margin-top: 0;
+}
+
+.ems-asn-tab-description {
+    color: #646970;
+}
+
+.ems-asn-team-cell {
+    font-size: 11px;
+    color: #646970;
+    margin-top: 4px;
+}
+
+.ems-asn-parent-note {
+    vertical-align: top;
+}
+
+.ems-asn-parent-note--has {
+    color: #b45309;
+    font-weight: 600;
+}
+
+.ems-asn-parent-note--empty {
+    color: #646970;
+}
+
+.ems-asn-textarea {
+    width: 100%;
+    height: 60px;
+    box-sizing: border-box;
+    font-size: 13px;
+}
+
+.ems-asn-saved {
+    color: #00a32a;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.ems-asn-empty-cell {
+    text-align: center;
+    color: #aaa;
+    padding: 16px;
+}
+
+/* QR codes tab */
+.ems-qr-header {
+    margin-top: 0;
+}
+
+.ems-qr-form {
+    max-width: 600px;
+    margin-bottom: 32px;
+}
+
+.ems-qr-container {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+
+.ems-qr-item {
+    text-align: center;
+}
+
+.ems-qr-item__title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.ems-qr-item__link {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.ems-qr-item__image {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+}
+
+.ems-qr-empty {
+    color: #aaa;
+}
+
+.ems-qr-saved {
+    margin-left: 12px;
+    color: #00a32a;
+    font-weight: 600;
+}
+
+/* ASN Drawer */
+.ems-asn-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 400px;
+    background: #fff;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.15);
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.ems-asn-drawer__header {
+    padding: 16px 20px;
+    background: #1d2327;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ems-asn-drawer__title {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.ems-asn-drawer__close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.ems-asn-drawer__body {
+    padding: 20px;
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.ems-asn-drawer__footer {
+    padding: 16px 20px;
+    border-top: 1px solid #dcdcde;
+    background: #f6f7f7;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    align-items: center;
+}
+
+.ems-asn-drawer__saved {
+    color: #00a32a;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.ems-asn-drawer__section-label {
+    display: block;
+    font-size: 12px;
+    color: #646970;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.ems-asn-drawer__parent-note {
+    padding: 10px;
+    background: #fffbeb;
+    border-left: 4px solid #d97706;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #78350f;
+    min-height: 60px;
+    white-space: pre-wrap;
+}
+
+.ems-asn-drawer__textarea {
+    width: 100%;
+    height: 120px;
+    box-sizing: border-box;
+    font-size: 13px;
+    padding: 8px;
+}
+
+.ems-asn-drawer__error {
+    color: #d63638;
+}
+
+/* Teams tab header */
+.ems-teams-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.ems-teams-stats {
+    font-size: 13px;
+    color: #50575e;
+}
+
+.ems-teams-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+/* Overview tab */
+.ems-overview-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+/* RTE readonly styles */
+.ems-rte-readonly ul {
+    list-style-type: disc !important;
+    margin: 8px 0 8px 20px !important;
+    padding: 0 !important;
+}
+
+.ems-rte-readonly ol {
+    list-style-type: decimal !important;
+    margin: 8px 0 8px 20px !important;
+    padding: 0 !important;
+}
+
+.ems-rte-readonly li {
+    display: list-item !important;
+    margin-bottom: 4px !important;
+}
+
+/* Event detail page layout */
+.ems-event-detail {
+    position: relative;
+}
+
+.ems-event-detail__toolbar {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ems-event-detail__back {
+    color: #2271b1;
+    font-size: 13px;
+}
+
+.ems-event-detail__archive {
+    color: #d63638;
+}
+
+.ems-event-detail__archive--archived {
+    color: #2271b1;
+}
+
+.ems-event-detail__header {
+    padding: 20px 24px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.ems-event-detail__title {
+    margin: 0 0 4px;
+    font-size: 22px;
+    color: #1d2327;
+}
+
+.ems-event-detail__meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ems-event-detail__code {
+    background: #f0f0f0;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.ems-event-detail__date {
+    font-size: 13px;
+    color: #50575e;
+}
+
+.ems-event-detail__stats {
+    text-align: right;
+    font-size: 13px;
+    color: #50575e;
+}
+
+.ems-event-detail__stats strong {
+    font-weight: 600;
+}
+
+.ems-event-detail__content {
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-top: none;
+}
+
+.ems-event-detail__tabs {
+    margin-bottom: 0;
+}
+

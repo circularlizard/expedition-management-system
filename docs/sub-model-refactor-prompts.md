@@ -158,9 +158,10 @@ This is a complex component with many nested loops and states. Carefully extract
 
 ---
 
-## Step 3.2: Refactor `EventDetailPage.tsx`
+## Step 3.2: Refactor `EventDetailPage.tsx` ✅ DONE
 
 **Target File**: `resources/js/admin/expedition-board/EventDetailPage.tsx`
+**Status**: Completed 2026-07-04. Commit: `3bcfc52`.
 
 ### Objective
 This is the heaviest UI screen in the app. Ensure all sidebar team panels, member lists, warning banners, section headers, and metadata fields are refactored to use classes.
