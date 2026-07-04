@@ -28,6 +28,10 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [expedTypeFilter, setExpedTypeFilter] = useState<string>('all');
 
+    // Sorting
+    const [sortKey, setSortKey] = useState<string>('created_at');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
     // Selected signup for Inspector Panel
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
     const [editedDofeNumber, setEditedDofeNumber] = useState<string>('');
@@ -59,6 +63,8 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         setStatusFilter(type === 'participant' ? 'received' : 'pending');
         setLevelFilter('all');
         setExpedTypeFilter('all');
+        setSortKey('created_at');
+        setSortOrder('desc');
         setSelectedSignup(null);
     }, [type]);
 
@@ -129,8 +135,73 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         return true;
     });
 
+    const getSortValue = (item: any, key: string) => {
+        if (key === 'explorer_first_name') {
+            return `${item.explorer_first_name || ''} ${item.explorer_last_name || ''}`.toLowerCase();
+        }
+        if (key === 'expedition') {
+            return (item.expedition_preferences?.exped_type || '').toLowerCase();
+        }
+        if (key === 'prior_completions') {
+            if (item.dofe_level === 'bronze') return -1;
+            const completions = item.dofe_level === 'silver' ? item.bronze_completion : item.silver_completion;
+            if (!completions) return 0;
+            let count = 0;
+            if (completions.volunteering === 'completed') count++;
+            if (completions.skills === 'completed') count++;
+            if (completions.physical === 'completed') count++;
+            if (completions.expedition === 'completed') count++;
+            return count;
+        }
+        const val = item[key];
+        if (typeof val === 'string') {
+            return val.toLowerCase();
+        }
+        return val ?? '';
+    };
+
+    const sortedSignups = [...filteredSignups].sort((a, b) => {
+        const aVal = getSortValue(a, sortKey);
+        const bVal = getSortValue(b, sortKey);
+
+        if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    const toggleSort = (key: string) => {
+        if (sortKey === key) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortOrder('asc');
+        }
+    };
+
+    const renderHeader = (label: string, key: string) => {
+        const isCurrent = sortKey === key;
+        return (
+            <th 
+                onClick={() => toggleSort(key)} 
+                style={{ 
+                    padding: '12px 16px', 
+                    cursor: 'pointer', 
+                    userSelect: 'none',
+                    whiteSpace: 'nowrap'
+                }}
+            >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    {label}
+                    <span style={{ fontSize: '10px', color: isCurrent ? '#2271b1' : '#a7aaad' }}>
+                        {isCurrent ? (sortOrder === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                </div>
+            </th>
+        );
+    };
+
     // Paging list of unprocessed signups inside the Inspector Panel
-    const unprocessedSignups = filteredSignups.filter(s => s.signup_status === defaultStatus);
+    const unprocessedSignups = sortedSignups.filter(s => s.signup_status === defaultStatus);
     const currentUnprocessedIndex = selectedSignup ? unprocessedSignups.findIndex(s => s.id === selectedSignup.id) : -1;
 
     const handlePrevSignup = () => {
@@ -305,37 +376,36 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
                             <tr style={{ background: '#f6f7f7', borderBottom: '1px solid #ccd0d4', fontWeight: '600' }}>
-                                <th style={{ padding: '12px 16px' }}>Submission Date</th>
-                                <th style={{ padding: '12px 16px' }}>Explorer Name</th>
-                                <th style={{ padding: '12px 16px' }}>Level</th>
-                                {type === 'expedition' && (
-                                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Expedition</th>
-                                )}
-                                <th style={{ padding: '12px 16px' }}>ESU</th>
-                                <th style={{ padding: '12px 16px' }}>Email</th>
+                                <th style={{ padding: '12px 8px', width: '32px', textAlign: 'center' }}></th>
+                                {renderHeader('Submission Date', 'created_at')}
+                                {renderHeader('Explorer Name', 'explorer_first_name')}
+                                {renderHeader('Level', 'dofe_level')}
+                                {type === 'expedition' && renderHeader('Expedition', 'expedition')}
+                                {renderHeader('ESU', 'unit_name')}
+                                {renderHeader('Email', 'explorer_email')}
                                 {type === 'participant' ? (
                                     <>
-                                        <th style={{ padding: '12px 16px' }}>Prior Level Completed</th>
-                                        <th style={{ padding: '12px 16px' }}>DofE Number</th>
-                                        <th style={{ padding: '12px 16px' }}>Status</th>
+                                        {renderHeader('Prior Level Completed', 'prior_completions')}
+                                        {renderHeader('DofE Number', 'dofe_number')}
+                                        {renderHeader('Status', 'signup_status')}
                                     </>
                                 ) : (
                                     <>
-                                        <th style={{ padding: '12px 16px' }}>First Aid</th>
-                                        <th style={{ padding: '12px 16px' }}>DofE Number</th>
+                                        {renderHeader('First Aid', 'first_aid_status')}
+                                        {renderHeader('DofE Number', 'dofe_number')}
                                     </>
                                 )}
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredSignups.length === 0 ? (
+                            {sortedSignups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#646970' }}>
+                                    <td colSpan={9} style={{ padding: '24px', textAlign: 'center', color: '#646970' }}>
                                         No signup records found for this filter state.
                                     </td>
                                 </tr>
                             ) : (
-                                filteredSignups.map((s) => (
+                                sortedSignups.map((s) => (
                                     <tr 
                                         key={s.id} 
                                         onClick={() => setSelectedSignup(s)}
@@ -346,6 +416,11 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                             transition: 'background-color 0.2s' 
                                         }}
                                     >
+                                        <td style={{ padding: '16px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                            {s.is_synced_osm ? (
+                                                <span title="Synced with OSM" style={{ color: '#22a03f', fontWeight: 'bold', fontSize: '15px' }}>✓</span>
+                                            ) : null}
+                                        </td>
                                         <td style={{ padding: '16px' }}>
                                             {s.created_at ? s.created_at.substring(0, 16) : '—'}
                                         </td>
