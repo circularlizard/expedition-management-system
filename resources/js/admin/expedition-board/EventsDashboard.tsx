@@ -24,42 +24,33 @@ function statusBadge(status?: string): React.ReactNode {
     const s = status || 'active';
     const c = STATUS_COLORS[s] || { bg: '#eee', color: '#555' };
     return (
-        <span style={{
-            display: 'inline-block',
-            padding: '2px 10px',
-            borderRadius: '12px',
-            fontSize: '11px',
-            fontWeight: 600,
-            background: c.bg,
-            color: c.color,
-            textTransform: 'capitalize',
-        }}>
+        <span 
+            className="ems-status-badge"
+            style={{
+                background: c.bg,
+                color: c.color,
+            }}
+        >
             {s || 'active'}
         </span>
     );
 }
 
 function typePill(type?: string): React.ReactNode {
-    const map: Record<string, string> = { training: '#e3f2fd', practice: '#e8f5e9', qualifying: '#f3e5f5' };
-    const colorMap: Record<string, string> = { training: '#1565c0', practice: '#2e7d32', qualifying: '#7b1fa2' };
-    const bg = map[type || ''] || '#eee';
-    const color = colorMap[type || ''] || '#666';
+    const t = type || '';
+    const className = t ? `ems-pill ems-pill--${t.toLowerCase()}` : 'ems-status-badge';
     return (
-        <span style={{ background: bg, color, padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, textTransform: 'capitalize' }}>
+        <span className={className}>
             {type || '—'}
         </span>
     );
 }
 
 function levelPill(level?: string): React.ReactNode {
-    const map: Record<string, { bg: string; color: string }> = {
-        bronze: { bg: '#f0d4b8', color: '#7a4410' },
-        silver: { bg: '#e0e0e0', color: '#444' },
-        gold:   { bg: '#fff3cd', color: '#7a5c10' },
-    };
-    const c = map[level || ''] || { bg: '#eee', color: '#555' };
+    const l = level || '';
+    const className = l ? `ems-pill ems-pill--${l.toLowerCase()}` : 'ems-status-badge';
     return (
-        <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, textTransform: 'capitalize' }}>
+        <span className={className}>
             {level || '—'}
         </span>
     );
@@ -253,10 +244,10 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                     )}
                                 </td>
                                 <td className="ems-table-cell--center">
-                                    <span style={{ fontWeight: 600 }}>{(event.teams ?? []).length}</span>
+                                    <strong>{(event.teams ?? []).length}</strong>
                                 </td>
                                 <td className="ems-table-cell--center">
-                                    <span>{event.member_count ?? 0}</span>
+                                    {event.member_count ?? 0}
                                 </td>
                                 <td>{statusBadge(event.ems_route_status || 'draft')}</td>
                                 <td className="ems-table-cell--right">

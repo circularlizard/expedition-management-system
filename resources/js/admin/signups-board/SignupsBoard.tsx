@@ -183,16 +183,11 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         return (
             <th 
                 onClick={() => toggleSort(key)} 
-                style={{ 
-                    padding: '12px 16px', 
-                    cursor: 'pointer', 
-                    userSelect: 'none',
-                    whiteSpace: 'nowrap'
-                }}
+                className="ems-osm-ref-col-header"
             >
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <div className="ems-flex-center ems-gap-6">
                     {label}
-                    <span style={{ fontSize: '10px', color: isCurrent ? '#2271b1' : '#a7aaad' }}>
+                    <span className={`ems-osm-ref-col-sort ${isCurrent ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
                         {isCurrent ? (sortOrder === 'asc' ? '▲' : '▼') : '⇅'}
                     </span>
                 </div>
@@ -220,7 +215,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
     const renderPriorCompletions = (signup: any) => {
         if (signup.dofe_level === 'bronze') {
             return (
-                <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: '24px', height: '24px', borderRadius: '50%', background: '#d63638', color: '#fff', fontWeight: 'bold', fontSize: '12px' }}>
+                <div className="ems-avatar-circle ems-avatar-circle--red">
                     X
                 </div>
             );
@@ -229,7 +224,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         const completions = signup.dofe_level === 'silver' ? signup.bronze_completion : signup.silver_completion;
         if (!completions || typeof completions !== 'object') {
             return (
-                <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: '24px', height: '24px', borderRadius: '50%', background: '#d63638', color: '#fff', fontWeight: 'bold', fontSize: '12px' }}>
+                <div className="ems-avatar-circle ems-avatar-circle--red">
                     X
                 </div>
             );
@@ -238,28 +233,28 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         const completedList: JSX.Element[] = [];
         if (completions.volunteering === 'completed') {
             completedList.push(
-                <span key="V" title="Volunteering Completed" style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: '22px', height: '22px', borderRadius: '50%', background: '#d63638', color: '#fff', fontWeight: 'bold', fontSize: '11px', marginRight: '4px' }}>
+                <span key="V" title="Volunteering Completed" className="ems-skill-badge ems-avatar-circle--red">
                     V
                 </span>
             );
         }
         if (completions.skills === 'completed') {
             completedList.push(
-                <span key="S" title="Skills Completed" style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: '22px', height: '22px', borderRadius: '50%', background: '#2271b1', color: '#fff', fontWeight: 'bold', fontSize: '11px', marginRight: '4px' }}>
+                <span key="S" title="Skills Completed" className="ems-skill-badge ems-avatar-circle--blue">
                     S
                 </span>
             );
         }
         if (completions.physical === 'completed') {
             completedList.push(
-                <span key="P" title="Physical Completed" style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: '22px', height: '22px', borderRadius: '50%', background: '#dba617', color: '#fff', fontWeight: 'bold', fontSize: '11px', marginRight: '4px' }}>
+                <span key="P" title="Physical Completed" className="ems-skill-badge ems-avatar-circle--gold">
                     P
                 </span>
             );
         }
         if (completions.expedition === 'completed') {
             completedList.push(
-                <span key="E" title="Expedition Completed" style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: '22px', height: '22px', borderRadius: '50%', background: '#00a32a', color: '#fff', fontWeight: 'bold', fontSize: '11px', marginRight: '4px' }}>
+                <span key="E" title="Expedition Completed" className="ems-skill-badge ems-avatar-circle--green">
                     E
                 </span>
             );
@@ -267,82 +262,72 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
 
         if (completedList.length === 0) {
             return (
-                <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: '24px', height: '24px', borderRadius: '50%', background: '#d63638', color: '#fff', fontWeight: 'bold', fontSize: '12px' }}>
+                <div className="ems-avatar-circle ems-avatar-circle--red">
                     X
                 </div>
             );
         }
 
-        return <div style={{ display: 'flex' }}>{completedList}</div>;
+        return <div className="ems-signups-completed-list">{completedList}</div>;
     };
 
     if (loading && signups.length === 0) {
         return (
-            <div style={{ padding: '20px', background: '#fff', border: '1px solid #ccd0d4', borderRadius: '4px' }}>
+            <div className="ems-card ems-p-20">
                 <p>Loading signups...</p>
             </div>
         );
     }
 
     return (
-        <div style={{ fontFamily: 'Inter, sans-serif', color: '#1d2327', display: 'flex', gap: '20px', position: 'relative' }}>
+        <div className="ems-signups-container">
             {/* Main Content Area */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="ems-signups-main">
                 {error && (
-                    <div style={{ padding: '12px 16px', background: '#fcf0f1', borderLeft: '4px solid #d63638', color: '#d63638', marginBottom: '16px', borderRadius: '2px' }}>
+                    <div className="ems-error-notice">
                         {error}
                     </div>
                 )}
 
                 {/* Filter and Control Bar */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: 'linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%)',
-                    padding: '16px 20px',
-                    border: '1px solid #ccd0d4',
-                    borderRadius: '8px',
-                    marginBottom: '20px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                }}>
+                <div className="ems-signups-toolbar">
                     {/* Status Tabs */}
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div className="ems-flex-center ems-gap-8">
                         {type === 'participant' ? (
                             <>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '6px 12px', background: statusFilter === 'received' ? '#e5f3ff' : '#fff', border: `1px solid ${statusFilter === 'received' ? '#2271b1' : '#ccd0d4'}`, borderRadius: '20px', color: statusFilter === 'received' ? '#1d2327' : '#646970', fontWeight: '500', transition: 'all 0.2s' }}>
-                                    <input type="radio" name="statusFilter" value="received" checked={statusFilter === 'received'} onChange={() => setStatusFilter('received')} style={{ display: 'none' }} />
+                                <label className={`ems-filter-pill ${statusFilter === 'received' ? 'ems-filter-pill--active' : ''}`}>
+                                    <input type="radio" name="statusFilter" value="received" checked={statusFilter === 'received'} onChange={() => setStatusFilter('received')} />
                                     Received
                                 </label>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '6px 12px', background: statusFilter === 'allocated' ? '#e5f3ff' : '#fff', border: `1px solid ${statusFilter === 'allocated' ? '#2271b1' : '#ccd0d4'}`, borderRadius: '20px', color: statusFilter === 'allocated' ? '#1d2327' : '#646970', fontWeight: '500', transition: 'all 0.2s' }}>
-                                    <input type="radio" name="statusFilter" value="allocated" checked={statusFilter === 'allocated'} onChange={() => setStatusFilter('allocated')} style={{ display: 'none' }} />
+                                <label className={`ems-filter-pill ${statusFilter === 'allocated' ? 'ems-filter-pill--active' : ''}`}>
+                                    <input type="radio" name="statusFilter" value="allocated" checked={statusFilter === 'allocated'} onChange={() => setStatusFilter('allocated')} />
                                     Allocated
                                 </label>
                             </>
                         ) : (
                             <>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '6px 12px', background: statusFilter === 'pending' ? '#e5f3ff' : '#fff', border: `1px solid ${statusFilter === 'pending' ? '#2271b1' : '#ccd0d4'}`, borderRadius: '20px', color: statusFilter === 'pending' ? '#1d2327' : '#646970', fontWeight: '500', transition: 'all 0.2s' }}>
-                                    <input type="radio" name="statusFilter" value="pending" checked={statusFilter === 'pending'} onChange={() => setStatusFilter('pending')} style={{ display: 'none' }} />
+                                <label className={`ems-filter-pill ${statusFilter === 'pending' ? 'ems-filter-pill--active' : ''}`}>
+                                    <input type="radio" name="statusFilter" value="pending" checked={statusFilter === 'pending'} onChange={() => setStatusFilter('pending')} />
                                     Active (Pending)
                                 </label>
                             </>
                         )}
-                        <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '6px 12px', background: statusFilter === 'archived' ? '#e5f3ff' : '#fff', border: `1px solid ${statusFilter === 'archived' ? '#2271b1' : '#ccd0d4'}`, borderRadius: '20px', color: statusFilter === 'archived' ? '#1d2327' : '#646970', fontWeight: '500', transition: 'all 0.2s' }}>
-                            <input type="radio" name="statusFilter" value="archived" checked={statusFilter === 'archived'} onChange={() => setStatusFilter('archived')} style={{ display: 'none' }} />
+                        <label className={`ems-filter-pill ${statusFilter === 'archived' ? 'ems-filter-pill--active' : ''}`}>
+                            <input type="radio" name="statusFilter" value="archived" checked={statusFilter === 'archived'} onChange={() => setStatusFilter('archived')} />
                             Archived
                         </label>
                     </div>
 
                     {/* Level & Expedition Type Filters */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <label htmlFor="level-filter" style={{ fontWeight: '600' }}>Filter Level:</label>
+                    <div className="ems-flex-center ems-gap-16">
+                        <div className="ems-flex-center ems-gap-8">
+                            <label htmlFor="level-filter" className="ems-toolbar__label">Filter Level:</label>
                             <select
                                 id="level-filter"
                                 aria-label="Filter Level"
                                 value={levelFilter}
                                 onChange={(e) => setLevelFilter(e.target.value)}
-                                style={{ padding: '6px 12px', border: '1px solid #ccd0d4', borderRadius: '4px', background: '#fff', fontSize: '13px' }}
+                                className="ems-select"
                             >
                                 <option value="all">All Levels</option>
                                 <option value="bronze">Bronze</option>
@@ -352,14 +337,14 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         </div>
 
                         {type === 'expedition' && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <label htmlFor="exped-type-filter" style={{ fontWeight: '600' }}>Expedition Type:</label>
+                            <div className="ems-flex-center ems-gap-8">
+                                <label htmlFor="exped-type-filter" className="ems-toolbar__label">Expedition Type:</label>
                                 <select
                                     id="exped-type-filter"
                                     aria-label="Filter Expedition Type"
                                     value={expedTypeFilter}
                                     onChange={(e) => setExpedTypeFilter(e.target.value)}
-                                    style={{ padding: '6px 12px', border: '1px solid #ccd0d4', borderRadius: '4px', background: '#fff', fontSize: '13px' }}
+                                    className="ems-select"
                                 >
                                     <option value="all">All Types</option>
                                     <option value="hillwalking">Hillwalking</option>
@@ -372,11 +357,11 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                 </div>
 
                 {/* Table Grid */}
-                <div style={{ background: '#fff', border: '1px solid #ccd0d4', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <div className="ems-signups-table-wrap">
+                    <table className="ems-table">
                         <thead>
-                            <tr style={{ background: '#f6f7f7', borderBottom: '1px solid #ccd0d4', fontWeight: '600' }}>
-                                <th style={{ padding: '12px 8px', width: '32px', textAlign: 'center' }}></th>
+                            <tr>
+                                <th className="ems-table-cell--center ems-m-0"></th>
                                 {renderHeader('Submission Date', 'created_at')}
                                 {renderHeader('Explorer Name', 'explorer_first_name')}
                                 {renderHeader('Level', 'dofe_level')}
@@ -400,7 +385,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         <tbody>
                             {sortedSignups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} style={{ padding: '24px', textAlign: 'center', color: '#646970' }}>
+                                    <td colSpan={type === 'participant' ? 10 : 9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                         No signup records found for this filter state.
                                     </td>
                                 </tr>
@@ -409,107 +394,62 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     <tr 
                                         key={s.id} 
                                         onClick={() => setSelectedSignup(s)}
-                                        style={{ 
-                                            borderBottom: '1px solid #f0f0f1', 
-                                            cursor: 'pointer',
-                                            background: selectedSignup && selectedSignup.id === s.id ? '#f0f6fc' : '#fff',
-                                            transition: 'background-color 0.2s' 
-                                        }}
+                                        className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id ? 'ems-table-row--selected' : ''}`}
                                     >
-                                        <td style={{ padding: '16px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                        <td className="ems-table-cell--center">
                                             {s.is_synced_osm ? (
-                                                <span title="Synced with OSM" style={{ color: '#22a03f', fontWeight: 'bold', fontSize: '15px' }}>✓</span>
+                                                <span title="Synced with OSM" className="ems-fa-full">✓</span>
                                             ) : null}
                                         </td>
-                                        <td style={{ padding: '16px' }}>
+                                        <td>
                                             {s.created_at ? s.created_at.substring(0, 16) : '—'}
                                         </td>
-                                        <td style={{ padding: '16px' }}>
+                                        <td>
                                             <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
                                         </td>
-                                        <td style={{ padding: '16px' }}>
-                                            <span style={{
-                                                display: 'inline-block',
-                                                padding: '4px 8px',
-                                                borderRadius: '12px',
-                                                fontSize: '11px',
-                                                fontWeight: 'bold',
-                                                textTransform: 'uppercase',
-                                                background: s.dofe_level === 'bronze' ? '#fbf0e6' : s.dofe_level === 'silver' ? '#f0f0f1' : '#fef8e2',
-                                                color: s.dofe_level === 'bronze' ? '#c86f26' : s.dofe_level === 'silver' ? '#50575e' : '#b28900',
-                                                border: `1px solid ${s.dofe_level === 'bronze' ? '#f5d3b3' : s.dofe_level === 'silver' ? '#dcdcde' : '#f8e39d'}`
-                                            }}>
+                                        <td>
+                                            <span className={`ems-signups-level-pill ems-signups-level-pill--${s.dofe_level}`}>
                                                 {s.dofe_level}
                                             </span>
                                         </td>
                                         {type === 'expedition' && (
-                                            <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
-                                                <span style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    padding: '4px 8px',
-                                                    borderRadius: '12px',
-                                                    fontSize: '11px',
-                                                    fontWeight: 'bold',
-                                                    textTransform: 'uppercase',
-                                                    background: '#f0f6fc',
-                                                    color: '#00438a',
-                                                    border: '1px solid #c2dbf5',
-                                                    whiteSpace: 'nowrap'
-                                                }}>
+                                            <td>
+                                                <span className="ems-signups-type-badge">
                                                     {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
                                                 </span>
                                             </td>
                                         )}
-                                        <td style={{ padding: '16px' }}>
+                                        <td>
                                             {s.unit_name}
                                         </td>
-                                        <td style={{ padding: '16px' }}>
+                                        <td>
                                             {s.explorer_email || '—'}
                                         </td>
                                         {type === 'participant' ? (
                                             <>
-                                                 <td style={{ padding: '16px' }}>
+                                                 <td>
                                                      {renderPriorCompletions(s)}
                                                  </td>
-                                                 <td style={{ padding: '16px', fontFamily: 'monospace' }}>
+                                                 <td className="ems-monospace">
                                                      {s.dofe_number || '—'}
                                                      {s.dofe_registered === 'y-other' && (
-                                                         <div style={{
-                                                             fontSize: '10px',
-                                                             color: '#d63638',
-                                                             fontWeight: 'bold',
-                                                             textTransform: 'uppercase',
-                                                             marginTop: '2px',
-                                                             fontFamily: 'sans-serif'
-                                                         }}>
+                                                         <div className="ems-signups-transfer-warning">
                                                              ⚠️ Transfer Req.
                                                          </div>
                                                      )}
                                                  </td>
-                                                <td style={{ padding: '16px' }}>
-                                                    <span style={{
-                                                        display: 'inline-block',
-                                                        padding: '2px 8px',
-                                                        borderRadius: '12px',
-                                                        fontSize: '11px',
-                                                        fontWeight: 'bold',
-                                                        textTransform: 'uppercase',
-                                                        background: s.signup_status === 'allocated' ? '#e5f8eb' : (s.signup_status === 'archived' ? '#f5f5f5' : '#fef8e2'),
-                                                        color: s.signup_status === 'allocated' ? '#00a32a' : (s.signup_status === 'archived' ? '#646970' : '#b28900'),
-                                                        border: `1px solid ${s.signup_status === 'allocated' ? '#a3e2b2' : (s.signup_status === 'archived' ? '#dcdcde' : '#f8e39d')}`
-                                                    }}>
+                                                <td>
+                                                    <span className={`ems-signups-status-badge ems-signups-status-badge--${s.signup_status}`}>
                                                         {s.signup_status}
                                                     </span>
                                                 </td>
                                             </>
                                         ) : (
                                             <>
-                                                <td style={{ padding: '16px' }}>
+                                                <td>
                                                     {s.first_aid_status}
                                                 </td>
-                                                <td style={{ padding: '16px', fontFamily: 'monospace' }}>
+                                                <td className="ems-monospace">
                                                     {s.dofe_number || '—'}
                                                 </td>
                                             </>
@@ -524,45 +464,24 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
 
             {/* Inspector Panel - Slide-Out/Docked Layout */}
             {selectedSignup && (
-                <div style={{
-                    width: '380px',
-                    background: '#fff',
-                    border: '1px solid #ccd0d4',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: 'calc(100vh - 120px)',
-                    position: 'sticky',
-                    top: '20px',
-                    alignSelf: 'flex-start'
-                }}>
+                <div className="ems-signups-inspector">
                     {/* Header */}
-                    <div style={{
-                        padding: '16px 20px',
-                        background: '#f6f7f7',
-                        borderBottom: '1px solid #ccd0d4',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        borderTopLeftRadius: '8px',
-                        borderTopRightRadius: '8px'
-                    }}>
-                        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>Explorer Details</h3>
-                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <div className="ems-signups-inspector__header">
+                        <h3 className="ems-m-0 ems-font-semibold">Explorer Details</h3>
+                        <div className="ems-flex-center ems-gap-4">
                             {currentUnprocessedIndex >= 0 && (
                                 <>
                                     <button 
                                         onClick={handlePrevSignup} 
                                         disabled={currentUnprocessedIndex === 0}
-                                        style={{ border: '1px solid #ccd0d4', background: '#fff', borderRadius: '4px', padding: '3px 8px', cursor: currentUnprocessedIndex === 0 ? 'default' : 'pointer', opacity: currentUnprocessedIndex === 0 ? 0.5 : 1 }}
+                                        className="button button-secondary button-small"
                                     >
                                         &lt;
                                     </button>
                                     <button 
                                         onClick={handleNextSignup} 
                                         disabled={currentUnprocessedIndex === unprocessedSignups.length - 1}
-                                        style={{ border: '1px solid #ccd0d4', background: '#fff', borderRadius: '4px', padding: '3px 8px', cursor: currentUnprocessedIndex === unprocessedSignups.length - 1 ? 'default' : 'pointer', opacity: currentUnprocessedIndex === unprocessedSignups.length - 1 ? 0.5 : 1 }}
+                                        className="button button-secondary button-small"
                                     >
                                         &gt;
                                     </button>
@@ -570,7 +489,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             )}
                             <button 
                                 onClick={() => setSelectedSignup(null)}
-                                style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: '#646970', marginLeft: '6px' }}
+                                className="button button-link"
                             >
                                 &times;
                             </button>
@@ -578,143 +497,102 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                     </div>
 
                     {/* Details Body */}
-                    <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div className="ems-signups-inspector__body">
+                        <div className="ems-flex-between">
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Name</span>
-                                <div style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '2px' }}>
+                                <span className="ems-signups-inspector__label">Name</span>
+                                <div className="ems-signups-inspector__value--large">
                                     {selectedSignup.explorer_first_name} {selectedSignup.explorer_last_name}
                                 </div>
                             </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Scout ID</span>
-                                <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: '600', marginTop: '2px', color: '#1d2327' }}>
+                            <div className="ems-table-cell--right">
+                                <span className="ems-signups-inspector__label">Scout ID</span>
+                                <div className="ems-signups-inspector__value ems-monospace ems-font-semibold">
                                     {selectedSignup.scout_id}
                                 </div>
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
+                        <div className="ems-flex-between ems-gap-8">
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Status</span>
-                                <div style={{ marginTop: '2px' }}>
-                                    <span style={{
-                                        display: 'inline-block',
-                                        padding: '2px 8px',
-                                        borderRadius: '12px',
-                                        fontSize: '10px',
-                                        fontWeight: 'bold',
-                                        textTransform: 'uppercase',
-                                        background: selectedSignup.signup_status === 'allocated' || selectedSignup.signup_status === 'processed' ? '#e5f8eb' : (selectedSignup.signup_status === 'archived' ? '#f5f5f5' : '#fef8e2'),
-                                        color: selectedSignup.signup_status === 'allocated' || selectedSignup.signup_status === 'processed' ? '#00a32a' : (selectedSignup.signup_status === 'archived' ? '#646970' : '#b28900'),
-                                        border: `1px solid ${selectedSignup.signup_status === 'allocated' || selectedSignup.signup_status === 'processed' ? '#a3e2b2' : (selectedSignup.signup_status === 'archived' ? '#dcdcde' : '#f8e39d')}`
-                                    }}>
+                                <span className="ems-signups-inspector__label">Status</span>
+                                <div className="ems-mt-4">
+                                    <span className={`ems-signups-status-badge ems-signups-status-badge--${selectedSignup.signup_status}`}>
                                         {selectedSignup.signup_status}
                                     </span>
                                 </div>
                             </div>
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Level</span>
-                                <div style={{ marginTop: '2px' }}>
-                                    <span style={{
-                                        display: 'inline-block',
-                                        padding: '2px 6px',
-                                        borderRadius: '10px',
-                                        fontSize: '10px',
-                                        fontWeight: 'bold',
-                                        textTransform: 'uppercase',
-                                        background: selectedSignup.dofe_level === 'bronze' ? '#fbf0e6' : selectedSignup.dofe_level === 'silver' ? '#f0f0f1' : '#fef8e2',
-                                        color: selectedSignup.dofe_level === 'bronze' ? '#c86f26' : selectedSignup.dofe_level === 'silver' ? '#50575e' : '#b28900'
-                                    }}>
+                                <span className="ems-signups-inspector__label">Level</span>
+                                <div className="ems-mt-4">
+                                    <span className={`ems-signups-level-pill ems-signups-level-pill--${selectedSignup.dofe_level}`}>
                                         {selectedSignup.dofe_level}
                                     </span>
                                 </div>
                             </div>
                             {type === 'expedition' && (
                                 <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Expedition</span>
-                                    <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span className="ems-signups-inspector__label">Expedition</span>
+                                    <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4 ems-flex-center ems-gap-4">
                                         {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
                                     </div>
                                 </div>
                             )}
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Unit</span>
-                                <div style={{ fontSize: '13px', fontWeight: '500', marginTop: '2px' }}>{selectedSignup.unit_name}</div>
+                                <span className="ems-signups-inspector__label">Unit</span>
+                                <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4">{selectedSignup.unit_name}</div>
                             </div>
                         </div>
 
                         {type === 'participant' && (
                             <>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <div className="ems-flex-between">
                                     <div>
-                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DofE Registration Status</span>
-                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>
+                                        <span className="ems-signups-inspector__label">DofE Registration Status</span>
+                                        <div className="ems-signups-inspector__value ems-mt-4">
                                             {selectedSignup.dofe_registered === 'y' ? 'Registered' : (selectedSignup.dofe_registered === 'y-other' ? 'Registered (Other)' : 'Needs Registration')}
                                         </div>
                                     </div>
                                     <div>
-                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>DOB</span>
-                                        <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.dob || '—'}</div>
+                                        <span className="ems-signups-inspector__label">DOB</span>
+                                        <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.dob || '—'}</div>
                                     </div>
                                 </div>
 
                                 {selectedSignup.dofe_registered === 'y-other' && (
-                                    <div style={{
-                                        padding: '10px 12px',
-                                        background: '#fdf3f4',
-                                        color: '#d63638',
-                                        border: '1px solid #fbc4c5',
-                                        borderRadius: '6px',
-                                        fontSize: '12px',
-                                        fontWeight: '600',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '2px',
-                                        marginTop: '-4px'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <div className="ems-signups-inspector__transfer-alert">
+                                        <div className="ems-flex-center ems-gap-4">
                                             <span>⚠️</span> <strong>Transfer Required</strong>
                                         </div>
-                                        <div style={{ fontWeight: 'normal', color: '#50575e', fontSize: '11px', marginTop: '2px' }}>
-                                            From: <strong style={{ color: '#1d2327' }}>{selectedSignup.dofe_org || 'Unknown Organisation'}</strong>
+                                        <div className="ems-font-normal ems-meta-text ems-small-text ems-mt-4">
+                                            From: <strong className="ems-font-semibold">{selectedSignup.dofe_org || 'Unknown Organisation'}</strong>
                                         </div>
                                     </div>
                                 )}
 
                                 <div>
-                                    <label htmlFor="inspector-dofe-num" style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600', display: 'block' }}>eDofE Number</label>
+                                    <label htmlFor="inspector-dofe-num" className="ems-signups-inspector__label">eDofE Number</label>
                                     <input 
                                         id="inspector-dofe-num"
                                         type="text" 
                                         value={editedDofeNumber} 
                                         onChange={(e) => setEditedDofeNumber(e.target.value)}
                                         placeholder="Enter eDofE number..."
-                                        style={{ width: '100%', padding: '6px 10px', border: '1px solid #ccd0d4', borderRadius: '4px', marginTop: '4px' }}
+                                        className="ems-signups-inspector__input"
                                     />
                                 </div>
 
                                 <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Prior Level Completions</span>
-                                    <div style={{ marginTop: '4px' }}>
+                                    <span className="ems-signups-inspector__label">Prior Level Completions</span>
+                                    <div className="ems-mt-4">
                                         {renderPriorCompletions(selectedSignup)}
                                     </div>
                                 </div>
 
                                 <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Payment Status</span>
-                                    <div style={{ marginTop: '2px' }}>
-                                        <span style={{
-                                            display: 'inline-block',
-                                            padding: '2px 8px',
-                                            borderRadius: '12px',
-                                            fontSize: '11px',
-                                            fontWeight: 'bold',
-                                            textTransform: 'uppercase',
-                                            background: selectedSignup.payment_status === 'paid' ? '#e5f8eb' : '#fcf0f1',
-                                            color: selectedSignup.payment_status === 'paid' ? '#00a32a' : '#d63638',
-                                            border: `1px solid ${selectedSignup.payment_status === 'paid' ? '#a3e2b2' : '#f5c2c3'}`
-                                        }}>
+                                    <span className="ems-signups-inspector__label">Payment Status</span>
+                                    <div className="ems-mt-4">
+                                        <span className={`ems-signups-payment-badge ems-signups-payment-badge--${selectedSignup.payment_status}`}>
                                             {selectedSignup.payment_status === 'paid' ? 'Paid' : selectedSignup.payment_status === 'failed' ? 'Failed' : 'Pending'}
                                         </span>
                                     </div>
@@ -726,33 +604,33 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         {type === 'expedition' && (
                             <>
                                 <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>eDofE Number</span>
-                                    <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '2px', fontFamily: 'monospace' }}>{selectedSignup.dofe_number || '—'}</div>
+                                    <span className="ems-signups-inspector__label">eDofE Number</span>
+                                    <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4 ems-monospace">{selectedSignup.dofe_number || '—'}</div>
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
-                                    <div style={{ flex: 1 }}>
-                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>First Aid Status</span>
-                                        <div style={{ fontSize: '13px', marginTop: '2px', fontWeight: '500' }}>{selectedSignup.first_aid_status}</div>
+                                <div className="ems-flex-between ems-gap-16">
+                                    <div className="ems-main">
+                                        <span className="ems-signups-inspector__label">First Aid Status</span>
+                                        <div className="ems-signups-inspector__value ems-mt-4 ems-font-semibold">{selectedSignup.first_aid_status}</div>
                                     </div>
                                     {selectedSignup.first_aid_expiry && (
-                                        <div style={{ flex: 1 }}>
-                                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>First Aid Expiry</span>
-                                            <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.first_aid_expiry}</div>
+                                        <div className="ems-main">
+                                            <span className="ems-signups-inspector__label">First Aid Expiry</span>
+                                            <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.first_aid_expiry}</div>
                                         </div>
                                     )}
                                 </div>
 
                                 <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Additional Support Needs</span>
-                                    <div style={{ fontSize: '13px', marginTop: '4px', padding: '10px', background: '#f6f7f7', border: '1px solid #ccd0d4', borderRadius: '4px', fontStyle: 'italic' }}>
+                                    <span className="ems-signups-inspector__label">Additional Support Needs</span>
+                                    <div className="ems-signups-inspector__support-box">
                                         {selectedSignup.additional_support_needs || 'None declared.'}
                                     </div>
                                 </div>
 
                                 <div>
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Expedition Preferences</span>
-                                    <div style={{ fontSize: '12px', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <span className="ems-signups-inspector__label">Expedition Preferences</span>
+                                    <div className="ems-small-text ems-mt-4 ems-flex-col ems-gap-8">
                                         {selectedSignup.expedition_preferences ? (
                                             <>
                                                 <div><strong>Practice Dates:</strong> {selectedSignup.expedition_preferences.exped_practice_dates || '—'}</div>
@@ -768,50 +646,49 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         )}
 
                         {/* Emails Block (rendered just above Submission Info) */}
-                        <div style={{ borderTop: '1px dashed #ccd0d4', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div className="ems-flex-col ems-gap-12 ems-mt-12" style={{ borderTop: '1px dashed #ccd0d4', paddingTop: '16px' }}>
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Explorer Email</span>
-                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.explorer_email || '—'}</div>
+                                <span className="ems-signups-inspector__label">Explorer Email</span>
+                                <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.explorer_email || '—'}</div>
                             </div>
 
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Parent Email</span>
-                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.parent_email || '—'}</div>
+                                <span className="ems-signups-inspector__label">Parent Email</span>
+                                <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.parent_email || '—'}</div>
                             </div>
 
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Leader Email</span>
-                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.leader_email || '—'}</div>
+                                <span className="ems-signups-inspector__label">Leader Email</span>
+                                <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.leader_email || '—'}</div>
                             </div>
                         </div>
 
                         {/* Submission ID & Date Block (rendered at bottom) */}
-                        <div style={{ borderTop: '1px dashed #ccd0d4', paddingTop: '16px', display: 'flex', justifyContent: 'space-between' }}>
+                        <div className="ems-flex-between ems-mt-12" style={{ borderTop: '1px dashed #ccd0d4', paddingTop: '16px' }}>
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Submission ID</span>
-                                <div style={{ fontSize: '13px', marginTop: '2px' }}>#{selectedSignup.form_submission_id || '—'}</div>
+                                <span className="ems-signups-inspector__label">Submission ID</span>
+                                <div className="ems-signups-inspector__value ems-mt-4">#{selectedSignup.form_submission_id || '—'}</div>
                             </div>
                             <div>
-                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Submitted At</span>
-                                <div style={{ fontSize: '13px', marginTop: '2px' }}>{selectedSignup.created_at || '—'}</div>
+                                <span className="ems-signups-inspector__label">Submitted At</span>
+                                <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.created_at || '—'}</div>
                             </div>
                         </div>
                     </div>
 
                     {/* Actions Footer */}
-                    <div style={{ padding: '16px 20px', borderTop: '1px solid #ccd0d4', background: '#f6f7f7', display: 'flex', justifyContent: 'space-between', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
+                    <div className="ems-signups-inspector__footer">
                         <div>
                             {selectedSignup.signup_status !== 'archived' && (
                                 <button 
                                     onClick={() => handleArchive(selectedSignup.id)}
                                     className="button button-link-delete"
-                                    style={{ color: '#d63638' }}
                                 >
                                     Archive
                                 </button>
                             )}
                         </div>
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                        <div className="ems-flex-center ems-gap-6">
                             <button onClick={() => setSelectedSignup(null)} className="button">Close</button>
                             {type === 'participant' && selectedSignup.signup_status === 'received' && (
                                 <button 
