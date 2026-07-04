@@ -11,10 +11,13 @@
         "@types/node": "^22.0.0",
         "@types/react": "^18.3.0",
         "@types/react-dom": "^18.3.0",
+        "@types/wordpress__components": "^23.0.12",
         "@vitejs/plugin-react": "^4.3.0",
+        "@wordpress/components": "^36.1.0",
         "jsdom": "^25.0.0",
         "react": "^18.3.0",
         "react-dom": "^18.3.0",
+        "rollup-plugin-external-globals": "^0.13.0",
         "typescript": "^5.6.0",
         "vitest": "^2.1.0"
     }

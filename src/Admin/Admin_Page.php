@@ -81,6 +81,7 @@ class Admin_Page {
 
     private function enqueue_signups_assets(): void {
         $this->enqueue_admin_script( 'ems-signups-board', 'assets/js/signups-board.js' );
+        $this->enqueue_admin_styles();
         wp_localize_script( 'ems-signups-board', 'emsSignupsBoard', [
             'root_url' => get_rest_url( null, 'ems/v1' ),
             'nonce'    => wp_create_nonce( 'wp_rest' ),
@@ -164,6 +165,7 @@ class Admin_Page {
     private function enqueue_dashboard_assets(): void {
         wp_enqueue_editor();
         $this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
+        $this->enqueue_admin_styles();
         wp_localize_script( 'ems-expedition-board', 'emsExpeditionBoard', [
             'root_url'  => get_rest_url( null, 'ems/v1' ),
             'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -173,11 +175,26 @@ class Admin_Page {
 
     private function enqueue_mapper_assets(): void {
         $this->enqueue_admin_script( 'ems-column-mapper', 'assets/js/column-mapper.js' );
+        $this->enqueue_admin_styles();
         wp_localize_script( 'ems-column-mapper', 'emsColumnMapper', [
             'root_url' => get_rest_url( null, 'ems/v1' ),
             'nonce'    => wp_create_nonce( 'wp_rest' ),
             'sections' => (array) get_option( 'ems_managed_sections', [] ),
         ] );
+    }
+
+    /**
+     * Enqueue the shared EMS admin stylesheet (compiled by Vite).
+     * Also ensures @wordpress/components stylesheet is loaded.
+     * Safe to call multiple times — wp_enqueue_style is idempotent.
+     */
+    private function enqueue_admin_styles(): void {
+        wp_enqueue_style( 'wp-components' );
+
+        $css_path    = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+        $css_url     = plugin_dir_url( EMS_PLUGIN_FILE )  . 'assets/js/ems-admin.css';
+        $css_version = EMS_VERSION . ( file_exists( $css_path ) ? '.' . filemtime( $css_path ) : '' );
+        wp_enqueue_style( 'ems-admin', $css_url, [ 'wp-components' ], $css_version );
     }
 
     public function render_dashboard(): void {
@@ -652,7 +669,7 @@ class Admin_Page {
         wp_enqueue_script(
             $handle,
             $script_url,
-            [],
+            [ 'wp-components', 'wp-element', 'wp-i18n' ],
             EMS_VERSION,
             true
         );
