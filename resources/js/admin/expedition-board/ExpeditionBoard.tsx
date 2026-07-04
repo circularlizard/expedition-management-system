@@ -80,6 +80,7 @@ const ExpeditionBoard: React.FC = () => {
                         onBack={handleBack}
                         explorers={explorers}
                         osmEvents={osmEvents}
+                        allEvents={data.seasons[0]?.events ?? []}
                         onEventUpdated={handleEventUpdated}
                     />
                 )}

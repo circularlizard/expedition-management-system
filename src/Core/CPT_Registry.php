@@ -63,7 +63,8 @@ class CPT_Registry {
             'ems_route_received'                 => [ 'type' => 'string', 'enum' => [ 'not_received', 'changes_requested', 'received' ] ],
             'ems_route_approved'                 => [ 'type' => 'string', 'enum' => [ 'pending', 'under_review', 'approved', 'changes_requested' ] ],
             'ems_osm_event_id'                   => [ 'type' => 'integer', 'minimum'  => 0 ],
-            'ems_status'                         => [ 'type' => 'string',  'enum'     => [ 'planning', 'open', 'confirmed', 'completed' ] ],
+            'ems_status'                         => [ 'type' => 'string',  'enum'     => [ 'active', 'archived' ] ],
+            'ems_route_status'                   => [ 'type' => 'string',  'enum'     => [ 'draft', 'confirmed' ] ],
         ];
     }
 

@@ -36,6 +36,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
 
     return (
         <div className="ems-rich-text-editor" style={{ border: '1px solid #8c8f94', borderRadius: '4px', overflow: 'hidden' }}>
+            <style dangerouslySetInnerHTML={{ __html: `
+                .ems-rte-editable ul {
+                    list-style-type: disc !important;
+                    margin: 8px 0 8px 20px !important;
+                    padding: 0 !important;
+                }
+                .ems-rte-editable ol {
+                    list-style-type: decimal !important;
+                    margin: 8px 0 8px 20px !important;
+                    padding: 0 !important;
+                }
+                .ems-rte-editable li {
+                    display: list-item !important;
+                    margin-bottom: 4px !important;
+                }
+            `}} />
             <div role="toolbar" style={{ display: 'flex', gap: '4px', padding: '6px 8px', background: '#f6f7f7', borderBottom: '1px solid #dcdcde' }}>
                 <button type="button" onClick={() => exec('bold')} style={buttonStyle} aria-label="Bold"><strong>B</strong></button>
                 <button type="button" onClick={() => exec('italic')} style={buttonStyle} aria-label="Italic"><em>I</em></button>
@@ -51,6 +67,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
                 onInput={() => onChange(ref.current?.innerHTML ?? '')}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
+                className="ems-rte-editable"
                 style={{ padding: '6px 8px', minHeight, fontSize: '14px', lineHeight: '1.5', outline: 'none' }}
             />
         </div>

@@ -126,6 +126,15 @@ class Expedition_Admin_Controller {
             ],
         ] );
 
+        register_rest_route( 'ems/v1', '/events/(?P<event_id>\d+)/teams', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'list_event_teams' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'event_id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+
         register_rest_route( 'ems/v1', '/teams/(?P<id>\d+)', [
             'methods'             => \WP_REST_Server::DELETABLE,
             'callback'            => [ $this, 'delete_team' ],
@@ -196,6 +205,24 @@ class Expedition_Admin_Controller {
         register_rest_route( 'ems/v1', '/explorers/(?P<scout_id>\d+)/first-aid', [
             'methods'             => \WP_REST_Server::EDITABLE,
             'callback'            => [ $this, 'update_first_aid_level' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'scout_id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/explorers/(?P<scout_id>\d+)/asn', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'get_explorer_asn' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'scout_id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/explorers/(?P<scout_id>\d+)/asn', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'update_explorer_asn' ],
             'permission_callback' => [ $this, 'check_permission' ],
             'args'                => [
                 'scout_id' => [ 'type' => 'integer', 'required' => true ],
@@ -658,6 +685,8 @@ class Expedition_Admin_Controller {
             'ems_transport'        => [ 'hillwalking', 'biking', 'paddling' ],
             'ems_level'            => [ 'bronze', 'silver', 'gold' ],
             'ems_first_aid_level'  => [ 'none', 'first_response', 'full_first_aid' ],
+            'ems_status'           => [ 'active', 'archived' ],
+            'ems_route_status'     => [ 'draft', 'confirmed' ],
         ];
 
         if ( $require_all ) {
@@ -714,10 +743,15 @@ class Expedition_Admin_Controller {
                 $member['last_name']        = $explorer['last_name'] ?? '';
                 $member['patrol']           = $explorer['patrol'] ?? '';
                 $member['first_aid_level']  = $explorer['first_aid_level'] ?? 'none';
+                $member['has_asn']          = ! empty( $explorer['additional_support_needs'] ) || $this->has_signup_asn( $member['scout_id'] );
             }
             $hydrated[] = $member;
         }
         return $hydrated;
+    }
+
+    private function has_signup_asn( int $scout_id ): bool {
+        return $this->signups->has_additional_support_needs( $scout_id );
     }
 
     private function list_explorers(): array {
@@ -923,6 +957,83 @@ class Expedition_Admin_Controller {
         $this->signups->archive_expedition_signup( $id );
 
         return new \WP_REST_Response( [ 'archived' => true ] );
+    }
+
+    public function list_event_teams( \WP_REST_Request $request ): \WP_REST_Response {
+        $event_id = (int) $request->get_param( 'event_id' );
+        $teams = $this->teams->list_by_expedition( $event_id );
+        
+        $unallocated = $this->teams->get_unallocated_team( $event_id );
+        if ( $unallocated ) {
+            $teams[] = $unallocated;
+        }
+
+        foreach ( $teams as &$team ) {
+            $members = $this->team_members->list_by_team( $team['ID'] );
+            $team['member_count'] = count( $members );
+            $team['size_warning'] = $team['member_count'] < 4 || $team['member_count'] > 7;
+            $team['members']      = $this->hydrate_members( $members );
+        }
+
+        return new \WP_REST_Response( $teams );
+    }
+
+    public function get_explorer_asn( \WP_REST_Request $request ): \WP_REST_Response {
+        $scout_id = (int) $request->get_param( 'scout_id' );
+
+        $explorer = $this->explorers->find_by_scout_id( $scout_id );
+        if ( ! $explorer ) {
+            return $this->error( 'ems_explorer_not_found', 'Explorer not found.', 404 );
+        }
+
+        global $wpdb;
+        $parent_asn = $wpdb->get_var( $wpdb->prepare(
+            "SELECT additional_support_needs FROM {$wpdb->prefix}ems_expedition_signups WHERE scout_id = %d AND additional_support_needs != '' LIMIT 1",
+            $scout_id
+        ) ) ?: '';
+
+        $wpdb->insert(
+            $wpdb->prefix . 'ems_audit_logs',
+            [
+                'user_id'         => get_current_user_id() ?: 1,
+                'action'          => 'view_asn',
+                'target_scout_id' => $scout_id,
+                'ip_address'      => $_SERVER['REMOTE_ADDR'] ?? '',
+                'user_agent'      => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                'timestamp'       => current_time( 'mysql' ),
+            ]
+        );
+
+        return new \WP_REST_Response( [
+            'scout_id'        => $scout_id,
+            'first_name'      => $explorer['first_name'] ?? '',
+            'last_name'       => $explorer['last_name'] ?? '',
+            'parent_asn'      => $parent_asn,
+            'organiser_notes' => $explorer['additional_support_needs'] ?? '',
+        ] );
+    }
+
+    public function update_explorer_asn( \WP_REST_Request $request ): \WP_REST_Response {
+        $scout_id = (int) $request->get_param( 'scout_id' );
+        $body     = $request->get_json_params() ?: [];
+        $notes    = isset( $body['organiser_notes'] ) ? sanitize_textarea_field( $body['organiser_notes'] ) : '';
+
+        $explorer = $this->explorers->find_by_scout_id( $scout_id );
+        if ( ! $explorer ) {
+            return $this->error( 'ems_explorer_not_found', 'Explorer not found.', 404 );
+        }
+
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->prefix . 'ems_osm_explorers',
+            [ 'additional_support_needs' => $notes ],
+            [ 'scout_id' => $scout_id ]
+        );
+
+        return new \WP_REST_Response( [
+            'success'         => true,
+            'organiser_notes' => $notes,
+        ] );
     }
 }
 

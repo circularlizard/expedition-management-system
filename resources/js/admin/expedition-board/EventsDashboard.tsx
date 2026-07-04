@@ -223,7 +223,9 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                             <th>Dates</th>
                             <th style={{ textAlign: 'center' }}>Teams</th>
                             <th style={{ textAlign: 'center' }}>Members</th>
-                            <th>Status</th>
+                            <th>Route Status</th>
+                            <th>Event Status</th>
+                            <th style={{ textAlign: 'right' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -262,7 +264,38 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                 <td style={{ textAlign: 'center' }}>
                                     <span>{event.member_count ?? 0}</span>
                                 </td>
-                                <td>{statusBadge(event.ems_status)}</td>
+                                <td>{statusBadge(event.ems_route_status || 'draft')}</td>
+                                <td>{statusBadge(event.ems_status || 'active')}</td>
+                                <td style={{ textAlign: 'right' }}>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        style={{ color: event.ems_status === 'archived' ? '#2271b1' : '#d63638' }}
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            const isArchive = event.ems_status !== 'archived';
+                                            if (window.confirm(isArchive ? `Are you sure you want to archive this event?` : `Are you sure you want to restore this event?`)) {
+                                                try {
+                                                    const res = await fetch(`${config.root_url}/events/${event.ID}`, {
+                                                        method: 'PATCH',
+                                                        headers: {
+                                                            'Content-Type': 'application/json',
+                                                            'X-WP-Nonce': config.nonce,
+                                                        },
+                                                        body: JSON.stringify({ ems_status: isArchive ? 'archived' : 'active' }),
+                                                    });
+                                                    if (res.ok) {
+                                                        load(activeTab, includeArchived);
+                                                    }
+                                                } catch (err) {
+                                                    console.error(err);
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        {event.ems_status === 'archived' ? 'Restore' : 'Archive'}
+                                    </button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
