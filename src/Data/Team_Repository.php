@@ -11,13 +11,14 @@ class Team_Repository {
     public function create( int $event_id, string $event_code, ?string $team_code = null ): int {
         $team_code = $team_code ?: $this->generate_next_code( $event_id, $event_code );
 
-        if ( $this->code_exists( $team_code ) ) {
+        if ( $team_code !== 'UNALLOCATED' && $this->code_exists( $team_code ) ) {
             throw new \InvalidArgumentException( "Duplicate team code: {$team_code}." );
         }
 
+        $post_title = $team_code === 'UNALLOCATED' ? 'Unallocated' : "Team {$team_code}";
         $post_id = wp_insert_post( [
             'post_type'   => 'team',
-            'post_title'  => "Team {$team_code}",
+            'post_title'  => $post_title,
             'post_status' => 'publish',
             'post_parent' => $event_id,
         ], true );

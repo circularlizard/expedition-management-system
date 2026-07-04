@@ -109,6 +109,38 @@ class Table_Installer {
             ) );
         }
 
+        if ( ! get_option( 'ems_unallocated_migration_done' ) ) {
+            $expedition_ids = $wpdb->get_col(
+                "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'expedition' AND post_status = 'publish'"
+            );
+            foreach ( $expedition_ids as $event_id ) {
+                $event_id = (int) $event_id;
+                $has_unallocated = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT p.ID FROM {$wpdb->posts} p
+                     INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                     WHERE p.post_type = 'team' AND p.post_parent = %d
+                     AND pm.meta_key = 'ems_team_code' AND pm.meta_value = 'UNALLOCATED'
+                     LIMIT 1",
+                    $event_id
+                ) );
+
+                if ( ! $has_unallocated ) {
+                    $post_id = wp_insert_post( [
+                        'post_type'   => 'team',
+                        'post_title'  => 'Unallocated',
+                        'post_status' => 'publish',
+                        'post_parent' => $event_id,
+                    ], true );
+
+                    if ( ! is_wp_error( $post_id ) ) {
+                        update_post_meta( $post_id, 'ems_team_code', 'UNALLOCATED' );
+                        update_post_meta( $post_id, 'ems_team_number', 0 );
+                    }
+                }
+            }
+            update_option( 'ems_unallocated_migration_done', 1 );
+        }
+
         update_option( 'ems_season_migration_done', 1 );
     }
 

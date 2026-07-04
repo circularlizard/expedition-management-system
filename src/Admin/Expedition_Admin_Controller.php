@@ -273,6 +273,7 @@ class Expedition_Admin_Controller {
 
         try {
             $id = $this->expeditions->create( $body );
+            $this->teams->create( $id, $body['ems_event_code'], 'UNALLOCATED' );
             return new \WP_REST_Response( $this->expeditions->get_by_id( $id ), 201 );
         } catch ( \InvalidArgumentException $e ) {
             return $this->error( 'ems_event_code_exists', $e->getMessage(), 409 );
