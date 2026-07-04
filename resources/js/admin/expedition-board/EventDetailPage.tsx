@@ -581,7 +581,7 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
                 {courses.length === 0 && <p className="ems-course-empty">No Tutor LMS courses found.</p>}
             </div>
 
-            <button type="button" className="button button-primary" onClick={handleSave} disabled={saving || courses.length === 0}>
+            <button type="button" className="button button-primary ems-mt-16 ems-mb-24" onClick={handleSave} disabled={saving || courses.length === 0}>
                 {saving ? 'Saving…' : 'Save Training Requirements'}
             </button>
 
@@ -729,12 +729,12 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                                     Team: <code>{exp.teamName === 'UNALLOCATED' ? 'Unallocated' : exp.teamName}</code>
                                 </div>
                             </td>
-                            <td className={`ems-asn-parent ${parentAsn[exp.scout_id] ? 'ems-asn-parent--has' : 'ems-asn-parent--none'}`}>
+                            <td className={`ems-asn-parent-note ${parentAsn[exp.scout_id] ? 'ems-asn-parent-note--has' : 'ems-asn-parent-note--empty'}`}>
                                 {parentAsn[exp.scout_id] || '— No support needs declared by parent —'}
                             </td>
                             <td>
                                 <textarea
-                                    className="ems-asn-notes"
+                                    className="ems-asn-textarea"
                                     aria-label={`Organiser notes for ${exp.first_name} ${exp.last_name}`}
                                     value={notes[exp.scout_id ?? 0] || ''}
                                     onChange={(e) => setNotes(prev => ({ ...prev, [exp.scout_id ?? 0]: e.target.value }))}
@@ -794,8 +794,8 @@ const QRCodesTab: React.FC<{ event: Expedition }> = ({ event }) => {
                         <tr><th scope="row" className="ems-qr-th">Parents WhatsApp Link</th><td><input id="ems-whatsapp-parents" type="url" className="large-text" value={parentLink} onChange={(e) => setParentLink(e.target.value)} placeholder="https://chat.whatsapp.com/…" /></td></tr>
                     </tbody>
                 </table>
-                <button type="submit" className="button button-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Links'}</button>
-                {saved && <span className="ems-saved-indicator">✓ Saved</span>}
+                <button type="submit" className="button button-primary ems-mt-16" disabled={saving}>{saving ? 'Saving…' : 'Save Links'}</button>
+                {saved && <span className="ems-saved-indicator ems-ml-8">✓ Saved</span>}
             </form>
             <div className="ems-qr-grid">
                 {explorerLink && (
