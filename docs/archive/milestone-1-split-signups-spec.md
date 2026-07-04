@@ -1,5 +1,9 @@
 # Technical Specification: Split Signups Architecture
 
+> [!NOTE]
+> **STATUS: COMPLETED & ARCHIVED (2026-07-04)**
+> This specification is fully implemented, verified, and integrated into the main technical documentation. All Vitest, PHPUnit, and Gherkin scenarios are passing.
+
 This document describes the technical implementation plan for dividing the signups system into two distinct workflows: **Participant Place Registration** and **Expedition Entries**. 
 
 All signup data remains fully isolated within its respective custom table. Processing a signup marks it as allocated or processed in its own table; it does not write or copy any data into the `ems_osm_explorers` table.

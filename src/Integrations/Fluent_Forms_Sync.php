@@ -444,9 +444,23 @@ class Fluent_Forms_Sync {
     }
 
     public function populate_parent_email( array $data, $form ): array {
-        if ( ( $data['attributes']['name'] ?? '' ) !== 'signup_parent_email' ) {
+        $form_id = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
+        $participant_form_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
+        $expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
+
+        $target_field = 'signup_parent_email';
+        if ( $form_id === $participant_form_id ) {
+            $config = get_option( 'ems_participant_form_mappings', [] );
+            $target_field = $config['parent_email_field'] ?? 'signup_parent_email';
+        } elseif ( $form_id === $expedition_form_id ) {
+            $config = get_option( 'ems_expedition_form_mappings', [] );
+            $target_field = $config['parent_email_field'] ?? 'signup_parent_email';
+        }
+
+        if ( ( $data['attributes']['name'] ?? '' ) !== $target_field ) {
             return $data;
         }
+
         $user = get_userdata( get_current_user_id() );
         if ( $user && ! empty( $user->user_email ) ) {
             $data['attributes']['value'] = $user->user_email;
@@ -456,7 +470,20 @@ class Fluent_Forms_Sync {
     }
 
     public function populate_explorer_email( array $data, $form ): array {
-        if ( ( $data['attributes']['name'] ?? '' ) !== 'signup_explorer_email' ) {
+        $form_id = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
+        $participant_form_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
+        $expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
+
+        $target_field = 'signup_explorer_email';
+        if ( $form_id === $participant_form_id ) {
+            $config = get_option( 'ems_participant_form_mappings', [] );
+            $target_field = $config['explorer_email_field'] ?? 'signup_explorer_email';
+        } elseif ( $form_id === $expedition_form_id ) {
+            $config = get_option( 'ems_expedition_form_mappings', [] );
+            $target_field = $config['explorer_email_field'] ?? 'signup_explorer_email';
+        }
+
+        if ( ( $data['attributes']['name'] ?? '' ) !== $target_field ) {
             return $data;
         }
 
@@ -508,7 +535,20 @@ class Fluent_Forms_Sync {
     }
 
     public function populate_leader_email( array $data, $form ): array {
-        if ( ( $data['attributes']['name'] ?? '' ) !== 'signup_leader_email' ) {
+        $form_id = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
+        $participant_form_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
+        $expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
+
+        $target_field = 'signup_leader_email';
+        if ( $form_id === $participant_form_id ) {
+            $config = get_option( 'ems_participant_form_mappings', [] );
+            $target_field = $config['leader_email_field'] ?? 'signup_leader_email';
+        } elseif ( $form_id === $expedition_form_id ) {
+            $config = get_option( 'ems_expedition_form_mappings', [] );
+            $target_field = $config['leader_email_field'] ?? 'signup_leader_email';
+        }
+
+        if ( ( $data['attributes']['name'] ?? '' ) !== $target_field ) {
             return $data;
         }
 
@@ -553,6 +593,22 @@ class Fluent_Forms_Sync {
             return;
         }
 
+        $config = [];
+        if ( $form_id === $participant_form_id ) {
+            $config = get_option( 'ems_participant_form_mappings', [] );
+        } elseif ( $form_id === $expedition_form_id ) {
+            $config = get_option( 'ems_expedition_form_mappings', [] );
+        }
+
+        $js_fields = [
+            'scoutField'         => $config['scout_id_field'] ?? 'signup_child',
+            'unitField'          => $config['esu_patrol_field'] ?? 'signup_unit',
+            'explorerEmailField' => $config['explorer_email_field'] ?? 'signup_explorer_email',
+            'leaderEmailField'   => $config['leader_email_field'] ?? 'signup_leader_email',
+            'firstNameField'     => $config['first_name_field'] ?? 'signup_child_name',
+            'lastNameField'      => $config['last_name_field'] ?? 'signup_child_name',
+        ];
+
         $js_mappings = [];
         foreach ( $children_meta as $child ) {
             $scout_id = (int) ( $child['scout_id'] ?? 0 );
@@ -585,8 +641,11 @@ class Fluent_Forms_Sync {
             if (typeof window.emsFormMappings === 'undefined') {
                 window.emsFormMappings = new Object();
             }
+            if (typeof window.emsFields === 'undefined') {
+                window.emsFields = JSON.parse('<?php echo json_encode( $js_fields, JSON_FORCE_OBJECT ); ?>');
+            }
             Object.assign(window.emsFormMappings, JSON.parse('<?php echo json_encode( $js_mappings, JSON_FORCE_OBJECT ); ?>'));
-            console.log('[EMS Sync] Loaded children unit mappings:', window.emsFormMappings);
+            console.log('[EMS Sync] Loaded children mappings & fields:', window.emsFormMappings, window.emsFields);
 
             function emsGetChoices(el) {
                 return (window.jQuery && window.jQuery(el).data('choicesjs')) || null;
@@ -594,8 +653,8 @@ class Fluent_Forms_Sync {
 
             document.addEventListener('DOMContentLoaded', function() {
                 function initEmsFormSync() {
-                    var childSelect = document.querySelector('select[name="signup_child"]');
-                    var unitSelect  = document.querySelector('select[name="signup_unit"]');
+                    var childSelect = document.querySelector('select[name="' + window.emsFields.scoutField + '"]');
+                    var unitSelect  = document.querySelector('select[name="' + window.emsFields.unitField + '"]');
                     var unitIdInput = document.querySelector('input[name="signup_unitid"]');
 
                     if (!childSelect) return;
@@ -615,12 +674,12 @@ class Fluent_Forms_Sync {
                         }
 
                         // 2. Name elements
-                        var firstNameInput = document.querySelector('input[name="signup_child_name[first_name]"]');
+                        var firstNameInput = document.querySelector('input[name="' + window.emsFields.firstNameField + '[first_name]"]');
                         if (firstNameInput) {
                             firstNameInput.value = mapping.firstName || '';
                             firstNameInput.dispatchEvent(new Event('change', { bubbles: true }));
                         }
-                        var lastNameInput = document.querySelector('input[name="signup_child_name[last_name]"]');
+                        var lastNameInput = document.querySelector('input[name="' + window.emsFields.lastNameField + '[last_name]"]');
                         if (lastNameInput) {
                             lastNameInput.value = mapping.lastName || '';
                             lastNameInput.dispatchEvent(new Event('change', { bubbles: true }));
@@ -647,23 +706,31 @@ class Fluent_Forms_Sync {
                             unitIdInput.dispatchEvent(new Event('change', { bubbles: true }));
                         }
 
-                        // 4. Emails
-                        var explorerEmailInput = document.querySelector('input[name="signup_explorer_email"]');
-                        if (explorerEmailInput) {
-                            explorerEmailInput.value = mapping.explorerEmail || '';
-                            explorerEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
-                            if (mapping.explorerEmail) {
-                                explorerEmailInput.classList.add('ff-read-only');
-                            } else {
-                                explorerEmailInput.classList.remove('ff-read-only');
+                        // 4. Emails with retry loop to ensure they populate at the same time as unit does
+                        (function trySetExplorerEmail(deadline) {
+                            var explorerEmailInput = document.querySelector('input[name="' + window.emsFields.explorerEmailField + '"]');
+                            if (explorerEmailInput) {
+                                explorerEmailInput.value = mapping.explorerEmail || '';
+                                explorerEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                if (mapping.explorerEmail) {
+                                    explorerEmailInput.classList.add('ff-read-only');
+                                } else {
+                                    explorerEmailInput.classList.remove('ff-read-only');
+                                }
+                            } else if (Date.now() < deadline) {
+                                setTimeout(function() { trySetExplorerEmail(deadline); }, 100);
                             }
-                        }
+                        })(Date.now() + 3000);
 
-                        var leaderEmailInput = document.querySelector('input[name="signup_leader_email"]');
-                        if (leaderEmailInput) {
-                            leaderEmailInput.value = mapping.leaderEmail || '';
-                            leaderEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
+                        (function trySetLeaderEmail(deadline) {
+                            var leaderEmailInput = document.querySelector('input[name="' + window.emsFields.leaderEmailField + '"]');
+                            if (leaderEmailInput) {
+                                leaderEmailInput.value = mapping.leaderEmail || '';
+                                leaderEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else if (Date.now() < deadline) {
+                                setTimeout(function() { trySetLeaderEmail(deadline); }, 100);
+                            }
+                        })(Date.now() + 3000);
                     }
 
                     childSelect.addEventListener('change', updateUnit);
