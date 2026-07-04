@@ -183,9 +183,10 @@ This is the heaviest UI screen in the app. Ensure all sidebar team panels, membe
 
 ---
 
-## Step 3.3: Refactor `SignupsBoard.tsx`
+## Step 3.3: Refactor `SignupsBoard.tsx` ✅ DONE
 
 **Target File**: `resources/js/admin/signups-board/SignupsBoard.tsx`
+**Status**: Completed 2026-07-04. Commit: `505e4bd`.
 
 ### Objective
 Migrate the datagrid headers, filter pills, level selector, skill badges, avatar circles, and table layout within the signups board.
