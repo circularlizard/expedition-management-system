@@ -102,17 +102,17 @@ const TeamRow: React.FC<{ team: Team }> = ({ team }) => {
 
     return (
         <tr>
-            <td style={{ fontWeight: 600, verticalAlign: 'top' }}>{team.ems_team_code}</td>
-            <td style={{ color: sizeWarn ? '#d63638' : '#1d2327', fontWeight: sizeWarn ? 600 : 400, verticalAlign: 'top' }}>
+            <td className="ems-font-semibold ems-table-cell--top">{team.ems_team_code}</td>
+            <td className={`ems-table-cell--top ${sizeWarn ? 'ems-text-warning ems-font-semibold' : ''}`}>
                 {size}
                 {sizeWarn && (
                     <span className="ems-team-size-warn">⚠</span>
                 )}
             </td>
-            <td style={{ verticalAlign: 'top' }}>{faBadge}</td>
-            <td style={{ fontSize: '12px', verticalAlign: 'top' }}>
+            <td className="ems-table-cell--top">{faBadge}</td>
+            <td className="ems-meta-text ems-table-cell--top">
                 {members.length === 0 ? (
-                    <span style={{ color: '#aaa' }}>—</span>
+                    <span className="ems-text-muted">—</span>
                 ) : (
                     <ul className="ems-member-list">
                         {members.map((m) => (
@@ -215,13 +215,13 @@ const TrainingRequirementsTab: React.FC<{ eventId: number }> = ({ eventId }) => 
             </p>
 
             {message && (
-                <div className={`notice notice-${message.type}`} style={{ margin: '0 0 16px 0', padding: '8px 12px', borderLeftWidth: '4px' }}>
-                    <p style={{ margin: 0, fontSize: '13px' }}>{message.text}</p>
+                <div className={`notice notice-${message.type} is-dismissible ems-mb-16`}>
+                    <p>{message.text}</p>
                 </div>
             )}
 
             {courses.length === 0 ? (
-                <p style={{ color: '#888', fontStyle: 'italic' }}>No Tutor LMS courses found.</p>
+                <p className="ems-meta-text ems-italic">No Tutor LMS courses found.</p>
             ) : (
                 <div className="ems-training-list">
                     {courses.map((course) => {
@@ -233,7 +233,7 @@ const TrainingRequirementsTab: React.FC<{ eventId: number }> = ({ eventId }) => 
                                     checked={isChecked}
                                     onChange={(e) => handleCheckboxChange(course.id, e.target.checked)}
                                     disabled={saving}
-                                    style={{ margin: 0 }}
+                                    className="ems-checkbox ems-m-0"
                                 />
                                 {course.title}
                             </label>
