@@ -25,7 +25,7 @@ describe('EventForm', () => {
         fireEvent.change(screen.getByLabelText(/Event Code/), { target: { value: 'H-SP1' } });
         fireEvent.change(screen.getByLabelText(/Start Date/), { target: { value: '2027-06-01' } });
         fireEvent.change(screen.getByLabelText(/End Date/), { target: { value: '2027-06-03' } });
-        fireEvent.change(screen.getByLabelText(/First aid required/), { target: { value: 'first_response' } });
+        fireEvent.change(screen.getByLabelText(/First Aid Required/i), { target: { value: 'first_response' } });
 
         fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
@@ -58,7 +58,7 @@ describe('EventForm', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
         await waitFor(() => {
-            expect(screen.getByText('Event code already exists in this season')).toBeInTheDocument();
+            expect(screen.getByText('Event code already exists')).toBeInTheDocument();
         });
     });
 
@@ -74,7 +74,7 @@ describe('EventForm', () => {
 
     it('shows route planning status options as Draft and Confirmed', () => {
         render(<EventForm seasonId={1} />);
-        const select = screen.getByLabelText(/Status/) as HTMLSelectElement;
+        const select = screen.getByLabelText(/Route Planning Status/i) as HTMLSelectElement;
         const options = Array.from(select.options).map((option) => option.textContent);
         expect(options).toContain('Draft');
         expect(options).toContain('Confirmed');

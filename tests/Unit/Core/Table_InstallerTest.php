@@ -32,7 +32,7 @@ class Table_InstallerTest extends EMSTestCase {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( 'wp_', '' );
 
-        $this->assertCount( 9, $sql );
+        $this->assertCount( 10, $sql );
 
         $all_sql = implode( ' ', $sql );
         $this->assertStringContainsString( 'ems_team_members', $all_sql );
@@ -44,6 +44,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'ems_units', $all_sql );
         $this->assertStringContainsString( 'ems_participant_signups', $all_sql );
         $this->assertStringContainsString( 'ems_expedition_signups', $all_sql );
+        $this->assertStringContainsString( 'ems_audit_logs', $all_sql );
     }
 
     public function test_generate_sql_with_charset(): void {

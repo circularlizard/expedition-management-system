@@ -23,6 +23,10 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         ?OSM_Event_Repository $osm_events = null,
         ?Signup_Repository $signups = null
     ): Expedition_Admin_Controller {
+        if ( ! $signups ) {
+            $signups = \Mockery::mock( Signup_Repository::class );
+            $signups->shouldReceive( 'has_additional_support_needs' )->byDefault()->andReturn( false );
+        }
         return new Expedition_Admin_Controller(
             $seasons ?: \Mockery::mock( Season_Repository::class ),
             $expeditions ?: \Mockery::mock( Expedition_Repository::class ),
@@ -31,7 +35,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
             $explorers ?: \Mockery::mock( OSM_Explorer_Repository::class ),
             $osm_events ?: \Mockery::mock( OSM_Event_Repository::class ),
             null,
-            $signups ?: \Mockery::mock( Signup_Repository::class )
+            $signups
         );
     }
 

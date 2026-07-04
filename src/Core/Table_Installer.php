@@ -52,6 +52,11 @@ class Table_Installer {
             $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER first_aid_level" );
         }
 
+        if ( ! $this->column_exists( $wpdb, $explorers_table, 'additional_support_needs' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN additional_support_needs TEXT DEFAULT NULL AFTER dofe_number" );
+        }
+
         $participant_table = $wpdb->prefix . 'ems_participant_signups';
         if ( ! $this->column_exists( $wpdb, $participant_table, 'leader_email' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -199,6 +204,7 @@ class Table_Installer {
             patrol               VARCHAR(100)    NOT NULL DEFAULT '',
             first_aid_level      VARCHAR(30)     NOT NULL DEFAULT 'none',
             dofe_number          VARCHAR(50)              DEFAULT NULL,
+            additional_support_needs TEXT                 DEFAULT NULL,
             last_local_update_at DATETIME                 DEFAULT NULL,
             last_ems_push_at     DATETIME                 DEFAULT NULL,
             synced_at            DATETIME        NOT NULL,
@@ -206,6 +212,19 @@ class Table_Installer {
             UNIQUE KEY idx_scout_id (scout_id),
             KEY idx_section_id (section_id),
             KEY idx_wp_user_id (wp_user_id)
+        ) {$charset};";
+
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_audit_logs (
+            id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id                BIGINT UNSIGNED NOT NULL,
+            action                 VARCHAR(100)    NOT NULL,
+            target_scout_id        BIGINT UNSIGNED DEFAULT NULL,
+            ip_address             VARCHAR(45)     NOT NULL,
+            user_agent             VARCHAR(255)    NOT NULL,
+            timestamp              DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_user_id (user_id),
+            KEY idx_target_scout_id (target_scout_id)
         ) {$charset};";
 
         $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_events (
@@ -327,6 +346,7 @@ class Table_Installer {
             'units'                 => $wpdb->prefix . 'ems_units',
             'participant_signups'   => $wpdb->prefix . 'ems_participant_signups',
             'expedition_signups'    => $wpdb->prefix . 'ems_expedition_signups',
+            'audit_logs'            => $wpdb->prefix . 'ems_audit_logs',
         ];
     }
 }
