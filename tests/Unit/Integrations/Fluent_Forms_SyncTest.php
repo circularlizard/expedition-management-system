@@ -118,7 +118,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
         $sync->handle_submission( 999, [
             'signup_child' => '30001|Mary|Smith',
-            'input_radio_1' => 'Silver',
+            'signup_level' => 'Silver',
             'exped_type'   => 'Hillwalking',
             'input_radio'  => 'first-response',
         ], (object) [ 'id' => 7 ] );
