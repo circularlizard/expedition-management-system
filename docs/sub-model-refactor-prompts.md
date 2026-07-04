@@ -56,9 +56,10 @@ Remove all structural inline styles and helper style functions from the componen
 
 ---
 
-## Step 2.2: Refactor `ExpeditionView.tsx`
+## Step 2.2: Refactor `ExpeditionView.tsx` ✅ DONE
 
 **Target File**: `resources/js/admin/expedition-board/ExpeditionView.tsx`
+**Status**: Completed 2026-07-04. Commit: `2dade53`.
 
 ### Objective
 Eliminate inline styles on metadata fields, lists of team members, training requirements, and status badges.
