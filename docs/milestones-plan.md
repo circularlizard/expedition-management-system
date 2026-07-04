@@ -55,6 +55,7 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
     *   [ ] Add event status filtering ('active' or 'archived') to toggle archived events in listings.
     *   [ ] Show Name, Short Code, Mode of Transport, Level, First Aid Requirements, and Dates on the events roster grid.
     *   [ ] Move all team formation and CRUD rosters strictly to the Event Detail Page.
+    *   [ ] Add a Training tab on the Event Detail Page to define event course training requirements (integrating with `/ems/v1/events/{id}/training-requirements`).
     *   [ ] Expand event post meta with parent/explorer WhatsApp links and generate corresponding QR codes on the detail page.
     *   [ ] Allow assigning unallocated explorers to an event via a virtual unallocated team.
     *   [ ] Implement a calendar dashboard interface showing chronological timelines of all practice/qualifying events.
