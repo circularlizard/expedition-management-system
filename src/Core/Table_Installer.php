@@ -63,6 +63,8 @@ class Table_Installer {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $wpdb->query( "ALTER TABLE {$expedition_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
         }
+
+        $this->migrate_season_deprecation( $wpdb );
     }
 
     private function column_exists( object $wpdb, string $table, string $column ): bool {
@@ -74,6 +76,40 @@ class Table_Installer {
         ) );
 
         return ! empty( $found );
+    }
+
+    private function migrate_season_deprecation( object $wpdb ): void {
+        if ( get_option( 'ems_season_migration_done' ) ) {
+            return;
+        }
+
+        // Detach all expedition posts from any season parent.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $wpdb->query(
+            "UPDATE {$wpdb->posts} SET post_parent = 0 WHERE post_type = 'expedition'"
+        );
+
+        // Collect all season post IDs before deleting.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $season_ids = $wpdb->get_col(
+            "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'season'"
+        );
+
+        if ( ! empty( $season_ids ) ) {
+            $placeholders = implode( ',', array_fill( 0, count( $season_ids ), '%d' ) );
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( $wpdb->prepare(
+                "DELETE FROM {$wpdb->postmeta} WHERE post_id IN ({$placeholders})",
+                ...$season_ids
+            ) );
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( $wpdb->prepare(
+                "DELETE FROM {$wpdb->posts} WHERE ID IN ({$placeholders})",
+                ...$season_ids
+            ) );
+        }
+
+        update_option( 'ems_season_migration_done', 1 );
     }
 
     public function generate_sql( string $prefix = '', string $charset = '' ): array {

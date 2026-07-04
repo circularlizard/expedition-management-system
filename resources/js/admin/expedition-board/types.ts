@@ -53,6 +53,9 @@ export interface Expedition {
     ems_osm_event_id?: number | string;
     ems_status?: string;
     ems_first_aid_level?: 'none' | 'first_response' | 'full_first_aid';
+    ems_expedition_whatsapp_explorers?: string;
+    ems_expedition_whatsapp_parents?: string;
+    ems_first_aid_requirements?: string;
     teams: Team[];
     member_count?: number;
 }

@@ -153,7 +153,7 @@ class CPT_RegistryTest extends EMSTestCase {
 
         ( new CPT_Registry() )->register();
 
-        $this->assertTrue( $captured['season']['show_in_rest'] );
+        $this->assertFalse( $captured['season']['show_in_rest'] );
     }
 
     public function test_season_meta_field_list_covers_required_keys(): void {

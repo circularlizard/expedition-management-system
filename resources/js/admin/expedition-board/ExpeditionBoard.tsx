@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { useBoard } from './useBoard';
 import { useOSMEvents } from './useOSMEvents';
-import { SeasonDashboard } from './SeasonDashboard';
+import { EventsDashboard } from './EventsDashboard';
+import { EventDetailPage } from './EventDetailPage';
 import { ExpeditionView } from './ExpeditionView';
-import { SeasonForm } from './SeasonForm';
+import { Expedition } from './types';
 
-type BoardTab = 'dashboard' | 'expedition-view';
+type BoardTab = 'dashboard' | 'detail' | 'expedition-view';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
     const { events: osmEvents, loading: osmEventsLoading } = useOSMEvents();
     const [activeTab, setActiveTab] = useState<BoardTab>('dashboard');
-    const [showSeasonForm, setShowSeasonForm] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState<Expedition | null>(null);
 
-    if (loading) return <p>Loading board...</p>;
+    if (loading) return <p>Loading board…</p>;
     if (error) return <div className="notice notice-error"><p>{error}</p></div>;
     if (!data || !Array.isArray(data.seasons)) {
         return (
@@ -23,8 +24,22 @@ const ExpeditionBoard: React.FC = () => {
         );
     }
 
-    const seasons = data.seasons;
-    void seasons;
+    const explorers = data.explorers ?? [];
+
+    const handleSelectEvent = (event: Expedition) => {
+        setSelectedEvent(event);
+        setActiveTab('detail');
+    };
+
+    const handleBack = () => {
+        setSelectedEvent(null);
+        setActiveTab('dashboard');
+    };
+
+    const handleEventUpdated = (updated: Expedition) => {
+        setSelectedEvent(updated);
+        refetch();
+    };
 
     return (
         <div className="ems-board">
@@ -32,34 +47,45 @@ const ExpeditionBoard: React.FC = () => {
                 <span style={{ color: '#666', fontSize: '0.9em' }}>
                     Last synced with OSM: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
                 </span>
-                <button
-                    type="button"
-                    className="button button-primary"
-                    onClick={() => setShowSeasonForm((v) => !v)}
-                >
-                    {showSeasonForm ? 'Close' : 'Create Season'}
-                </button>
             </div>
 
-            {showSeasonForm && (
-                <SeasonForm
-                    onSaved={() => { setShowSeasonForm(false); refetch(); }}
-                    onCancel={() => setShowSeasonForm(false)}
-                />
+            {activeTab !== 'detail' && (
+                <nav className="nav-tab-wrapper">
+                    <button
+                        className={`nav-tab ${activeTab === 'dashboard' ? 'nav-tab-active' : ''}`}
+                        onClick={() => setActiveTab('dashboard')}
+                    >
+                        Events Dashboard
+                    </button>
+                    <button
+                        className={`nav-tab ${activeTab === 'expedition-view' ? 'nav-tab-active' : ''}`}
+                        onClick={() => setActiveTab('expedition-view')}
+                    >
+                        Expedition View
+                    </button>
+                </nav>
             )}
 
-            <nav className="nav-tab-wrapper">
-                <button className={`nav-tab ${activeTab === 'dashboard' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('dashboard')}>
-                    Season Dashboard
-                </button>
-                <button className={`nav-tab ${activeTab === 'expedition-view' ? 'nav-tab-active' : ''}`} onClick={() => setActiveTab('expedition-view')}>
-                    Expedition View
-                </button>
-            </nav>
-
-            <div className="tab-content" style={{ marginTop: '20px' }}>
-                {activeTab === 'dashboard' && <SeasonDashboard data={data} osmEvents={osmEvents} osmEventsLoading={osmEventsLoading} />}
-                {activeTab === 'expedition-view' && <ExpeditionView data={data} osmEvents={osmEvents} />}
+            <div className="tab-content" style={{ marginTop: activeTab === 'detail' ? '0' : '20px' }}>
+                {activeTab === 'dashboard' && (
+                    <EventsDashboard
+                        onSelectEvent={handleSelectEvent}
+                        osmEvents={osmEvents}
+                        osmEventsLoading={osmEventsLoading}
+                    />
+                )}
+                {activeTab === 'detail' && selectedEvent && (
+                    <EventDetailPage
+                        event={selectedEvent}
+                        onBack={handleBack}
+                        explorers={explorers}
+                        osmEvents={osmEvents}
+                        onEventUpdated={handleEventUpdated}
+                    />
+                )}
+                {activeTab === 'expedition-view' && (
+                    <ExpeditionView data={data} osmEvents={osmEvents} />
+                )}
             </div>
         </div>
     );
