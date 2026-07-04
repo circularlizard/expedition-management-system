@@ -1,0 +1,359 @@
+/**
+ * EMS Admin Shared Stylesheet
+ *
+ * Utility classes and base element normalization for all EMS admin pages.
+ * These supplement the WordPress admin stylesheet (wp-admin.css) which is
+ * always loaded in the WP admin context.
+ *
+ * Usage convention:
+ *   - .ems-*      layout / structural utilities
+ *   - .wpx-*      overrides / extensions of WP admin base styles
+ *   - Dynamic/state-driven values (colours, visibility) remain inline in JSX.
+ */
+
+/* ─── Resets ──────────────────────────────────────────────────────────────── */
+
+/*
+ * WordPress admin sets box-sizing on very few elements. Normalise here so our
+ * layout components behave predictably.
+ */
+.ems-board *,
+.ems-board *::before,
+.ems-board *::after {
+    box-sizing: border-box;
+}
+
+/* ─── Full-height layout ──────────────────────────────────────────────────── */
+
+/*
+ * Used on page-level containers that should fill the remaining viewport below
+ * the WP admin bar + page title (~130 px). The parent .wrap uses overflow
+ * visible, so we drive height from the viewport.
+ */
+.ems-full-height {
+    height: calc(100vh - 130px);
+    min-height: 480px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ─── Panel ───────────────────────────────────────────────────────────────── */
+
+.ems-panel {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.ems-panel--full-height {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ─── Toolbar ─────────────────────────────────────────────────────────────── */
+
+.ems-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.ems-toolbar__group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ems-toolbar__label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #50575e;
+    white-space: nowrap;
+}
+
+/* ─── Two-column split ────────────────────────────────────────────────────── */
+
+.ems-split {
+    display: flex;
+    gap: 24px;
+    flex: 1 1 0;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.ems-split__left {
+    flex: 1;
+    overflow-y: auto;
+    border-right: 1px solid #f0f0f1;
+    padding-right: 20px;
+}
+
+.ems-split__right {
+    flex: 1.5;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ─── Section heading ─────────────────────────────────────────────────────── */
+
+.ems-section-heading {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+/* ─── Table ───────────────────────────────────────────────────────────────── */
+
+.ems-table-wrap {
+    flex: 1 1 0;
+    overflow-y: auto;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    min-height: 0;
+}
+
+.ems-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ems-table thead tr {
+    background: #f6f7f7;
+    border-bottom: 1px solid #ccd0d4;
+    text-align: left;
+}
+
+.ems-table thead th {
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #50575e;
+    white-space: nowrap;
+}
+
+.ems-table thead th--center {
+    text-align: center;
+}
+
+.ems-table tbody tr {
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.ems-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.ems-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.ems-table tbody td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    color: #1d2327;
+}
+
+.ems-table tbody td--center {
+    text-align: center;
+}
+
+.ems-table__name {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ems-table__meta {
+    font-size: 11px;
+    color: #646970;
+    margin-top: 2px;
+}
+
+/* ─── Event card (planning board left column) ─────────────────────────────── */
+
+.ems-event-card {
+    padding: 12px 16px;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    margin-bottom: 10px;
+}
+
+.ems-event-card:hover {
+    border-color: #a7aaad;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.ems-event-card--selected {
+    border-color: #2271b1;
+    background: #f0f6fc;
+    box-shadow: 0 1px 4px rgba(34, 113, 177, 0.12);
+}
+
+.ems-event-card__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ems-event-card--selected .ems-event-card__title {
+    color: #2271b1;
+}
+
+.ems-event-card__dates {
+    font-size: 11px;
+    color: #646970;
+    margin-top: 6px;
+}
+
+.ems-event-card__stats {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1d2327;
+    margin-top: 8px;
+}
+
+.ems-event-card__stat-value {
+    color: #2271b1;
+}
+
+/* ─── Action bar ──────────────────────────────────────────────────────────── */
+
+.ems-action-bar {
+    padding: 14px 16px;
+    background: #f6f7f7;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.ems-action-bar__controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ems-action-bar__actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ─── Empty / placeholder states ──────────────────────────────────────────── */
+
+.ems-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #ccd0d4;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    color: #646970;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* ─── Status badges ───────────────────────────────────────────────────────── */
+
+.ems-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+.ems-badge--allocated {
+    background: #fcf9e8;
+    color: #9a6700;
+    border: 1px solid #f0c33c;
+}
+
+.ems-badge--unallocated {
+    background: #f6f7f7;
+    color: #646970;
+    border: 1px solid #dcdcde;
+}
+
+.ems-badge--warning {
+    background: #fcf0f1;
+    color: #d63638;
+    border: 1px solid #f86368;
+}
+
+/* ─── Error notice ────────────────────────────────────────────────────────── */
+
+.ems-error-notice {
+    padding: 10px 16px;
+    background: #fcf0f1;
+    border-left: 4px solid #d63638;
+    color: #d63638;
+    margin-bottom: 16px;
+    border-radius: 2px;
+    font-size: 13px;
+}
+
+/* ─── WP components overrides ─────────────────────────────────────────────── */
+
+/*
+ * @wordpress/components SelectControl renders a wrapper div around the native
+ * select. These rules ensure it fits our toolbar layout without inheriting
+ * the full-width block default.
+ */
+.ems-toolbar .components-base-control,
+.ems-action-bar .components-base-control {
+    margin-bottom: 0;
+}
+
+.ems-toolbar .components-base-control__field,
+.ems-action-bar .components-base-control__field {
+    margin-bottom: 0;
+}
+
+/* SelectControl sizing — compact for toolbar use */
+.ems-select-sm .components-select-control__input {
+    height: 30px;
+    font-size: 12px;
+    padding-top: 0;
+    padding-bottom: 0;
+    min-height: unset;
+}
+
+/* Standard size matching WP form-table inputs */
+.ems-select .components-select-control__input {
+    height: 36px;
+    font-size: 13px;
+    min-height: unset;
+}
+
+/* Button alignment within toolbar groups */
+.ems-toolbar .components-button,
+.ems-action-bar .components-button {
+    height: 30px;
+}
