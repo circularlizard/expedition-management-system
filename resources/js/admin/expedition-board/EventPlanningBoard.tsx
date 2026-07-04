@@ -28,7 +28,7 @@ interface TeamOption {
 }
 
 export default function EventPlanningBoard() {
-  const config = (window as any).emsSettingsBoard || (window as any).emsSignupsBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
+  const config = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
   const rootUrl = config.root_url;
   const nonce = config.nonce;
 
