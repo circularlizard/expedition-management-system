@@ -138,10 +138,11 @@ Retrieves sensitive Additional Support Needs (ASN) for a linked explorer and wri
 *   **Interaction**: Clicking an event row navigates the SPA directly to the **Event Detail Page**.
 
 ### 5.2 Event Detail Page & Team Formation Workspace
-*   **Consolidated View**: Team formation and drag-and-drop rosters are relocated strictly onto the Event Detail Page.
+*   **Consolidated View**: Team formation, drag-and-drop rosters, and course requirement settings are relocated strictly onto the Event Detail Page.
 *   **Roster Tabs**:
     1.  **Teams**: Drag-and-drop workspace showing created teams.
-    2.  **QR Codes**: Displays generated QR codes for:
+    2.  **Training**: Interface to manage training requirements for the event, listing available Tutor LMS courses with a checkbox checklist to select/save required courses (integrating with `/ems/v1/events/{id}/training-requirements` REST API).
+    3.  **QR Codes**: Displays generated QR codes for:
         *   Parents' WhatsApp Group Link
         *   Explorers' WhatsApp Group Link
         *   *Implementation*: QR codes are generated dynamically via secure client-side SVG rendering or the Google Charts QR API (`https://chart.googleapis.com/chart?chs=180x180&cht=qr&chl=...`).
