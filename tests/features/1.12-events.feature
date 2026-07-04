@@ -87,3 +87,15 @@ Feature: Event (expedition) management within a season
   Scenario: Cannot create an event without an event code
     When an event is created in the season without "ems_event_code"
     Then an error is returned with code "ems_missing_required_field"
+
+  Scenario: Editing an event with a numeric path parameter succeeds
+    Given an event exists with code "H-SP1" in the season
+    When a PATCH request is made to edit event "H-SP1" with a valid payload
+    Then the response status is 200
+
+  Scenario: ASN tab displays parent support needs dynamically
+    Given a team member "Alice MacLeod" exists with scout ID 30001
+    And a signup exists for scout ID 30001 with parent support needs "Has asthma"
+    When the administrator views the Support Needs tab for the event
+    Then the table displays parent support needs "Has asthma" for "Alice MacLeod"
+

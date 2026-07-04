@@ -108,26 +108,6 @@ export const ExplorerMovePanel: React.FC<ExplorerMovePanelProps> = ({ season, on
             <button className="button button-primary" onClick={handleMove} disabled={!parsedSelection || !targetTeamId}>
                 Move
             </button>
-
-            <div className="ems-event-list">
-                {board.events.map((event) => (
-                    <div key={event.ID} className="ems-event-block">
-                        <h4>{event.ems_event_code}</h4>
-                        {event.teams.map((team) => (
-                            <div key={team.ID} className="ems-team-block" data-testid={`team-${team.ems_team_code}`}>
-                                <strong>{team.ems_team_code}</strong> shows {(team.members ?? []).length} members
-                                <ul>
-                                    {(team.members ?? []).map((member) => (
-                                        <li key={memberKey(member)} data-testid={`member-${team.ems_team_code}-${memberKey(member)}`}>
-                                            {member.first_name} {member.last_name}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))}
-                    </div>
-                ))}
-            </div>
         </div>
     );
 };
