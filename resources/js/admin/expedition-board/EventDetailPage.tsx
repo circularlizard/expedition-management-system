@@ -796,21 +796,21 @@ const QRCodesTab: React.FC<{ event: Expedition }> = ({ event }) => {
                     </tbody>
                 </table>
                 <button type="submit" className="button button-primary ems-mt-16" disabled={saving}>{saving ? 'Saving…' : 'Save Links'}</button>
-                {saved && <span className="ems-saved-indicator ems-ml-8">✓ Saved</span>}
+                {saved && <span className="ems-qr-saved">✓ Saved</span>}
             </form>
-            <div className="ems-qr-grid">
+            <div className="ems-qr-container">
                 {explorerLink && (
-                    <div className="ems-qr-card">
-                        <div className="ems-qr-card__title">🧭 Explorers Group</div>
-                        <a href={explorerLink} target="_blank" rel="noopener noreferrer" className="ems-qr-card__link">Open link ↗</a>
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(explorerLink)}`} alt="Explorers WhatsApp QR Code" className="ems-qr-card__image" />
+                    <div className="ems-qr-item">
+                        <div className="ems-qr-item__title">🧭 Explorers Group</div>
+                        <a href={explorerLink} target="_blank" rel="noopener noreferrer" className="ems-qr-item__link">Open link ↗</a>
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(explorerLink)}`} alt="Explorers WhatsApp QR Code" className="ems-qr-item__image" />
                     </div>
                 )}
                 {parentLink && (
-                    <div className="ems-qr-card">
-                        <div className="ems-qr-card__title">👨‍👩‍👧 Parents Group</div>
-                        <a href={parentLink} target="_blank" rel="noopener noreferrer" className="ems-qr-card__link">Open link ↗</a>
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(parentLink)}`} alt="Parents WhatsApp QR Code" className="ems-qr-card__image" />
+                    <div className="ems-qr-item">
+                        <div className="ems-qr-item__title">👨‍👩‍👧 Parents Group</div>
+                        <a href={parentLink} target="_blank" rel="noopener noreferrer" className="ems-qr-item__link">Open link ↗</a>
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(parentLink)}`} alt="Parents WhatsApp QR Code" className="ems-qr-item__image" />
                     </div>
                 )}
                 {!explorerLink && !parentLink && <p className="ems-qr-empty">No WhatsApp links set yet.</p>}
