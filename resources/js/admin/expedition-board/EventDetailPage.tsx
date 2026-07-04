@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Expedition, Team, Member, Explorer, FirstAidLevel, OSMEvent } from './types';
 import { EventForm } from './EventForm';
+import { OSMReadOnlyMap } from './OSMReadOnlyMap';
 
 interface EventDetailPageProps {
     event: Expedition;
@@ -146,6 +147,7 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                             <FieldVal label="Start Location" value={<LocationDisplay value={event.ems_start_location} />} />
                             <FieldVal label="End Location" value={<LocationDisplay value={event.ems_end_location} />} />
                         </div>
+                        <OSMReadOnlyMap startLocation={event.ems_start_location} endLocation={event.ems_end_location} />
                     </div>
                     <div style={{ marginBottom: '24px' }}><div style={secHdr}>Leader in Charge</div>
                         <div style={grd(3)}>
@@ -161,7 +163,32 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                             <FieldVal label="Route Deadline" value={formatDate(event.ems_route_deadline)} />
                             <FieldVal label="Route Status" value={capitalize(event.ems_route_status || 'draft')} />
                         </div>
-                        {event.ems_route_info && <div><div style={{ ...secHdr, marginTop: '12px' }}>Notes</div><div style={{ fontSize: '14px', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: event.ems_route_info }} /></div>}
+                        {event.ems_route_info && (
+                            <div>
+                                <style dangerouslySetInnerHTML={{ __html: `
+                                    .ems-rte-readonly ul {
+                                        list-style-type: disc !important;
+                                        margin: 8px 0 8px 20px !important;
+                                        padding: 0 !important;
+                                    }
+                                    .ems-rte-readonly ol {
+                                        list-style-type: decimal !important;
+                                        margin: 8px 0 8px 20px !important;
+                                        padding: 0 !important;
+                                    }
+                                    .ems-rte-readonly li {
+                                        display: list-item !important;
+                                        margin-bottom: 4px !important;
+                                    }
+                                `}} />
+                                <div style={{ ...secHdr, marginTop: '12px' }}>Notes</div>
+                                <div 
+                                    className="ems-rte-readonly" 
+                                    style={{ fontSize: '14px', lineHeight: '1.6' }} 
+                                    dangerouslySetInnerHTML={{ __html: event.ems_route_info }} 
+                                />
+                            </div>
+                        )}
                     </div>
                 </>
             )}
