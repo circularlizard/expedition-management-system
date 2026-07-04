@@ -59,9 +59,37 @@ class Team_Repository {
             'orderby'     => 'meta_value_num',
             'meta_key'    => 'ems_team_number',
             'order'       => 'ASC',
+            'meta_query'  => [
+                [
+                    'key'     => 'ems_team_code',
+                    'value'   => 'UNALLOCATED',
+                    'compare' => '!=',
+                ],
+            ],
         ] );
 
         return array_map( [ $this, 'to_array' ], $posts );
+    }
+
+    public function get_unallocated_team( int $event_id ): ?array {
+        $posts = get_posts( [
+            'post_type'   => 'team',
+            'post_status' => 'publish',
+            'numberposts' => 1,
+            'post_parent' => $event_id,
+            'meta_query'  => [
+                [
+                    'key'   => 'ems_team_code',
+                    'value' => 'UNALLOCATED',
+                ],
+            ],
+        ] );
+
+        if ( empty( $posts ) ) {
+            return null;
+        }
+
+        return $this->to_array( $posts[0] );
     }
 
     public function move( int $team_id, int $target_event_id, string $target_event_code ): bool {

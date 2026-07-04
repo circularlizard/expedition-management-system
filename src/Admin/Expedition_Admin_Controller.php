@@ -49,6 +49,7 @@ class Expedition_Admin_Controller {
         $this->register_osm_event_route();
         $this->register_board_route();
         $this->register_signup_routes();
+        $this->register_whatsapp_routes();
     }
 
     private function register_season_routes(): void {
@@ -84,6 +85,12 @@ class Expedition_Admin_Controller {
     }
 
     private function register_event_routes(): void {
+        register_rest_route( 'ems/v1', '/events', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'list_events' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+        ] );
+
         register_rest_route( 'ems/v1', '/events', [
             'methods'             => \WP_REST_Server::CREATABLE,
             'callback'            => [ $this, 'create_event' ],
@@ -524,32 +531,107 @@ class Expedition_Admin_Controller {
     }
 
     public function get_board(): \WP_REST_Response {
-        $seasons = $this->seasons->list_all();
-        $board   = [];
+        $events_data = $this->expeditions->list_all_chronological();
+        $events      = [];
 
-        foreach ( $seasons as $season ) {
-            $events = [];
-            foreach ( $this->expeditions->list_by_season( $season['ID'] ) as $event ) {
-                $teams = [];
-                foreach ( $this->teams->list_by_expedition( $event['ID'] ) as $team ) {
-                    $members = $this->team_members->list_by_team( $team['ID'] );
-                    $team['member_count'] = count( $members );
-                    $team['size_warning'] = $team['member_count'] < 4 || $team['member_count'] > 7;
-                    $team['members']      = $this->hydrate_members( $members );
-                    $teams[]              = $team;
-                }
-                $event['teams']       = $teams;
-                $event['member_count'] = array_sum( array_column( $teams, 'member_count' ) );
-                $events[]             = $event;
+        foreach ( $events_data as $event ) {
+            $teams = [];
+            foreach ( $this->teams->list_by_expedition( $event['ID'] ) as $team ) {
+                $members = $this->team_members->list_by_team( $team['ID'] );
+                $team['member_count'] = count( $members );
+                $team['size_warning'] = $team['member_count'] < 4 || $team['member_count'] > 7;
+                $team['members']      = $this->hydrate_members( $members );
+                $teams[]              = $team;
             }
-            $season['events'] = $events;
-            $board[]          = $season;
+            $event['teams']        = $teams;
+            $event['member_count'] = array_sum( array_column( $teams, 'member_count' ) );
+            $events[]              = $event;
+        }
+
+        $synthetic_season = [
+            'ID'                => 0,
+            'post_title'        => 'All Events',
+            'ems_season_year'   => '',
+            'ems_season_status' => 'active',
+            'events'            => $events,
+        ];
+
+        return new \WP_REST_Response( [
+            'seasons'   => [ $synthetic_season ],
+            'explorers' => $this->list_explorers(),
+            'last_sync' => get_option( 'ems_osm_last_sync' ) ?: null,
+        ] );
+    }
+
+    public function list_events( \WP_REST_Request $request ): \WP_REST_Response {
+        $tab             = $request->get_param( 'tab' ) ?: 'upcoming';
+        $include_archived = (bool) $request->get_param( 'include_archived' );
+
+        switch ( $tab ) {
+            case 'past':
+                $raw_events = $this->expeditions->list_past();
+                break;
+            case 'all':
+                $raw_events = $this->expeditions->list_all_chronological();
+                break;
+            default:
+                $raw_events = $this->expeditions->list_upcoming();
+                break;
+        }
+
+        if ( ! $include_archived ) {
+            $raw_events = array_values( array_filter( $raw_events, static function ( $e ) {
+                return ( $e['ems_status'] ?? '' ) !== 'archived';
+            } ) );
+        }
+
+        $events = [];
+        foreach ( $raw_events as $event ) {
+            $teams = [];
+            foreach ( $this->teams->list_by_expedition( $event['ID'] ) as $team ) {
+                $members = $this->team_members->list_by_team( $team['ID'] );
+                $team['member_count'] = count( $members );
+                $team['size_warning'] = $team['member_count'] < 4 || $team['member_count'] > 7;
+                $teams[]              = $team;
+            }
+            $event['teams']        = $teams;
+            $event['member_count'] = array_sum( array_column( $teams, 'member_count' ) );
+            $events[]              = $event;
+        }
+
+        return new \WP_REST_Response( [ 'events' => $events ] );
+    }
+
+    public function get_whatsapp_links( \WP_REST_Request $request ): \WP_REST_Response {
+        $id = (int) $request->get_param( 'id' );
+
+        if ( ! $this->expeditions->get_by_id( $id ) ) {
+            return $this->error( 'ems_event_not_found', 'Event not found.', 404 );
         }
 
         return new \WP_REST_Response( [
-            'seasons'   => $board,
-            'explorers' => $this->list_explorers(),
-            'last_sync' => get_option( 'ems_osm_last_sync' ) ?: null,
+            'explorer_link' => get_post_meta( $id, 'ems_expedition_whatsapp_explorers', true ) ?: null,
+            'parent_link'   => get_post_meta( $id, 'ems_expedition_whatsapp_parents', true ) ?: null,
+        ] );
+    }
+
+    public function update_whatsapp_links( \WP_REST_Request $request ): \WP_REST_Response {
+        $id   = (int) $request->get_param( 'id' );
+        $body = $request->get_json_params() ?: [];
+
+        if ( ! $this->expeditions->get_by_id( $id ) ) {
+            return $this->error( 'ems_event_not_found', 'Event not found.', 404 );
+        }
+
+        $explorer_link = esc_url_raw( $body['explorer_link'] ?? '' );
+        $parent_link   = esc_url_raw( $body['parent_link'] ?? '' );
+
+        update_post_meta( $id, 'ems_expedition_whatsapp_explorers', $explorer_link );
+        update_post_meta( $id, 'ems_expedition_whatsapp_parents', $parent_link );
+
+        return new \WP_REST_Response( [
+            'explorer_link' => $explorer_link ?: null,
+            'parent_link'   => $parent_link ?: null,
         ] );
     }
 
@@ -578,7 +660,7 @@ class Expedition_Admin_Controller {
         ];
 
         if ( $require_all ) {
-            $required = [ 'season_id', 'ems_event_code', 'ems_type', 'ems_transport', 'ems_level', 'ems_start_date', 'ems_end_date' ];
+            $required = [ 'ems_event_code', 'ems_type', 'ems_transport', 'ems_level', 'ems_start_date', 'ems_end_date' ];
             foreach ( $required as $key ) {
                 if ( empty( $data[ $key ] ) ) {
                     return new \WP_Error( 'ems_missing_required_field', "Missing required field: {$key}." );
@@ -655,6 +737,26 @@ class Expedition_Admin_Controller {
 
     private function error( string $code, string $message, int $status ): \WP_REST_Response {
         return new \WP_REST_Response( new \WP_Error( $code, $message, [ 'status' => $status ] ), $status );
+    }
+
+    private function register_whatsapp_routes(): void {
+        register_rest_route( 'ems/v1', '/events/(?P<id>\d+)/whatsapp', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'get_whatsapp_links' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/events/(?P<id>\d+)/whatsapp', [
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'update_whatsapp_links' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'id' => [ 'type' => 'integer', 'required' => true ],
+            ],
+        ] );
     }
 
     private function register_signup_routes(): void {

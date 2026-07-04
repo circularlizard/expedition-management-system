@@ -6,8 +6,8 @@ class CPT_Registry {
         register_post_type( 'season', [
             'labels'       => [ 'name' => 'Seasons', 'singular_name' => 'Season' ],
             'public'       => false,
-            'show_ui'      => true,
-            'show_in_rest' => true,
+            'show_ui'      => false,
+            'show_in_rest' => false,
             'show_in_menu' => false,
             'menu_icon'    => 'dashicons-calendar-alt',
             'supports'     => [ 'title', 'custom-fields' ],

@@ -13,9 +13,9 @@ const mockConfig = {
 const mockBoardData = {
     seasons: [
         {
-            ID: 1,
-            post_title: '2026-27 Season',
-            ems_season_year: '2026-27',
+            ID: 0,
+            post_title: 'All Events',
+            ems_season_year: '',
             ems_season_status: 'active',
             events: [
                 {
@@ -43,8 +43,11 @@ const mockBoardData = {
             ],
         },
     ],
+    explorers: [],
     last_sync: '2026-06-13T20:00:00Z',
 };
+
+const mockEventsData = { events: mockBoardData.seasons[0].events };
 
 describe('ExpeditionBoard', () => {
     beforeEach(() => {
@@ -55,15 +58,16 @@ describe('ExpeditionBoard', () => {
     it('shows loading state initially', () => {
         (global.fetch as any).mockReturnValueOnce(new Promise(() => {}));
         render(<ExpeditionBoard />);
-        expect(screen.getByText('Loading board...')).toBeInTheDocument();
+        expect(screen.getByText('Loading board…')).toBeInTheDocument();
     });
 
-    it('renders the season dashboard by default', async () => {
-        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockBoardData });
+    it('renders the events dashboard by default', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockBoardData })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockEventsData });
         render(<ExpeditionBoard />);
         await waitFor(() => {
-            expect(screen.getByText('2026-27 Season')).toBeInTheDocument();
-            expect(screen.getByText(/Hill Practice 1/)).toBeInTheDocument();
+            expect(screen.getByText('Events Dashboard')).toBeInTheDocument();
         });
     });
 
@@ -76,7 +80,9 @@ describe('ExpeditionBoard', () => {
     });
 
     it('shows never synced when last_sync is null', async () => {
-        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => ({ ...mockBoardData, last_sync: null }) });
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ ...mockBoardData, last_sync: null }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockEventsData });
         render(<ExpeditionBoard />);
         await waitFor(() => {
             expect(screen.getByText(/Never/)).toBeInTheDocument();
@@ -84,9 +90,11 @@ describe('ExpeditionBoard', () => {
     });
 
     it('switches to the Expedition View tab', async () => {
-        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockBoardData });
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockBoardData })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockEventsData });
         render(<ExpeditionBoard />);
-        await waitFor(() => screen.getByText('2026-27 Season'));
+        await waitFor(() => screen.getByText('Events Dashboard'));
 
         fireEvent.click(screen.getByText('Expedition View'));
         expect(screen.getByLabelText('Select expedition')).toBeInTheDocument();

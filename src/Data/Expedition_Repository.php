@@ -47,6 +47,9 @@ class Expedition_Repository {
             'ems_osm_event_id',
             'ems_status',
             'ems_first_aid_level',
+            'ems_expedition_whatsapp_explorers',
+            'ems_expedition_whatsapp_parents',
+            'ems_first_aid_requirements',
         ];
 
         foreach ( $meta_fields as $key ) {
@@ -97,6 +100,9 @@ class Expedition_Repository {
             'ems_osm_event_id',
             'ems_status',
             'ems_first_aid_level',
+            'ems_expedition_whatsapp_explorers',
+            'ems_expedition_whatsapp_parents',
+            'ems_first_aid_requirements',
         ];
 
         foreach ( $meta_fields as $key ) {
@@ -148,6 +154,75 @@ class Expedition_Repository {
             'post_type'   => 'expedition',
             'post_status' => 'publish',
             'numberposts' => -1,
+        ] );
+
+        return array_map( [ $this, 'to_array' ], $posts );
+    }
+
+    public function list_all_chronological(): array {
+        $posts = get_posts( [
+            'post_type'   => 'expedition',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'meta_key'    => 'ems_start_date',
+            'orderby'     => 'meta_value',
+            'order'       => 'ASC',
+        ] );
+
+        return array_map( [ $this, 'to_array' ], $posts );
+    }
+
+    public function list_upcoming(): array {
+        $today = current_time( 'Y-m-d' );
+        $posts = get_posts( [
+            'post_type'   => 'expedition',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'meta_key'    => 'ems_start_date',
+            'orderby'     => 'meta_value',
+            'order'       => 'ASC',
+            'meta_query'  => [
+                'relation' => 'AND',
+                [
+                    'key'     => 'ems_start_date',
+                    'value'   => $today,
+                    'compare' => '>=',
+                    'type'    => 'DATE',
+                ],
+                [
+                    'key'     => 'ems_status',
+                    'value'   => 'archived',
+                    'compare' => '!=',
+                ],
+            ],
+        ] );
+
+        return array_map( [ $this, 'to_array' ], $posts );
+    }
+
+    public function list_past(): array {
+        $today = current_time( 'Y-m-d' );
+        $posts = get_posts( [
+            'post_type'   => 'expedition',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'meta_key'    => 'ems_end_date',
+            'orderby'     => 'meta_value',
+            'order'       => 'DESC',
+            'meta_query'  => [
+                'relation' => 'AND',
+                [
+                    'key'     => 'ems_end_date',
+                    'value'   => $today,
+                    'compare' => '<',
+                    'type'    => 'DATE',
+                ],
+                [
+                    'key'     => 'ems_status',
+                    'value'   => 'archived',
+                    'compare' => '!=',
+                ],
+            ],
         ] );
 
         return array_map( [ $this, 'to_array' ], $posts );
@@ -209,6 +284,9 @@ class Expedition_Repository {
             'ems_osm_event_id',
             'ems_status',
             'ems_first_aid_level',
+            'ems_expedition_whatsapp_explorers',
+            'ems_expedition_whatsapp_parents',
+            'ems_first_aid_requirements',
         ];
 
         foreach ( $meta_fields as $key ) {
