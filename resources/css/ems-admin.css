@@ -1317,3 +1317,107 @@
     color: #666;
 }
 
+/* ─── Phase 2: OSMReference ─────────────────────────────────────────────────── */
+
+.ems-osm-ref-container {
+    padding: 12px;
+    background: #fff;
+}
+
+.ems-osm-ref-title {
+    margin-top: 0;
+}
+
+.ems-osm-ref-filter-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+}
+
+.ems-osm-ref-filter-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.ems-osm-ref-filter-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: #666;
+}
+
+.ems-osm-ref-empty {
+    color: #666;
+}
+
+.ems-osm-ref-col-header {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.ems-osm-ref-col-sort {
+    font-size: 10px;
+}
+
+.ems-osm-ref-col-sort--active {
+    opacity: 1;
+}
+
+.ems-osm-ref-col-sort--inactive {
+    opacity: 0.35;
+}
+
+.ems-osm-ref-col-header--small {
+    font-size: 12px;
+}
+
+.ems-osm-ref-name {
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ems-osm-ref-fa-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ems-osm-ref-fa-error {
+    color: #d63638;
+    font-size: 11px;
+}
+
+.ems-osm-ref-meta {
+    font-size: 12px;
+    color: #666;
+}
+
+.ems-osm-ref-event-cell--empty {
+    color: #aaa;
+    font-size: 12px;
+}
+
+.ems-osm-ref-event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ems-osm-ref-event-item {
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.ems-osm-ref-event-date {
+    color: #666;
+    margin-left: 4px;
+}
+
