@@ -52,7 +52,7 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
             $this->params[ $key ] = $value;
         }
         public function get_param( string $key ) {
-            return $this->params[ $key ] ?? null;
+            return $this->params[ $key ] ?? $this->body[ $key ] ?? null;
         }
         public function set_body_params( array $body ): void {
             $this->body = $body;

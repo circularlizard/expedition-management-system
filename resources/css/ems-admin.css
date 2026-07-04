@@ -11,7 +11,15 @@
  *   - Dynamic/state-driven values (colours, visibility) remain inline in JSX.
  */
 
+/* ─── Variables ───────────────────────────────────────────────────────────── */
+:root {
+    --ems-theme-color: var(--wp-admin-theme-color, #2271b1);
+    --ems-theme-color-darker: var(--wp-admin-theme-color-darker, #135e96);
+    --ems-theme-color-lighter: var(--wp-admin-theme-color-lighter, #f0f6fc);
+}
+
 /* ─── Resets ──────────────────────────────────────────────────────────────── */
+
 
 /*
  * WordPress admin sets box-sizing on very few elements. Normalise here so our
@@ -202,8 +210,8 @@
 }
 
 .ems-event-card--selected {
-    border-color: #2271b1;
-    background: #f0f6fc;
+    border-color: var(--ems-theme-color);
+    background: var(--ems-theme-color-lighter);
     box-shadow: 0 1px 4px rgba(34, 113, 177, 0.12);
 }
 
@@ -214,7 +222,7 @@
 }
 
 .ems-event-card--selected .ems-event-card__title {
-    color: #2271b1;
+    color: var(--ems-theme-color);
 }
 
 .ems-event-card__dates {
@@ -233,7 +241,7 @@
 }
 
 .ems-event-card__stat-value {
-    color: #2271b1;
+    color: var(--ems-theme-color);
 }
 
 /* ─── Action bar ──────────────────────────────────────────────────────────── */
@@ -356,8 +364,8 @@
 
 .ems-select:focus,
 .ems-select-sm:focus {
-    border-color: #2271b1;
-    box-shadow: 0 0 0 1px #2271b1;
+    border-color: var(--ems-theme-color);
+    box-shadow: 0 0 0 1px var(--ems-theme-color);
     outline: 2px solid transparent;
 }
 
@@ -368,7 +376,7 @@
     width: 16px;
     height: 16px;
     cursor: pointer;
-    accent-color: #2271b1;
+    accent-color: var(--ems-theme-color);
 }
 
 /*
@@ -379,7 +387,7 @@
     width: 18px;
     height: 18px;
     border: 2px solid #dcdcde;
-    border-top-color: #2271b1;
+    border-top-color: var(--ems-theme-color);
     border-radius: 50%;
     animation: ems-spin 0.7s linear infinite;
     vertical-align: middle;
@@ -389,3 +397,575 @@
 @keyframes ems-spin {
     to { transform: rotate(360deg); }
 }
+
+/* ─── Spacing Utilities ─────────────────────────────────────────────────────── */
+
+/* Margin bottom scale */
+.ems-mb-4  { margin-bottom: 4px; }
+.ems-mb-6  { margin-bottom: 6px; }
+.ems-mb-8  { margin-bottom: 8px; }
+.ems-mb-10 { margin-bottom: 10px; }
+.ems-mb-12 { margin-bottom: 12px; }
+.ems-mb-16 { margin-bottom: 16px; }
+.ems-mb-20 { margin-bottom: 20px; }
+.ems-mb-24 { margin-bottom: 24px; }
+
+/* Margin top scale */
+.ems-mt-4  { margin-top: 4px; }
+.ems-mt-8  { margin-top: 8px; }
+.ems-mt-10 { margin-top: 10px; }
+.ems-mt-12 { margin-top: 12px; }
+.ems-mt-16 { margin-top: 16px; }
+.ems-mt-20 { margin-top: 20px; }
+
+/* Margin left */
+.ems-ml-4  { margin-left: 4px; }
+.ems-ml-6  { margin-left: 6px; }
+.ems-ml-8  { margin-left: 8px; }
+
+/* Padding */
+.ems-p-12  { padding: 12px; }
+.ems-p-16  { padding: 16px; }
+.ems-p-20  { padding: 20px; }
+.ems-px-16 { padding-left: 16px; padding-right: 16px; }
+.ems-py-8  { padding-top: 8px; padding-bottom: 8px; }
+
+/* ─── Flex Utilities ────────────────────────────────────────────────────────── */
+
+.ems-flex-center {
+    display: flex;
+    align-items: center;
+}
+
+.ems-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ems-flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Gap scale */
+.ems-gap-2  { gap: 2px; }
+.ems-gap-4  { gap: 4px; }
+.ems-gap-6  { gap: 6px; }
+.ems-gap-8  { gap: 8px; }
+.ems-gap-10 { gap: 10px; }
+.ems-gap-12 { gap: 12px; }
+.ems-gap-16 { gap: 16px; }
+.ems-gap-20 { gap: 20px; }
+.ems-gap-24 { gap: 24px; }
+
+/* ─── Typography ────────────────────────────────────────────────────────────── */
+
+.ems-label-uppercase {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #50575e;
+}
+
+.ems-meta-text {
+    font-size: 12px;
+    color: #646970;
+}
+
+.ems-small-text {
+    font-size: 11px;
+}
+
+.ems-monospace {
+    font-family: monospace;
+}
+
+/* ─── Forms ─────────────────────────────────────────────────────────────────── */
+
+.ems-form-group {
+    margin-bottom: 16px;
+}
+
+.ems-form-label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.ems-field-error {
+    color: #d63638;
+    font-size: 13px;
+}
+
+.ems-form-actions {
+    margin-top: 8px;
+}
+
+.ems-block-input {
+    display: block;
+    width: 100%;
+}
+
+/* ─── Cards & Panels ────────────────────────────────────────────────────────── */
+
+.ems-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 16px;
+}
+
+.ems-card--flat {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.ems-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+/* ─── Callouts & Notices ────────────────────────────────────────────────────── */
+
+.ems-warning-callout {
+    background: #fffbeb;
+    border-left: 3px solid #d97706;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #b45309;
+}
+
+.ems-error-callout {
+    background: #fef2f2;
+    border-left: 3px solid #dc2626;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #b91c1c;
+}
+
+/* ─── Status & Badge Elements ───────────────────────────────────────────────── */
+
+.ems-status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.ems-avatar-circle {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.ems-avatar-circle--red {
+    background: #d63638;
+}
+
+.ems-avatar-circle--blue {
+    background: var(--ems-theme-color);
+}
+
+.ems-avatar-circle--gold {
+    background: #dba617;
+}
+
+.ems-avatar-circle--green {
+    background: #00a32a;
+}
+
+/* Skill badge (smaller variant) */
+.ems-skill-badge {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: bold;
+    font-size: 11px;
+    margin-right: 4px;
+}
+
+/* ─── Filter Pills ──────────────────────────────────────────────────────────── */
+
+.ems-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 6px 12px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 20px;
+    color: #646970;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.ems-filter-pill--active {
+    background: #e5f3ff;
+    border-color: var(--ems-theme-color);
+    color: #1d2327;
+}
+
+.ems-filter-pill input[type="radio"] {
+    display: none;
+}
+
+/* ─── Meta Field Pairs ──────────────────────────────────────────────────────── */
+
+.ems-meta-field {
+    margin-bottom: 12px;
+}
+
+.ems-meta-field__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ems-meta-field__value {
+    font-size: 14px;
+    color: #1d2327;
+}
+
+.ems-meta-field__value--empty {
+    color: #bbb;
+}
+
+/* ─── Table Row Modifiers ───────────────────────────────────────────────────── */
+
+.ems-table-row--selected {
+    background: var(--ems-theme-color-lighter);
+}
+
+.ems-table-row--archived {
+    opacity: 0.6;
+}
+
+.ems-table-cell--center {
+    text-align: center;
+}
+
+.ems-table-cell--right {
+    text-align: right;
+}
+
+/* ─── Event Header Level Modifiers ──────────────────────────────────────────── */
+
+.ems-event-header--bronze {
+    background: #f8f4e8;
+}
+
+.ems-event-header--silver {
+    background: #f0f4f8;
+}
+
+.ems-event-header--gold {
+    background: #fef9e6;
+}
+
+/* ─── Section Header ────────────────────────────────────────────────────────── */
+
+.ems-section-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+    margin-bottom: 12px;
+}
+
+/* ─── Team Panel (EventDetailPage sidebar) ──────────────────────────────────── */
+
+.ems-team-panel {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 16px;
+    background: #fff;
+    min-width: 260px;
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ems-team-panel--warning {
+    border-color: #f0b849;
+}
+
+.ems-team-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 8px;
+}
+
+.ems-team-member {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 13px;
+}
+
+.ems-empty-member {
+    color: #aaa;
+    font-size: 13px;
+    padding: 8px 0;
+    text-align: center;
+}
+
+/* ─── First Aid Icons ───────────────────────────────────────────────────────── */
+
+.ems-fa-full {
+    color: #1b5e20;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+.ems-fa-response {
+    color: #2e7d32;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+/* ─── Phase 1: ColumnMapper / ImportReview ──────────────────────────────────── */
+
+.ems-section-selector {
+    margin-bottom: 20px;
+}
+
+.ems-section-selector label {
+    margin-right: 10px;
+}
+
+.ems-import-bucket {
+    margin-bottom: 20px;
+}
+
+.ems-import-bucket__list {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 10px;
+}
+
+.ems-import-error {
+    color: #d63638;
+    margin-left: 10px;
+}
+
+.ems-import-review {
+    margin-top: 30px;
+    border-top: 1px solid #ccc;
+    padding-top: 20px;
+}
+
+/* ─── Phase 1: OSMMapPicker ─────────────────────────────────────────────────── */
+
+.ems-map-picker {
+    margin-bottom: 16px;
+    background: #fafafa;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.ems-map-picker__header {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.ems-map-picker__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ems-map-placeholder {
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f1;
+    color: #646970;
+    border-radius: 3px;
+}
+
+.ems-map-canvas {
+    height: 300px;
+    border-radius: 3px;
+    border: 1px solid #dcdcde;
+    z-index: 1;
+}
+
+.ems-map-help {
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: #646970;
+}
+
+/* ─── Phase 1: RichTextEditor ───────────────────────────────────────────────── */
+
+.ems-editor-wrapper {
+    margin-top: 4px;
+}
+
+/* ─── Phase 1: SeasonForm / EventForm ───────────────────────────────────────── */
+
+.ems-form-wrapper {
+    padding: 16px;
+    border: 1px solid #ddd;
+    background: #fff;
+    margin-bottom: 20px;
+}
+
+.ems-form-wrapper--lg {
+    padding: 20px;
+    background: #fff;
+}
+
+.ems-form-label-block {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.ems-form-hint {
+    display: block;
+    margin-top: 4px;
+}
+
+.ems-btn-cancel {
+    margin-left: 8px;
+}
+
+/* ─── Phase 1: OSMReadOnlyMap ───────────────────────────────────────────────── */
+
+.ems-map-readonly-wrapper {
+    margin-top: 16px;
+}
+
+.ems-map-readonly-canvas {
+    height: 250px;
+    width: 100%;
+    border-radius: 4px;
+    border: 1px solid #ccd0d4;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.07);
+}
+
+/* ─── Phase 1: ExpeditionBoard ──────────────────────────────────────────────── */
+
+.ems-board-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.ems-board-synced {
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* ─── Phase 1: EventForm grids ──────────────────────────────────────────────── */
+
+.ems-form-grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ems-form-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ems-form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ems-form-section {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.ems-form-section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+.ems-form-input {
+    display: block;
+    margin-top: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    font-size: 14px;
+    height: 35px;
+    line-height: 1.4;
+}
+
+/* ─── Responsive Stacking Breakpoint ────────────────────────────────────────── */
+@media screen and (max-width: 960px) {
+    .ems-split {
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+    }
+    .ems-panel--full-height {
+        height: auto;
+    }
+}
+
+/* ─── Interactive & Drag States ─────────────────────────────────────────────── */
+.ems-row-hoverable:hover {
+    background-color: var(--ems-theme-color-lighter);
+}
+.ems-item--active {
+    border-color: var(--ems-theme-color);
+}
+.ems-drag-target--active {
+    border: 2px dashed var(--ems-theme-color);
+    background-color: var(--ems-theme-color-lighter);
+}
+.ems-draggable--dragging {
+    opacity: 0.5;
+}
+
+/* ─── Fallback Textarea Editor ──────────────────────────────────────────────── */
+.ems-textarea-fallback {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+

@@ -68,7 +68,7 @@ const ImportReview: React.FC<ImportReviewProps> = ({ config }) => {
     };
 
     return (
-        <div className="ems-import-review" style={{ marginTop: '30px', borderTop: '1px solid #ccc', paddingTop: '20px' }}>
+        <div className="ems-import-review">
             <h2>Step 2: Review & Commit Data</h2>
             
             {error && <div className="notice notice-error"><p>{error}</p></div>}
@@ -78,8 +78,8 @@ const ImportReview: React.FC<ImportReviewProps> = ({ config }) => {
                 </div>
             )}
 
-            <div className="section-selector" style={{ marginBottom: '20px' }}>
-                <label htmlFor="ems-review-select" style={{ marginRight: '10px' }}>Select Section to Review:</label>
+            <div className="ems-section-selector">
+                <label htmlFor="ems-review-select">Select Section to Review:</label>
                 <select 
                     id="ems-review-select"
                     value={selectedSection} 
@@ -99,7 +99,7 @@ const ImportReview: React.FC<ImportReviewProps> = ({ config }) => {
 
             {buckets && (
                 <div className="buckets-display">
-                    <div className="bucket clean" style={{ marginBottom: '20px' }}>
+                    <div className="bucket clean ems-import-bucket">
                         <h3>Ready to Commit ({buckets.clean.length})</h3>
                         <p className="description">These rows have all required fields and matching WordPress users.</p>
                         {buckets.clean.length > 0 && (
@@ -125,15 +125,15 @@ const ImportReview: React.FC<ImportReviewProps> = ({ config }) => {
                         )}
                     </div>
 
-                    <div className="bucket partial" style={{ marginBottom: '20px', color: '#666' }}>
+                    <div className="bucket partial ems-import-bucket">
                         <h3>Partial / Missing Data ({buckets.partial.length})</h3>
                         <p className="description">These rows are missing required fields or have unmatched Scout IDs. They will be skipped.</p>
                         {buckets.partial.length > 0 && (
-                            <ul style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px' }}>
+                            <ul className="ems-import-bucket__list">
                                 {buckets.partial.slice(0, 20).map((row, i) => (
                                     <li key={i}>
                                         Row {i + 1}: {row.expedition_code || 'No Exp'} / {row.team_code || 'No Team'} / {row.participant_scout_id || 'No ID'}
-                                        {row._error && <span style={{ color: '#d63638', marginLeft: '10px' }}>({row._error})</span>}
+                                        {row._error && <span className="ems-import-error">({row._error})</span>}
                                     </li>
                                 ))}
                             </ul>

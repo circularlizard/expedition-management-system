@@ -6,10 +6,11 @@ This document outlines the systematic refactoring plan to eliminate inline style
 
 ## 1. Objectives
 
-1. **Maintain Aesthetic Unity**: Align all custom controls and layouts with the WordPress Admin color palette, spacing scale, and interactive state indicators.
+1. **Maintain Aesthetic Unity**: Align all custom controls and layouts with the WordPress Admin color palette, spacing scale, and interactive state indicators. Support native WP admin color schemes via CSS variables.
 2. **Decouple Styles from Code**: Completely replace structural inline style definitions (margins, paddings, flex layouts, borders, alignments, and custom widths/heights) with CSS classes.
 3. **Allow Dynamic Exception Handling**: Preserve inline styles *only* for strictly data-driven values that cannot be expressed statically (e.g., progress bar percentages, dynamic coordinates, or conditional colors based on user inputs).
 4. **Iterative and Risk-Aware**: Execute migration in controlled phases to minimize regression testing surface area.
+5. **Admin-Only Scope**: This stylesheet (`ems-admin.css`) is strictly loaded in the WP admin context. Avoid modifying any frontend styles or elements (e.g., frontend forms/OIDC landing elements).
 
 ---
 
@@ -17,20 +18,34 @@ This document outlines the systematic refactoring plan to eliminate inline style
 
 All styles migrated from inline blocks will be written into `ems-admin.css` using the following patterns:
 
+* **WordPress Theme CSS Variables**:
+  * Brand theme color: `var(--wp-admin-theme-color, #2271b1)`
+  * Focus rings/hover states: `var(--wp-admin-theme-color-darker, #135e96)`
+  * Background selection highlight: `var(--wp-admin-theme-color-lighter, #f0f6fc)`
 * **WordPress Core Classes**: Where standard WP elements exist, use native classes directly:
   * `.button`, `.button-primary`, `.button-secondary`, `.button-link`
   * `.notice`, `.notice-success`, `.notice-error`, `.notice-warning`, `.is-dismissible`
   * `.widefat`, `.striped` (tables)
   * `.spinner`
-* **Custom Layout Utilities (`.ems-*`)**: Reusable structural classes defined globally (already partially added):
+* **Custom Layout Utilities (`.ems-*`)**: Reusable structural classes defined globally:
   * `.ems-panel`, `.ems-panel--full-height`
   * `.ems-toolbar`, `.ems-toolbar__group`, `.ems-toolbar__label`
   * `.ems-split`, `.ems-split__left`, `.ems-split__right`
   * `.ems-table`, `.ems-table-wrap`
   * `.ems-select`, `.ems-select-sm`, `.ems-checkbox`
-* **Component-Specific BEM Styling**: For custom components that require dedicated CSS, write scoped rules in the stylesheet using a component namespace:
-  * e.g., `.ems-detail-page`, `.ems-detail-page__sidebar`, `.ems-detail-page__meta`
-  * e.g., `.ems-season-dashboard`, `.ems-season-card`
+* **Responsive Breakpoints**:
+  * Stack split panels (like rosters/roards) below `960px` to maintain usability on smaller screen viewports:
+    ```css
+    @media screen and (max-width: 960px) {
+        .ems-split { flex-direction: column; height: auto; overflow: visible; }
+        .ems-panel--full-height { height: auto; }
+    }
+    ```
+* **Interactive & Drag States**:
+  * Hover rows: `.ems-row-hoverable:hover`
+  * Active/focused items: `.ems-item--active`
+  * Drag target highlights: `.ems-drag-target--active`
+  * Draggable items opacity: `.ems-draggable--dragging`
 
 ---
 
@@ -54,19 +69,19 @@ graph TD
     class P3 p3;
 ```
 
-### Phase 1: Form & Utility Views (48 occurrences)
+### Phase 1: Form & Utility Views (48 occurrences) - Status: COMPLETED
 Focuses on simple forms, mapping configuration screens, and layout containers. Low logic complexity.
 
-| Component | Target File | Style Count | Action Plan |
-|---|---|---|---|
-| `ColumnMapper` | [ColumnMapper.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/column-mapper/ColumnMapper.tsx) | 2 | Migrate section selector wrapper and label to `.ems-panel` and spacing classes. |
-| `ImportReview` | [ImportReview.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/column-mapper/ImportReview.tsx) | 7 | Migrate review container, section selector, bucket wrappers, scrollable error list, and error span colors. |
-| `ExpeditionBoard` | [ExpeditionBoard.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/ExpeditionBoard.tsx) | 3 | Extract header flex layout, subtitle typography, and conditional tab content margin. |
-| `SeasonForm` | [SeasonForm.tsx](form wrapper, label blocks, input margins, error span, cancel button) | 8 | Convert form wrapper, block label, input margin, error text, and cancel button margin. |
-| `EventForm` | [EventForm.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/EventForm.tsx) | 7 | Standardize form wrapper, field error spans, and form actions row. |
-| `OSMMapPicker` | [OSMMapPicker.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/OSMMapPicker.tsx) | 10 | Extract container, header row, button, placeholder box, leaflet map wrapper, and help text. |
-| `OSMReadOnlyMap` | [OSMReadOnlyMap.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/OSMReadOnlyMap.tsx) | 2 | Standardize container margin and static canvas wrapper. |
-| `RichTextEditor` | [RichTextEditor.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/RichTextEditor.tsx) | 3 | Extract textarea boundary, wrapper margin, and iframe boundary. |
+| Component | Target File | Style Count | Status | Action Plan |
+|---|---|---|---|---|
+| `ColumnMapper` | [ColumnMapper.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/column-mapper/ColumnMapper.tsx) | 2 | COMPLETED | Migrate section selector wrapper and label to `.ems-panel` and spacing classes. |
+| `ImportReview` | [ImportReview.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/column-mapper/ImportReview.tsx) | 7 | COMPLETED | Migrate review container, section selector, bucket wrappers, scrollable error list, and error span colors. |
+| `ExpeditionBoard` | [ExpeditionBoard.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/ExpeditionBoard.tsx) | 3 | COMPLETED | Extract header flex layout, subtitle typography, and conditional tab content margin. |
+| `SeasonForm` | [SeasonForm.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/SeasonForm.tsx) | 8 | COMPLETED | Convert form wrapper, block label, input margin, error text, and cancel button margin. |
+| `EventForm` | [EventForm.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/EventForm.tsx) | 7 | COMPLETED | Standardize form wrapper, field error spans, and form actions row. |
+| `OSMMapPicker` | [OSMMapPicker.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/OSMMapPicker.tsx) | 10 | COMPLETED | Extract container, header row, button, placeholder box, leaflet map wrapper, and help text. |
+| `OSMReadOnlyMap` | [OSMReadOnlyMap.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/OSMReadOnlyMap.tsx) | 2 | COMPLETED | Standardize container margin and static canvas wrapper. |
+| `RichTextEditor` | [RichTextEditor.tsx](file:///Users/davidstrachan/Projects/expedition-management-system/resources/js/admin/expedition-board/RichTextEditor.tsx) | 3 | COMPLETED | Extract textarea boundary, wrapper margin, and iframe boundary. |
 
 ### Phase 2: Dashboards & Nav (127 occurrences)
 Focuses on list-heavy views that structure teams and events but lack deeply nested edit states.
@@ -932,13 +947,82 @@ See `.ems-team-panel` and `.ems-meta-field` classes in section 5. Additional:
 
 ---
 
-## 7. Verification & Testing
+## 7. Validation Strategy
 
-Every phase will be verified using the following workflow:
-1. Compile assets: `npm run build`
-2. Sync to WordPress: `bash bin/deploy.sh`
-3. Execute Jest/Vitest suite: `npm run test` (if applicable)
-4. Manual sanity checks: Validate responsive states, select dropdown arrow clearance, and layout alignments in the WP Admin interface under multiple viewport sizes.
+### 7.1 Automated Validation
+
+#### Custom ESLint Rule
+A custom ESLint rule will flag inline `style={{` props in component JSX, with exemptions for known dynamic values. Add to `.eslintrc.js`:
+
+```js
+// Detect inline style={{...}} except for allowed dynamic patterns
+"react/style-prop-object": "off", // disable default
+"no-restricted-syntax": [
+  "error",
+  {
+    "selector": "JSXAttribute[name.name='style'] > ObjectExpression",
+    "message": "Inline style={{...}} found. Extract to CSS class in ems-admin.css. Exceptions: minHeight, dynamic colors via template literals.",
+  },
+],
+```
+
+#### Grep-based CI Check
+Run in CI or pre-commit to catch regressions:
+
+```bash
+# Allowed exceptions (dynamic values that must stay inline)
+ALLOWED="minHeight|background.*\`|border.*\`|width.*\`"
+
+grep -rn "style={{\"" resources/js/admin/ --include="*.tsx" \
+  | grep -v "$ALLOWED" \
+  | grep -v "node_modules" || true
+
+# If output is non-empty, fail with count of remaining inline styles
+```
+
+#### Vitest Snapshot Tests
+For each migrated component, add a minimal snapshot test:
+
+```ts
+// EventForm.test.tsx
+describe('EventForm', () => {
+  it('renders without inline structural styles', () => {
+    render(<EventForm initialData={mockData} />);
+    const html = document.body.innerHTML;
+    // Verify no inline style on structural elements
+    expect(html).not.toContain('style="margin-bottom');
+    expect(html).not.toContain('style="display: flex');
+  });
+});
+```
+
+### 7.2 Manual Validation
+
+#### Visual Diff
+Before each phase, capture screenshots of affected pages. After migration, compare side-by-side in browser.
+
+#### DevTools Probe
+In browser console, run to find lingering inline styles on structural elements:
+
+```js
+// Find elements with inline style inside .ems-wrap
+$$('.ems-wrap *[style]').filter(el =>
+  el.style.cssText.includes('margin') ||
+  el.style.cssText.includes('padding') ||
+  el.style.cssText.includes('display') ||
+  el.style.cssText.includes('flex')
+)
+```
+
+### 7.3 Testing Workflow
+
+Each phase follows this sequence:
+1. **Pre-check**: Run grep check to establish baseline count
+2. Run tests: `npm run test`
+3. Compile assets: `npm run build`
+4. Sync to WordPress: `bash bin/deploy.sh`
+5. **Post-check**: Run grep check — count must be ≤ baseline minus migrated components
+6. Visual sanity: Validate responsive states, select dropdown arrow clearance, and layout alignments in WP Admin under multiple viewport sizes
 
 ## 8. Audit Metadata
 - **Audit date**: 2026-07-04
