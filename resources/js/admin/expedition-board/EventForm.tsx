@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Expedition, OSMEvent } from './types';
 import { RichTextEditor } from './RichTextEditor';
+import { OSMMapPicker } from './OSMMapPicker';
 
 interface EventFormProps {
     seasonId: number;
@@ -9,6 +10,20 @@ interface EventFormProps {
     onSaved?: (savedEvent: Expedition) => void;
     onCancel?: () => void;
 }
+
+const calculateDefaultRouteDeadline = (startDateStr: string): string => {
+    if (!startDateStr) return '';
+    const startDate = new Date(startDateStr);
+    if (isNaN(startDate.getTime())) return '';
+    
+    // Subtract 14 days (2 weeks)
+    const deadlineDate = new Date(startDate.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const finalDate = deadlineDate > today ? deadlineDate : today;
+    return finalDate.toISOString().split('T')[0];
+};
 
 export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, osmEvents = [], onSaved, onCancel }) => {
     const config = window.emsExpeditionBoard;
@@ -31,8 +46,11 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         ems_end_location: '',
         ems_route_info: '',
         ems_route_deadline: '',
-        ems_status: '',
+        ems_status: 'active',
+        ems_route_status: 'draft',
         ems_osm_event_id: '',
+        ems_expedition_whatsapp_explorers: '',
+        ems_expedition_whatsapp_parents: '',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -58,16 +76,30 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 ems_end_location: initialEvent.ems_end_location || '',
                 ems_route_info: initialEvent.ems_route_info || '',
                 ems_route_deadline: initialEvent.ems_route_deadline || '',
-                ems_status: initialEvent.ems_status || '',
+                ems_status: initialEvent.ems_status || 'active',
+                ems_route_status: initialEvent.ems_route_status || 'draft',
                 ems_osm_event_id: String(initialEvent.ems_osm_event_id || ''),
+                ems_expedition_whatsapp_explorers: initialEvent.ems_expedition_whatsapp_explorers || '',
+                ems_expedition_whatsapp_parents: initialEvent.ems_expedition_whatsapp_parents || '',
             });
         }
     }, [initialEvent]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-        setErrors((prev) => ({ ...prev, [name]: '' }));
+        
+        if (name === 'ems_start_date' && value) {
+            const defaultDeadline = calculateDefaultRouteDeadline(value);
+            setFormData((prev) => ({
+                ...prev,
+                ems_start_date: value,
+                ems_route_deadline: prev.ems_route_deadline || defaultDeadline
+            }));
+            setErrors((prev) => ({ ...prev, ems_start_date: '' }));
+        } else {
+            setFormData((prev) => ({ ...prev, [name]: value }));
+            setErrors((prev) => ({ ...prev, [name]: '' }));
+        }
     };
 
     const validate = (): boolean => {
@@ -93,6 +125,10 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
             ems_osm_event_id: formData.ems_osm_event_id ? Number(formData.ems_osm_event_id) : '',
         };
 
+        if (payload.season_id === 0) {
+            delete (payload as any).season_id;
+        }
+
         const url = initialEvent ? `${config.root_url}/events/${initialEvent.ID}` : `${config.root_url}/events`;
         const method = initialEvent ? 'PATCH' : 'POST';
 
@@ -109,7 +145,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
             if (!response.ok) {
                 const body = await response.json();
                 if (body?.code === 'ems_event_code_exists') {
-                    setErrors((prev) => ({ ...prev, ems_event_code: 'Event code already exists in this season' }));
+                    setErrors((prev) => ({ ...prev, ems_event_code: 'Event code already exists' }));
                     return;
                 }
                 throw new Error(`HTTP ${response.status}`);
@@ -136,6 +172,8 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         boxSizing: 'border-box',
         padding: '6px 8px',
         fontSize: '14px',
+        height: '35px',
+        lineHeight: '1.4',
     };
 
     const gridStyle: React.CSSProperties = {
@@ -172,6 +210,8 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         textTransform: 'uppercase',
         marginBottom: '12px',
     };
+
+    const todayStr = new Date().toISOString().split('T')[0];
 
     return (
         <form onSubmit={handleSubmit} noValidate className="ems-event-form" style={{ padding: '20px', background: '#fff' }}>
@@ -220,7 +260,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                     </label>
 
                     <label style={fieldStyle}>
-                        First aid required
+                        First Aid Required
                         <select name="ems_first_aid_level" value={formData.ems_first_aid_level} onChange={handleChange} style={inputStyle}>
                             <option value="none">None</option>
                             <option value="first_response">First Response</option>
@@ -236,7 +276,14 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 <div style={gridStyle}>
                     <label style={fieldStyle}>
                         Start Date *
-                        <input type="date" name="ems_start_date" value={formData.ems_start_date} onChange={handleChange} style={inputStyle} />
+                        <input
+                            type="date"
+                            name="ems_start_date"
+                            value={formData.ems_start_date}
+                            onChange={handleChange}
+                            style={inputStyle}
+                            min={initialEvent ? undefined : todayStr}
+                        />
                         {errors.ems_start_date && <span className="ems-field-error" style={{ color: '#d63638', fontSize: '13px' }}>{errors.ems_start_date}</span>}
                     </label>
 
@@ -286,17 +333,29 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
             </div>
 
             <div style={sectionStyle}>
-                <div style={sectionLabelStyle}>OSM Integration</div>
+                <div style={sectionLabelStyle}>OSM Integration & WhatsApp</div>
 
-                <label style={fieldStyle}>
-                    OSM Event
-                    <select name="ems_osm_event_id" value={formData.ems_osm_event_id} onChange={handleChange} style={inputStyle}>
-                        <option value="">None</option>
-                        {osmEvents.map((event) => (
-                            <option key={event.id} value={event.id}>{event.name}</option>
-                        ))}
-                    </select>
-                </label>
+                <div style={grid3Style}>
+                    <label style={fieldStyle}>
+                        OSM Event
+                        <select name="ems_osm_event_id" value={formData.ems_osm_event_id} onChange={handleChange} style={inputStyle}>
+                            <option value="">None</option>
+                            {osmEvents.map((event) => (
+                                <option key={event.id} value={event.id}>{event.name}</option>
+                            ))}
+                        </select>
+                    </label>
+                    
+                    <label style={fieldStyle}>
+                        Explorers WhatsApp Link
+                        <input type="url" name="ems_expedition_whatsapp_explorers" value={formData.ems_expedition_whatsapp_explorers} onChange={handleChange} style={inputStyle} placeholder="https://chat.whatsapp.com/..." />
+                    </label>
+
+                    <label style={fieldStyle}>
+                        Parents WhatsApp Link
+                        <input type="url" name="ems_expedition_whatsapp_parents" value={formData.ems_expedition_whatsapp_parents} onChange={handleChange} style={inputStyle} placeholder="https://chat.whatsapp.com/..." />
+                    </label>
+                </div>
             </div>
 
             <div style={sectionStyle}>
@@ -304,21 +363,27 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
 
                 <div style={grid2Style}>
                     <label style={fieldStyle}>
-                        Start Location
-                        <input name="ems_start_location" value={formData.ems_start_location} onChange={handleChange} style={inputStyle} />
+                        Start Location Coordinates (lat, lng)
+                        <input name="ems_start_location" value={formData.ems_start_location} onChange={handleChange} style={inputStyle} placeholder="e.g. 55.9533, -3.1883" />
                     </label>
 
                     <label style={fieldStyle}>
-                        End Location
-                        <input name="ems_end_location" value={formData.ems_end_location} onChange={handleChange} style={inputStyle} />
+                        End Location Coordinates (lat, lng)
+                        <input name="ems_end_location" value={formData.ems_end_location} onChange={handleChange} style={inputStyle} placeholder="e.g. 55.9877, -3.2012" />
                     </label>
                 </div>
 
+                <OSMMapPicker
+                    startValue={formData.ems_start_location}
+                    endValue={formData.ems_end_location}
+                    onSelectStart={(val) => setFormData(prev => ({ ...prev, ems_start_location: val }))}
+                    onSelectEnd={(val) => setFormData(prev => ({ ...prev, ems_end_location: val }))}
+                />
+
                 <div style={grid2Style}>
                     <label style={fieldStyle}>
-                        Status
-                        <select name="ems_status" value={formData.ems_status} onChange={handleChange} style={inputStyle}>
-                            <option value="">— Select —</option>
+                        Route Planning Status
+                        <select name="ems_route_status" value={formData.ems_route_status} onChange={handleChange} style={inputStyle}>
                             <option value="draft">Draft</option>
                             <option value="confirmed">Confirmed</option>
                         </select>
@@ -331,7 +396,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 </div>
 
                 <label style={fieldStyle}>
-                    Notes
+                    Notes / Description
                     <RichTextEditor
                         value={formData.ems_route_info}
                         ariaLabel="Notes"

@@ -22,6 +22,8 @@ class Admin_View_ControllerTest extends EMSTestCase {
         parent::setUp();
         $this->expeditions  = Mockery::mock( Expedition_Repository::class );
         $this->teams        = Mockery::mock( Team_Repository::class );
+        $this->teams->shouldReceive( 'list_by_expedition' )->byDefault()->andReturn( [] );
+        $this->teams->shouldReceive( 'get_unallocated_team' )->byDefault()->andReturn( null );
         $this->team_members = Mockery::mock( Team_Member_Repository::class );
         $this->tutor_client = Mockery::mock( TutorLMS_Client::class );
 

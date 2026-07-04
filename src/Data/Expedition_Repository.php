@@ -54,6 +54,7 @@ class Expedition_Repository {
             'ems_expedition_whatsapp_explorers',
             'ems_expedition_whatsapp_parents',
             'ems_first_aid_requirements',
+            'ems_route_status',
         ];
 
         foreach ( $meta_fields as $key ) {
@@ -107,6 +108,7 @@ class Expedition_Repository {
             'ems_expedition_whatsapp_explorers',
             'ems_expedition_whatsapp_parents',
             'ems_first_aid_requirements',
+            'ems_route_status',
         ];
 
         foreach ( $meta_fields as $key ) {
@@ -305,6 +307,7 @@ class Expedition_Repository {
             'ems_expedition_whatsapp_explorers',
             'ems_expedition_whatsapp_parents',
             'ems_first_aid_requirements',
+            'ems_route_status',
         ];
 
         foreach ( $meta_fields as $key ) {

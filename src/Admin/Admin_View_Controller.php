@@ -291,9 +291,74 @@ class Admin_View_Controller {
             ];
         }, $all_courses );
 
+        // 1. Get all teams for the event, including UNALLOCATED
+        $teams_list = $this->teams->list_by_expedition( $event_id );
+        $unallocated = $this->teams->get_unallocated_team( $event_id );
+        if ( $unallocated ) {
+            $teams_list[] = $unallocated;
+        }
+
+        // 2. Get all members of these teams
+        $member_ids = [];
+        foreach ( $teams_list as $t ) {
+            $m_list = $this->team_members->list_by_team( $t['ID'] );
+            foreach ( $m_list as $m ) {
+                $scout_id = (int) ( $m['scout_id'] ?? 0 );
+                if ( $scout_id > 0 ) {
+                    $member_ids[] = $scout_id;
+                }
+            }
+        }
+
+        $completion = [];
+        if ( ! empty( $member_ids ) ) {
+            global $wpdb;
+            $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+            $ids_placeholder = implode( ',', array_fill( 0, count( $member_ids ), '%d' ) );
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT scout_id, wp_user_id, first_name, last_name FROM {$explorers_table} WHERE scout_id IN ({$ids_placeholder})",
+                ...$member_ids
+            ), ARRAY_A );
+
+            $user_ids = [];
+            foreach ( $rows as $r ) {
+                $u_id = (int) ( $r['wp_user_id'] ?? 0 );
+                if ( $u_id > 0 ) {
+                    $user_ids[] = $u_id;
+                }
+            }
+
+            // Get enrollment matrix
+            $enrollment_matrix = [];
+            if ( ! empty( $user_ids ) && ! empty( $course_ids ) ) {
+                $enrollment_matrix = $this->tutor_client->get_enrollment_matrix( $user_ids, $course_ids ) ?: [];
+            }
+
+            foreach ( $rows as $r ) {
+                $scout_id = (int) $r['scout_id'];
+                $u_id = (int) ( $r['wp_user_id'] ?? 0 );
+                $user_matrix = isset( $enrollment_matrix[ $u_id ] ) ? $enrollment_matrix[ $u_id ] : [];
+                
+                // Format user matrix to map course_id => status
+                $matrix_formatted = [];
+                foreach ( $course_ids as $c_id ) {
+                    $matrix_formatted[ $c_id ] = $user_matrix[ $c_id ] ?? 'not_enrolled';
+                }
+
+                $completion[] = [
+                    'scout_id'   => $scout_id,
+                    'first_name' => $r['first_name'] ?? '',
+                    'last_name'  => $r['last_name'] ?? '',
+                    'user_id'    => $u_id,
+                    'matrix'     => $matrix_formatted,
+                ];
+            }
+        }
+
         return new \WP_REST_Response( [
             'course_ids' => $course_ids,
             'courses'    => $courses,
+            'completion' => $completion,
         ], 200 );
     }
 

@@ -274,4 +274,12 @@ class Signup_Repository {
         );
         return $result !== false;
     }
+
+    public function has_additional_support_needs( int $scout_id ): bool {
+        $exp_asn = $this->wpdb->get_var( $this->wpdb->prepare(
+            "SELECT additional_support_needs FROM {$this->wpdb->prefix}ems_expedition_signups WHERE scout_id = %d AND additional_support_needs != '' LIMIT 1",
+            $scout_id
+        ) );
+        return ! empty( $exp_asn );
+    }
 }
