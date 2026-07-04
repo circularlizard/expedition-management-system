@@ -424,6 +424,14 @@
 .ems-ml-6  { margin-left: 6px; }
 .ems-ml-8  { margin-left: 8px; }
 
+/* Margin right */
+.ems-mr-4  { margin-right: 4px; }
+.ems-mr-6  { margin-right: 6px; }
+.ems-mr-8  { margin-right: 8px; }
+.ems-mr-12 { margin-right: 12px; }
+.ems-mr-16 { margin-right: 16px; }
+.ems-mr-20 { margin-right: 20px; }
+
 /* Padding */
 .ems-p-12  { padding: 12px; }
 .ems-p-16  { padding: 16px; }
@@ -500,7 +508,10 @@
 }
 
 .ems-form-actions {
-    margin-top: 8px;
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
 }
 
 .ems-block-input {
@@ -2237,6 +2248,12 @@
     margin-top: 4px;
 }
 
+.ems-asn-actions {
+    vertical-align: top;
+    text-align: right;
+    white-space: nowrap;
+}
+
 .ems-asn-empty-cell {
     text-align: center;
     color: #aaa;
@@ -2437,6 +2454,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.ems-edit-bar {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: flex-end;
 }
 
 .ems-event-detail__back {
