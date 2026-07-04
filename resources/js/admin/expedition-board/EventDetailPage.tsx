@@ -564,21 +564,22 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
     return (
         <div>
             <h3 className="ems-training-header">Tutor LMS Training Requirements</h3>
-            <p className="ems-training-desc">Select the training courses required for participants in this expedition:</p>
+            <p className="ems-training-description">Select the training courses required for participants in this expedition:</p>
 
             {/* Course Selector Checklist */}
-            <div className="ems-course-grid">
+            <div className="ems-training-grid">
                 {courses.map(course => (
-                    <label key={course.id} className="ems-course-item">
+                    <label key={course.id} className="ems-training-course">
                         <input
                             type="checkbox"
                             checked={selectedIds.includes(course.id)}
                             onChange={() => handleToggleCourse(course.id)}
+                            className="ems-checkbox ems-m-0"
                         />
                         {course.title}
                     </label>
                 ))}
-                {courses.length === 0 && <p className="ems-course-empty">No Tutor LMS courses found.</p>}
+                {courses.length === 0 && <p className="ems-training-empty">No Tutor LMS courses found.</p>}
             </div>
 
             <button type="button" className="button button-primary ems-mt-16 ems-mb-24" onClick={handleSave} disabled={saving || courses.length === 0}>
@@ -586,9 +587,9 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
             </button>
 
             {/* Participant Completion Matrix */}
-            <h4 className="ems-completion-header">Explorer Completion Status</h4>
+            <h4 className="ems-completion-header ems-mb-12">Explorer Completion Status</h4>
             {requiredCourses.length === 0 ? (
-                <div className="ems-info-box">
+                <div className="ems-training-info-box">
                     No training requirements selected. Select courses above to track participant completion.
                 </div>
             ) : (
