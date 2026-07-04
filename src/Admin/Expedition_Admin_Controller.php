@@ -815,6 +815,13 @@ class Expedition_Admin_Controller {
             'methods'             => \WP_REST_Server::CREATABLE,
             'callback'            => [ $this, 'allocate_planning_explorers' ],
             'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'scout_ids'  => [ 'type' => 'array',  'required' => true, 'items' => [ 'type' => 'integer' ] ],
+                'event_code' => [ 'type' => 'string', 'required' => true ],
+                'mode'       => [ 'type' => 'string', 'required' => false, 'default' => 'unallocated',
+                                  'enum' => [ 'unallocated', 'new_team', 'existing_team' ] ],
+                'team_id'    => [ 'type' => 'integer', 'required' => false, 'default' => 0 ],
+            ],
         ] );
     }
 
@@ -1240,15 +1247,20 @@ class Expedition_Admin_Controller {
     }
 
     public function allocate_planning_explorers( \WP_REST_Request $request ): \WP_REST_Response {
-        $body       = $request->get_json_params() ?: [];
-        $scout_ids  = $body['scout_ids']  ?? [];
-        $event_code = $body['event_code'] ?? '';
-        $mode       = $body['mode']       ?? 'unallocated';
-        $target_team_id = (int) ( $body['team_id'] ?? 0 );
+        $scout_ids      = $request->get_param( 'scout_ids'  ) ?? [];
+        $event_code     = (string) ( $request->get_param( 'event_code' ) ?? '' );
+        $mode           = (string) ( $request->get_param( 'mode'       ) ?? 'unallocated' );
+        $target_team_id = (int)    ( $request->get_param( 'team_id'    ) ?? 0 );
+
+        // scout_ids may arrive as a JSON array or a comma-separated string
+        if ( is_string( $scout_ids ) ) {
+            $scout_ids = array_filter( array_map( 'intval', explode( ',', $scout_ids ) ) );
+        }
 
         if ( empty( $scout_ids ) || empty( $event_code ) ) {
             return $this->error( 'ems_invalid_parameters', 'scout_ids and event_code are required.', 400 );
         }
+
 
         global $wpdb;
         $event_id = (int) $wpdb->get_var( $wpdb->prepare(
