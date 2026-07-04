@@ -192,15 +192,13 @@ Feature: Milestone 2 - Events Dashboard, Teams, and Metadata
 
 ---
 
-## 8. Missing Plan Details & Technical Gaps (Gap Analysis)
+## 8. Finalized Design Decisions & Technical Gaps
 
-To ensure a smooth transition from the current implementation to the new design, the following technical details and gaps must be addressed:
+Based on configuration alignment, the following design paths are established for the implementation phase:
 
 ### 8.1 CPT `season` Deprecation and Database Migration
 *   **Post Disassociation**: Existing `expedition` posts currently have their `post_parent` set to a `season` post ID. When the season CPT is deprecated, these parent associations must be removed.
-*   **Upgrade Migration**: We require an upgrade hook in `EMS\Core\Role_Manager` or `EMS\Core\Table_Installer` that:
-    1. Sets `post_parent = 0` on all `expedition` post records.
-    2. Deletes all `season` CPT posts from `wp_posts` and their metadata from `wp_postmeta`.
+*   **Decision (Automated Cleanup)**: On plugin activation/upgrade, a migration routine in `Table_Installer` will automatically set `post_parent = 0` on all `expedition` CPT posts, and delete all CPT `season` posts and their associated metadata from `wp_posts` and `wp_postmeta`.
 
 ### 8.2 CPT Menu and Route Refactoring
 *   **CPT Registration**: Update `CPT_Registry.php` to remove the registration of the `season` post type. The `expedition` post type registration must be updated to be top-level (no hierarchy dependent on seasons).
@@ -210,19 +208,16 @@ To ensure a smooth transition from the current implementation to the new design,
     *   Added/Refactored: Top-level event CRUD endpoints: `GET ems/v1/events`, `POST ems/v1/events`, `POST ems/v1/events/{id}`, `DELETE ems/v1/events/{id}`.
 
 ### 8.3 "First Aid Requirements" Meta Field
-*   **Definition**: The Events Dashboard displays a "First Aid Requirements" column. To store this per-event, add a new metadata key:
-    *   `ems_first_aid_requirements` (string) — Text description of requirements (e.g. `"At least 1 first response leader, 1 explorer"`).
+*   **Definition**: The Events Dashboard displays a "First Aid Requirements" column.
+*   **Decision**: This will map to structured requirements checked programmatically against course completions and explorer rosters.
 *   **UI Input**: Add this field to the Event settings editor on the Event Detail Page.
 
 ### 8.4 Lifecycle of the "UNALLOCATED" Virtual Team
-*   **Creation Trigger**: When a new event is created, the system must automatically create a linked `team` CPT post to serve as the default unallocated pool for that event.
-*   **Identification**: The virtual team must have its `ems_team_code` set to `UNALLOCATED` (or a special boolean meta key `ems_is_unallocated = 1`) to distinguish it from standard user-created teams.
-*   **Roster Cleanup**: When an event is deleted, the virtual `UNALLOCATED` team must be deleted alongside all standard teams assigned to that event.
-*   **UI Visibility**: The React app must filter out this virtual team from the standard "Teams" grid view and instead map its members into the left-hand "Unallocated" roster sidebar.
+*   **Decision**: Create a virtual team (CPT `team`) with the hardcoded name `Unallocated` and team code `UNALLOCATED` to act as the default unallocated pool for every event without changing the underlying `ems_team_members` relational schema.
+*   **Creation Trigger**: When a new event is created, the system must automatically create a linked `team` CPT post representing this roster.
+*   **Roster Cleanup**: When an event is deleted, the virtual `UNALLOCATED` team post is cleaned up alongside the event's regular teams.
+*   **UI Visibility**: The React app filters out the virtual team from standard "Teams" grids and renders its members inside the left-hand "Unallocated" sidebar roster.
 
 ### 8.5 QR Code Generator Library Selection
-*   To render the parents' and explorers' WhatsApp links as QR codes on the Event Detail Page without inflating JS bundle sizes:
-    *   *Option A (Preferred)*: Use the Google Charts QR API `https://chart.googleapis.com/chart?chs=180x180&cht=qr&chl=${encodeURIComponent(url)}` loaded inside a standard `<img>` tag. This requires zero npm packages, zero bundle overhead, and compiles instantly.
-    *   *Option B*: Add a lightweight SVG QR renderer like `qrcode.react` to `package.json`.
-    *   *Recommendation*: Option A (Google Charts QR API) is recommended due to simplicity and zero performance impact.
+*   **Decision**: Use Google Charts QR API (`https://chart.googleapis.com/chart?chs=180x180&cht=qr&chl=${encodeURIComponent(url)}`) loaded inside a standard `<img>` tag to render the WhatsApp links as QR codes. This provides zero JavaScript bundle overhead and works out-of-the-box.
 
