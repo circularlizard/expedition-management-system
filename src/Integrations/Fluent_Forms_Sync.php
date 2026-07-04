@@ -39,8 +39,6 @@ class Fluent_Forms_Sync {
 
         // Hidden email field pre-population
         add_filter( 'fluentform/rendering_field_data_input_email', [ $this, 'populate_parent_email' ], 10, 2 );
-        add_filter( 'fluentform/rendering_field_data_input_email', [ $this, 'populate_explorer_email' ], 10, 2 );
-        add_filter( 'fluentform/rendering_field_data_input_email', [ $this, 'populate_leader_email' ], 10, 2 );
     }
 
     /**

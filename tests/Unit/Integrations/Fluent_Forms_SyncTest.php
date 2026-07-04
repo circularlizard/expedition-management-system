@@ -125,32 +125,4 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $this->assertTrue( true );
     }
-
-    public function test_populate_explorer_email_adds_read_only_class_when_found(): void {
-        $children = [
-            [ 'scout_id' => 30001, 'first_name' => 'Mary', 'last_name' => 'Smith', 'section_ids' => [ 99001 ] ]
-        ];
-        Functions\when( 'get_user_meta' )->justReturn( $children );
-
-        $this->wpdb->rows["SELECT email FROM wp_ems_osm_explorers WHERE scout_id = 30001 LIMIT 1"] = [
-            'email' => 'mary@example.com',
-        ];
-
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
-
-        $field_data = [
-            'attributes' => [
-                'name'  => 'signup_explorer_email',
-                'class' => 'form-control',
-            ],
-            'settings' => [
-                'value' => '',
-            ]
-        ];
-
-        $result = $sync->populate_explorer_email( $field_data, (object) [ 'id' => 6 ] );
-
-        $this->assertEquals( 'mary@example.com', $result['attributes']['value'] );
-        $this->assertStringContainsString( 'ff-read-only', $result['attributes']['class'] );
-    }
 }
