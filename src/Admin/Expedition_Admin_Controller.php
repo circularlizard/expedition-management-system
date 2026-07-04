@@ -731,6 +731,7 @@ class Expedition_Admin_Controller {
                 'signup_status'       => $row['signup_status'],
                 'payment_status'      => $row['payment_status'],
                 'form_submission_id'  => (int) $row['form_submission_id'],
+                'is_synced_osm'       => ! empty( $row['is_synced_osm'] ),
                 'created_at'          => $row['created_at'],
                 'updated_at'          => $row['updated_at'],
             ];
@@ -797,6 +798,7 @@ class Expedition_Admin_Controller {
                 'first_aid_expiry'         => $row['first_aid_expiry'],
                 'signup_status'            => $row['signup_status'],
                 'form_submission_id'       => (int) $row['form_submission_id'],
+                'is_synced_osm'            => ! empty( $row['is_synced_osm'] ),
                 'created_at'               => $row['created_at'],
                 'updated_at'               => $row['updated_at'],
             ];

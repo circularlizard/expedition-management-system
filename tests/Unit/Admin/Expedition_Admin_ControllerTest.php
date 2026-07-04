@@ -479,6 +479,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
                 'signup_status' => 'received',
                 'payment_status' => 'paid',
                 'form_submission_id' => 1234,
+                'is_synced_osm' => 1,
                 'created_at' => '2026-06-13 20:00:00',
             ]
         ] );
@@ -556,6 +557,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
                 'first_aid_expiry' => '2028-06-13',
                 'signup_status' => 'pending',
                 'form_submission_id' => 5678,
+                'is_synced_osm' => 0,
                 'created_at' => '2026-06-13 20:00:00',
             ]
         ] );
