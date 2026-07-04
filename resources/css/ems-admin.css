@@ -319,41 +319,72 @@
     font-size: 13px;
 }
 
-/* ─── WP components overrides ─────────────────────────────────────────────── */
+/* ─── Native form elements — WP-admin-consistent styling ─────────────────── */
 
 /*
- * @wordpress/components SelectControl renders a wrapper div around the native
- * select. These rules ensure it fits our toolbar layout without inheriting
- * the full-width block default.
+ * <select> — adds right-padding so the browser's native dropdown arrow
+ * never overlaps the label text. Appearance is kept as 'auto' so the
+ * native arrow still renders (browsers style it consistently in WP admin).
  */
-.ems-toolbar .components-base-control,
-.ems-action-bar .components-base-control {
-    margin-bottom: 0;
+.ems-select,
+.ems-select-sm {
+    display: inline-block;
+    border: 1px solid #8c8f94;
+    border-radius: 3px;
+    background: #fff;
+    color: #2c3338;
+    cursor: pointer;
+    font-family: inherit;
+    appearance: auto;
+    -webkit-appearance: auto;
 }
 
-.ems-toolbar .components-base-control__field,
-.ems-action-bar .components-base-control__field {
-    margin-bottom: 0;
-}
-
-/* SelectControl sizing — compact for toolbar use */
-.ems-select-sm .components-select-control__input {
-    height: 30px;
-    font-size: 12px;
-    padding-top: 0;
-    padding-bottom: 0;
-    min-height: unset;
-}
-
-/* Standard size matching WP form-table inputs */
-.ems-select .components-select-control__input {
+.ems-select {
+    padding: 6px 28px 6px 8px;
     height: 36px;
     font-size: 13px;
-    min-height: unset;
+    line-height: 2;
 }
 
-/* Button alignment within toolbar groups */
-.ems-toolbar .components-button,
-.ems-action-bar .components-button {
-    height: 30px;
+.ems-select-sm {
+    padding: 2px 24px 2px 8px;
+    height: 28px;
+    font-size: 12px;
+    line-height: 2;
+}
+
+.ems-select:focus,
+.ems-select-sm:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: 2px solid transparent;
+}
+
+/*
+ * Checkbox — keep in step with WP admin input styles.
+ */
+.ems-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #2271b1;
+}
+
+/*
+ * Inline loading spinner (reuse WP admin class .spinner but make it visible).
+ */
+.ems-spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #dcdcde;
+    border-top-color: #2271b1;
+    border-radius: 50%;
+    animation: ems-spin 0.7s linear infinite;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+@keyframes ems-spin {
+    to { transform: rotate(360deg); }
 }

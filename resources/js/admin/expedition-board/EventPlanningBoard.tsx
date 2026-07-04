@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { SelectControl, Button, CheckboxControl, Spinner, Notice } from '@wordpress/components';
 
 interface PlanningEvent {
   id:              number;
@@ -15,12 +14,12 @@ interface PlanningEvent {
 }
 
 interface PlanningExplorer {
-  scout_id:             number;
-  first_name:           string;
-  last_name:            string;
-  unit_name:            string;
-  dofe_level:           string;
-  allocated_team_code?: string;
+  scout_id:              number;
+  first_name:            string;
+  last_name:             string;
+  unit_name:             string;
+  dofe_level:            string;
+  allocated_team_code?:  string;
   allocated_event_code?: string;
 }
 
@@ -29,31 +28,35 @@ interface EventTeam {
   ems_team_code: string;
 }
 
-type LevelFilter     = 'silver' | 'gold';
-type TypeFilter      = 'practice' | 'qualifier';
-type AllocationMode  = 'unallocated' | 'new_team' | 'existing_team';
-type SortBy          = 'name' | 'unit';
+type LevelFilter    = 'silver' | 'gold';
+type TypeFilter     = 'practice' | 'qualifier';
+type AllocationMode = 'unallocated' | 'new_team' | 'existing_team';
+type SortBy         = 'name' | 'unit';
+
+function Spinner() {
+  return <span className="ems-spinner" aria-label="Loading…" />;
+}
 
 export default function EventPlanningBoard() {
   const config  = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
   const rootUrl = config.root_url;
   const nonce   = config.nonce;
 
-  const [levelFilter, setLevelFilter]   = useState<LevelFilter>('silver');
-  const [typeFilter,  setTypeFilter]    = useState<TypeFilter>('practice');
-  const [events,      setEvents]        = useState<PlanningEvent[]>([]);
-  const [loading,     setLoading]       = useState(false);
-  const [error,       setError]         = useState<string | null>(null);
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>('silver');
+  const [typeFilter,  setTypeFilter]  = useState<TypeFilter>('practice');
+  const [events,      setEvents]      = useState<PlanningEvent[]>([]);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
-  const [selectedEvent,      setSelectedEvent]     = useState<PlanningEvent | null>(null);
-  const [explorers,          setExplorers]          = useState<PlanningExplorer[]>([]);
-  const [explorersLoading,   setExplorersLoading]  = useState(false);
-  const [selectedScoutIds,   setSelectedScoutIds]  = useState<number[]>([]);
-  const [sortBy,             setSortBy]             = useState<SortBy>('name');
-  const [allocationMode,     setAllocationMode]    = useState<AllocationMode>('unallocated');
-  const [targetTeamId,       setTargetTeamId]      = useState<number>(0);
-  const [eventTeams,         setEventTeams]        = useState<EventTeam[]>([]);
-  const [actionFeedback,     setActionFeedback]    = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [selectedEvent,    setSelectedEvent]    = useState<PlanningEvent | null>(null);
+  const [explorers,        setExplorers]        = useState<PlanningExplorer[]>([]);
+  const [explorersLoading, setExplorersLoading] = useState(false);
+  const [selectedScoutIds, setSelectedScoutIds] = useState<number[]>([]);
+  const [sortBy,           setSortBy]           = useState<SortBy>('name');
+  const [allocationMode,   setAllocationMode]   = useState<AllocationMode>('unallocated');
+  const [targetTeamId,     setTargetTeamId]     = useState<number>(0);
+  const [eventTeams,       setEventTeams]       = useState<EventTeam[]>([]);
+  const [feedback,         setFeedback]         = useState<{ ok: boolean; msg: string } | null>(null);
 
   // ── Load planning board events ─────────────────────────────────────────────
   useEffect(() => {
@@ -79,7 +82,7 @@ export default function EventPlanningBoard() {
     setSelectedScoutIds([]);
     setEventTeams([]);
     setAllocationMode('unallocated');
-    setActionFeedback(null);
+    setFeedback(null);
     setExplorersLoading(true);
 
     fetch(`${rootUrl}/planning-board/availability/${ev.event_code}`, {
@@ -95,44 +98,42 @@ export default function EventPlanningBoard() {
   }, [rootUrl, nonce]);
 
   // ── Checkbox helpers ───────────────────────────────────────────────────────
-  const handleSelectExplorer = (scout_id: number) => {
+  const handleSelectExplorer = (scout_id: number) =>
     setSelectedScoutIds(prev =>
       prev.includes(scout_id) ? prev.filter(id => id !== scout_id) : [...prev, scout_id]
     );
-  };
 
-  const handleToggleSelectAll = () => {
-    setSelectedScoutIds(prev => prev.length === explorers.length ? [] : explorers.map(e => e.scout_id));
-  };
+  const handleToggleSelectAll = () =>
+    setSelectedScoutIds(prev =>
+      prev.length === explorers.length ? [] : explorers.map(e => e.scout_id)
+    );
 
   // ── Apply allocation action ────────────────────────────────────────────────
   const handleApplyAction = async () => {
     if (!selectedEvent || selectedScoutIds.length === 0) return;
     setLoading(true);
-    setActionFeedback(null);
+    setFeedback(null);
 
     const body: Record<string, unknown> = {
       scout_ids:  selectedScoutIds,
       event_code: selectedEvent.event_code,
       mode:       allocationMode,
     };
-    if (allocationMode === 'existing_team') {
-      body.team_id = targetTeamId;
-    }
+    if (allocationMode === 'existing_team') body.team_id = targetTeamId;
 
     try {
-      const res = await fetch(`${rootUrl}/planning-board/allocate`, {
+      const res  = await fetch(`${rootUrl}/planning-board/allocate`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
         body:    JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || res.statusText);
-      setActionFeedback({ type: 'success', msg: `${data.allocated ?? selectedScoutIds.length} explorer(s) allocated.` });
+      setFeedback({ ok: true, msg: `${data.allocated ?? selectedScoutIds.length} explorer(s) allocated.` });
       setSelectedScoutIds([]);
-      handleSelectEvent(selectedEvent); // refresh
+      handleSelectEvent(selectedEvent);
     } catch (e: unknown) {
-      setActionFeedback({ type: 'error', msg: e instanceof Error ? e.message : String(e) });
+      setFeedback({ ok: false, msg: e instanceof Error ? e.message : String(e) });
     } finally {
       setLoading(false);
     }
@@ -144,59 +145,63 @@ export default function EventPlanningBoard() {
     return `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`);
   });
 
+  const allSelected  = explorers.length > 0 && selectedScoutIds.length === explorers.length;
+  const someSelected = selectedScoutIds.length > 0 && selectedScoutIds.length < explorers.length;
+
   return (
     <div className="ems-panel ems-panel--full-height">
 
-      {/* Error banner */}
+      {/* ── Error banner ── */}
       {error && (
-        <Notice status="error" isDismissible onRemove={() => setError(null)}>
-          {error}
-        </Notice>
+        <div className="notice notice-error is-dismissible" style={{ marginBottom: 16 }}>
+          <p>{error}</p>
+          <button type="button" className="notice-dismiss" onClick={() => setError(null)}>
+            <span className="screen-reader-text">Dismiss</span>
+          </button>
+        </div>
       )}
 
-      {/* Action feedback */}
-      {actionFeedback && (
-        <Notice
-          status={actionFeedback.type === 'success' ? 'success' : 'error'}
-          isDismissible
-          onRemove={() => setActionFeedback(null)}
-        >
-          {actionFeedback.msg}
-        </Notice>
+      {/* ── Action feedback ── */}
+      {feedback && (
+        <div className={`notice ${feedback.ok ? 'notice-success' : 'notice-error'} is-dismissible`} style={{ marginBottom: 16 }}>
+          <p>{feedback.msg}</p>
+          <button type="button" className="notice-dismiss" onClick={() => setFeedback(null)}>
+            <span className="screen-reader-text">Dismiss</span>
+          </button>
+        </div>
       )}
 
       {/* ── Toolbar ── */}
       <div className="ems-toolbar">
         <div className="ems-toolbar__group">
-          <span className="ems-toolbar__label">Level</span>
-          <SelectControl
+          <label className="ems-toolbar__label" htmlFor="epb-level">Level</label>
+          <select
+            id="epb-level"
             className="ems-select-sm"
             value={levelFilter}
-            options={[
-              { label: 'Silver', value: 'silver' },
-              { label: 'Gold',   value: 'gold'   },
-            ]}
-            onChange={(v) => setLevelFilter(v as LevelFilter)}
-            __nextHasNoMarginBottom
-          />
+            onChange={e => setLevelFilter(e.target.value as LevelFilter)}
+          >
+            <option value="silver">Silver</option>
+            <option value="gold">Gold</option>
+          </select>
         </div>
 
         <div className="ems-toolbar__group">
           <span className="ems-toolbar__label">Type</span>
-          <Button
-            variant={typeFilter === 'practice' ? 'primary' : 'secondary'}
-            size="small"
+          <button
+            type="button"
+            className={`button${typeFilter === 'practice' ? ' button-primary' : ''}`}
             onClick={() => setTypeFilter('practice')}
           >
             Practice
-          </Button>
-          <Button
-            variant={typeFilter === 'qualifier' ? 'primary' : 'secondary'}
-            size="small"
+          </button>
+          <button
+            type="button"
+            className={`button${typeFilter === 'qualifier' ? ' button-primary' : ''}`}
             onClick={() => setTypeFilter('qualifier')}
           >
             Qualifier
-          </Button>
+          </button>
         </div>
 
         {loading && <Spinner />}
@@ -212,9 +217,7 @@ export default function EventPlanningBoard() {
           {loading && events.length === 0 ? (
             <Spinner />
           ) : events.length === 0 ? (
-            <p style={{ color: '#646970', fontStyle: 'italic' }}>
-              No active events found for this filter.
-            </p>
+            <p style={{ color: '#646970', fontStyle: 'italic' }}>No active events found for this filter.</p>
           ) : (
             events.map(ev => {
               const selected = selectedEvent?.id === ev.id;
@@ -227,12 +230,8 @@ export default function EventPlanningBoard() {
                   onKeyDown={e => e.key === 'Enter' && handleSelectEvent(ev)}
                   className={`ems-event-card${selected ? ' ems-event-card--selected' : ''}`}
                 >
-                  <div className="ems-event-card__title">
-                    {ev.title} ({ev.event_code})
-                  </div>
-                  <div className="ems-event-card__dates">
-                    {ev.start_date || '—'} — {ev.end_date || '—'}
-                  </div>
+                  <div className="ems-event-card__title">{ev.title} ({ev.event_code})</div>
+                  <div className="ems-event-card__dates">{ev.start_date || '—'} — {ev.end_date || '—'}</div>
                   <div className="ems-event-card__stats">
                     <span>Available: <strong className="ems-event-card__stat-value">{ev.available_count}</strong></span>
                     <span>Allocated: <strong>{ev.allocated_count}</strong></span>
@@ -245,7 +244,9 @@ export default function EventPlanningBoard() {
 
         {/* Right — availability roster */}
         <div className="ems-split__right">
-          <div className="ems-toolbar" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: '12px' }}>
+
+          {/* Right header row */}
+          <div className="ems-toolbar" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 12 }}>
             <h3 className="ems-section-heading" style={{ margin: 0, flex: 1 }}>
               {selectedEvent
                 ? `Explorer Availability (${selectedEvent.event_code})`
@@ -253,31 +254,28 @@ export default function EventPlanningBoard() {
             </h3>
             {selectedEvent && (
               <div className="ems-toolbar__group">
-                <span className="ems-toolbar__label">Sort</span>
-                <SelectControl
+                <label className="ems-toolbar__label" htmlFor="epb-sort">Sort</label>
+                <select
+                  id="epb-sort"
                   className="ems-select-sm"
                   value={sortBy}
-                  options={[
-                    { label: 'Name', value: 'name' },
-                    { label: 'Unit', value: 'unit' },
-                  ]}
-                  onChange={(v) => setSortBy(v as SortBy)}
-                  __nextHasNoMarginBottom
-                />
+                  onChange={e => setSortBy(e.target.value as SortBy)}
+                >
+                  <option value="name">Name</option>
+                  <option value="unit">Unit</option>
+                </select>
               </div>
             )}
           </div>
 
           {!selectedEvent ? (
             <div className="ems-empty">
-              Select an event from the left to view interested explorers and assign them.
+              Select an event from the left to view interested explorers and assign them to a team.
             </div>
           ) : explorersLoading ? (
-            <div style={{ padding: '20px' }}><Spinner /></div>
+            <div style={{ padding: 20 }}><Spinner /></div>
           ) : explorers.length === 0 ? (
-            <p style={{ color: '#646970', fontStyle: 'italic' }}>
-              No explorers declared interest in this event.
-            </p>
+            <p style={{ color: '#646970', fontStyle: 'italic' }}>No explorers declared interest in this event.</p>
           ) : (
             <>
               {/* Roster table */}
@@ -286,12 +284,13 @@ export default function EventPlanningBoard() {
                   <thead>
                     <tr>
                       <th style={{ width: 36, textAlign: 'center' }}>
-                        <CheckboxControl
-                          checked={selectedScoutIds.length === explorers.length}
-                          indeterminate={selectedScoutIds.length > 0 && selectedScoutIds.length < explorers.length}
+                        <input
+                          type="checkbox"
+                          className="ems-checkbox"
+                          checked={allSelected}
+                          ref={el => { if (el) el.indeterminate = someSelected; }}
                           onChange={handleToggleSelectAll}
-                          label=""
-                          __nextHasNoMarginBottom
+                          aria-label="Select all explorers"
                         />
                       </th>
                       <th>Name &amp; Unit</th>
@@ -299,31 +298,35 @@ export default function EventPlanningBoard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedExplorers.map(exp => (
-                      <tr key={exp.scout_id} style={{ background: selectedScoutIds.includes(exp.scout_id) ? '#f0f6fc' : undefined }}>
-                        <td style={{ textAlign: 'center' }}>
-                          <CheckboxControl
-                            checked={selectedScoutIds.includes(exp.scout_id)}
-                            onChange={() => handleSelectExplorer(exp.scout_id)}
-                            label=""
-                            __nextHasNoMarginBottom
-                          />
-                        </td>
-                        <td>
-                          <div className="ems-table__name">{exp.first_name} {exp.last_name}</div>
-                          <div className="ems-table__meta">Unit: {exp.unit_name}</div>
-                        </td>
-                        <td>
-                          {exp.allocated_event_code ? (
-                            <span className="ems-badge ems-badge--allocated">
-                              {exp.allocated_team_code} ({exp.allocated_event_code})
-                            </span>
-                          ) : (
-                            <span className="ems-badge ems-badge--unallocated">Unallocated</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {sortedExplorers.map(exp => {
+                      const checked = selectedScoutIds.includes(exp.scout_id);
+                      return (
+                        <tr key={exp.scout_id} style={{ background: checked ? '#f0f6fc' : undefined }}>
+                          <td style={{ textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              className="ems-checkbox"
+                              checked={checked}
+                              onChange={() => handleSelectExplorer(exp.scout_id)}
+                              aria-label={`Select ${exp.first_name} ${exp.last_name}`}
+                            />
+                          </td>
+                          <td>
+                            <div className="ems-table__name">{exp.first_name} {exp.last_name}</div>
+                            <div className="ems-table__meta">Unit: {exp.unit_name}</div>
+                          </td>
+                          <td>
+                            {exp.allocated_event_code ? (
+                              <span className="ems-badge ems-badge--allocated">
+                                {exp.allocated_team_code} ({exp.allocated_event_code})
+                              </span>
+                            ) : (
+                              <span className="ems-badge ems-badge--unallocated">Unallocated</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -331,39 +334,42 @@ export default function EventPlanningBoard() {
               {/* Action bar */}
               <div className="ems-action-bar">
                 <div className="ems-action-bar__controls">
-                  <SelectControl
+                  <select
                     className="ems-select"
                     value={allocationMode}
-                    options={[
-                      { label: 'Add to Unallocated', value: 'unallocated' },
-                      { label: 'Add to New Team',    value: 'new_team'    },
-                      ...(eventTeams.length > 0
-                        ? [{ label: 'Add to Existing Team…', value: 'existing_team' }]
-                        : []),
-                    ]}
-                    onChange={(v) => setAllocationMode(v as AllocationMode)}
-                    __nextHasNoMarginBottom
-                  />
+                    onChange={e => setAllocationMode(e.target.value as AllocationMode)}
+                    aria-label="Allocation action"
+                  >
+                    <option value="unallocated">Add to Unallocated</option>
+                    <option value="new_team">Add to New Team</option>
+                    {eventTeams.length > 0 && (
+                      <option value="existing_team">Add to Existing Team…</option>
+                    )}
+                  </select>
+
                   {allocationMode === 'existing_team' && eventTeams.length > 0 && (
-                    <SelectControl
+                    <select
                       className="ems-select"
-                      value={String(targetTeamId)}
-                      options={eventTeams.map(t => ({ label: `Team ${t.ems_team_code}`, value: String(t.ID) }))}
-                      onChange={(v) => setTargetTeamId(parseInt(v))}
-                      __nextHasNoMarginBottom
-                    />
+                      value={targetTeamId}
+                      onChange={e => setTargetTeamId(parseInt(e.target.value))}
+                      aria-label="Target team"
+                    >
+                      {eventTeams.map(t => (
+                        <option key={t.ID} value={t.ID}>Team {t.ems_team_code}</option>
+                      ))}
+                    </select>
                   )}
                 </div>
 
                 <div className="ems-action-bar__actions">
-                  <Button
-                    variant="primary"
+                  <button
+                    type="button"
+                    className="button button-primary"
                     onClick={handleApplyAction}
                     disabled={loading || selectedScoutIds.length === 0}
-                    isBusy={loading}
                   >
-                    Apply Action
-                  </Button>
+                    {loading ? 'Applying…' : 'Apply Action'}
+                  </button>
                 </div>
               </div>
             </>
