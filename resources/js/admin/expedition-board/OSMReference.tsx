@@ -22,32 +22,23 @@ function faOrder(level?: FirstAidLevel): number {
     return 0;
 }
 
-function pillStyle(bg: string, color: string): React.CSSProperties {
-    return {
-        display: 'inline-flex', alignItems: 'center', gap: '2px',
-        fontSize: '11px', fontWeight: 600, padding: '2px 8px',
-        borderRadius: '12px', background: bg, color,
-    };
-}
-
-const FA_PILL_COLORS: Record<string, { bg: string; color: string }> = {
-    none: { bg: '#f5f5f5', color: '#666' },
-    first_response: { bg: '#e8f5e9', color: '#2e7d32' },
-    full_first_aid: { bg: '#c8e6c9', color: '#1b5e20' },
+const FA_PILL_CLASS: Record<string, string> = {
+    none: 'ems-pill ems-pill--fa-none',
+    first_response: 'ems-pill ems-pill--fa-first-response',
+    full_first_aid: 'ems-pill ems-pill--fa-full-first-aid',
 };
 
 function FaIcon({ level }: { level?: FirstAidLevel }) {
-    if (level === 'full_first_aid') return <span title="Full First Aid" style={{ color: '#1b5e20', fontWeight: 'bold' }}>⊕</span>;
-    if (level === 'first_response') return <span title="First Response" style={{ color: '#2e7d32', fontWeight: 'bold' }}>✚</span>;
+    if (level === 'full_first_aid') return <span title="Full First Aid" className="ems-fa-full">⊕</span>;
+    if (level === 'first_response') return <span title="First Response" className="ems-fa-response">✚</span>;
     return null;
 }
 
 function FirstAidPill({ level }: { level?: FirstAidLevel }) {
     const l = level ?? 'none';
-    const { bg, color } = FA_PILL_COLORS[l] ?? FA_PILL_COLORS.none;
     const icon = l === 'first_response' ? '✚' : l === 'full_first_aid' ? '⊕' : null;
     return (
-        <span style={pillStyle(bg, color)}>
+        <span className={FA_PILL_CLASS[l] ?? FA_PILL_CLASS.none}>
             {icon && <span>{icon}</span>}
             {FA_LABELS[l]}
         </span>
@@ -136,14 +127,14 @@ function formatFullTimestamp(d: string | null | undefined): string {
 
 
 function EventCell({ assignments }: { assignments: EventAssignment[] }) {
-    if (assignments.length === 0) return <span style={{ color: '#aaa', fontSize: '12px' }}>—</span>;
+    if (assignments.length === 0) return <span className="ems-osm-ref-event-cell--empty">—</span>;
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div className="ems-osm-ref-event-list">
             {assignments.map((ev, i) => (
-                <span key={i} style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                <span key={i} className="ems-osm-ref-event-item">
                     <strong>{ev.team_code}</strong>
                     {(ev.start_date || ev.end_date) && (
-                        <span style={{ color: '#666', marginLeft: '4px' }}>
+                        <span className="ems-osm-ref-event-date">
                             {ev.start_date === ev.end_date
                                 ? formatShortDate(ev.start_date)
                                 : `${formatShortDate(ev.start_date)}–${formatShortDate(ev.end_date)}`}
@@ -162,12 +153,12 @@ function SortHeader({ label, sortKey, active, dir, onSort }: {
     const isActive = active === sortKey;
     return (
         <th
-            style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+            className="ems-osm-ref-col-header"
             onClick={() => onSort(sortKey)}
             aria-sort={isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
         >
             {label}{' '}
-            <span style={{ fontSize: '10px', opacity: isActive ? 1 : 0.35 }}>
+            <span className={`ems-osm-ref-col-sort ${isActive ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
                 {isActive ? (dir === 'asc' ? '▲' : '▼') : '▲'}
             </span>
         </th>
@@ -270,15 +261,15 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
     const hasFilters = filterEvent || filterFa;
 
     return (
-        <div className="ems-osm-reference" style={{ padding: '12px', background: '#fff' }}>
-            <h2 style={{ marginTop: 0 }}>Explorer List</h2>
+        <div className="ems-osm-reference ems-osm-ref-container">
+            <h2 className="ems-osm-ref-title">Explorer List</h2>
 
             {(data.explorers ?? []).length === 0 ? (
                 <p>No explorers have been synced yet.</p>
             ) : (
                 <>
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px', padding: '10px 12px', background: '#f9f9f9', border: '1px solid #ddd' }}>
-                        <label style={{ fontWeight: 600, fontSize: '13px' }}>Filter:</label>
+                    <div className="ems-osm-ref-filter-bar">
+                        <label className="ems-osm-ref-filter-label">Filter:</label>
 
                         <select
                             aria-label="Filter by event"
@@ -316,15 +307,15 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                             </button>
                         )}
 
-                        <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>
+                        <span className="ems-osm-ref-filter-count">
                             {sorted.length} of {rows.length} explorers
                         </span>
                     </div>
 
                     {sorted.length === 0 ? (
-                        <p style={{ color: '#666' }}>No explorers match the current filters.</p>
+                        <p className="ems-osm-ref-empty">No explorers match the current filters.</p>
                     ) : (
-                        <table className="widefat striped" style={{ fontSize: '13px' }}>
+                        <table className="widefat striped">
                             <thead>
                                 <tr>
                                     <SortHeader label="Name" sortKey="name" active={sortKey} dir={sortDir} onSort={handleSort} />
@@ -333,35 +324,35 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     <SortHeader label="Training" sortKey="training" active={sortKey} dir={sortDir} onSort={handleSort} />
                                     <SortHeader label="Practice" sortKey="practice" active={sortKey} dir={sortDir} onSort={handleSort} />
                                     <SortHeader label="Qualifying" sortKey="qualifying" active={sortKey} dir={sortDir} onSort={handleSort} />
-                                    <th title="Last OSM sync"><span style={{ fontSize: '12px' }}>Synced</span></th>
-                                    <th title="Last local edit"><span style={{ fontSize: '12px' }}>Edited</span></th>
+                                    <th title="Last OSM sync" className="ems-osm-ref-col-header--small">Synced</th>
+                                    <th title="Last local edit" className="ems-osm-ref-col-header--small">Edited</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {sorted.map(({ explorer, byType }) => (
                                     <tr key={explorer.scout_id}>
-                                        <td style={{ fontWeight: 500 }}>
-                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        <td>
+                                            <span className="ems-osm-ref-name">
                                                 <FaIcon level={levels[explorer.scout_id] ?? 'none'} />
                                                 {explorer.first_name} {explorer.last_name}
                                             </span>
                                         </td>
                                         <td>{explorer.patrol || '—'}</td>
                                         <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                            <div className="ems-osm-ref-fa-cell">
                                                 <select
                                                     aria-label={`First aid level for ${explorer.first_name} ${explorer.last_name}`}
                                                     value={levels[explorer.scout_id] ?? 'none'}
                                                     onChange={(e) => updateLevel(explorer, e.target.value as FirstAidLevel)}
                                                     disabled={saving[explorer.scout_id]}
-                                                    style={{ fontSize: '12px' }}
+                                                    className="ems-select-sm"
                                                 >
                                                     {(Object.keys(FA_LABELS) as FirstAidLevel[]).map((level) => (
                                                         <option key={level} value={level}>{FA_LABELS[level]}</option>
                                                     ))}
                                                 </select>
                                                 {errors[explorer.scout_id] && (
-                                                    <span style={{ color: '#d63638', fontSize: '11px' }}>{errors[explorer.scout_id]}</span>
+                                                    <span className="ems-osm-ref-fa-error">{errors[explorer.scout_id]}</span>
                                                 )}
                                             </div>
                                         </td>
@@ -369,12 +360,12 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                         <td><EventCell assignments={byType.practice} /></td>
                                         <td><EventCell assignments={byType.qualifying} /></td>
                                         <td title={formatFullTimestamp(explorer.synced_at) || 'Not synced'}>
-                                            <span style={{ fontSize: '12px', color: '#666' }}>
+                                            <span className="ems-osm-ref-meta">
                                                 {formatTimestamp(explorer.synced_at) || '—'}
                                             </span>
                                         </td>
                                         <td title={formatFullTimestamp(explorer.last_local_update_at) || 'No local edits'}>
-                                            <span style={{ fontSize: '12px', color: '#666' }}>
+                                            <span className="ems-osm-ref-meta">
                                                 {formatTimestamp(explorer.last_local_update_at) || '—'}
                                             </span>
                                         </td>
