@@ -1064,14 +1064,31 @@ class Expedition_Admin_Controller {
         $raw_events = $this->expeditions->list_all_chronological();
         $filtered = [];
 
+        // Normalise query params
+        $req_level = strtolower( trim( (string) $request->get_param( 'level' ) ) );
+        $req_type  = strtolower( trim( (string) $request->get_param( 'type'  ) ) );
+        // The CPT stores 'qualifying'; the UI sends 'qualifier' — accept both.
+        if ( $req_type === 'qualifier' ) {
+            $req_type = 'qualifying';
+        }
+
         foreach ( $raw_events as $event ) {
-            $level = strtolower( $event['ems_level'] ?? '' );
+            $level  = strtolower( $event['ems_level']  ?? '' );
+            $type   = strtolower( $event['ems_type']   ?? '' );
             $status = strtolower( $event['ems_status'] ?? '' );
 
             if ( $status === 'archived' ) {
                 continue;
             }
             if ( $level !== 'silver' && $level !== 'gold' ) {
+                continue;
+            }
+            // Apply level filter when provided
+            if ( $req_level !== '' && $level !== $req_level ) {
+                continue;
+            }
+            // Apply type filter when provided
+            if ( $req_type !== '' && $type !== $req_type ) {
                 continue;
             }
 
