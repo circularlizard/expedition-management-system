@@ -756,10 +756,6 @@ class Expedition_Admin_Controller {
             return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
         }
 
-        if ( $signup['payment_status'] !== 'paid' ) {
-            return $this->error( 'ems_signup_unpaid', 'Cannot process unpaid signup.', 400 );
-        }
-
         if ( $signup['signup_status'] === 'allocated' ) {
             return $this->error( 'ems_signup_already_processed', 'Signup is already processed.', 400 );
         }
