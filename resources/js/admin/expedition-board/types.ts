@@ -103,8 +103,21 @@ export interface OSMEvent {
     location?: string;
 }
 
+
 declare global {
     interface Window {
         emsExpeditionBoard: BoardConfig;
+        emsSignupsBoard:    BoardConfig;
+        emsColumnMapper:    BoardConfig & { sections?: Record<string, { name: string; type: string }> };
+        wp: {
+            components: typeof import('@wordpress/components');
+            element:    typeof import('@wordpress/element');
+            i18n:       typeof import('@wordpress/i18n');
+            apiFetch:   unknown;
+            hooks:      unknown;
+            compose:    unknown;
+            data:       unknown;
+        };
     }
 }
+
