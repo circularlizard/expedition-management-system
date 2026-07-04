@@ -78,11 +78,11 @@ for ( $i = 0; $i < $count; $i++ ) {
     $submission_id = 900000 + $i;
     $parent_uid = $parent_ids[ array_rand( $parent_ids ) ];
     
-    // Choose an explorer
-    $exp = !empty( $explorers ) ? $explorers[ array_rand( $explorers ) ] : null;
-    $scout_id = $exp ? (int) $exp['scout_id'] : (900000 + rand(100, 999));
+    // Choose an explorer (70% chance to link to a real explorer, 30% chance to be unlinked/unsynced)
+    $exp = (!empty( $explorers ) && rand(1, 10) <= 7) ? $explorers[ array_rand( $explorers ) ] : null;
+    $scout_id = $exp ? (int) $exp['scout_id'] : (999000 + rand(100, 999));
     $first_name = $exp ? $exp['first_name'] : "Explorer" . rand( 100, 999 );
-    $last_name = $exp ? $exp['last_name'] : "Mock";
+    $last_name = $exp ? $exp['last_name'] : "Mock Unlinked";
 
     // Levels: 50% Bronze, 35% Silver, 15% Gold
     $level_rand = rand( 1, 100 );
@@ -167,10 +167,11 @@ for ( $i = 0; $i < $count; $i++ ) {
     $submission_id = 900000 + $count + $i;
     $parent_uid = $parent_ids[ array_rand( $parent_ids ) ];
     
-    $exp = !empty( $explorers ) ? $explorers[ array_rand( $explorers ) ] : null;
-    $scout_id = $exp ? (int) $exp['scout_id'] : (900000 + rand(100, 999));
+    // Choose an explorer (70% chance to link to a real explorer, 30% chance to be unlinked/unsynced)
+    $exp = (!empty( $explorers ) && rand(1, 10) <= 7) ? $explorers[ array_rand( $explorers ) ] : null;
+    $scout_id = $exp ? (int) $exp['scout_id'] : (999000 + rand(100, 999));
     $first_name = $exp ? $exp['first_name'] : "Explorer" . rand( 100, 999 );
-    $last_name = $exp ? $exp['last_name'] : "Mock";
+    $last_name = $exp ? $exp['last_name'] : "Mock Unlinked";
 
     $level_rand = rand( 1, 100 );
     $level = $level_rand <= 50 ? 'bronze' : ($level_rand <= 85 ? 'silver' : 'gold');
