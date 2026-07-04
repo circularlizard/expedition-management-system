@@ -579,10 +579,18 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
 
                     {/* Details Body */}
                     <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div>
-                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Name</span>
-                            <div style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '2px' }}>
-                                {selectedSignup.explorer_first_name} {selectedSignup.explorer_last_name}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Name</span>
+                                <div style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '2px' }}>
+                                    {selectedSignup.explorer_first_name} {selectedSignup.explorer_last_name}
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#646970', fontWeight: '600' }}>Scout ID</span>
+                                <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: '600', marginTop: '2px', color: '#1d2327' }}>
+                                    {selectedSignup.scout_id}
+                                </div>
                             </div>
                         </div>
 
