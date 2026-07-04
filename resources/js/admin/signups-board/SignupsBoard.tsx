@@ -413,10 +413,8 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                             </span>
                                         </td>
                                         {type === 'expedition' && (
-                                            <td>
-                                                <span className={`ems-pill ems-pill--${(s.expedition_preferences?.exped_type || '').toLowerCase()}`}>
-                                                    {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
-                                                </span>
+                                            <td className="ems-table-cell--small">
+                                                {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
                                             </td>
                                         )}
                                         <td>
@@ -533,10 +531,8 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             {type === 'expedition' && (
                                 <div>
                                     <span className="ems-signups-inspector__label">Expedition</span>
-                                    <div className="ems-mt-4">
-                                        <span className={`ems-pill ems-pill--${(selectedSignup.expedition_preferences?.exped_type || '').toLowerCase()}`}>
-                                            {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
-                                        </span>
+                                    <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4 ems-flex-center ems-gap-4">
+                                        {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
                                     </div>
                                 </div>
                             )}
