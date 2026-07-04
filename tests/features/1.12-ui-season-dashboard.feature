@@ -56,3 +56,29 @@ Feature: Season Dashboard UI
     Given no seasons exist
     When the dashboard renders
     Then a "Create your first season" prompt is visible
+
+  Scenario: Team with fewer than 2 qualified first aiders shows a warning badge
+    Given the active season has event "H-SP1" with first aid level "first_response"
+    And team "H-SP1-1" has 5 members
+    And only 1 member has "first_response" level of first aid
+    When the user expands event "H-SP1"
+    Then team "H-SP1-1" shows a first aid warning badge
+
+  Scenario: Team with at least 2 qualified first aiders shows no warning badge
+    Given the active season has event "H-SP1" with first aid level "first_response"
+    And team "H-SP1-1" has 5 members
+    And 2 members have "first_response" level of first aid
+    When the user expands event "H-SP1"
+    Then team "H-SP1-1" does not show a first aid warning badge
+
+  Scenario: Coordinates in Overview render map links and dynamic geocoding
+    Given an event exists with start location "55.9533, -3.1883"
+    When the event overview is loaded
+    Then the start location displays a link to OpenStreetMap
+    And the start location dynamically displays the geocoded address "Edinburgh"
+
+  Scenario: Event Summary table does not include a dedicated Event Status column
+    When the events summary list is loaded
+    Then the table headers include "Route Status"
+    But the table headers do not include "Event Status"
+

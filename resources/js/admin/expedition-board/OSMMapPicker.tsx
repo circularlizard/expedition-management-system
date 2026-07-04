@@ -70,6 +70,11 @@ export const OSMMapPicker: React.FC<OSMMapPickerProps> = ({
     const [leafletLoaded, setLeafletLoaded] = useState(false);
     const [mode, setMode] = useState<'idle' | 'setStart' | 'setEnd'>('idle');
 
+    const modeRef = useRef(mode);
+    useEffect(() => {
+        modeRef.current = mode;
+    }, [mode]);
+
     useEffect(() => {
         loadLeaflet().then(() => {
             setLeafletLoaded(true);
@@ -111,13 +116,12 @@ export const OSMMapPicker: React.FC<OSMMapPickerProps> = ({
         // Map Click Event
         map.on('click', async (e: any) => {
             const { lat, lng } = e.latlng;
-            const address = await reverseGeocode(lat, lng);
             const valueStr = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
-            if (mode === 'setStart') {
+            if (modeRef.current === 'setStart') {
                 onSelectStart(valueStr);
                 setMode('idle');
-            } else if (mode === 'setEnd') {
+            } else if (modeRef.current === 'setEnd') {
                 onSelectEnd(valueStr);
                 setMode('idle');
             }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface RichTextEditorProps {
     value: string;
@@ -7,68 +7,79 @@ interface RichTextEditorProps {
     ariaLabel?: string;
 }
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, minHeight = '80px', ariaLabel }) => {
-    const ref = useRef<HTMLDivElement>(null);
-    const [focused, setFocused] = useState(false);
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({
+    value,
+    onChange,
+    minHeight = '150px',
+    ariaLabel,
+}) => {
+    // Generate a unique ID for the editor element
+    const idRef = useRef(`ems-editor-${Math.random().toString(36).substring(2, 9)}`);
+    const onChangeRef = useRef(onChange);
 
     useEffect(() => {
-        if (ref.current && !focused && ref.current.innerHTML !== value) {
-            ref.current.innerHTML = value;
+        onChangeRef.current = onChange;
+    }, [onChange]);
+
+    // Handle external value updates (e.g. when loading another event)
+    useEffect(() => {
+        const tinymce = (window as any).tinymce;
+        const editor = tinymce?.get(idRef.current);
+        if (editor && value !== editor.getContent()) {
+            editor.setContent(value || '');
         }
-    }, [value, focused]);
+    }, [value]);
 
-    const exec = (command: string) => {
-        if (!ref.current) return;
-        ref.current.focus();
-        document.execCommand(command, false);
-        onChange(ref.current.innerHTML);
-    };
+    useEffect(() => {
+        const editorId = idRef.current;
+        const wp = (window as any).wp;
 
-    const buttonStyle: React.CSSProperties = {
-        background: '#f0f0f1',
-        border: '1px solid #c5c5c5',
-        borderRadius: '3px',
-        padding: '4px 8px',
-        fontSize: '13px',
-        cursor: 'pointer',
-        lineHeight: 1,
-    };
+        if (wp && wp.editor) {
+            wp.editor.initialize(editorId, {
+                tinymce: {
+                    wpautop: true,
+                    plugins: 'charmap hr lists paste tabfocus textcolor wplink',
+                    toolbar1: 'bold italic underline bullist numlist alignleft aligncenter alignright link unlink',
+                    setup: (editor: any) => {
+                        editor.on('change keyup input', () => {
+                            const content = editor.getContent();
+                            onChangeRef.current(content);
+                        });
+                    },
+                },
+                quicktags: true,
+            });
+        }
+
+        return () => {
+            const currentWp = (window as any).wp;
+            if (currentWp && currentWp.editor) {
+                currentWp.editor.remove(editorId);
+            }
+        };
+    }, []);
+
+    const wp = (window as any).wp;
+    if (!wp || !wp.editor) {
+        // Fallback for tests / non-WordPress environments
+        return (
+            <textarea
+                id={idRef.current}
+                value={value}
+                aria-label={ariaLabel}
+                onChange={(e) => onChange(e.target.value)}
+                style={{ width: '100%', minHeight, padding: '8px', boxSizing: 'border-box' }}
+            />
+        );
+    }
 
     return (
-        <div className="ems-rich-text-editor" style={{ border: '1px solid #8c8f94', borderRadius: '4px', overflow: 'hidden' }}>
-            <style dangerouslySetInnerHTML={{ __html: `
-                .ems-rte-editable ul {
-                    list-style-type: disc !important;
-                    margin: 8px 0 8px 20px !important;
-                    padding: 0 !important;
-                }
-                .ems-rte-editable ol {
-                    list-style-type: decimal !important;
-                    margin: 8px 0 8px 20px !important;
-                    padding: 0 !important;
-                }
-                .ems-rte-editable li {
-                    display: list-item !important;
-                    margin-bottom: 4px !important;
-                }
-            `}} />
-            <div role="toolbar" style={{ display: 'flex', gap: '4px', padding: '6px 8px', background: '#f6f7f7', borderBottom: '1px solid #dcdcde' }}>
-                <button type="button" onClick={() => exec('bold')} style={buttonStyle} aria-label="Bold"><strong>B</strong></button>
-                <button type="button" onClick={() => exec('italic')} style={buttonStyle} aria-label="Italic"><em>I</em></button>
-                <button type="button" onClick={() => exec('underline')} style={buttonStyle} aria-label="Underline"><u>U</u></button>
-                <button type="button" onClick={() => exec('insertUnorderedList')} style={buttonStyle} aria-label="Bullet list">• List</button>
-            </div>
-            <div
-                ref={ref}
-                contentEditable
-                role="textbox"
+        <div className="ems-wp-editor-wrapper" style={{ marginTop: '4px' }}>
+            <textarea
+                id={idRef.current}
+                defaultValue={value}
                 aria-label={ariaLabel}
-                aria-multiline="true"
-                onInput={() => onChange(ref.current?.innerHTML ?? '')}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                className="ems-rte-editable"
-                style={{ padding: '6px 8px', minHeight, fontSize: '14px', lineHeight: '1.5', outline: 'none' }}
+                style={{ width: '100%', minHeight }}
             />
         </div>
     );

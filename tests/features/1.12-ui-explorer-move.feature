@@ -46,3 +46,9 @@ Feature: Explorer move panel UI
     Given an event "H-SQ1" of type "qualifying" exists with team "H-SQ1-1"
     When the user selects "Alice MacLeod" in team "H-SP1-1"
     Then the target dropdown does not include teams in event "H-SQ1"
+
+  Scenario: Explorer Move Panel does not duplicate the full season event tree
+    Given the user is on the Explorer Move Panel
+    When the panel renders
+    Then the nested event list tree block is not visible
+

@@ -162,6 +162,7 @@ class Admin_Page {
 
 
     private function enqueue_dashboard_assets(): void {
+        wp_enqueue_editor();
         $this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
         wp_localize_script( 'ems-expedition-board', 'emsExpeditionBoard', [
             'root_url'  => get_rest_url( null, 'ems/v1' ),
