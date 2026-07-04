@@ -308,6 +308,9 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                 <th style={{ padding: '12px 16px' }}>Submission Date</th>
                                 <th style={{ padding: '12px 16px' }}>Explorer Name</th>
                                 <th style={{ padding: '12px 16px' }}>Level</th>
+                                {type === 'expedition' && (
+                                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Expedition</th>
+                                )}
                                 <th style={{ padding: '12px 16px' }}>ESU</th>
                                 <th style={{ padding: '12px 16px' }}>Email</th>
                                 {type === 'participant' ? (
@@ -318,7 +321,6 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     </>
                                 ) : (
                                     <>
-                                        <th style={{ padding: '12px 16px' }}>Expedition</th>
                                         <th style={{ padding: '12px 16px' }}>First Aid</th>
                                         <th style={{ padding: '12px 16px' }}>DofE Number</th>
                                     </>
@@ -365,6 +367,26 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                                 {s.dofe_level}
                                             </span>
                                         </td>
+                                        {type === 'expedition' && (
+                                            <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                                                <span style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '12px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    textTransform: 'uppercase',
+                                                    background: '#f0f6fc',
+                                                    color: '#00438a',
+                                                    border: '1px solid #c2dbf5',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
+                                                </span>
+                                            </td>
+                                        )}
                                         <td style={{ padding: '16px' }}>
                                             {s.unit_name}
                                         </td>
@@ -409,23 +431,6 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                             </>
                                         ) : (
                                             <>
-                                                <td style={{ padding: '16px' }}>
-                                                    <span style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        padding: '4px 8px',
-                                                        borderRadius: '12px',
-                                                        fontSize: '11px',
-                                                        fontWeight: 'bold',
-                                                        textTransform: 'uppercase',
-                                                        background: '#f0f6fc',
-                                                        color: '#00438a',
-                                                        border: '1px solid #c2dbf5'
-                                                    }}>
-                                                        {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
-                                                    </span>
-                                                </td>
                                                 <td style={{ padding: '16px' }}>
                                                     {s.first_aid_status}
                                                 </td>
