@@ -321,14 +321,14 @@ const QRCodesTab: React.FC<{ event: Expedition }> = ({ event }) => {
                     <div style={{ textAlign: 'center' }}>
                         <div style={{ fontWeight: 600, marginBottom: '8px' }}>🧭 Explorers Group</div>
                         <a href={explorerLink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>Open link ↗</a>
-                        <img src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(explorerLink)}`} alt="Explorers WhatsApp QR Code" style={{ border: '1px solid #dcdcde', borderRadius: '4px' }} />
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(explorerLink)}`} alt="Explorers WhatsApp QR Code" style={{ border: '1px solid #dcdcde', borderRadius: '4px' }} />
                     </div>
                 )}
                 {parentLink && (
                     <div style={{ textAlign: 'center' }}>
                         <div style={{ fontWeight: 600, marginBottom: '8px' }}>👨‍👩‍👧 Parents Group</div>
                         <a href={parentLink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: '8px', fontSize: '13px' }}>Open link ↗</a>
-                        <img src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(parentLink)}`} alt="Parents WhatsApp QR Code" style={{ border: '1px solid #dcdcde', borderRadius: '4px' }} />
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(parentLink)}`} alt="Parents WhatsApp QR Code" style={{ border: '1px solid #dcdcde', borderRadius: '4px' }} />
                     </div>
                 )}
                 {!explorerLink && !parentLink && <p style={{ color: '#aaa' }}>No WhatsApp links set yet.</p>}
