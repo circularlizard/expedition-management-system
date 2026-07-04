@@ -153,7 +153,7 @@ export default function EventPlanningBoard() {
 
       {/* ── Error banner ── */}
       {error && (
-        <div className="notice notice-error is-dismissible" style={{ marginBottom: 16 }}>
+        <div className="notice notice-error is-dismissible ems-mb-16">
           <p>{error}</p>
           <button type="button" className="notice-dismiss" onClick={() => setError(null)}>
             <span className="screen-reader-text">Dismiss</span>
@@ -163,7 +163,7 @@ export default function EventPlanningBoard() {
 
       {/* ── Action feedback ── */}
       {feedback && (
-        <div className={`notice ${feedback.ok ? 'notice-success' : 'notice-error'} is-dismissible`} style={{ marginBottom: 16 }}>
+        <div className={`notice ${feedback.ok ? 'notice-success' : 'notice-error'} is-dismissible ems-mb-16`}>
           <p>{feedback.msg}</p>
           <button type="button" className="notice-dismiss" onClick={() => setFeedback(null)}>
             <span className="screen-reader-text">Dismiss</span>
@@ -217,7 +217,7 @@ export default function EventPlanningBoard() {
           {loading && events.length === 0 ? (
             <Spinner />
           ) : events.length === 0 ? (
-            <p style={{ color: '#646970', fontStyle: 'italic' }}>No active events found for this filter.</p>
+            <p className="ems-planning-empty">No active events found for this filter.</p>
           ) : (
             events.map(ev => {
               const selected = selectedEvent?.id === ev.id;
@@ -246,8 +246,8 @@ export default function EventPlanningBoard() {
         <div className="ems-split__right">
 
           {/* Right header row */}
-          <div className="ems-toolbar" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 12 }}>
-            <h3 className="ems-section-heading" style={{ margin: 0, flex: 1 }}>
+          <div className="ems-toolbar ems-planning-toolbar">
+            <h3 className="ems-section-heading ems-planning-header">
               {selectedEvent
                 ? `Explorer Availability (${selectedEvent.event_code})`
                 : 'Explorer Availability'}
@@ -273,9 +273,9 @@ export default function EventPlanningBoard() {
               Select an event from the left to view interested explorers and assign them to a team.
             </div>
           ) : explorersLoading ? (
-            <div style={{ padding: 20 }}><Spinner /></div>
+            <div className="ems-planning-spinner"><Spinner /></div>
           ) : explorers.length === 0 ? (
-            <p style={{ color: '#646970', fontStyle: 'italic' }}>No explorers declared interest in this event.</p>
+            <p className="ems-planning-empty">No explorers declared interest in this event.</p>
           ) : (
             <>
               {/* Roster table */}
@@ -283,7 +283,7 @@ export default function EventPlanningBoard() {
                 <table className="ems-table">
                   <thead>
                     <tr>
-                      <th style={{ width: 36, textAlign: 'center' }}>
+                      <th className="ems-planning-checkbox-col">
                         <input
                           type="checkbox"
                           className="ems-checkbox"
@@ -301,8 +301,8 @@ export default function EventPlanningBoard() {
                     {sortedExplorers.map(exp => {
                       const checked = selectedScoutIds.includes(exp.scout_id);
                       return (
-                        <tr key={exp.scout_id} style={{ background: checked ? '#f0f6fc' : undefined }}>
-                          <td style={{ textAlign: 'center' }}>
+                        <tr key={exp.scout_id} className={checked ? 'ems-table-row--selected' : ''}>
+                          <td className="ems-table-cell--center">
                             <input
                               type="checkbox"
                               className="ems-checkbox"
