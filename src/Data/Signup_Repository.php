@@ -152,7 +152,7 @@ class Signup_Repository {
 
     public function get_participant_signups( string $status = 'all' ): array {
         if ( $status === 'all' ) {
-            $sql = "SELECT p.*, (o.scout_id IS NOT NULL) AS is_synced_osm 
+            $sql = "SELECT p.*, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
                     FROM {$this->wpdb->prefix}ems_participant_signups p
                     LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON p.scout_id = o.scout_id
                     ORDER BY p.created_at DESC";
@@ -166,7 +166,7 @@ class Signup_Repository {
             $db_status = 'archived';
         }
 
-        $sql = "SELECT p.*, (o.scout_id IS NOT NULL) AS is_synced_osm 
+        $sql = "SELECT p.*, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
                 FROM {$this->wpdb->prefix}ems_participant_signups p
                 LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON p.scout_id = o.scout_id
                 WHERE p.signup_status = %s 
@@ -191,7 +191,7 @@ class Signup_Repository {
         LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON e.scout_id = o.scout_id";
 
         if ( $status === 'all' ) {
-            $sql = "SELECT e.*, p.dofe_number, (o.scout_id IS NOT NULL) AS is_synced_osm 
+            $sql = "SELECT e.*, p.dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
                     FROM {$this->wpdb->prefix}ems_expedition_signups e 
                     {$join_sql}
                     ORDER BY e.created_at DESC";
@@ -203,7 +203,7 @@ class Signup_Repository {
             $db_status = 'archived';
         }
 
-        $sql = "SELECT e.*, p.dofe_number, (o.scout_id IS NOT NULL) AS is_synced_osm 
+        $sql = "SELECT e.*, p.dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
                 FROM {$this->wpdb->prefix}ems_expedition_signups e 
                 {$join_sql}
                 WHERE e.signup_status = %s 
