@@ -312,10 +312,10 @@ const TeamCard: React.FC<TeamCardProps> = ({
             )}
 
             {/* Members List */}
-            <ul className="ems-member-list">
+            <ul className="ems-team-card__member-list">
                 {sortByName(members).map((m) => (
-                    <li key={m.scout_id ?? m.user_id} className="ems-member-item">
-                        <span className="ems-member-name">
+                    <li key={m.scout_id ?? m.user_id} className="ems-team-card__member">
+                        <span className="ems-team-card__member-name">
                             {m.has_asn && (
                                 <span
                                     className="ems-member-asn"
@@ -330,7 +330,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
                             {m.first_name} {m.last_name}
                         </span>
 
-                        <div className="ems-member-actions">
+                        <div className="ems-team-card__member-actions">
                             <select
                                 className="ems-member-move"
                                 aria-label="Move explorer to team"
@@ -351,12 +351,12 @@ const TeamCard: React.FC<TeamCardProps> = ({
                         </div>
                     </li>
                 ))}
-                {members.length === 0 && <li className="ems-member-empty">No members</li>}
+                {members.length === 0 && <li className="ems-team-card__empty-member">No members</li>}
             </ul>
 
             {/* Actions for Team Move / Duplicate */}
             {!isVirtual && (
-                <div className="ems-team-actions">
+                <div className="ems-team-card__actions">
                     <button type="button" className="button button-small" onClick={() => { setShowMoveTeam(!showMoveTeam); setShowDuplicateTeam(false); }}>
                         Move Team
                     </button>
@@ -368,10 +368,10 @@ const TeamCard: React.FC<TeamCardProps> = ({
 
             {/* Move Team Dialog Box */}
             {showMoveTeam && (
-                <div className="ems-dialog">
-                    <label className="ems-dialog__label">
+                <div className="ems-team-card__dialog">
+                    <label>
                         Select Target Event:
-                        <select className="ems-dialog__select" value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)}>
+                        <select value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)}>
                             <option value="">— Choose Event —</option>
                             {allEvents.filter(e => e.ID !== event.ID).map(e => (
                                 <option key={e.ID} value={e.ID}>{e.post_title || e.ems_event_code}</option>
@@ -386,10 +386,10 @@ const TeamCard: React.FC<TeamCardProps> = ({
 
             {/* Duplicate Team Dialog Box */}
             {showDuplicateTeam && (
-                <div className="ems-dialog">
-                    <label className="ems-dialog__label">
+                <div className="ems-team-card__dialog">
+                    <label>
                         Select Target Event:
-                        <select className="ems-dialog__select" value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)}>
+                        <select value={targetEventId} onChange={(e) => setTargetEventId(e.target.value)}>
                             <option value="">— Choose Event —</option>
                             {allEvents.filter(e => e.ID !== event.ID).map(e => (
                                 <option key={e.ID} value={e.ID}>{e.post_title || e.ems_event_code}</option>
@@ -403,12 +403,12 @@ const TeamCard: React.FC<TeamCardProps> = ({
             )}
 
             {/* Add Member Pool */}
-            <div className="ems-add-member">
-                <select className="ems-add-member__select" value={selected} onChange={(e) => setSelected(e.target.value)} aria-label={`Add member to ${team.ems_team_code}`}>
+            <div className="ems-team-card__add-member">
+                <select value={selected} onChange={(e) => setSelected(e.target.value)} aria-label={`Add member to ${team.ems_team_code}`}>
                     <option value="">Add member…</option>
                     {available.map((exp) => <option key={exp.scout_id} value={exp.scout_id}>{exp.first_name} {exp.last_name}</option>)}
                 </select>
-                <button type="button" className="button ems-add-member__button" onClick={addMember} disabled={!selected || adding}>{adding ? '…' : 'Add'}</button>
+                <button type="button" className="button" onClick={addMember} disabled={!selected || adding}>{adding ? '…' : 'Add'}</button>
             </div>
         </div>
     );
