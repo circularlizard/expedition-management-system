@@ -15,44 +15,37 @@ const FA_LABELS: Record<FirstAidLevel, string> = {
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function pillStyle(colors: { bg: string; color: string }): React.CSSProperties {
-    return {
-        display: 'inline-flex', alignItems: 'center', gap: '2px',
-        fontSize: '11px', fontWeight: 600, padding: '3px 8px',
-        borderRadius: '12px', background: colors.bg, color: colors.color,
+function typePillClass(type: string): string {
+    const map: Record<string, string> = {
+        training: 'ems-pill--training',
+        practice: 'ems-pill--practice',
+        qualifying: 'ems-pill--qualifying',
     };
+    return `ems-pill ${map[type] || 'ems-pill--training'}`;
 }
-function typePill(type: string): React.CSSProperties {
-    const c: Record<string, { bg: string; color: string }> = {
-        training:  { bg: '#e3f2fd', color: '#1565c0' },
-        practice:  { bg: '#e8f5e9', color: '#2e7d32' },
-        qualifying: { bg: '#f3e5f5', color: '#7b1fa2' },
+function transportPillClass(t?: string): string {
+    const map: Record<string, string> = {
+        hillwalking: 'ems-pill--hillwalking',
+        biking: 'ems-pill--biking',
+        paddling: 'ems-pill--paddling',
     };
-    return pillStyle(c[type] || { bg: '#eee', color: '#666' });
+    return `ems-pill ${map[t || ''] || ''}`;
 }
-function transportPill(t?: string): React.CSSProperties {
-    const c: Record<string, { bg: string; color: string }> = {
-        hillwalking: { bg: '#efebe9', color: '#5d4037' },
-        biking:      { bg: '#e0f2f1', color: '#00695c' },
-        paddling:    { bg: '#e1f5fe', color: '#0277bd' },
+function levelPillClass(l: string): string {
+    const map: Record<string, string> = {
+        bronze: 'ems-pill--bronze',
+        silver: 'ems-pill--silver',
+        gold: 'ems-pill--gold',
     };
-    return pillStyle(c[t || ''] || { bg: '#eee', color: '#666' });
+    return `ems-pill ${map[l] || ''}`;
 }
-function levelPill(l: string): React.CSSProperties {
-    const c: Record<string, { bg: string; color: string }> = {
-        bronze: { bg: '#f0d4b8', color: '#7a4410' },
-        silver: { bg: '#e0e0e0', color: '#444' },
-        gold:   { bg: '#fff3cd', color: '#7a5c10' },
+function firstAidPillClass(l?: string): string {
+    const map: Record<string, string> = {
+        none: 'ems-pill--fa-none',
+        first_response: 'ems-pill--fa-first-response',
+        full_first_aid: 'ems-pill--fa-full-first-aid',
     };
-    return pillStyle(c[l] || { bg: '#eee', color: '#666' });
-}
-function firstAidPill(l?: string): React.CSSProperties {
-    const c: Record<string, { bg: string; color: string }> = {
-        none:           { bg: '#f5f5f5', color: '#666' },
-        first_response: { bg: '#e8f5e9', color: '#2e7d32' },
-        full_first_aid: { bg: '#c8e6c9', color: '#1b5e20' },
-    };
-    return pillStyle(c[l ?? 'none'] || c.none);
+    return `ems-pill ${map[l ?? 'none'] || 'ems-pill--fa-none'}`;
 }
 
 function sortedMembers(members: Member[]): Member[] {
@@ -63,46 +56,32 @@ function sortedMembers(members: Member[]): Member[] {
 
 function FaIcon({ level }: { level?: FirstAidLevel }) {
     if (level === 'full_first_aid') {
-        return <span title="Full First Aid" style={{ color: '#1b5e20', fontWeight: 'bold', marginRight: '4px' }}>⊕</span>;
+        return <span title="Full First Aid" className="ems-fa-full">⊕</span>;
     }
     if (level === 'first_response') {
-        return <span title="First Response" style={{ color: '#2e7d32', fontWeight: 'bold', marginRight: '4px' }}>✚</span>;
+        return <span title="First Response" className="ems-fa-response">✚</span>;
     }
     return null;
 }
 
 const FaKey: React.FC = () => (
-    <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#555', marginTop: '8px', marginBottom: '4px' }}>
-        <span><span style={{ color: '#1b5e20', fontWeight: 'bold' }}>⊕</span> Full First Aid</span>
-        <span><span style={{ color: '#2e7d32', fontWeight: 'bold' }}>✚</span> First Response</span>
+    <div className="ems-fa-legend">
+        <span><span className="ems-fa-full">⊕</span> Full First Aid</span>
+        <span><span className="ems-fa-response">✚</span> First Response</span>
     </div>
 );
 
-const sectionStyle: React.CSSProperties = {
-    marginBottom: '24px',
-    paddingBottom: '20px',
-    borderBottom: '1px solid #eee',
+const gridClass = (cols: number): string => {
+    if (cols >= 5) return 'ems-form-grid-4';
+    if (cols === 4) return 'ems-form-grid-4';
+    if (cols === 3) return 'ems-form-grid-3';
+    return 'ems-form-grid-2';
 };
-
-const sectionLabelStyle: React.CSSProperties = {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#888',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    marginBottom: '14px',
-};
-
-const gridStyle = (cols: number): React.CSSProperties => ({
-    display: 'grid',
-    gridTemplateColumns: `repeat(${cols}, minmax(0, 200px))`,
-    gap: '16px 32px',
-});
 
 const FieldVal: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-    <div>
-        <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
-        <div style={{ fontSize: '14px', color: value ? '#1d2327' : '#bbb' }}>{value || '—'}</div>
+    <div className="ems-meta-field">
+        <div className="ems-meta-field__label">{label}</div>
+        <div className={value ? 'ems-meta-field__value' : 'ems-meta-field__value ems-meta-field__value--empty'}>{value || '—'}</div>
     </div>
 );
 
@@ -110,25 +89,24 @@ const TeamRow: React.FC<{ team: Team }> = ({ team }) => {
     const members = sortedMembers(team.members ?? []);
     const size = team.member_count ?? members.length;
     const hasFa = members.some((m) => m.first_aid_level && m.first_aid_level !== 'none');
+    const sizeWarn = size < 4 || size > 7;
     const faBadge = hasFa ? (
-        <span style={{ display: 'inline-block', background: '#00a32a', color: '#fff', borderRadius: '3px', padding: '1px 7px', fontSize: '11px' }}>
+        <span className="ems-fa-badge ems-fa-badge--has">
             First Aid ✓
         </span>
     ) : (
-        <span style={{ display: 'inline-block', background: '#d63638', color: '#fff', borderRadius: '3px', padding: '1px 7px', fontSize: '11px' }}>
+        <span className="ems-fa-badge ems-fa-badge--none">
             No First Aid
         </span>
     );
 
-    const sizeColor = size < 4 || size > 7 ? '#d63638' : '#1d2327';
-
     return (
         <tr>
             <td style={{ fontWeight: 600, verticalAlign: 'top' }}>{team.ems_team_code}</td>
-            <td style={{ color: sizeColor, fontWeight: size < 4 || size > 7 ? 600 : 400, verticalAlign: 'top' }}>
+            <td style={{ color: sizeWarn ? '#d63638' : '#1d2327', fontWeight: sizeWarn ? 600 : 400, verticalAlign: 'top' }}>
                 {size}
-                {(size < 4 || size > 7) && (
-                    <span style={{ fontSize: '11px', marginLeft: '4px', color: '#d63638' }}>⚠</span>
+                {sizeWarn && (
+                    <span className="ems-team-size-warn">⚠</span>
                 )}
             </td>
             <td style={{ verticalAlign: 'top' }}>{faBadge}</td>
@@ -136,9 +114,9 @@ const TeamRow: React.FC<{ team: Team }> = ({ team }) => {
                 {members.length === 0 ? (
                     <span style={{ color: '#aaa' }}>—</span>
                 ) : (
-                    <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                    <ul className="ems-member-list">
                         {members.map((m) => (
-                            <li key={m.scout_id ?? m.user_id} style={{ display: 'flex', alignItems: 'center', padding: '1px 0' }}>
+                            <li key={m.scout_id ?? m.user_id} className="ems-member-item">
                                 <FaIcon level={m.first_aid_level} />
                                 {m.first_name} {m.last_name}
                             </li>
@@ -224,15 +202,15 @@ const TrainingRequirementsTab: React.FC<{ eventId: number }> = ({ eventId }) => 
     };
 
     if (loading) {
-        return <div style={{ padding: '20px 0', color: '#666' }}>Loading training requirements...</div>;
+        return <div className="ems-training-loading">Loading training requirements...</div>;
     }
 
     return (
-        <div style={{ marginTop: '16px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>
+        <div className="ems-mt-16">
+            <h3 className="ems-section-header">
                 Required Tutor LMS Courses
             </h3>
-            <p style={{ color: '#666', fontSize: '13px', marginBottom: '16px' }}>
+            <p className="ems-meta-text ems-mb-16">
                 Select the courses that explorers must complete to be cleared for this expedition.
             </p>
 
@@ -245,11 +223,11 @@ const TrainingRequirementsTab: React.FC<{ eventId: number }> = ({ eventId }) => 
             {courses.length === 0 ? (
                 <p style={{ color: '#888', fontStyle: 'italic' }}>No Tutor LMS courses found.</p>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                <div className="ems-training-list">
                     {courses.map((course) => {
                         const isChecked = selectedIds.includes(course.id);
                         return (
-                            <label key={course.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                            <label key={course.id} className="ems-training-item">
                                 <input
                                     type="checkbox"
                                     checked={isChecked}
@@ -288,10 +266,10 @@ const ExpeditionDetail: React.FC<{
 
     if (editing) {
         return (
-            <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '4px', padding: '20px' }}>
-                <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>
+            <div className="ems-edit-panel">
+                <h2 className="ems-edit-title">
                     Editing: {e.post_title}{' '}
-                    <span style={{ fontWeight: 400, fontSize: '14px', color: '#666' }}>({e.ems_event_code})</span>
+                    <span className="ems-edit-code">({e.ems_event_code})</span>
                 </h2>
                 <EventForm
                     seasonId={e.season_id ?? 0}
@@ -305,45 +283,43 @@ const ExpeditionDetail: React.FC<{
     }
 
     return (
-        <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '4px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+        <div className="ems-expedition-panel">
+            <div className="ems-expedition-header">
                 <div>
-                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>{e.post_title}</h2>
-                    <div style={{ marginTop: '4px', fontSize: '13px', color: '#888' }}>{e.ems_event_code}</div>
+                    <h2 className="ems-expedition-title">{e.post_title}</h2>
+                    <div className="ems-expedition-code">{e.ems_event_code}</div>
                 </div>
-                <button
-                    type="button"
-                    className="button button-primary"
-                    style={{ flexShrink: 0, marginLeft: '16px' }}
-                    onClick={() => setEditing(true)}
-                >
-                    Edit
-                </button>
+                <div className="ems-expedition-header__actions">
+                    <button
+                        type="button"
+                        className="button button-primary"
+                        onClick={() => setEditing(true)}
+                    >
+                        Edit
+                    </button>
+                </div>
             </div>
 
             {/* Sub-tabs */}
-            <nav className="nav-tab-wrapper" style={{ marginBottom: '20px' }}>
+            <nav className="nav-tab-wrapper ems-mb-20">
                 <button
                     type="button"
-                    className={`nav-tab ${activeSubTab === 'overview' ? 'nav-tab-active' : ''}`}
+                    className={`nav-tab ${activeSubTab === 'overview' ? 'nav-tab-active' : ''} ems-sub-tab`}
                     onClick={() => setActiveSubTab('overview')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                     Overview
                 </button>
                 <button
                     type="button"
-                    className={`nav-tab ${activeSubTab === 'teams' ? 'nav-tab-active' : ''}`}
+                    className={`nav-tab ${activeSubTab === 'teams' ? 'nav-tab-active' : ''} ems-sub-tab`}
                     onClick={() => setActiveSubTab('teams')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                     Teams
                 </button>
                 <button
                     type="button"
-                    className={`nav-tab ${activeSubTab === 'training' ? 'nav-tab-active' : ''}`}
+                    className={`nav-tab ${activeSubTab === 'training' ? 'nav-tab-active' : ''} ems-sub-tab`}
                     onClick={() => setActiveSubTab('training')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                     Training Requirements
                 </button>
@@ -352,20 +328,20 @@ const ExpeditionDetail: React.FC<{
             {activeSubTab === 'overview' && (
                 <div>
                     {/* Identification */}
-                    <div style={sectionStyle}>
-                        <div style={sectionLabelStyle}>Identification</div>
-                        <div style={gridStyle(4)}>
-                            <FieldVal label="Type" value={e.ems_type ? <span style={typePill(e.ems_type)}>{capitalize(e.ems_type)}</span> : null} />
-                            <FieldVal label="Transport" value={e.ems_transport ? <span style={transportPill(e.ems_transport)}>{capitalize(e.ems_transport)}</span> : null} />
-                            <FieldVal label="Level" value={e.ems_level ? <span style={levelPill(e.ems_level)}>{capitalize(e.ems_level)}</span> : null} />
-                            <FieldVal label="First aid required" value={<span style={firstAidPill(e.ems_first_aid_level)}>{e.ems_first_aid_level ? FA_LABELS[e.ems_first_aid_level] : 'None'}</span>} />
+                    <div className="ems-detail-section">
+                        <div className="ems-detail-section-label">Identification</div>
+                        <div className={gridClass(4)}>
+                            <FieldVal label="Type" value={e.ems_type ? <span className={typePillClass(e.ems_type)}>{capitalize(e.ems_type)}</span> : null} />
+                            <FieldVal label="Transport" value={e.ems_transport ? <span className={transportPillClass(e.ems_transport)}>{capitalize(e.ems_transport)}</span> : null} />
+                            <FieldVal label="Level" value={e.ems_level ? <span className={levelPillClass(e.ems_level)}>{capitalize(e.ems_level)}</span> : null} />
+                            <FieldVal label="First aid required" value={<span className={firstAidPillClass(e.ems_first_aid_level)}>{e.ems_first_aid_level ? FA_LABELS[e.ems_first_aid_level] : 'None'}</span>} />
                         </div>
                     </div>
 
                     {/* Schedule */}
-                    <div style={sectionStyle}>
-                        <div style={sectionLabelStyle}>Schedule</div>
-                        <div style={gridStyle(4)}>
+                    <div className="ems-detail-section">
+                        <div className="ems-detail-section-label">Schedule</div>
+                        <div className={gridClass(4)}>
                             <FieldVal label="Start date" value={e.ems_start_date || null} />
                             <FieldVal label="Start time" value={e.ems_start_time || null} />
                             <FieldVal label="End date" value={e.ems_end_date || null} />
@@ -374,9 +350,9 @@ const ExpeditionDetail: React.FC<{
                     </div>
 
                     {/* Locations */}
-                    <div style={sectionStyle}>
-                        <div style={sectionLabelStyle}>Locations</div>
-                        <div style={gridStyle(5)}>
+                    <div className="ems-detail-section">
+                        <div className="ems-detail-section-label">Locations</div>
+                        <div className={gridClass(5)}>
                             <FieldVal label="Leader in charge" value={e.ems_lic_name || null} />
                             <FieldVal label="Leader email" value={e.ems_lic_email || null} />
                             <FieldVal label="Leader phone" value={e.ems_lic_phone || null} />
@@ -386,18 +362,18 @@ const ExpeditionDetail: React.FC<{
                     </div>
 
                     {/* Route Planning */}
-                    <div style={sectionStyle}>
-                        <div style={sectionLabelStyle}>Route Planning</div>
-                        <div style={{ ...gridStyle(4), marginBottom: '20px' }}>
+                    <div className="ems-detail-section">
+                        <div className="ems-detail-section-label">Route Planning</div>
+                        <div className={`${gridClass(4)} ems-mb-20`}>
                             <FieldVal label="Start location" value={e.ems_start_location || null} />
                             <FieldVal label="End location" value={e.ems_end_location || null} />
                             <FieldVal label="Status" value={e.ems_status ? capitalize(e.ems_status) : null} />
                             <FieldVal label="Route deadline" value={e.ems_route_deadline || null} />
                         </div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '6px' }}>Notes</div>
+                        <div className="ems-meta-field__label ems-mb-6">Notes</div>
                         {e.ems_route_info
-                            ? <div dangerouslySetInnerHTML={{ __html: e.ems_route_info }} style={{ fontSize: '14px', maxWidth: '680px', lineHeight: 1.6 }} />
-                            : <div style={{ fontSize: '14px', color: '#bbb' }}>—</div>
+                            ? <div dangerouslySetInnerHTML={{ __html: e.ems_route_info }} className="ems-detail-notes" />
+                            : <div className="ems-meta-field__value ems-meta-field__value--empty">—</div>
                         }
                     </div>
                 </div>
@@ -405,15 +381,15 @@ const ExpeditionDetail: React.FC<{
 
             {activeSubTab === 'teams' && (
                 <div>
-                    <h3 style={{ marginTop: 0, marginBottom: '4px', fontSize: '15px' }}>
+                    <h3 className="ems-section-header ems-mt-0 ems-mb-4">
                         Teams ({e.teams.length})
                     </h3>
                     <FaKey />
 
                     {e.teams.length === 0 ? (
-                        <p style={{ color: '#666' }}>No teams yet.</p>
+                        <p className="ems-meta-text">No teams yet.</p>
                     ) : (
-                        <table className="widefat striped" style={{ fontSize: '13px', marginTop: '8px' }}>
+                        <table className="widefat striped ems-team-table">
                             <thead>
                                 <tr>
                                     <th>Team</th>
@@ -463,14 +439,14 @@ export const ExpeditionView: React.FC<ExpeditionViewProps> = ({ data, osmEvents 
 
     return (
         <div className="ems-expedition-view">
-            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <label htmlFor="expedition-view-select" style={{ fontWeight: 600 }}>Expedition:</label>
+            <div className="ems-expedition-select-wrap">
+                <label htmlFor="expedition-view-select" className="ems-expedition-select-label">Expedition:</label>
                 <select
                     id="expedition-view-select"
                     aria-label="Select expedition"
+                    className="ems-expedition-select ems-select"
                     value={selectedId ?? ''}
                     onChange={(e) => setSelectedId(Number(e.target.value))}
-                    style={{ minWidth: '260px' }}
                 >
                     {data.seasons.map((season) => (
                         <optgroup key={season.ID} label={season.post_title}>
