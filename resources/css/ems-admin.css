@@ -2206,6 +2206,11 @@
     font-size: 12px;
 }
 
+.ems-completion-table {
+    margin-top: 12px;
+    margin-bottom: 20px;
+}
+
 /* ASN tab */
 .ems-asn-tab-header {
     margin-top: 0;
