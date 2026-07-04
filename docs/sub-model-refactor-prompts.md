@@ -19,9 +19,10 @@ This document contains self-contained, structured prompts for a smaller LLM (e.g
 
 # Phase 2: Dashboards & Navigation (127 Inline Style Occurrences)
 
-## Step 2.1: Refactor `EventsDashboard.tsx`
+## Step 2.1: Refactor `EventsDashboard.tsx` ✅ DONE
 
 **Target File**: `resources/js/admin/expedition-board/EventsDashboard.tsx`
+**Status**: Completed 2025-07-04. Commit: `2b04c6d`.
 
 ### Objective
 Remove all structural inline styles and helper style functions from the component and replace them with appropriate classes from `ems-admin.css`.
