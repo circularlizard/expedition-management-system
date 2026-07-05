@@ -717,7 +717,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                                             </span>
                                                         </td>
                                                         <td>
-                                                            <a href={`admin.php?page=ems-participant-signups&id=${sup.id}`} target="_blank" rel="noreferrer">
+                                                            <a href={`admin.php?page=ems-participant-signups&id=${sup.id}&status=${sup.signup_status}`} target="_blank" rel="noreferrer">
                                                                 View
                                                             </a>
                                                         </td>
