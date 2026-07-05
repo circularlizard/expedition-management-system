@@ -71,7 +71,13 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
     };
 
     useEffect(() => {
-        setStatusFilter(type === 'participant' ? 'received' : 'pending');
+        const params = new URLSearchParams(window.location.search);
+        const statusParam = params.get('status');
+        if (statusParam) {
+            setStatusFilter(statusParam);
+        } else {
+            setStatusFilter(type === 'participant' ? 'received' : 'pending');
+        }
         setLevelFilter('all');
         setExpedTypeFilter('all');
         setSortKey('created_at');

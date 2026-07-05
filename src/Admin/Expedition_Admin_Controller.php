@@ -1187,9 +1187,10 @@ class Expedition_Admin_Controller {
         $participant_signups = $wpdb->get_results( $wpdb->prepare(
             "SELECT id, dofe_level, created_at, signup_status, form_submission_id 
              FROM {$wpdb->prefix}ems_participant_signups 
-             WHERE scout_id = %d 
+             WHERE scout_id = %d OR (explorer_email = %s AND explorer_email != '')
              ORDER BY created_at DESC",
-            $scout_id
+            $scout_id,
+            $explorer['email'] ?? ''
         ), ARRAY_A );
 
         // Convert types/clean values
