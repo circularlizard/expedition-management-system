@@ -90,6 +90,20 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         }
     }, [selectedSignup]);
 
+    useEffect(() => {
+        if (!loading && signups && signups.length > 0) {
+            const params = new URLSearchParams(window.location.search);
+            const idParam = params.get('id');
+            if (idParam) {
+                const targetId = parseInt(idParam, 10);
+                const found = signups.find(s => s.id === targetId);
+                if (found) {
+                    setSelectedSignup(found);
+                }
+            }
+        }
+    }, [loading, signups]);
+
     const handleProcessParticipant = async (signupId: number, dofeNumber: string) => {
         try {
             const response = await fetch(`${config.root_url}/signups/participants/${signupId}/process`, {

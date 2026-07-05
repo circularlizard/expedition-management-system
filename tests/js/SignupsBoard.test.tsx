@@ -235,5 +235,23 @@ describe('SignupsBoard', () => {
         expect(closeBtn.className).toBe('button-link');
         expect(closeBtn.className).not.toContain('button ');
     });
+
+    it('automatically opens inspector when id URL parameter is present', async () => {
+        const oldLocation = window.location;
+        // @ts-ignore
+        delete window.location;
+        window.location = { ...oldLocation, search: '?id=11' } as any;
+
+        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockParticipantSignups });
+        render(<SignupsBoard type="participant" />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Explorer Details')).toBeInTheDocument();
+        });
+        expect(screen.getAllByText('Bob Jones').length).toBe(2);
+
+        // Restore location
+        window.location = oldLocation;
+    });
 });
 
