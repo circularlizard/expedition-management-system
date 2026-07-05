@@ -318,7 +318,7 @@ class Admin_View_Controller {
             $rows = $wpdb->get_results( $wpdb->prepare(
                 "SELECT e.scout_id, e.wp_user_id, e.first_name, e.last_name, u.name as unit_name 
                  FROM {$explorers_table} e
-                 LEFT JOIN {$wpdb->prefix}ems_units u ON e.section_id = u.section_id
+                 LEFT JOIN {$wpdb->prefix}ems_units u ON e.section_id = u.section_id AND e.patrol = u.name
                  WHERE e.scout_id IN ({$ids_placeholder})",
                 ...$member_ids
             ), ARRAY_A );
