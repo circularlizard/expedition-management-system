@@ -31,6 +31,10 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->wpdb = Mockery::mock( 'wpdb' );
         $this->wpdb->prefix     = 'wp_';
         $this->wpdb->last_error = '';
+        $this->wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( fn( $sql, ...$args ) => vsprintf( str_replace( '%d', '%s', $sql ), $args ) );
+        $this->wpdb->shouldReceive( 'get_var' )->byDefault()->andReturn( 0 );
+        $this->wpdb->shouldReceive( 'insert' )->byDefault()->andReturn( 1 );
+        $this->wpdb->shouldReceive( 'update' )->byDefault()->andReturn( 1 );
         $GLOBALS['wpdb']        = $this->wpdb;
     }
 
@@ -84,13 +88,13 @@ class OSM_Reference_SyncTest extends EMSTestCase {
             ->once()
             ->andReturn( [] );
 
-        $replaced = false;
-        $this->wpdb->shouldReceive( 'replace' )
+        $inserted = false;
+        $this->wpdb->shouldReceive( 'insert' )
             ->once()
             ->with(
                 'wp_ems_osm_explorers',
-                Mockery::on( function ( $data ) use ( &$replaced ) {
-                    $replaced = $data['scout_id'] === 1001
+                Mockery::on( function ( $data ) use ( &$inserted ) {
+                    $inserted = $data['scout_id'] === 1001
                         && $data['first_name'] === 'Alice'
                         && $data['email'] === 'alice@example.com';
                     return true;
@@ -105,7 +109,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
         $sync->sync( [ 43105 ], $this->make_payload() );
 
-        $this->assertTrue( $replaced, 'replace() was not called with correct explorer data' );
+        $this->assertTrue( $inserted, 'insert() was not called with correct explorer data' );
     }
 
     public function test_sync_upserts_events_into_events_table(): void {
@@ -316,7 +320,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'get_section_events' )->andReturn( [] );
 
         $call_count = 0;
-        $this->wpdb->shouldReceive( 'replace' )
+        $this->wpdb->shouldReceive( 'insert' )
             ->with( 'wp_ems_osm_explorers', Mockery::any(), Mockery::any() )
             ->andReturnUsing( function() use ( &$call_count ) { $call_count++; return 1; } );
 
@@ -327,7 +331,7 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
         $sync->sync( [ 43105 ], $this->make_payload(), 'live-limited', 3 );
 
-        $this->assertSame( 3, $call_count, 'Only first 3 members should be upserted' );
+        $this->assertSame( 3, $call_count, 'Only first 3 members should be inserted' );
     }
 
     public function test_sync_stops_and_records_rate_limited_on_exception(): void {

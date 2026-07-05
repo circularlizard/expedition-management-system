@@ -316,7 +316,10 @@ class Admin_View_Controller {
             $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
             $ids_placeholder = implode( ',', array_fill( 0, count( $member_ids ), '%d' ) );
             $rows = $wpdb->get_results( $wpdb->prepare(
-                "SELECT scout_id, wp_user_id, first_name, last_name FROM {$explorers_table} WHERE scout_id IN ({$ids_placeholder})",
+                "SELECT e.scout_id, e.wp_user_id, e.first_name, e.last_name, u.name as unit_name 
+                 FROM {$explorers_table} e
+                 LEFT JOIN {$wpdb->prefix}ems_units u ON e.section_id = u.section_id
+                 WHERE e.scout_id IN ({$ids_placeholder})",
                 ...$member_ids
             ), ARRAY_A );
 
@@ -350,6 +353,7 @@ class Admin_View_Controller {
                     'first_name' => $r['first_name'] ?? '',
                     'last_name'  => $r['last_name'] ?? '',
                     'user_id'    => $u_id,
+                    'unit_name'  => $r['unit_name'] ?: 'Unassigned',
                     'matrix'     => $matrix_formatted,
                 ];
             }
