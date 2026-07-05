@@ -875,6 +875,17 @@
 
 .ems-map-readonly-wrapper {
     margin-top: 16px;
+    margin-bottom: 20px;
+}
+
+.ems-btn-archive-red {
+    border-color: #d63638 !important;
+    color: #d63638 !important;
+}
+.ems-btn-archive-red:hover {
+    background: #fcf0f1 !important;
+    border-color: #b32d2e !important;
+    color: #b32d2e !important;
 }
 
 .ems-map-readonly-canvas {

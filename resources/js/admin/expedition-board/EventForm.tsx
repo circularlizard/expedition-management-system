@@ -345,7 +345,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 </div>
 
                 <label className="ems-form-group">
-                    Notes / Description
+                    Route Information
                     <RichTextEditor
                         value={formData.ems_route_info}
                         ariaLabel="Notes"

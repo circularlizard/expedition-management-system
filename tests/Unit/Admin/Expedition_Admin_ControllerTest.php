@@ -715,6 +715,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertArrayHasKey( 'teams', $data );
         $this->assertCount( 2, $data['explorers'] );
         $this->assertSame( 'Alice', $data['explorers'][0]['first_name'] );
+        $this->assertArrayHasKey( 'team_preferences', $data['explorers'][0] );
         $this->assertNull( $data['explorers'][0]['allocated_event_code'] );
         $this->assertSame( 'Bob', $data['explorers'][1]['first_name'] );
         $this->assertSame( 'H-SP2-1', $data['explorers'][1]['allocated_team_code'] );

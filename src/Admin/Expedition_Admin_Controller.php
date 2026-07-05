@@ -1222,6 +1222,7 @@ class Expedition_Admin_Controller {
                     'unit_name'            => $signup['unit_name'] ?: 'Unassigned',
                     'allocated_event_code' => $allocated_event_code,
                     'allocated_team_code'  => $allocated_team_code,
+                    'team_preferences'     => $prefs['exped_team_names'] ?? '',
                 ];
             }
         }

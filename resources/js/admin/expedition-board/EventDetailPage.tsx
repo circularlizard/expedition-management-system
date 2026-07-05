@@ -10,6 +10,7 @@ interface EventDetailPageProps {
     osmEvents?: OSMEvent[];
     allEvents?: Expedition[];
     onEventUpdated?: (updated: Expedition) => void;
+    initialEdit?: boolean;
 }
 
 type DetailTab = 'overview' | 'teams' | 'training' | 'asn' | 'qrcodes';
@@ -113,8 +114,8 @@ function grd(cols: number): string {
 }
 
 /* Overview */
-const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdated?: (e: Expedition) => void }> = ({ event, osmEvents = [], onUpdated }) => {
-    const [editing, setEditing] = useState(false);
+const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdated?: (e: Expedition) => void; initialEdit?: boolean }> = ({ event, osmEvents = [], onUpdated, initialEdit = false }) => {
+    const [editing, setEditing] = useState(initialEdit);
     return (
         <div>
             <div className="ems-edit-bar">
@@ -159,7 +160,7 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                         </div>
                        {event.ems_route_info && (
                              <div>
-                                 <div className="ems-section__header ems-section__header--mt">Notes</div>
+                                  <div className="ems-section__header ems-section__header--mt">Route Information</div>
                                  <div
                                      className="ems-rte-readonly ems-rte-readonly__content"
                                      dangerouslySetInnerHTML={{ __html: event.ems_route_info }}
@@ -181,6 +182,7 @@ function sortByName(members: Member[]): Member[] {
 interface TeamCardProps {
     team: Team;
     event: Expedition;
+    allTeams: Team[];
     explorers: Explorer[];
     assignedScoutIds: Set<number>;
     allEvents: Expedition[];
@@ -192,6 +194,7 @@ interface TeamCardProps {
 const TeamCard: React.FC<TeamCardProps> = ({
     team,
     event,
+    allTeams,
     explorers,
     assignedScoutIds,
     allEvents,
@@ -226,6 +229,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
     const faWarning = !isVirtual && !hasFaCover;
 
     const available = explorers.filter((e) => !assignedScoutIds.has(e.scout_id) || members.some((m) => m.scout_id === e.scout_id));
+    const sortedAvailable = [...available].sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
 
     const addMember = async () => {
         if (!selected) return;
@@ -291,7 +295,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
                 <div>
                     <strong className={`ems-team-card__title ${isVirtual ? 'ems-team-card__title--virtual' : ''}`}>{isVirtual ? 'Unallocated Pool' : team.ems_team_code}</strong>
                     <span className={`ems-team-card__count ${isVirtual ? 'ems-team-card__count--virtual' : ''}`}>
-                        {size}
+                        {' '}({size})
                     </span>
                 </div>
                 {!isVirtual && (
@@ -342,7 +346,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
                                 }}
                             >
                                 <option value="">Move…</option>
-                                {event.teams.map(t => t.ID !== team.ID && (
+                                {allTeams.map(t => t.ID !== team.ID && (
                                     <option key={t.ID} value={t.ID}>{t.ems_team_code === 'UNALLOCATED' ? 'Unallocated' : t.ems_team_code}</option>
                                 ))}
                             </select>
@@ -406,7 +410,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
             <div className="ems-team-card__add-member">
                 <select value={selected} onChange={(e) => setSelected(e.target.value)} aria-label={`Add member to ${team.ems_team_code}`}>
                     <option value="">Add member…</option>
-                    {available.map((exp) => <option key={exp.scout_id} value={exp.scout_id}>{exp.first_name} {exp.last_name}</option>)}
+                    {sortedAvailable.map((exp) => <option key={exp.scout_id} value={exp.scout_id}>{exp.first_name} {exp.last_name}</option>)}
                 </select>
                 <button type="button" className="button" onClick={addMember} disabled={!selected || adding}>{adding ? '…' : 'Add'}</button>
             </div>
@@ -482,6 +486,9 @@ const TeamsTab: React.FC<{ event: Expedition; explorers?: Explorer[]; allEvents?
             <div className="ems-teams-header">
                 <div className="ems-teams-header__summary">
                     {teams.filter(t => t.ems_team_code !== 'UNALLOCATED').length} teams • {teams.reduce((s, t) => s + (t.member_count ?? (t.members?.length ?? 0)), 0)} members
+                    <span className="ems-teams-header__legend" style={{ marginLeft: '15px', color: '#666', fontSize: '12px' }}>
+                        Legend: <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>⊕</span> Full First Aid • <span style={{ color: '#10b981', fontWeight: 'bold' }}>✚</span> First Response
+                    </span>
                 </div>
                 <button id="ems-add-team-btn" type="button" className="button" onClick={createTeam} disabled={creating}>{creating ? 'Creating…' : '+ Add Team'}</button>
             </div>
@@ -492,6 +499,7 @@ const TeamsTab: React.FC<{ event: Expedition; explorers?: Explorer[]; allEvents?
                         key={team.ID}
                         team={team}
                         event={event}
+                        allTeams={teams}
                         explorers={explorers}
                         assignedScoutIds={assignedScoutIds}
                         allEvents={allEvents}
@@ -937,6 +945,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
     osmEvents = [],
     allEvents = [],
     onEventUpdated,
+    initialEdit = false,
 }) => {
     const config = window.emsExpeditionBoard;
     const [activeTab, setActiveTab] = useState<DetailTab>('overview');
@@ -1028,7 +1037,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
             </nav>
 
             <div className="ems-event-detail__content">
-                {activeTab === 'overview' && <OverviewTab event={event} osmEvents={osmEvents} onUpdated={handleUpdated} />}
+                {activeTab === 'overview' && <OverviewTab event={event} osmEvents={osmEvents} onUpdated={handleUpdated} initialEdit={initialEdit} />}
                 {activeTab === 'teams' && (
                     <TeamsTab
                         event={event}

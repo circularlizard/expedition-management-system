@@ -39,7 +39,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 tinymce: {
                     wpautop: true,
                     plugins: 'charmap hr lists paste tabfocus textcolor wplink',
-                    toolbar1: 'bold italic underline bullist numlist alignleft aligncenter alignright link unlink',
+                    toolbar1: 'formatselect bold italic underline bullist numlist alignleft aligncenter alignright link unlink',
                     setup: (editor: any) => {
                         editor.on('change keyup input', () => {
                             const content = editor.getContent();
