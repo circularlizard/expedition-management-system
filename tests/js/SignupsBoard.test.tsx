@@ -169,4 +169,71 @@ describe('SignupsBoard', () => {
             expect(screen.getByText('Borders Scout Region')).toBeInTheDocument();
         });
     });
+
+    it('renders prior completions in array and legacy object formats, and renders red X emoji if none completed', async () => {
+        const testSignups = [
+            {
+                ...mockParticipantSignups[0],
+                id: 12,
+                explorer_first_name: 'Alice',
+                explorer_last_name: 'Brown',
+                dofe_level: 'silver',
+                bronze_completion: ['Volunteering', 'Skills'],
+            },
+            {
+                ...mockParticipantSignups[0],
+                id: 13,
+                explorer_first_name: 'Charlie',
+                explorer_last_name: 'Green',
+                dofe_level: 'silver',
+                bronze_completion: { volunteering: 'completed', physical: 'completed' },
+            },
+            {
+                ...mockParticipantSignups[0],
+                id: 14,
+                explorer_first_name: 'Diana',
+                explorer_last_name: 'White',
+                dofe_level: 'silver',
+                bronze_completion: ['None'],
+            }
+        ];
+
+        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => testSignups });
+        render(<SignupsBoard type="participant" />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Alice Brown')).toBeInTheDocument();
+        });
+
+        // Alice Brown (Volunteering, Skills array) and Charlie Green (Volunteering, Physical object)
+        expect(screen.getAllByTitle('Volunteering Completed').length).toBe(2);
+        expect(screen.getAllByTitle('Skills Completed').length).toBe(1);
+        expect(screen.getAllByTitle('Physical Completed').length).toBe(1);
+        expect(screen.queryByTitle('Expedition Completed')).not.toBeInTheDocument();
+
+        // Diana White (None) has red X emoji ❌
+        expect(screen.getByText('❌')).toBeInTheDocument();
+    });
+
+    it('verifies that the close button in the inspector does not have the button class', async () => {
+        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockParticipantSignups });
+        render(<SignupsBoard type="participant" />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Mary Smith')).toBeInTheDocument();
+        });
+
+        // Open inspector
+        fireEvent.click(screen.getByText('Mary Smith'));
+
+        await waitFor(() => {
+            expect(screen.getByText('Explorer Details')).toBeInTheDocument();
+        });
+
+        // Find the close button (the '×' text button)
+        const closeBtn = screen.getByRole('button', { name: '×' });
+        expect(closeBtn.className).toBe('button-link');
+        expect(closeBtn.className).not.toContain('button ');
+    });
 });
+

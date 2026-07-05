@@ -289,4 +289,31 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertEquals( 8, $stored['ems_fluent_participant_form_id'] );
         $this->assertEquals( 9, $stored['ems_fluent_expedition_form_id'] );
     }
+
+    public function test_save_form_mappings_stores_field_mappings(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+
+        $page = new Settings_Page();
+        
+        $reflected = new \ReflectionClass(Settings_Page::class);
+        $method = $reflected->getMethod('save_form_mappings');
+        $method->setAccessible(true);
+        
+        $method->invoke( $page, [
+            'ems_fluent_participant_form_id' => '8',
+            'ems_fluent_expedition_form_id'  => '9',
+            'ems_participant_form_mappings'  => [
+                'scout_id_field' => 'custom_scout_field_p',
+            ],
+            'ems_expedition_form_mappings'   => [
+                'silver_practice_dates_field' => 'custom_practice_field_e',
+            ],
+        ] );
+
+        $this->assertEquals( 8, $stored['ems_fluent_participant_form_id'] );
+        $this->assertEquals( 9, $stored['ems_fluent_expedition_form_id'] );
+        $this->assertEquals( [ 'scout_id_field' => 'custom_scout_field_p' ], $stored['ems_participant_form_mappings'] );
+        $this->assertEquals( [ 'silver_practice_dates_field' => 'custom_practice_field_e' ], $stored['ems_expedition_form_mappings'] );
+    }
 }

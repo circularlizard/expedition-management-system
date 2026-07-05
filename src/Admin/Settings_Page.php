@@ -484,16 +484,69 @@ class Settings_Page {
         $e_id = (int) ($post['ems_fluent_expedition_form_id'] ?? 7);
         update_option( 'ems_fluent_expedition_form_id', $e_id );
 
+        $part_mappings = isset( $post['ems_participant_form_mappings'] ) && is_array( $post['ems_participant_form_mappings'] ) ? $post['ems_participant_form_mappings'] : [];
+        $exp_mappings = isset( $post['ems_expedition_form_mappings'] ) && is_array( $post['ems_expedition_form_mappings'] ) ? $post['ems_expedition_form_mappings'] : [];
+
+        $part_mappings = array_map( 'sanitize_text_field', $part_mappings );
+        $exp_mappings = array_map( 'sanitize_text_field', $exp_mappings );
+
+        update_option( 'ems_participant_form_mappings', $part_mappings );
+        update_option( 'ems_expedition_form_mappings', $exp_mappings );
+
         echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Form configurations saved.', 'ems-plugin' ) . '</p></div>';
     }
 
     private function render_form_mappings_tab(): void {
         $p_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
         $e_id = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
+
+        $part_mappings = array_merge( [
+            'scout_id_field'          => 'signup_child',
+            'first_name_field'        => 'signup_child_name',
+            'last_name_field'         => 'signup_child_name',
+            'dofe_level_field'        => 'signup_level',
+            'dob_field'               => 'signup_dob',
+            'dofe_registered_field'   => 'signup_dofe_registered',
+            'dofe_number_field'       => 'signup_dofe_number',
+            'dofe_org_field'          => 'signup_dofe_org',
+            'bronze_completion_field' => 'signup_bronze_completion',
+            'silver_completion_field' => 'signup_silver_completion',
+            'esu_patrol_field'        => 'signup_unit',
+            'explorer_email_field'    => 'signup_explorer_email',
+            'parent_email_field'      => 'signup_parent_email',
+            'leader_email_field'      => 'signup_leader_email',
+        ], get_option( 'ems_participant_form_mappings', [] ) );
+
+        $exp_mappings = array_merge( [
+            'scout_id_field'               => 'signup_child',
+            'first_name_field'             => 'signup_child_name',
+            'last_name_field'              => 'signup_child_name',
+            'dofe_level_field'             => 'signup_level',
+            'dofe_number_field'            => 'signup_dofe_number',
+            'esu_patrol_field'             => 'signup_unit',
+            'explorer_email_field'         => 'signup_explorer_email',
+            'parent_email_field'           => 'signup_parent_email',
+            'leader_email_field'           => 'signup_leader_email',
+            'exped_type_field'             => 'exped_type',
+            'practice_dates_field'         => 'exped_practice_dates',
+            'qualifier_dates_field'        => 'exped_qualifier_dates',
+            'silver_practice_dates_field'  => 'exped-silver-practice-dates',
+            'gold_practice_dates_field'    => 'exped-gold-practice-dates',
+            'silver_qualifier_dates_field' => 'exped-silver-qualifier-dates',
+            'gold_qualifier_dates_field'   => 'exped-gold-qualifier-dates',
+            'team_names_field'             => 'exped_team_names',
+            'asn_field'                    => 'exped_asn',
+            'first_aid_field'              => 'input_radio',
+            'first_aid_expiry_field'       => 'datetime',
+        ], get_option( 'ems_expedition_form_mappings', [] ) );
         ?>
-        <h2><?php esc_html_e( 'Fluent Form ID Configurations', 'ems-plugin' ); ?></h2>
+        <h2><?php esc_html_e( 'Fluent Form configurations', 'ems-plugin' ); ?></h2>
         <form method="post">
             <?php wp_nonce_field( 'ems_settings_form_mappings' ); ?>
+            
+            <h3 style="margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+                <?php esc_html_e( 'Form IDs', 'ems-plugin' ); ?>
+            </h3>
             <table class="form-table" role="presentation">
                 <tbody>
                     <tr>
@@ -512,10 +565,84 @@ class Settings_Page {
                     </tr>
                 </tbody>
             </table>
+
+            <h3 style="margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+                <?php esc_html_e( 'Participant Place Form Field Mappings', 'ems-plugin' ); ?>
+            </h3>
+            <table class="form-table" role="presentation">
+                <tbody>
+                    <?php
+                    $part_fields = [
+                        'scout_id_field'          => __( 'Scout ID Selection Field', 'ems-plugin' ),
+                        'first_name_field'        => __( 'First Name Field', 'ems-plugin' ),
+                        'last_name_field'         => __( 'Last Name Field', 'ems-plugin' ),
+                        'dofe_level_field'        => __( 'DofE Level Field', 'ems-plugin' ),
+                        'dob_field'               => __( 'Date of Birth Field', 'ems-plugin' ),
+                        'dofe_registered_field'   => __( 'DofE Registered Field', 'ems-plugin' ),
+                        'dofe_number_field'       => __( 'DofE Number Field', 'ems-plugin' ),
+                        'dofe_org_field'          => __( 'DofE Organisation Field', 'ems-plugin' ),
+                        'bronze_completion_field' => __( 'Bronze Completion Field', 'ems-plugin' ),
+                        'silver_completion_field' => __( 'Silver Completion Field', 'ems-plugin' ),
+                        'esu_patrol_field'        => __( 'ESU / Patrol Field', 'ems-plugin' ),
+                        'explorer_email_field'    => __( 'Explorer Email Field', 'ems-plugin' ),
+                        'parent_email_field'      => __( 'Parent Email Field', 'ems-plugin' ),
+                        'leader_email_field'      => __( 'Leader Email Field', 'ems-plugin' ),
+                    ];
+                    foreach ( $part_fields as $key => $label ) : ?>
+                        <tr>
+                            <th scope="row"><label for="part_map_<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></label></th>
+                            <td>
+                                <input name="ems_participant_form_mappings[<?php echo esc_attr( $key ); ?>]" type="text" id="part_map_<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $part_mappings[ $key ] ?? '' ); ?>" class="regular-text" />
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <h3 style="margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+                <?php esc_html_e( 'Expedition Signup Form Field Mappings', 'ems-plugin' ); ?>
+            </h3>
+            <table class="form-table" role="presentation">
+                <tbody>
+                    <?php
+                    $exp_fields = [
+                        'scout_id_field'               => __( 'Scout ID Selection Field', 'ems-plugin' ),
+                        'first_name_field'             => __( 'First Name Field', 'ems-plugin' ),
+                        'last_name_field'              => __( 'Last Name Field', 'ems-plugin' ),
+                        'dofe_level_field'             => __( 'DofE Level Field', 'ems-plugin' ),
+                        'dofe_number_field'            => __( 'DofE Number Field', 'ems-plugin' ),
+                        'esu_patrol_field'             => __( 'ESU / Patrol Field', 'ems-plugin' ),
+                        'explorer_email_field'         => __( 'Explorer Email Field', 'ems-plugin' ),
+                        'parent_email_field'           => __( 'Parent Email Field', 'ems-plugin' ),
+                        'leader_email_field'           => __( 'Leader Email Field', 'ems-plugin' ),
+                        'exped_type_field'             => __( 'Expedition Type Field', 'ems-plugin' ),
+                        'practice_dates_field'         => __( 'Practice Dates (Legacy/Fallback) Field', 'ems-plugin' ),
+                        'qualifier_dates_field'        => __( 'Qualifier Dates (Legacy/Fallback) Field', 'ems-plugin' ),
+                        'silver_practice_dates_field'  => __( 'Silver Practice Dates Field', 'ems-plugin' ),
+                        'gold_practice_dates_field'    => __( 'Gold Practice Dates Field', 'ems-plugin' ),
+                        'silver_qualifier_dates_field' => __( 'Silver Qualifier Dates Field', 'ems-plugin' ),
+                        'gold_qualifier_dates_field'   => __( 'Gold Qualifier Dates Field', 'ems-plugin' ),
+                        'team_names_field'             => __( 'Team/Preferences Field', 'ems-plugin' ),
+                        'asn_field'                    => __( 'Additional Support Needs Field', 'ems-plugin' ),
+                        'first_aid_field'              => __( 'First Aid Status Field', 'ems-plugin' ),
+                        'first_aid_expiry_field'       => __( 'First Aid Expiry Field', 'ems-plugin' ),
+                    ];
+                    foreach ( $exp_fields as $key => $label ) : ?>
+                        <tr>
+                            <th scope="row"><label for="exp_map_<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></label></th>
+                            <td>
+                                <input name="ems_expedition_form_mappings[<?php echo esc_attr( $key ); ?>]" type="text" id="exp_map_<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( $exp_mappings[ $key ] ?? '' ); ?>" class="regular-text" />
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
             <p class="submit">
-                <input type="submit" name="ems_save_form_mappings" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Form IDs', 'ems-plugin' ); ?>" />
+                <input type="submit" name="ems_save_form_mappings" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Form Configuration', 'ems-plugin' ); ?>" />
             </p>
         </form>
         <?php
     }
 }
+
