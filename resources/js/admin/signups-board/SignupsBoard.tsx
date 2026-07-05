@@ -11,6 +11,17 @@ declare global {
     }
 }
 
+const isSectionCompleted = (completions: any, section: string): boolean => {
+    if (!completions) return false;
+    if (Array.isArray(completions)) {
+        return completions.some((s: string) => s.toLowerCase() === section.toLowerCase());
+    }
+    if (typeof completions === 'object') {
+        return completions[section] === 'completed';
+    }
+    return false;
+};
+
 interface SignupsBoardProps {
     type: 'participant' | 'expedition';
 }
@@ -147,10 +158,10 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
             const completions = item.dofe_level === 'silver' ? item.bronze_completion : item.silver_completion;
             if (!completions) return 0;
             let count = 0;
-            if (completions.volunteering === 'completed') count++;
-            if (completions.skills === 'completed') count++;
-            if (completions.physical === 'completed') count++;
-            if (completions.expedition === 'completed') count++;
+            if (isSectionCompleted(completions, 'volunteering')) count++;
+            if (isSectionCompleted(completions, 'skills')) count++;
+            if (isSectionCompleted(completions, 'physical')) count++;
+            if (isSectionCompleted(completions, 'expedition')) count++;
             return count;
         }
         const val = item[key];
@@ -215,44 +226,40 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
     const renderPriorCompletions = (signup: any) => {
         if (signup.dofe_level === 'bronze') {
             return (
-                <div className="ems-avatar-circle ems-avatar-circle--red">
-                    X
-                </div>
+                <span title="No Prior Award" style={{ fontSize: '16px' }}>❌</span>
             );
         }
 
         const completions = signup.dofe_level === 'silver' ? signup.bronze_completion : signup.silver_completion;
-        if (!completions || typeof completions !== 'object') {
+        if (!completions) {
             return (
-                <div className="ems-avatar-circle ems-avatar-circle--red">
-                    X
-                </div>
+                <span title="No Prior Award" style={{ fontSize: '16px' }}>❌</span>
             );
         }
 
         const completedList: JSX.Element[] = [];
-        if (completions.volunteering === 'completed') {
+        if (isSectionCompleted(completions, 'volunteering')) {
             completedList.push(
                 <span key="V" title="Volunteering Completed" className="ems-skill-badge ems-avatar-circle--red">
                     V
                 </span>
             );
         }
-        if (completions.skills === 'completed') {
+        if (isSectionCompleted(completions, 'skills')) {
             completedList.push(
                 <span key="S" title="Skills Completed" className="ems-skill-badge ems-avatar-circle--blue">
                     S
                 </span>
             );
         }
-        if (completions.physical === 'completed') {
+        if (isSectionCompleted(completions, 'physical')) {
             completedList.push(
                 <span key="P" title="Physical Completed" className="ems-skill-badge ems-avatar-circle--gold">
                     P
                 </span>
             );
         }
-        if (completions.expedition === 'completed') {
+        if (isSectionCompleted(completions, 'expedition')) {
             completedList.push(
                 <span key="E" title="Expedition Completed" className="ems-skill-badge ems-avatar-circle--green">
                     E
@@ -262,9 +269,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
 
         if (completedList.length === 0) {
             return (
-                <div className="ems-avatar-circle ems-avatar-circle--red">
-                    X
-                </div>
+                <span title="No Prior Award" style={{ fontSize: '16px' }}>❌</span>
             );
         }
 
@@ -487,7 +492,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             )}
                             <button 
                                 onClick={() => setSelectedSignup(null)}
-                                className="button button-link"
+                                className="button-link"
                             >
                                 &times;
                             </button>

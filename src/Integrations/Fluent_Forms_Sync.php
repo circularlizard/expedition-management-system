@@ -216,22 +216,26 @@ class Fluent_Forms_Sync {
         } elseif ( $form_id === $expedition_form_id ) {
             $config = get_option( 'ems_expedition_form_mappings', [] );
             $config = array_merge( [
-                'scout_id_field'          => 'signup_child',
-                'first_name_field'        => 'signup_child_name',
-                'last_name_field'         => 'signup_child_name',
-                'dofe_level_field'        => 'signup_level',
-                'dofe_number_field'       => 'signup_dofe_number',
-                'esu_patrol_field'        => 'signup_unit',
-                'explorer_email_field'    => 'signup_explorer_email',
-                'parent_email_field'      => 'signup_parent_email',
-                'leader_email_field'      => 'signup_leader_email',
-                'exped_type_field'        => 'exped_type',
-                'practice_dates_field'    => 'exped_practice_dates',
-                'qualifier_dates_field'   => 'exped_qualifier_dates',
-                'team_names_field'        => 'exped_team_names',
-                'asn_field'               => 'exped_asn',
-                'first_aid_field'         => 'input_radio',
-                'first_aid_expiry_field'  => 'datetime',
+                'scout_id_field'               => 'signup_child',
+                'first_name_field'             => 'signup_child_name',
+                'last_name_field'              => 'signup_child_name',
+                'dofe_level_field'             => 'signup_level',
+                'dofe_number_field'            => 'signup_dofe_number',
+                'esu_patrol_field'             => 'signup_unit',
+                'explorer_email_field'         => 'signup_explorer_email',
+                'parent_email_field'           => 'signup_parent_email',
+                'leader_email_field'           => 'signup_leader_email',
+                'exped_type_field'             => 'exped_type',
+                'practice_dates_field'         => 'exped_practice_dates',
+                'qualifier_dates_field'        => 'exped_qualifier_dates',
+                'silver_practice_dates_field'  => 'exped-silver-practice-dates',
+                'gold_practice_dates_field'    => 'exped-gold-practice-dates',
+                'silver_qualifier_dates_field' => 'exped-silver-qualifier-dates',
+                'gold_qualifier_dates_field'   => 'exped-gold-qualifier-dates',
+                'team_names_field'             => 'exped_team_names',
+                'asn_field'                    => 'exped_asn',
+                'first_aid_field'              => 'input_radio',
+                'first_aid_expiry_field'       => 'datetime',
             ], $config );
 
             $this->save_expedition_submission( $entryId, $formData, $config );
@@ -342,11 +346,27 @@ class Fluent_Forms_Sync {
     private function save_expedition_submission( int $entryId, array $formData, array $config ): void {
         list( $scout_id, $first_name, $last_name ) = $this->parse_name_and_scout_id( $formData, $config );
 
+        $level = strtolower( sanitize_text_field( $formData[ $config['dofe_level_field'] ?? 'signup_level' ] ?? '' ) );
+
+        $practice_key = 'exped_practice_dates';
+        $qualifier_key = 'exped_qualifier_dates';
+
+        if ( $level === 'silver' ) {
+            $practice_key  = $config['silver_practice_dates_field'] ?? 'exped-silver-practice-dates';
+            $qualifier_key = $config['silver_qualifier_dates_field'] ?? 'exped-silver-qualifier-dates';
+        } elseif ( $level === 'gold' ) {
+            $practice_key  = $config['gold_practice_dates_field'] ?? 'exped-gold-practice-dates';
+            $qualifier_key = $config['gold_qualifier_dates_field'] ?? 'exped-gold-qualifier-dates';
+        } else {
+            $practice_key  = $config['practice_dates_field'] ?? 'exped_practice_dates';
+            $qualifier_key = $config['qualifier_dates_field'] ?? 'exped_qualifier_dates';
+        }
+
         $prefs = [];
         $pref_fields = [
             'exped_type'             => $config['exped_type_field'] ?? 'exped_type',
-            'exped_practice_dates'   => $config['practice_dates_field'] ?? 'exped_practice_dates',
-            'exped_qualifier_dates'  => $config['qualifier_dates_field'] ?? 'exped_qualifier_dates',
+            'exped_practice_dates'   => $practice_key,
+            'exped_qualifier_dates'  => $qualifier_key,
             'exped_team_names'       => $config['team_names_field'] ?? 'exped_team_names',
         ];
 

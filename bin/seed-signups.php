@@ -138,20 +138,20 @@ for ( $i = 0; $i < $count; $i++ ) {
     $bronze_comp = null;
     $silver_comp = null;
     if ( $level === 'silver' ) {
-        $bronze_comp = [
-            'volunteering' => rand( 0, 1 ) ? 'completed' : 'none',
-            'skills'       => rand( 0, 1 ) ? 'completed' : 'none',
-            'physical'     => rand( 0, 1 ) ? 'completed' : 'none',
-            'expedition'   => rand( 0, 1 ) ? 'completed' : 'none',
-        ];
+        $bronze_comp = [];
+        if ( rand( 0, 1 ) ) { $bronze_comp[] = 'Volunteering'; }
+        if ( rand( 0, 1 ) ) { $bronze_comp[] = 'Skills'; }
+        if ( rand( 0, 1 ) ) { $bronze_comp[] = 'Physical'; }
+        if ( rand( 0, 1 ) ) { $bronze_comp[] = 'Expedition'; }
+        if ( empty( $bronze_comp ) ) { $bronze_comp[] = 'None'; }
     } elseif ( $level === 'gold' ) {
-        $bronze_comp = [ 'volunteering' => 'completed', 'skills' => 'completed', 'physical' => 'completed', 'expedition' => 'completed' ];
-        $silver_comp = [
-            'volunteering' => rand( 0, 1 ) ? 'completed' : 'none',
-            'skills'       => rand( 0, 1 ) ? 'completed' : 'none',
-            'physical'     => rand( 0, 1 ) ? 'completed' : 'none',
-            'expedition'   => rand( 0, 1 ) ? 'completed' : 'none',
-        ];
+        $bronze_comp = [ 'Volunteering', 'Skills', 'Physical', 'Expedition' ];
+        $silver_comp = [];
+        if ( rand( 0, 1 ) ) { $silver_comp[] = 'Volunteering'; }
+        if ( rand( 0, 1 ) ) { $silver_comp[] = 'Skills'; }
+        if ( rand( 0, 1 ) ) { $silver_comp[] = 'Physical'; }
+        if ( rand( 0, 1 ) ) { $silver_comp[] = 'Expedition'; }
+        if ( empty( $silver_comp ) ) { $silver_comp[] = 'None'; }
     }
 
     $wpdb->insert(
