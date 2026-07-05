@@ -125,4 +125,44 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $this->assertTrue( true );
     }
+
+    public function test_handle_submission_resolves_level_specific_date_fields(): void {
+        $exp_mappings = [
+            'silver_practice_dates_field'  => 'exped-silver-practice-dates',
+            'silver_qualifier_dates_field' => 'exped-silver-qualifier-dates',
+            'gold_practice_dates_field'    => 'exped-gold-practice-dates',
+            'gold_qualifier_dates_field'   => 'exped-gold-qualifier-dates',
+        ];
+
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) use ( $exp_mappings ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_fluent_expedition_form_id' ) return 7;
+            if ( $key === 'ems_expedition_form_mappings' ) return $exp_mappings;
+            return $default ?? [];
+        } );
+
+        $this->signup_repo->shouldReceive( 'create_expedition_signup' )
+            ->once()
+            ->with( Mockery::on( function( $data ) {
+                $prefs = $data['expedition_preferences'];
+                return $data['scout_id'] === 30001 &&
+                       $data['dofe_level'] === 'silver' &&
+                       $prefs['exped_practice_dates'] === [ 'P-SILVER-1' ] &&
+                       $prefs['exped_qualifier_dates'] === [ 'Q-SILVER-1' ];
+            } ) )
+            ->andReturn( 789 );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync->handle_submission( 999, [
+            'signup_child' => '30001|Mary|Smith',
+            'signup_level' => 'Silver',
+            'exped_type'   => 'Hillwalking',
+            'exped-silver-practice-dates' => [ 'P-SILVER-1' ],
+            'exped-silver-qualifier-dates' => [ 'Q-SILVER-1' ],
+            'exped-gold-practice-dates' => [ 'P-GOLD-1' ],
+            'exped-gold-qualifier-dates' => [ 'Q-GOLD-1' ],
+        ], (object) [ 'id' => 7 ] );
+
+        $this->assertTrue( true );
+    }
 }
