@@ -39,7 +39,7 @@ function FirstAidPill({ level }: { level?: FirstAidLevel }) {
     const icon = l === 'first_response' ? '✚' : l === 'full_first_aid' ? '⊕' : null;
     return (
         <span className={FA_PILL_CLASS[l] ?? FA_PILL_CLASS.none}>
-            {icon && <span>{icon}</span>}
+            {icon && <span style={{ marginRight: '4px' }}>{icon}</span>}
             {FA_LABELS[l]}
         </span>
     );
@@ -125,7 +125,6 @@ function formatFullTimestamp(d: string | null | undefined): string {
     }
 }
 
-
 function EventCell({ assignments }: { assignments: EventAssignment[] }) {
     if (assignments.length === 0) return <span className="ems-osm-ref-event-cell--empty">—</span>;
     return (
@@ -156,6 +155,7 @@ function SortHeader({ label, sortKey, active, dir, onSort }: {
             className="ems-osm-ref-col-header"
             onClick={() => onSort(sortKey)}
             aria-sort={isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+            style={{ cursor: 'pointer' }}
         >
             {label}{' '}
             <span className={`ems-osm-ref-col-sort ${isActive ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
@@ -175,7 +175,20 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
     const [sortKey, setSortKey] = useState<SortKey>('name');
     const [sortDir, setSortDir] = useState<SortDir>('asc');
 
-    const config = window.emsExpeditionBoard;
+    // Selected explorer ID for the right-hand Profile Inspector
+    const [selectedScoutId, setSelectedScoutId] = useState<number | null>(null);
+
+    // Profile details fetched on demand
+    const [profileData, setProfileData] = useState<any | null>(null);
+    const [profileLoading, setProfileLoading] = useState<boolean>(false);
+    const [profileError, setProfileError] = useState<string | null>(null);
+
+    // Confidential Leaders' notes editor state
+    const [editedNotes, setEditedNotes] = useState<string>('');
+    const [notesSaving, setNotesSaving] = useState<boolean>(false);
+    const [notesError, setNotesError] = useState<string | null>(null);
+
+    const config = window.emsExpeditionBoard || { root_url: '', nonce: '' };
 
     useEffect(() => {
         const next: Record<number, FirstAidLevel> = {};
@@ -227,6 +240,36 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
         });
     }, [filtered, sortKey, sortDir, levels]);
 
+    // Fetch Profile details when selected explorer changes
+    useEffect(() => {
+        if (!selectedScoutId) {
+            setProfileData(null);
+            return;
+        }
+
+        const fetchProfile = async () => {
+            setProfileLoading(true);
+            setProfileError(null);
+            try {
+                const response = await fetch(`${config.root_url}/explorers/${selectedScoutId}/profile`, {
+                    headers: { 'X-WP-Nonce': config.nonce }
+                });
+                if (!response.ok) {
+                    throw new Error(`Failed to load profile (HTTP ${response.status})`);
+                }
+                const resData = await response.json();
+                setProfileData(resData);
+                setEditedNotes(resData.organiser_notes || '');
+            } catch (err: any) {
+                setProfileError(err.message || 'Error fetching profile data');
+            } finally {
+                setProfileLoading(false);
+            }
+        };
+
+        fetchProfile();
+    }, [selectedScoutId, config.root_url, config.nonce]);
+
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
             setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -258,123 +301,436 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
         }
     };
 
+    const handleSaveNotes = async () => {
+        if (!selectedScoutId) return;
+        setNotesSaving(true);
+        setNotesError(null);
+        try {
+            const response = await fetch(`${config.root_url}/explorers/${selectedScoutId}/asn`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({ organiser_notes: editedNotes })
+            });
+            if (!response.ok) throw new Error(`Failed to save notes (HTTP ${response.status})`);
+            
+            setProfileData((prev: any) => prev ? { ...prev, organiser_notes: editedNotes } : null);
+            onChanged?.();
+        } catch (err: any) {
+            setNotesError(err.message || 'Failed to save notes');
+        } finally {
+            setNotesSaving(false);
+        }
+    };
+
+    // Navigation pagination helper
+    const selectedIndex = sorted.findIndex(row => row.explorer.scout_id === selectedScoutId);
+    const hasPrev = selectedIndex > 0;
+    const hasNext = selectedIndex !== -1 && selectedIndex < sorted.length - 1;
+
+    const handlePrev = () => {
+        if (hasPrev) {
+            setSelectedScoutId(sorted[selectedIndex - 1].explorer.scout_id);
+        }
+    };
+
+    const handleNext = () => {
+        if (hasNext) {
+            setSelectedScoutId(sorted[selectedIndex + 1].explorer.scout_id);
+        }
+    };
+
     const hasFilters = filterEvent || filterFa;
 
     return (
-        <div className="ems-osm-reference ems-osm-ref-container">
-            <h2 className="ems-osm-ref-title">Explorer List</h2>
+        <div className="ems-signups-container">
+            <div className="ems-signups-main ems-osm-reference ems-osm-ref-container">
+                <h2 className="ems-osm-ref-title">Explorer List</h2>
 
-            {(data.explorers ?? []).length === 0 ? (
-                <p>No explorers have been synced yet.</p>
-            ) : (
-                <>
-                    <div className="ems-osm-ref-filter-bar">
-                        <label className="ems-osm-ref-filter-label">Filter:</label>
+                {(data.explorers ?? []).length === 0 ? (
+                    <p>No explorers have been synced yet.</p>
+                ) : (
+                    <>
+                        <div className="ems-osm-ref-filter-bar">
+                            <label className="ems-osm-ref-filter-label">Filter:</label>
 
-                        <select
-                            aria-label="Filter by event"
-                            value={filterEvent}
-                            onChange={(e) => setFilterEvent(e.target.value)}
-                        >
-                            <option value="">All explorers</option>
-                            <option value="__any__">In any event</option>
-                            <option value="__none__">In no event</option>
-                            {allEvents.map((ev) => (
-                                <option key={ev.ID} value={String(ev.ID)}>
-                                    {ev.ems_event_code} — {ev.post_title}
-                                </option>
-                            ))}
-                        </select>
+                            <select
+                                aria-label="Filter by event"
+                                value={filterEvent}
+                                onChange={(e) => setFilterEvent(e.target.value)}
+                            >
+                                <option value="">All explorers</option>
+                                <option value="__any__">In any event</option>
+                                <option value="__none__">In no event</option>
+                                {allEvents.map((ev) => (
+                                    <option key={ev.ID} value={String(ev.ID)}>
+                                        {ev.ems_event_code} — {ev.post_title}
+                                    </option>
+                                ))}
+                            </select>
 
-                        <select
-                            aria-label="Filter by first aid"
-                            value={filterFa}
-                            onChange={(e) => setFilterFa(e.target.value)}
-                        >
-                            <option value="">All first aid levels</option>
-                            <option value="none">None</option>
-                            <option value="first_response">✚ First Response</option>
-                            <option value="full_first_aid">⊕ Full First Aid</option>
-                        </select>
+                            <select
+                                aria-label="Filter by first aid"
+                                value={filterFa}
+                                onChange={(e) => setFilterFa(e.target.value)}
+                            >
+                                <option value="">All first aid levels</option>
+                                <option value="none">None</option>
+                                <option value="first_response">✚ First Response</option>
+                                <option value="full_first_aid">⊕ Full First Aid</option>
+                            </select>
 
-                        {hasFilters && (
+                            {hasFilters && (
+                                <button
+                                    type="button"
+                                    className="button-link"
+                                    onClick={() => { setFilterEvent(''); setFilterFa(''); }}
+                                >
+                                    Clear filters
+                                </button>
+                            )}
+
+                            <span className="ems-osm-ref-filter-count">
+                                {sorted.length} of {rows.length} explorers
+                            </span>
+                        </div>
+
+                        {sorted.length === 0 ? (
+                            <p className="ems-osm-ref-empty">No explorers match the current filters.</p>
+                        ) : (
+                            <table className="widefat striped ems-table">
+                                <thead>
+                                    <tr>
+                                        <SortHeader label="Name" sortKey="name" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                        <SortHeader label="Patrol" sortKey="patrol" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                        <SortHeader label="First Aid" sortKey="first_aid" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                        <SortHeader label="Training" sortKey="training" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                        <SortHeader label="Practice" sortKey="practice" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                        <SortHeader label="Qualifying" sortKey="qualifying" active={sortKey} dir={sortDir} onSort={handleSort} />
+                                        <th title="Last OSM sync" className="ems-osm-ref-col-header--small">Synced</th>
+                                        <th title="Last local edit" className="ems-osm-ref-col-header--small">Edited</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sorted.map(({ explorer, byType }) => {
+                                        const isSelected = explorer.scout_id === selectedScoutId;
+                                        return (
+                                            <tr 
+                                                key={explorer.scout_id} 
+                                                onClick={() => setSelectedScoutId(explorer.scout_id)}
+                                                className={`ems-row-hoverable ${isSelected ? 'ems-row-selected' : ''}`}
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                <td>
+                                                    <span className="ems-osm-ref-name">
+                                                        <FaIcon level={levels[explorer.scout_id] ?? 'none'} />
+                                                        {explorer.first_name} {explorer.last_name}
+                                                    </span>
+                                                </td>
+                                                <td>{explorer.patrol || '—'}</td>
+                                                <td>
+                                                    <FirstAidPill level={levels[explorer.scout_id]} />
+                                                </td>
+                                                <td><EventCell assignments={byType.training} /></td>
+                                                <td><EventCell assignments={byType.practice} /></td>
+                                                <td><EventCell assignments={byType.qualifying} /></td>
+                                                <td title={formatFullTimestamp(explorer.synced_at) || 'Not synced'}>
+                                                    <span className="ems-osm-ref-meta">
+                                                        {formatTimestamp(explorer.synced_at) || '—'}
+                                                    </span>
+                                                </td>
+                                                <td title={formatFullTimestamp(explorer.last_local_update_at) || 'No local edits'}>
+                                                    <span className="ems-osm-ref-meta">
+                                                        {formatTimestamp(explorer.last_local_update_at) || '—'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </>
+                )}
+            </div>
+
+            {/* Profile Inspector slide-out panel */}
+            {selectedScoutId && (
+                <div className="ems-signups-inspector">
+                    <div className="ems-signups-inspector__header">
+                        <h3 className="ems-signups-inspector__title">Explorer Profile</h3>
+                        <div className="ems-flex-center ems-gap-6">
                             <button
                                 type="button"
-                                className="button-link"
-                                onClick={() => { setFilterEvent(''); setFilterFa(''); }}
+                                onClick={handlePrev}
+                                disabled={!hasPrev}
+                                className="button button-small"
+                                aria-label="<"
                             >
-                                Clear filters
+                                &lt;
                             </button>
-                        )}
-
-                        <span className="ems-osm-ref-filter-count">
-                            {sorted.length} of {rows.length} explorers
-                        </span>
+                            <button
+                                type="button"
+                                onClick={handleNext}
+                                disabled={!hasNext}
+                                className="button button-small"
+                                aria-label=">"
+                            >
+                                &gt;
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedScoutId(null)}
+                                className="button-link"
+                                aria-label="&times;"
+                                style={{ fontSize: '20px', marginLeft: '10px', textDecoration: 'none', border: 'none', background: 'none', cursor: 'pointer' }}
+                            >
+                                &times;
+                            </button>
+                        </div>
                     </div>
 
-                    {sorted.length === 0 ? (
-                        <p className="ems-osm-ref-empty">No explorers match the current filters.</p>
-                    ) : (
-                        <table className="widefat striped">
-                            <thead>
-                                <tr>
-                                    <SortHeader label="Name" sortKey="name" active={sortKey} dir={sortDir} onSort={handleSort} />
-                                    <SortHeader label="Patrol" sortKey="patrol" active={sortKey} dir={sortDir} onSort={handleSort} />
-                                    <SortHeader label="First Aid" sortKey="first_aid" active={sortKey} dir={sortDir} onSort={handleSort} />
-                                    <SortHeader label="Training" sortKey="training" active={sortKey} dir={sortDir} onSort={handleSort} />
-                                    <SortHeader label="Practice" sortKey="practice" active={sortKey} dir={sortDir} onSort={handleSort} />
-                                    <SortHeader label="Qualifying" sortKey="qualifying" active={sortKey} dir={sortDir} onSort={handleSort} />
-                                    <th title="Last OSM sync" className="ems-osm-ref-col-header--small">Synced</th>
-                                    <th title="Last local edit" className="ems-osm-ref-col-header--small">Edited</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sorted.map(({ explorer, byType }) => (
-                                    <tr key={explorer.scout_id}>
-                                        <td>
-                                            <span className="ems-osm-ref-name">
-                                                <FaIcon level={levels[explorer.scout_id] ?? 'none'} />
-                                                {explorer.first_name} {explorer.last_name}
-                                            </span>
-                                        </td>
-                                        <td>{explorer.patrol || '—'}</td>
-                                        <td>
-                                            <div className="ems-osm-ref-fa-cell">
-                                                <select
-                                                    aria-label={`First aid level for ${explorer.first_name} ${explorer.last_name}`}
-                                                    value={levels[explorer.scout_id] ?? 'none'}
-                                                    onChange={(e) => updateLevel(explorer, e.target.value as FirstAidLevel)}
-                                                    disabled={saving[explorer.scout_id]}
-                                                    className="ems-select-sm"
-                                                >
-                                                    {(Object.keys(FA_LABELS) as FirstAidLevel[]).map((level) => (
-                                                        <option key={level} value={level}>{FA_LABELS[level]}</option>
-                                                    ))}
-                                                </select>
-                                                {errors[explorer.scout_id] && (
-                                                    <span className="ems-osm-ref-fa-error">{errors[explorer.scout_id]}</span>
-                                                )}
+                    <div className="ems-signups-inspector__body">
+                        {profileLoading && <p className="ems-p-16">Loading profile...</p>}
+                        {profileError && (
+                            <div className="notice notice-error ems-m-12">
+                                <p>{profileError}</p>
+                            </div>
+                        )}
+
+                        {!profileLoading && !profileError && profileData && (
+                            <div className="ems-flex-col ems-gap-12">
+                                {/* Name */}
+                                <div>
+                                    <span className="ems-signups-inspector__label">Name</span>
+                                    <div className="ems-signups-inspector__value--large">
+                                        {profileData.first_name} {profileData.last_name}
+                                    </div>
+                                </div>
+
+                                {/* Scout ID */}
+                                <div>
+                                    <span className="ems-signups-inspector__label">Scout ID</span>
+                                    <div className="ems-signups-inspector__value ems-monospace ems-font-semibold">
+                                        {profileData.scout_id}
+                                    </div>
+                                </div>
+
+                                {/* Email */}
+                                <div>
+                                    <span className="ems-signups-inspector__label">Email Address</span>
+                                    <div className="ems-signups-inspector__value">{profileData.email || '—'}</div>
+                                </div>
+
+                                {/* Unit info */}
+                                <div className="ems-grid-2 ems-gap-12">
+                                    <div>
+                                        <span className="ems-signups-inspector__label">Unit</span>
+                                        <div className="ems-signups-inspector__value">{profileData.unit || '—'}</div>
+                                    </div>
+                                    <div>
+                                        <span className="ems-signups-inspector__label">Unit Leader Email</span>
+                                        <div className="ems-signups-inspector__value">{profileData.leader_email || '—'}</div>
+                                    </div>
+                                </div>
+
+                                {/* First aid level selector */}
+                                <div>
+                                    <label htmlFor="inspector-fa-level" className="ems-signups-inspector__label">First Aid Level</label>
+                                    <div className="ems-mt-4">
+                                        <select
+                                            id="inspector-fa-level"
+                                            aria-label="First Aid Level"
+                                            value={levels[selectedScoutId] ?? 'none'}
+                                            onChange={(e) => updateLevel(sorted.find(r => r.explorer.scout_id === selectedScoutId)!.explorer, e.target.value as FirstAidLevel)}
+                                            disabled={saving[selectedScoutId]}
+                                            className="ems-select"
+                                            style={{ width: '100%', maxWidth: '240px' }}
+                                        >
+                                            {(Object.keys(FA_LABELS) as FirstAidLevel[]).map((level) => (
+                                                <option key={level} value={level}>{FA_LABELS[level]}</option>
+                                            ))}
+                                        </select>
+                                        {errors[selectedScoutId] && (
+                                            <div className="ems-osm-ref-fa-error ems-mt-4">{errors[selectedScoutId]}</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+
+                                {/* Event status matrix */}
+                                <div>
+                                    <span className="ems-signups-inspector__label">Training Events</span>
+                                    <div className="ems-mt-4">
+                                        {profileData.training_events && profileData.training_events.length > 0 ? (
+                                            <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
+                                                {profileData.training_events.map((ev: any, idx: number) => (
+                                                    <li key={idx}>
+                                                        <strong>{ev.event_title} ({ev.team_code})</strong> — Status: <i>{ev.osm_status}</i>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : <div className="ems-signups-inspector__value">—</div>}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <span className="ems-signups-inspector__label">Practice Events</span>
+                                    <div className="ems-mt-4">
+                                        {profileData.practice_events && profileData.practice_events.length > 0 ? (
+                                            <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
+                                                {profileData.practice_events.map((ev: any, idx: number) => (
+                                                    <li key={idx}>
+                                                        <strong>{ev.event_title} ({ev.team_code})</strong> — Status: <i>{ev.osm_status}</i>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : <div className="ems-signups-inspector__value">—</div>}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <span className="ems-signups-inspector__label">Qualifiers Events</span>
+                                    <div className="ems-mt-4">
+                                        {profileData.qualifiers_events && profileData.qualifiers_events.length > 0 ? (
+                                            <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
+                                                {profileData.qualifiers_events.map((ev: any, idx: number) => (
+                                                    <li key={idx}>
+                                                        <strong>{ev.event_title} ({ev.team_code})</strong> — Status: <i>{ev.osm_status}</i>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : <div className="ems-signups-inspector__value">—</div>}
+                                    </div>
+                                </div>
+
+                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+
+                                {/* Additional support needs (ASN) */}
+                                <div>
+                                    <span className="ems-signups-inspector__label">Parent Additional Support Needs</span>
+                                    <div className="ems-mt-4 ems-signups-inspector__support-box" style={{ background: '#f6f7f7', padding: '8px', borderRadius: '4px' }}>
+                                        {profileData.parent_asn || 'No support needs declared by parent.'}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="confidential-notes" className="ems-signups-inspector__label">Confidential Leaders' Notes</label>
+                                    <textarea
+                                        id="confidential-notes"
+                                        className="ems-signups-inspector__input ems-mt-4"
+                                        style={{ width: '100%' }}
+                                        rows={4}
+                                        value={editedNotes}
+                                        onChange={(e) => setEditedNotes(e.target.value)}
+                                        placeholder="Add private leader notes here..."
+                                    />
+                                    {notesError && <div className="ems-osm-ref-fa-error ems-mt-4">{notesError}</div>}
+                                    <button
+                                        type="button"
+                                        className="button button-primary ems-mt-4"
+                                        onClick={handleSaveNotes}
+                                        disabled={notesSaving}
+                                    >
+                                        {notesSaving ? 'Saving...' : 'Save Confidential Notes'}
+                                    </button>
+                                </div>
+
+                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+
+                                {/* Expedition Preferences */}
+                                <div>
+                                    <span className="ems-signups-inspector__label">Expedition Signup Preferences</span>
+                                    {profileData.preferences ? (
+                                        <div className="ems-mt-4 ems-flex-col ems-gap-6">
+                                            <div>
+                                                <strong>Practice dates:</strong> {profileData.preferences.exped_practice_dates || '—'}
                                             </div>
-                                        </td>
-                                        <td><EventCell assignments={byType.training} /></td>
-                                        <td><EventCell assignments={byType.practice} /></td>
-                                        <td><EventCell assignments={byType.qualifying} /></td>
-                                        <td title={formatFullTimestamp(explorer.synced_at) || 'Not synced'}>
-                                            <span className="ems-osm-ref-meta">
-                                                {formatTimestamp(explorer.synced_at) || '—'}
-                                            </span>
-                                        </td>
-                                        <td title={formatFullTimestamp(explorer.last_local_update_at) || 'No local edits'}>
-                                            <span className="ems-osm-ref-meta">
-                                                {formatTimestamp(explorer.last_local_update_at) || '—'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </>
+                                            <div>
+                                                <strong>Qualifier dates:</strong> {profileData.preferences.exped_qualifier_dates || '—'}
+                                            </div>
+                                            <div>
+                                                <strong>Buddy preferences:</strong> {profileData.preferences.exped_team_names || '—'}
+                                            </div>
+                                            <div>
+                                                <strong>Type:</strong> {profileData.preferences.exped_type || '—'}
+                                            </div>
+                                        </div>
+                                    ) : <div className="ems-signups-inspector__value">—</div>}
+                                </div>
+
+                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+
+                                {/* Tutor LMS training records */}
+                                <div>
+                                    <span className="ems-signups-inspector__label">Tutor LMS Training Records</span>
+                                    {profileData.training_records && profileData.training_records.length > 0 ? (
+                                        <table className="widefat striped ems-table ems-mt-4" style={{ border: '1px solid #ccd0d4' }}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Course Title</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {profileData.training_records.map((rec: any) => (
+                                                    <tr key={rec.id}>
+                                                        <td>{rec.title}</td>
+                                                        <td>
+                                                            <span className={`ems-status-badge ems-status-badge--${rec.status}`}>
+                                                                {rec.status}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : <div className="ems-signups-inspector__value">—</div>}
+                                </div>
+
+                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+
+                                {/* Participant place signups */}
+                                <div>
+                                    <span className="ems-signups-inspector__label">Participant Place Signups</span>
+                                    {profileData.participant_signups && profileData.participant_signups.length > 0 ? (
+                                        <table className="widefat striped ems-table ems-mt-4" style={{ border: '1px solid #ccd0d4' }}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Level</th>
+                                                    <th>Date</th>
+                                                    <th>Status</th>
+                                                    <th>Link</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {profileData.participant_signups.map((sup: any) => (
+                                                    <tr key={sup.id}>
+                                                        <td>{sup.dofe_level}</td>
+                                                        <td>{formatTimestamp(sup.created_at)}</td>
+                                                        <td>
+                                                            <span className={`ems-status-badge ems-status-badge--${sup.signup_status}`}>
+                                                                {sup.signup_status}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <a href={`admin.php?page=ems-participant-signups&id=${sup.id}`} target="_blank" rel="noreferrer">
+                                                                View
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : <div className="ems-signups-inspector__value">—</div>}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );

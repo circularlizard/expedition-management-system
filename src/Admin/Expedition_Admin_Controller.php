@@ -229,6 +229,15 @@ class Expedition_Admin_Controller {
                 'scout_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
             ],
         ] );
+
+        register_rest_route( 'ems/v1', '/explorers/(?P<scout_id>\d+)/profile', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'get_explorer_profile' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+            'args'                => [
+                'scout_id' => [ 'type' => 'integer', 'required' => true, 'sanitize_callback' => 'absint' ],
+            ],
+        ] );
     }
 
     private function register_board_route(): void {
@@ -1067,6 +1076,168 @@ class Expedition_Admin_Controller {
             'success'         => true,
             'organiser_notes' => $notes,
         ] );
+    }
+
+    public function get_explorer_profile( \WP_REST_Request $request ): \WP_REST_Response {
+        $scout_id = (int) $request->get_param( 'scout_id' );
+
+        $explorer = $this->explorers->find_by_scout_id( $scout_id );
+        if ( ! $explorer ) {
+            return $this->error( 'ems_explorer_not_found', 'Explorer not found.', 404 );
+        }
+
+        global $wpdb;
+
+        // 1. Leader email from ems_units
+        $leader_email = '';
+        if ( ! empty( $explorer['patrol'] ) ) {
+            $leader_email = $wpdb->get_var( $wpdb->prepare(
+                "SELECT leader_email FROM {$wpdb->prefix}ems_units 
+                 WHERE name = %s AND section_id = %d AND active = 1 
+                 LIMIT 1",
+                $explorer['patrol'],
+                (int) $explorer['section_id']
+            ) ) ?: '';
+        }
+
+        // 2. Teams/events assignments
+        $assigned_teams = $wpdb->get_results( $wpdb->prepare(
+            "SELECT tm.team_post_id as team_id,
+                    t.post_title as team_name,
+                    e.ID as event_id,
+                    e.post_title as event_title,
+                    t_meta_code.meta_value as team_code,
+                    e_meta_type.meta_value as event_type,
+                    e_meta_start.meta_value as start_date,
+                    e_meta_end.meta_value as end_date,
+                    e_meta_osm.meta_value as osm_event_id
+             FROM {$wpdb->prefix}ems_team_members tm
+             JOIN {$wpdb->posts} t ON tm.team_post_id = t.ID AND t.post_type = 'team'
+             JOIN {$wpdb->posts} e ON t.post_parent = e.ID AND e.post_type = 'expedition'
+             LEFT JOIN {$wpdb->postmeta} t_meta_code ON t.ID = t_meta_code.post_id AND t_meta_code.meta_key = 'ems_team_code'
+             LEFT JOIN {$wpdb->postmeta} e_meta_type ON e.ID = e_meta_type.post_id AND e_meta_type.meta_key = 'ems_type'
+             LEFT JOIN {$wpdb->postmeta} e_meta_start ON e.ID = e_meta_start.post_id AND e_meta_start.meta_key = 'ems_start_date'
+             LEFT JOIN {$wpdb->postmeta} e_meta_end ON e.ID = e_meta_end.post_id AND e_meta_end.meta_key = 'ems_end_date'
+             LEFT JOIN {$wpdb->postmeta} e_meta_osm ON e.ID = e_meta_osm.post_id AND e_meta_osm.meta_key = 'ems_osm_event_id'
+             WHERE tm.scout_id = %d",
+            $scout_id
+        ), ARRAY_A );
+
+        $training_events = [];
+        $practice_events = [];
+        $qualifiers_events = [];
+
+        foreach ( $assigned_teams as $t ) {
+            $osm_status = 'Not synced';
+            $osm_ev_id = (int) ( $t['osm_event_id'] ?? 0 );
+            if ( $osm_ev_id > 0 ) {
+                $status = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT status FROM {$wpdb->prefix}ems_osm_event_attendance 
+                     WHERE event_id = %d AND scout_id = %d 
+                     LIMIT 1",
+                    $osm_ev_id,
+                    $scout_id
+                ) );
+                if ( $status ) {
+                    $osm_status = $status;
+                }
+            }
+
+            $formatted = [
+                'team_id'      => (int) $t['team_id'],
+                'team_name'    => $t['team_name'],
+                'event_id'     => (int) $t['event_id'],
+                'event_title'  => $t['event_title'],
+                'team_code'    => $t['team_code'] ?: '',
+                'event_type'   => $t['event_type'] ?: '',
+                'start_date'   => $t['start_date'] ?: '',
+                'end_date'     => $t['end_date'] ?: '',
+                'osm_status'   => $osm_status,
+            ];
+
+            $type = strtolower( $t['event_type'] );
+            if ( $type === 'training' ) {
+                $training_events[] = $formatted;
+            } elseif ( $type === 'practice' ) {
+                $practice_events[] = $formatted;
+            } elseif ( $type === 'qualifying' || $type === 'qualifier' ) {
+                $qualifiers_events[] = $formatted;
+            }
+        }
+
+        // 3. Expedition signups (dates and team preferences)
+        $preferences = null;
+        $parent_asn = '';
+        $expedition_signup = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}ems_expedition_signups 
+             WHERE scout_id = %d 
+             ORDER BY created_at DESC 
+             LIMIT 1",
+            $scout_id
+        ), ARRAY_A );
+
+        if ( $expedition_signup ) {
+            $preferences = ! empty( $expedition_signup['expedition_preferences'] ) 
+                ? json_decode( $expedition_signup['expedition_preferences'], true ) 
+                : null;
+            $parent_asn = $expedition_signup['additional_support_needs'] ?: '';
+        }
+
+        // 4. Participant places signups
+        $participant_signups = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, dofe_level, created_at, signup_status, form_submission_id 
+             FROM {$wpdb->prefix}ems_participant_signups 
+             WHERE scout_id = %d 
+             ORDER BY created_at DESC",
+            $scout_id
+        ), ARRAY_A );
+
+        // Convert types/clean values
+        foreach ( $participant_signups as &$ps ) {
+            $ps['id'] = (int) $ps['id'];
+            $ps['form_submission_id'] = (int) $ps['form_submission_id'];
+        }
+
+        // 5. Tutor LMS completions
+        $training_records = [];
+        $wp_user_id = (int) ( $explorer['wp_user_id'] ?? 0 );
+        if ( $wp_user_id > 0 ) {
+            $tutor_client = new \EMS\Integrations\TutorLMS_Client();
+            $courses = $tutor_client->get_all_courses() ?: [];
+            $course_ids = array_map( fn( $c ) => $c->ID, $courses );
+            
+            $matrix = [];
+            if ( ! empty( $course_ids ) ) {
+                $matrix = $tutor_client->get_enrollment_matrix( [ $wp_user_id ], $course_ids ) ?: [];
+            }
+            $user_matrix = $matrix[ $wp_user_id ] ?? [];
+
+            foreach ( $courses as $course ) {
+                $training_records[] = [
+                    'id'     => (int) $course->ID,
+                    'title'  => $course->post_title,
+                    'status' => $user_matrix[ $course->ID ] ?? 'not_enrolled',
+                ];
+            }
+        }
+
+        return new \WP_REST_Response( [
+            'scout_id'            => $scout_id,
+            'wp_user_id'          => $wp_user_id,
+            'first_name'          => $explorer['first_name'] ?? '',
+            'last_name'           => $explorer['last_name'] ?? '',
+            'email'               => $explorer['email'] ?? '',
+            'unit'                => $explorer['patrol'] ?? '',
+            'leader_email'        => $leader_email,
+            'organiser_notes'     => $explorer['additional_support_needs'] ?? '',
+            'parent_asn'          => $parent_asn,
+            'training_events'     => $training_events,
+            'practice_events'     => $practice_events,
+            'qualifiers_events'   => $qualifiers_events,
+            'preferences'         => $preferences,
+            'participant_signups' => $participant_signups,
+            'training_records'    => $training_records,
+        ], 200 );
     }
 
     public function list_planning_board( \WP_REST_Request $request ): \WP_REST_Response {
