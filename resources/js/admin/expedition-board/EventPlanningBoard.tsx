@@ -294,6 +294,7 @@ export default function EventPlanningBoard() {
                         />
                       </th>
                       <th>Name &amp; Unit</th>
+                      <th>Team Preferences</th>
                       <th>Allocation Status</th>
                     </tr>
                   </thead>
@@ -314,6 +315,9 @@ export default function EventPlanningBoard() {
                           <td>
                             <div className="ems-table__name">{exp.first_name} {exp.last_name}</div>
                             <div className="ems-table__meta">Unit: {exp.unit_name}</div>
+                          </td>
+                          <td style={{ fontSize: '11px', color: '#666' }}>
+                            {exp.team_preferences || '—'}
                           </td>
                           <td>
                             {exp.allocated_event_code ? (
