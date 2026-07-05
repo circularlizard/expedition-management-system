@@ -329,7 +329,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
                                 <input
                                     type="checkbox"
                                     className="ems-checkbox"
-                                    style={{ marginRight: '8px', margin: 0 }}
+                                    style={{ marginRight: '8px' }}
                                     checked={isChecked}
                                     onChange={() => onToggleSelectMember(m.scout_id ?? 0)}
                                     aria-label={`Select ${m.first_name} ${m.last_name}`}
