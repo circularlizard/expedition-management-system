@@ -490,7 +490,210 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 400, $response->get_status() );
     }
 
+    public function test_get_explorer_profile_returns_joined_data(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
 
+        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers->shouldReceive( 'find_by_scout_id' )->with( 10001 )->andReturn( [
+            'scout_id'        => 10001,
+            'wp_user_id'      => 42,
+            'first_name'      => 'John',
+            'last_name'       => 'Doe',
+            'email'           => 'john@example.com',
+            'patrol'          => 'Summit',
+            'section_id'      => 99001,
+            'additional_support_needs' => 'Organizer note'
+        ] );
+
+        global $wpdb;
+        $wpdb = \Mockery::mock( \wpdb::class );
+        $wpdb->prefix   = 'wp_';
+        $wpdb->posts    = 'wp_posts';
+        $wpdb->usermeta = 'wp_usermeta';
+        $wpdb->comments = 'wp_comments';
+        $wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( function( $sql, ...$args ) {
+            $pattern = str_replace( [ '%d', '%f' ], '%s', $sql );
+            return vsprintf( $pattern, $args );
+        } );
+
+        // 1. Leader email from ems_units
+        $wpdb->shouldReceive( 'get_var' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, 'leader_email FROM wp_ems_units' ) !== false;
+        } ) )->andReturn( 'leader@example.com' );
+
+        // 2. Teams/events query:
+        // Return 1 training assignment and 1 practice assignment
+        $wpdb->shouldReceive( 'get_results' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, 'FROM wp_ems_team_members' ) !== false;
+        } ), ARRAY_A )->andReturn( [
+            [
+                'team_id'      => 201,
+                'team_name'    => 'Team A',
+                'event_id'     => 101,
+                'event_title'  => 'Bronze Training',
+                'team_code'    => 'T-BR1-1',
+                'event_type'   => 'training',
+                'start_date'   => '2026-06-15',
+                'end_date'     => '2026-06-16',
+                'osm_event_id' => '40001',
+            ],
+            [
+                'team_id'      => 202,
+                'team_name'    => 'Team B',
+                'event_id'     => 102,
+                'event_title'  => 'Silver Practice',
+                'team_code'    => 'P-SI1-1',
+                'event_type'   => 'practice',
+                'start_date'   => '2026-07-15',
+                'end_date'     => '2026-07-16',
+                'osm_event_id' => '40002',
+            ]
+        ] );
+
+        // 3. Attendance status query for each OSM event
+        $wpdb->shouldReceive( 'get_var' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, 'FROM wp_ems_osm_event_attendance' ) !== false;
+        } ) )->andReturnUsing( function( $sql ) {
+            if ( strpos( $sql, 'event_id = 40001' ) !== false || strpos( $sql, '40001' ) !== false ) {
+                return 'Yes';
+            }
+            return 'Invited';
+        } );
+
+        // 4. Expedition signup query (dates and team preferences)
+        $wpdb->shouldReceive( 'get_row' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, 'FROM wp_ems_expedition_signups' ) !== false;
+        } ), ARRAY_A )->andReturn( [
+            'expedition_preferences' => json_encode( [
+                'exped_type'            => 'hillwalking',
+                'exped_practice_dates'  => '2026-06-15',
+                'exped_qualifier_dates' => '2026-07-15',
+                'exped_team_names'      => 'Buddy list',
+            ] ),
+            'additional_support_needs' => 'Parent notes',
+        ] );
+
+        // 5. Participant places signups query
+        $wpdb->shouldReceive( 'get_results' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, 'FROM wp_ems_participant_signups' ) !== false;
+        } ), ARRAY_A )->andReturn( [
+            [
+                'id'                 => 12,
+                'dofe_level'         => 'gold',
+                'created_at'         => '2026-06-01 10:00:00',
+                'signup_status'      => 'received',
+                'form_submission_id' => 8888,
+            ]
+        ] );
+
+        // 5b. Tutor LMS matrix queries:
+        // Query 1: Active enrollments
+        $wpdb->shouldReceive( 'get_results' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, "post_type   = 'tutor_enrolled'" ) !== false;
+        } ) )->andReturn( [
+            (object) [
+                'post_author' => 42,
+                'post_parent' => 301,
+            ]
+        ] );
+
+        // Query 2: Explicit completion meta
+        $wpdb->shouldReceive( 'get_results' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, 'FROM wp_usermeta' ) !== false && strpos( $sql, 'meta_key IN' ) !== false;
+        } ) )->andReturn( [
+            (object) [
+                'user_id'  => 42,
+                'meta_key' => '_tutor_completed_course_301'
+            ]
+        ] );
+
+        // Query 3: All lesson + quiz IDs per course
+        $wpdb->shouldReceive( 'get_results' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, "t.post_type   = 'topics'" ) !== false;
+        } ) )->andReturn( [] );
+
+        // Query 4: SHOW TABLES LIKE
+        $wpdb->shouldReceive( 'get_var' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, 'SHOW TABLES LIKE' ) !== false;
+        } ) )->andReturn( null );
+
+        // We stub TutorLMS client via get_posts and metadata if it is called, or we can mock get_posts / get_user_meta
+        Functions\when( 'get_posts' )->alias( function( $args ) {
+            if ( isset( $args['post_type'] ) && $args['post_type'] === 'courses' ) {
+                return [
+                    (object) [ 'ID' => 301, 'post_title' => 'Camp Prep' ],
+                ];
+            }
+            if ( isset( $args['post_type'] ) && $args['post_type'] === 'tutor_enrolled' ) {
+                return [
+                    (object) [ 'post_author' => 42 ],
+                ];
+            }
+            return [];
+        } );
+        Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single ) {
+            if ( $user_id === 42 && strpos( $key, '_tutor_completed_course_301' ) !== false ) {
+                return '1';
+            }
+            return '';
+        } );
+
+        $controller = $this->create_controller( null, null, null, null, $explorers );
+        $request    = new \WP_REST_Request();
+        $request->set_param( 'scout_id', 10001 );
+
+        $response   = $controller->get_explorer_profile( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        $this->assertSame( 'John', $data['first_name'] );
+        $this->assertSame( 'Doe', $data['last_name'] );
+        $this->assertSame( 10001, $data['scout_id'] );
+        $this->assertSame( 'john@example.com', $data['email'] );
+        $this->assertSame( 'Summit', $data['unit'] );
+        $this->assertSame( 'leader@example.com', $data['leader_email'] );
+        $this->assertSame( 'Organizer note', $data['organiser_notes'] );
+        $this->assertSame( 'Parent notes', $data['parent_asn'] );
+
+        // Check events
+        $this->assertCount( 1, $data['training_events'] );
+        $this->assertSame( 'Bronze Training', $data['training_events'][0]['event_title'] );
+        $this->assertSame( 'Yes', $data['training_events'][0]['osm_status'] );
+
+        $this->assertCount( 1, $data['practice_events'] );
+        $this->assertSame( 'Silver Practice', $data['practice_events'][0]['event_title'] );
+        $this->assertSame( 'Invited', $data['practice_events'][0]['osm_status'] );
+
+        $this->assertCount( 0, $data['qualifiers_events'] );
+
+        // Check preferences
+        $this->assertSame( 'hillwalking', $data['preferences']['exped_type'] );
+
+        // Check participant place signups
+        $this->assertCount( 1, $data['participant_signups'] );
+        $this->assertSame( 'gold', $data['participant_signups'][0]['dofe_level'] );
+
+        // Check training records
+        $this->assertCount( 1, $data['training_records'] );
+        $this->assertSame( 'Camp Prep', $data['training_records'][0]['title'] );
+        $this->assertSame( 'complete', $data['training_records'][0]['status'] );
+    }
+
+    public function test_get_explorer_profile_returns_404(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers->shouldReceive( 'find_by_scout_id' )->with( 99999 )->andReturn( null );
+
+        $controller = $this->create_controller( null, null, null, null, $explorers );
+        $request    = new \WP_REST_Request();
+        $request->set_param( 'scout_id', 99999 );
+
+        $response   = $controller->get_explorer_profile( $request );
+
+        $this->assertSame( 404, $response->get_status() );
+    }
 
     public function test_list_participant_signups_success(): void {
         Functions\when( 'current_user_can' )->justReturn( true );

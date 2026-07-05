@@ -12,97 +12,159 @@ const mockData: BoardData = {
     seasons: [],
     explorers: [
         { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', patrol: 'Hawks', first_aid_level: 'none' },
-        { scout_id: 30002, first_name: 'Bob', last_name: 'Andrews', first_aid_level: 'first_response' },
+        { scout_id: 30002, first_name: 'Bob', last_name: 'Andrews', patrol: 'Hawks', first_aid_level: 'first_response' },
     ],
 };
 
+const mockProfileResponse = {
+    scout_id: 30001,
+    first_name: 'Alice',
+    last_name: 'MacLeod',
+    email: 'alice@example.com',
+    unit: 'Hawks',
+    leader_email: 'hawk_leader@example.com',
+    organiser_notes: 'Organizer notes content',
+    parent_asn: 'Parent notes content',
+    training_events: [
+        { event_title: 'Bronze Training', team_code: 'T-HA1', osm_status: 'Yes' }
+    ],
+    practice_events: [],
+    qualifiers_events: [],
+    preferences: {
+        exped_type: 'Hillwalking',
+        exped_practice_dates: 'May 2026',
+        exped_qualifier_dates: 'Jun 2026',
+        exped_team_names: 'Bob, Charlie'
+    },
+    participant_signups: [
+        { id: 1, dofe_level: 'gold', created_at: '2026-06-13 20:00:00', signup_status: 'received', form_submission_id: 999 }
+    ],
+    training_records: [
+        { id: 101, title: 'Camp Prep', status: 'complete' }
+    ]
+};
+
 describe('OSMReference', () => {
-    it('renders explorers and their first aid levels', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        global.fetch = vi.fn();
+    });
+
+    it('renders explorers names and units', () => {
         render(<OSMReference data={mockData} />);
         expect(screen.getByText('Alice MacLeod')).toBeInTheDocument();
         expect(screen.getByText('Bob Andrews')).toBeInTheDocument();
-        expect(screen.getByLabelText(/First aid level for Alice MacLeod/)).toHaveValue('none');
-        expect(screen.getByLabelText(/First aid level for Bob Andrews/)).toHaveValue('first_response');
     });
 
-    it('sorts explorers A-Z by first name by default', () => {
-        const data: BoardData = {
-            seasons: [],
-            explorers: [
-                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', patrol: 'Hawks', first_aid_level: 'none' },
-                { scout_id: 30002, first_name: 'Bob', last_name: 'Andrews', first_aid_level: 'first_response' },
-            ],
-        };
-        render(<OSMReference data={data} />);
-        const rows = screen.getAllByRole('row');
-        expect(rows[1].textContent).toContain('Alice MacLeod');
-        expect(rows[2].textContent).toContain('Bob Andrews');
+    it('clicking an explorer opens inspector and fetches profile data', async () => {
+        (global.fetch as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => mockProfileResponse
+        });
+
+        render(<OSMReference data={mockData} />);
+        fireEvent.click(screen.getByText('Alice MacLeod'));
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith('http://test/wp-json/ems/v1/explorers/30001/profile', expect.any(Object));
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('Explorer Profile')).toBeInTheDocument();
+            expect(screen.getByText('hawk_leader@example.com')).toBeInTheDocument();
+            expect(screen.getByText('Organizer notes content')).toBeInTheDocument();
+            expect(screen.getByText('Parent notes content')).toBeInTheDocument();
+            expect(screen.getByText('Bronze Training (T-HA1)')).toBeInTheDocument();
+            expect(screen.getByText('Camp Prep')).toBeInTheDocument();
+        });
     });
 
-    it('calls the API when a first aid level is changed', async () => {
-        global.fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ scout_id: 30001, first_aid_level: 'full_first_aid' }) });
+    it('calls the first aid API when a first aid level is changed in the inspector', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => mockProfileResponse
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ scout_id: 30001, first_aid_level: 'full_first_aid' })
+            });
+
         const onChanged = vi.fn();
-
         render(<OSMReference data={mockData} onChanged={onChanged} />);
-        fireEvent.change(screen.getByLabelText(/First aid level for Alice MacLeod/), { target: { value: 'full_first_aid' } });
 
-        await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-        const [url, opts] = (global.fetch as any).mock.calls[0];
+        // Open Inspector
+        fireEvent.click(screen.getByText('Alice MacLeod'));
+        await waitFor(() => expect(screen.getByText('Explorer Profile')).toBeInTheDocument());
+
+        // Change select value
+        const select = screen.getByLabelText(/First Aid Level/i);
+        fireEvent.change(select, { target: { value: 'full_first_aid' } });
+
+        await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+        const [url, opts] = (global.fetch as any).mock.calls[1];
         expect(url).toBe('http://test/wp-json/ems/v1/explorers/30001/first-aid');
         expect(JSON.parse(opts.body)).toEqual({ first_aid_level: 'full_first_aid' });
         expect(onChanged).toHaveBeenCalled();
     });
 
-    it('shows empty state when no explorers', () => {
-        render(<OSMReference data={{ seasons: [] }} />);
-        expect(screen.getByText(/No explorers have been synced yet/)).toBeInTheDocument();
+    it('paginates through filtered list using < and > buttons', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => mockProfileResponse
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ ...mockProfileResponse, scout_id: 30002, first_name: 'Bob', last_name: 'Andrews' })
+            });
+
+        render(<OSMReference data={mockData} />);
+
+        // Open Inspector for Alice
+        fireEvent.click(screen.getByText('Alice MacLeod'));
+        await waitFor(() => expect(screen.getByText('Explorer Profile')).toBeInTheDocument());
+
+        // Click next button
+        const nextBtn = screen.getByRole('button', { name: '>' });
+        fireEvent.click(nextBtn);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+            expect(global.fetch).toHaveBeenLastCalledWith('http://test/wp-json/ems/v1/explorers/30002/profile', expect.any(Object));
+        });
     });
 
-    it('shows synced_at date when present', () => {
-        const data: BoardData = {
-            seasons: [],
-            explorers: [
-                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', patrol: 'Hawks', first_aid_level: 'none', synced_at: '2026-06-13 20:00:00' },
-            ],
-        };
-        render(<OSMReference data={data} />);
-        expect(screen.getByText('13 Jun')).toBeInTheDocument();
-    });
+    it('allows saving organiser confidential notes', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => mockProfileResponse
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ success: true, organiser_notes: 'Updated note' })
+            });
 
-    it('shows dash for synced_at when null', () => {
-        const data: BoardData = {
-            seasons: [],
-            explorers: [
-                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', first_aid_level: 'none', synced_at: null, last_local_update_at: null },
-            ],
-        };
-        render(<OSMReference data={data} />);
-        const rows = screen.getAllByRole('row');
-        const lastSyncCell = rows[1].children[rows[1].children.length - 2];
-        expect(lastSyncCell.textContent).toContain('—');
-    });
+        render(<OSMReference data={mockData} />);
 
-    it('shows local update date when present', () => {
-        const data: BoardData = {
-            seasons: [],
-            explorers: [
-                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', first_aid_level: 'none', synced_at: '2026-06-13 20:00:00', last_local_update_at: '2026-06-20 10:30:00' },
-            ],
-        };
-        render(<OSMReference data={data} />);
-        expect(screen.getByText('20 Jun')).toBeInTheDocument();
-    });
+        // Open Inspector
+        fireEvent.click(screen.getByText('Alice MacLeod'));
+        await waitFor(() => expect(screen.getByText('Explorer Profile')).toBeInTheDocument());
 
-    it('shows dash for local update when null', () => {
-        const data: BoardData = {
-            seasons: [],
-            explorers: [
-                { scout_id: 30001, first_name: 'Alice', last_name: 'MacLeod', first_aid_level: 'none', synced_at: '2026-06-13 20:00:00', last_local_update_at: null },
-            ],
-        };
-        render(<OSMReference data={data} />);
-        const rows = screen.getAllByRole('row');
-        const localUpdateCell = rows[1].children[rows[1].children.length - 1];
-        expect(localUpdateCell.textContent).toContain('—');
+        // Edit text area
+        const textarea = screen.getByLabelText(/Confidential Leaders' Notes/i);
+        fireEvent.change(textarea, { target: { value: 'Updated note' } });
+
+        // Click save button
+        const saveBtn = screen.getByRole('button', { name: 'Save Confidential Notes' });
+        fireEvent.click(saveBtn);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+            const [url, opts] = (global.fetch as any).mock.calls[1];
+            expect(url).toBe('http://test/wp-json/ems/v1/explorers/30001/asn');
+            expect(JSON.parse(opts.body)).toEqual({ organiser_notes: 'Updated note' });
+        });
     });
 });
