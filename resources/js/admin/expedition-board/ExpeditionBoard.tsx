@@ -13,6 +13,7 @@ const ExpeditionBoard: React.FC = () => {
     const { events: osmEvents, loading: osmEventsLoading } = useOSMEvents();
     const [activeTab, setActiveTab] = useState<BoardTab>('dashboard');
     const [selectedEvent, setSelectedEvent] = useState<Expedition | null>(null);
+    const [initialEdit, setInitialEdit] = useState(false);
 
     if (loading) return <p>Loading board…</p>;
     if (error) return <div className="notice notice-error"><p>{error}</p></div>;
@@ -28,11 +29,19 @@ const ExpeditionBoard: React.FC = () => {
 
     const handleSelectEvent = (event: Expedition) => {
         setSelectedEvent(event);
+        setInitialEdit(false);
+        setActiveTab('detail');
+    };
+
+    const handleEditEvent = (event: Expedition) => {
+        setSelectedEvent(event);
+        setInitialEdit(true);
         setActiveTab('detail');
     };
 
     const handleBack = () => {
         setSelectedEvent(null);
+        setInitialEdit(false);
         setActiveTab('dashboard');
     };
 
@@ -70,6 +79,7 @@ const ExpeditionBoard: React.FC = () => {
                 {activeTab === 'dashboard' && (
                     <EventsDashboard
                         onSelectEvent={handleSelectEvent}
+                        onEditEvent={handleEditEvent}
                         osmEvents={osmEvents}
                         osmEventsLoading={osmEventsLoading}
                     />
@@ -82,6 +92,7 @@ const ExpeditionBoard: React.FC = () => {
                         osmEvents={osmEvents}
                         allEvents={data.seasons[0]?.events ?? []}
                         onEventUpdated={handleEventUpdated}
+                        initialEdit={initialEdit}
                     />
                 )}
                 {activeTab === 'planning' && (

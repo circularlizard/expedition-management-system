@@ -24,7 +24,8 @@ const mockAvailability = [
     last_name: 'MacLeod',
     unit_name: 'SMESU',
     allocated_event_code: null,
-    allocated_team_code: null
+    allocated_team_code: null,
+    team_preferences: 'Prefer Team A'
   },
   {
     scout_id: 4002,
@@ -32,7 +33,8 @@ const mockAvailability = [
     last_name: 'Smith',
     unit_name: 'Kelso',
     allocated_event_code: 'H-SP2',
-    allocated_team_code: 'H-SP2-1'
+    allocated_team_code: 'H-SP2-1',
+    team_preferences: ''
   }
 ];
 
@@ -98,6 +100,7 @@ describe('EventPlanningBoard', () => {
       expect(screen.getByText(/Bob/)).toBeInTheDocument();
       expect(screen.getByText(/Smith/)).toBeInTheDocument();
       expect(screen.getByText(/H-SP2-1/)).toBeInTheDocument();
+      expect(screen.getByText('Prefer Team A')).toBeInTheDocument();
     });
   });
 

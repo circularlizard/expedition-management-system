@@ -4,6 +4,7 @@ import { EventForm } from './EventForm';
 
 interface EventsDashboardProps {
     onSelectEvent: (event: Expedition) => void;
+    onEditEvent?: (event: Expedition) => void;
     osmEvents?: OSMEvent[];
     osmEventsLoading?: boolean;
 }
@@ -79,6 +80,7 @@ async function fetchEvents(tab: DashboardTab, includeArchived: boolean, nonce: s
 
 export const EventsDashboard: React.FC<EventsDashboardProps> = ({
     onSelectEvent,
+    onEditEvent,
     osmEvents = [],
     osmEventsLoading = false,
 }) => {
@@ -251,10 +253,22 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                 </td>
                                 <td>{statusBadge(event.ems_route_status || 'draft')}</td>
                                 <td className="ems-table-cell--right">
+                                    {onEditEvent && (
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            style={{ marginRight: '8px' }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onEditEvent(event);
+                                            }}
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
-                                        className="button button-small"
-                                        style={{ color: event.ems_status === 'archived' ? '#2271b1' : '#d63638' }}
+                                        className={`button button-small ${event.ems_status === 'archived' ? '' : 'ems-btn-archive-red'}`}
                                         onClick={async (e) => {
                                             e.stopPropagation();
                                             const isArchive = event.ems_status !== 'archived';
