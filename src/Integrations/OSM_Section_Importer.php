@@ -52,20 +52,39 @@ class OSM_Section_Importer {
                 continue;
             }
 
-            $wpdb->replace(
-                $table,
-                [
-                    'scout_id'     => $scout_id,
-                    'section_id'   => $section_id,
-                    'first_name'   => $member['first_name'] ?? '',
-                    'last_name'    => $member['last_name'] ?? '',
-                    'email'        => $member['email'] ?? '',
-                    'parent_email' => $member['parent_email'] ?? '',
-                    'patrol'       => $member['patrol'] ?? '',
-                    'synced_at'    => $now,
-                ],
-                [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
-            );
+            $exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE scout_id = %d", $scout_id ) );
+            if ( $exists ) {
+                $wpdb->update(
+                    $table,
+                    [
+                        'section_id'   => $section_id,
+                        'first_name'   => $member['first_name'] ?? '',
+                        'last_name'    => $member['last_name'] ?? '',
+                        'email'        => $member['email'] ?? '',
+                        'parent_email' => $member['parent_email'] ?? '',
+                        'patrol'       => $member['patrol'] ?? '',
+                        'synced_at'    => $now,
+                    ],
+                    [ 'scout_id' => $scout_id ],
+                    [ '%d', '%s', '%s', '%s', '%s', '%s', '%s' ],
+                    [ '%d' ]
+                );
+            } else {
+                $wpdb->insert(
+                    $table,
+                    [
+                        'scout_id'     => $scout_id,
+                        'section_id'   => $section_id,
+                        'first_name'   => $member['first_name'] ?? '',
+                        'last_name'    => $member['last_name'] ?? '',
+                        'email'        => $member['email'] ?? '',
+                        'parent_email' => $member['parent_email'] ?? '',
+                        'patrol'       => $member['patrol'] ?? '',
+                        'synced_at'    => $now,
+                    ],
+                    [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
+                );
+            }
         }
     }
 

@@ -249,6 +249,43 @@ class Admin_View_ControllerTest extends EMSTestCase {
         $this->assertEquals( [], $data['courses'] );
     }
 
+    public function test_get_event_training_requirements_returns_completions_with_unit_name(): void {
+        Functions\expect( 'get_post_meta' )->once()->with( 10, 'ems_training_requirements', true )->andReturn( [ 101 ] );
+        
+        $mock_course_1 = (object) [ 'ID' => 101, 'post_title' => 'Course 1' ];
+        $this->tutor_client->shouldReceive( 'get_all_courses' )->once()->andReturn( [ $mock_course_1 ] );
+        
+        $this->teams->shouldReceive( 'list_by_expedition' )->once()->with( 10 )->andReturn( [ [ 'ID' => 20 ] ] );
+        $this->teams->shouldReceive( 'get_unallocated_team' )->once()->with( 10 )->andReturn( null );
+        
+        $this->team_members->shouldReceive( 'list_by_team' )->once()->with( 20 )->andReturn( [ [ 'scout_id' => 30001 ] ] );
+        
+        global $wpdb;
+        $wpdb = Mockery::mock( \wpdb::class );
+        $wpdb->prefix = 'wp_';
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->shouldReceive( 'prepare' )->once()->andReturn( 'MOCKED SQL' );
+        $wpdb->shouldReceive( 'get_results' )->once()->with( 'MOCKED SQL', ARRAY_A )->andReturn( [
+            [ 'scout_id' => 30001, 'wp_user_id' => 42, 'first_name' => 'Alice', 'last_name' => 'Brown', 'unit_name' => 'SMESU' ]
+        ] );
+        
+        $this->tutor_client->shouldReceive( 'get_enrollment_matrix' )->once()->with( [ 42 ], [ 101 ] )->andReturn( [
+            42 => [ 101 => 'complete' ]
+        ] );
+        
+        $request = Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive( 'get_param' )->with( 'id' )->andReturn( 10 );
+        
+        $response = $this->make_controller()->get_event_training_requirements( $request );
+        $data = $response->get_data();
+        
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertCount( 1, $data['completion'] );
+        $this->assertSame( 'Alice', $data['completion'][0]['first_name'] );
+        $this->assertSame( 'SMESU', $data['completion'][0]['unit_name'] );
+        $this->assertSame( 'complete', $data['completion'][0]['matrix'][101] );
+    }
+
     public function test_update_event_training_requirements_saves_requirements(): void {
         Functions\expect( 'update_post_meta' )->once()->with( 10, 'ems_training_requirements', [ 101, 103 ] )->andReturn( true );
         

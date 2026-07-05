@@ -189,6 +189,8 @@ interface TeamCardProps {
     onTeamChanged: () => void;
     onViewAsn: (scoutId: number) => void;
     onMoveMember: (member: Member, fromTeamId: number, toTeamId: number) => Promise<void>;
+    selectedScoutIds: number[];
+    onToggleSelectMember: (scoutId: number) => void;
 }
 
 const TeamCard: React.FC<TeamCardProps> = ({
@@ -201,6 +203,8 @@ const TeamCard: React.FC<TeamCardProps> = ({
     onTeamChanged,
     onViewAsn,
     onMoveMember,
+    selectedScoutIds,
+    onToggleSelectMember,
 }) => {
     const [selected, setSelected] = useState('');
     const [deleting, setDeleting] = useState(false);
@@ -317,44 +321,57 @@ const TeamCard: React.FC<TeamCardProps> = ({
 
             {/* Members List */}
             <ul className="ems-team-card__member-list">
-                {sortByName(members).map((m) => (
-                    <li key={m.scout_id ?? m.user_id} className="ems-team-card__member">
-                        <span className="ems-team-card__member-name">
-                            {m.has_asn && (
-                                <span
-                                    className="ems-member-asn"
-                                    title="Additional Support Needs (Click to view PII)"
-                                    onClick={() => onViewAsn(m.scout_id ?? 0)}
-                                >
-                                    ⚠️
+                {sortByName(members).map((m) => {
+                    const isChecked = selectedScoutIds.includes(m.scout_id ?? 0);
+                    return (
+                        <li key={m.scout_id ?? m.user_id} className={`ems-team-card__member ${isChecked ? 'ems-team-card__member--selected' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <input
+                                    type="checkbox"
+                                    className="ems-checkbox"
+                                    style={{ marginRight: '8px', margin: 0 }}
+                                    checked={isChecked}
+                                    onChange={() => onToggleSelectMember(m.scout_id ?? 0)}
+                                    aria-label={`Select ${m.first_name} ${m.last_name}`}
+                                />
+                                <span className="ems-team-card__member-name">
+                                    {m.has_asn && (
+                                        <span
+                                            className="ems-member-asn"
+                                            title="Additional Support Needs (Click to view PII)"
+                                            onClick={() => onViewAsn(m.scout_id ?? 0)}
+                                        >
+                                            ⚠️
+                                        </span>
+                                    )}
+                                    {m.first_aid_level === 'full_first_aid' && <span className="ems-member-fa-full" title="Full First Aid">⊕</span>}
+                                    {m.first_aid_level === 'first_response' && <span className="ems-member-fa-response" title="First Response">✚</span>}
+                                    {m.first_name} {m.last_name}
                                 </span>
-                            )}
-                            {m.first_aid_level === 'full_first_aid' && <span className="ems-member-fa-full" title="Full First Aid">⊕</span>}
-                            {m.first_aid_level === 'first_response' && <span className="ems-member-fa-response" title="First Response">✚</span>}
-                            {m.first_name} {m.last_name}
-                        </span>
+                            </div>
 
-                        <div className="ems-team-card__member-actions">
-                            <select
-                                className="ems-member-move"
-                                aria-label="Move explorer to team"
-                                value=""
-                                onChange={(e) => {
-                                    if (e.target.value) {
-                                        onMoveMember(m, team.ID, Number(e.target.value));
-                                    }
-                                }}
-                            >
-                                <option value="">Move…</option>
-                                {allTeams.map(t => t.ID !== team.ID && (
-                                    <option key={t.ID} value={t.ID}>{t.ems_team_code === 'UNALLOCATED' ? 'Unallocated' : t.ems_team_code}</option>
-                                ))}
-                            </select>
+                            <div className="ems-team-card__member-actions">
+                                <select
+                                    className="ems-member-move"
+                                    aria-label="Move explorer to team"
+                                    value=""
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            onMoveMember(m, team.ID, Number(e.target.value));
+                                        }
+                                    }}
+                                >
+                                    <option value="">Move…</option>
+                                    {allTeams.map(t => t.ID !== team.ID && (
+                                        <option key={t.ID} value={t.ID}>{t.ems_team_code === 'UNALLOCATED' ? 'Unallocated' : t.ems_team_code}</option>
+                                    ))}
+                                </select>
 
-                            <button type="button" className="button-link ems-member-remove" onClick={() => removeMember(m.scout_id ?? 0)} disabled={removing === m.scout_id}>✕</button>
-                        </div>
-                    </li>
-                ))}
+                                <button type="button" className="button-link ems-member-remove" onClick={() => removeMember(m.scout_id ?? 0)} disabled={removing === m.scout_id}>✕</button>
+                            </div>
+                        </li>
+                    );
+                })}
                 {members.length === 0 && <li className="ems-team-card__empty-member">No members</li>}
             </ul>
 
@@ -428,6 +445,9 @@ const TeamsTab: React.FC<{ event: Expedition; explorers?: Explorer[]; allEvents?
     const config = window.emsExpeditionBoard;
     const [teams, setTeams] = useState<Team[]>(event.teams ?? []);
     const [creating, setCreating] = useState(false);
+    const [selectedScoutIds, setSelectedScoutIds] = useState<number[]>([]);
+    const [bulkTargetTeam, setBulkTargetTeam] = useState('');
+    const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
     const assignedScoutIds = new Set<number>(
         teams.flatMap((t) => (t.members ?? []).map((m) => m.scout_id).filter((id): id is number => id !== undefined))
@@ -458,6 +478,60 @@ const TeamsTab: React.FC<{ event: Expedition; explorers?: Explorer[]; allEvents?
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             await loadTeams();
         } catch (e) { console.error(e); } finally { setCreating(false); }
+    };
+
+    const handleToggleSelectMember = (scoutId: number) => {
+        setSelectedScoutIds(prev =>
+            prev.includes(scoutId) ? prev.filter(id => id !== scoutId) : [...prev, scoutId]
+        );
+    };
+
+    const handleBulkMove = async () => {
+        if (!bulkTargetTeam) return;
+        setBulkActionLoading(true);
+        try {
+            let targetTeamId = Number(bulkTargetTeam);
+            if (bulkTargetTeam === 'UNALLOCATED') {
+                const unallocTeam = teams.find(t => t.ems_team_code === 'UNALLOCATED');
+                if (!unallocTeam) throw new Error('Unallocated team not found');
+                targetTeamId = unallocTeam.ID;
+            }
+
+            for (const scoutId of selectedScoutIds) {
+                const currentTeam = teams.find(t => (t.members ?? []).some(m => m.scout_id === scoutId));
+                if (!currentTeam || currentTeam.ID === targetTeamId) continue;
+
+                await apiFetch(`/teams/${currentTeam.ID}/members/${scoutId}`, { method: 'DELETE' });
+                await apiFetch(`/teams/${targetTeamId}/members`, { method: 'POST', body: JSON.stringify({ scout_id: scoutId }) });
+            }
+
+            setSelectedScoutIds([]);
+            setBulkTargetTeam('');
+            handleTeamChangedLocal();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setBulkActionLoading(false);
+        }
+    };
+
+    const handleBulkRemove = async () => {
+        if (!window.confirm(`Are you sure you want to remove the ${selectedScoutIds.length} selected explorers from the event?`)) return;
+        setBulkActionLoading(true);
+        try {
+            for (const scoutId of selectedScoutIds) {
+                const currentTeam = teams.find(t => (t.members ?? []).some(m => m.scout_id === scoutId));
+                if (currentTeam) {
+                    await apiFetch(`/teams/${currentTeam.ID}/members/${scoutId}`, { method: 'DELETE' });
+                }
+            }
+            setSelectedScoutIds([]);
+            handleTeamChangedLocal();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setBulkActionLoading(false);
+        }
     };
 
     const handleMoveMember = async (member: Member, fromTeamId: number, toTeamId: number) => {
@@ -506,9 +580,63 @@ const TeamsTab: React.FC<{ event: Expedition; explorers?: Explorer[]; allEvents?
                         onTeamChanged={handleTeamChangedLocal}
                         onViewAsn={onViewAsn}
                         onMoveMember={handleMoveMember}
+                        selectedScoutIds={selectedScoutIds}
+                        onToggleSelectMember={handleToggleSelectMember}
                     />
                 ))}
             </div>
+
+            {selectedScoutIds.length > 0 && (
+                <div className="ems-action-bar ems-action-bar--fixed" style={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: '#fff',
+                    borderTop: '1px solid #ccc',
+                    padding: '16px 24px',
+                    boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
+                    <div>
+                        <strong>With Selected ({selectedScoutIds.length}):</strong>
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <select
+                            aria-label="Bulk target team"
+                            value={bulkTargetTeam}
+                            onChange={(e) => setBulkTargetTeam(e.target.value)}
+                            className="ems-select"
+                            style={{ margin: 0 }}
+                        >
+                            <option value="">Move to team…</option>
+                            <option value="UNALLOCATED">Unallocated</option>
+                            {teams.filter(t => t.ems_team_code !== 'UNALLOCATED').map(t => (
+                                <option key={t.ID} value={t.ID}>{t.ems_team_code}</option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            className="button button-primary"
+                            disabled={!bulkTargetTeam || bulkActionLoading}
+                            onClick={handleBulkMove}
+                        >
+                            {bulkActionLoading ? 'Moving…' : 'Move'}
+                        </button>
+                        <button
+                            type="button"
+                            className="button ems-btn-archive-red"
+                            disabled={bulkActionLoading}
+                            onClick={handleBulkRemove}
+                        >
+                            {bulkActionLoading ? 'Removing…' : 'Remove from Event'}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -611,9 +739,12 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {completion.map(row => (
+                        {[...completion].sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)).map(row => (
                             <tr key={row.scout_id}>
-                                <td className="ems-completion-name">{row.first_name} {row.last_name}</td>
+                                <td className="ems-completion-name">
+                                    <div>{row.first_name} {row.last_name}</div>
+                                    <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>Unit: {row.unit_name ?? 'Unassigned'}</div>
+                                </td>
                                 {requiredCourses.map(c => {
                                     const status = row.matrix[c.id];
                                     const isComplete = status === 'complete';
@@ -646,10 +777,11 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
     const config = window.emsExpeditionBoard;
     const [explorers, setExplorers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [savingId, setSavingId] = useState<number | null>(null);
+    const [saving, setSaving] = useState(false);
     const [notes, setNotes] = useState<Record<number, string>>({});
+    const [initialNotes, setInitialNotes] = useState<Record<number, string>>({});
     const [parentAsn, setParentAsn] = useState<Record<number, string>>({});
-    const [savedStatus, setSavedStatus] = useState<Record<number, boolean>>({});
+    const [savedStatus, setSavedStatus] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -681,6 +813,7 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                     }
                 }));
                 setNotes(notesMap);
+                setInitialNotes({ ...notesMap });
                 setParentAsn(parentAsnMap);
             }
         } catch (e) {
@@ -692,24 +825,33 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
 
     useEffect(() => { load(); }, [load]);
 
-    const handleSaveNotes = async (scoutId: number) => {
-        setSavingId(scoutId);
+    const handleSaveAll = async () => {
+        setSaving(true);
+        setSavedStatus(false);
         try {
-            const res = await apiFetch(`/explorers/${scoutId}/asn`, {
-                method: 'POST',
-                body: JSON.stringify({ organiser_notes: notes[scoutId] || '' })
+            const modifiedScoutIds = Object.keys(notes).map(Number).filter(id => {
+                const init = initialNotes[id] || '';
+                const current = notes[id] || '';
+                return init !== current;
             });
-            if (res.ok) {
-                setSavedStatus(prev => ({ ...prev, [scoutId]: true }));
-                setTimeout(() => {
-                    setSavedStatus(prev => ({ ...prev, [scoutId]: false }));
-                }, 3000);
-                onTeamChanged(); // refresh parent board so triangle update mirrors instantly
-            }
+
+            await Promise.all(modifiedScoutIds.map(async (scoutId) => {
+                await apiFetch(`/explorers/${scoutId}/asn`, {
+                    method: 'POST',
+                    body: JSON.stringify({ organiser_notes: notes[scoutId] || '' })
+                });
+            }));
+
+            setInitialNotes({ ...notes });
+            setSavedStatus(true);
+            setTimeout(() => {
+                setSavedStatus(false);
+            }, 3000);
+            onTeamChanged(); // refresh parent board
         } catch (e) {
             console.error(e);
         } finally {
-            setSavingId(null);
+            setSaving(false);
         }
     };
 
@@ -726,7 +868,6 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                         <th className="ems-asn-th-name">Explorer / Team</th>
                         <th>Information Provided by Parent (Sign Up)</th>
                         <th>Organiser's Confidential Notes</th>
-                        <th className="ems-asn-th-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -750,30 +891,31 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                                     placeholder="Enter private organiser notes here (e.g. medication details, actions needed)…"
                                 />
                             </td>
-                            <td className="ems-asn-actions">
-                                <button
-                                    type="button"
-                                    className="button button-primary"
-                                    onClick={() => handleSaveNotes(exp.scout_id ?? 0)}
-                                    disabled={savingId === exp.scout_id}
-                                >
-                                    {savingId === exp.scout_id ? 'Saving…' : 'Save Notes'}
-                                </button>
-                                {savedStatus[exp.scout_id ?? 0] && (
-                                    <div className="ems-asn-saved">✓ Saved</div>
-                                )}
-                            </td>
                         </tr>
                     ))}
                     {explorers.length === 0 && (
                         <tr>
-                            <td colSpan={4} className="ems-empty-cell">
+                            <td colSpan={3} className="ems-empty-cell">
                                 No participants assigned to this event yet.
                             </td>
                         </tr>
                     )}
                 </tbody>
             </table>
+            
+            <div className="ems-flex-between ems-mt-16" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+                <div>
+                    {savedStatus && <span className="ems-saved-indicator" style={{ color: 'green', fontWeight: 'bold' }}>✓ Confidential notes saved successfully.</span>}
+                </div>
+                <button
+                    type="button"
+                    className="button button-primary"
+                    onClick={handleSaveAll}
+                    disabled={saving}
+                >
+                    {saving ? 'Saving…' : 'Save Confidential Notes'}
+                </button>
+            </div>
         </div>
     );
 };

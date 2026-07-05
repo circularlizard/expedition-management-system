@@ -17,6 +17,10 @@ class OSM_Section_ImporterTest extends EMSTestCase {
 
         $this->wpdb         = Mockery::mock( 'wpdb' );
         $this->wpdb->prefix = 'wp_';
+        $this->wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( fn( $sql, ...$args ) => vsprintf( str_replace( '%d', '%s', $sql ), $args ) );
+        $this->wpdb->shouldReceive( 'get_var' )->byDefault()->andReturn( 0 );
+        $this->wpdb->shouldReceive( 'insert' )->byDefault()->andReturn( 1 );
+        $this->wpdb->shouldReceive( 'update' )->byDefault()->andReturn( 1 );
         $GLOBALS['wpdb']    = $this->wpdb;
 
         Functions\when( 'current_time' )->justReturn( '2026-06-15 08:00:00' );
@@ -52,7 +56,7 @@ class OSM_Section_ImporterTest extends EMSTestCase {
             ->once()
             ->andReturn( $mock_members );
 
-        $this->wpdb->shouldReceive( 'replace' )
+        $this->wpdb->shouldReceive( 'insert' )
             ->once()
             ->with(
                 'wp_ems_osm_explorers',
@@ -84,7 +88,8 @@ class OSM_Section_ImporterTest extends EMSTestCase {
 
         $this->api_client->shouldReceive( 'get_section_participants' )->withAnyArgs()->andReturn( $mock_members );
 
-        $this->wpdb->shouldReceive( 'replace' )->never();
+        $this->wpdb->shouldReceive( 'insert' )->never();
+        $this->wpdb->shouldReceive( 'update' )->never();
 
         $importer = new OSM_Section_Importer( $this->api_client );
         $importer->import_section( 43105 );
@@ -105,7 +110,7 @@ class OSM_Section_ImporterTest extends EMSTestCase {
 
         $this->api_client->shouldReceive( 'get_section_participants' )->withAnyArgs()->andReturn( $mock_members );
 
-        $this->wpdb->shouldReceive( 'replace' )
+        $this->wpdb->shouldReceive( 'insert' )
             ->once()
             ->with(
                 'wp_ems_osm_explorers',
