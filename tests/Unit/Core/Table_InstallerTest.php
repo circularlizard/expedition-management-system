@@ -32,9 +32,10 @@ class Table_InstallerTest extends EMSTestCase {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( 'wp_', '' );
 
-        $this->assertCount( 10, $sql );
+        $this->assertCount( 11, $sql );
 
         $all_sql = implode( ' ', $sql );
+        $this->assertStringContainsString( 'ems_volunteers', $all_sql );
         $this->assertStringContainsString( 'ems_team_members', $all_sql );
         $this->assertStringContainsString( 'ems_volunteer_availability', $all_sql );
         $this->assertStringContainsString( 'ems_route_submissions', $all_sql );
@@ -63,6 +64,7 @@ class Table_InstallerTest extends EMSTestCase {
 
         $names = ( new Table_Installer() )->get_table_names();
 
+        $this->assertEquals( 'wp_ems_volunteers', $names['volunteers'] );
         $this->assertEquals( 'wp_ems_team_members', $names['team_members'] );
         $this->assertEquals( 'wp_ems_volunteer_availability', $names['volunteer_availability'] );
         $this->assertEquals( 'wp_ems_route_submissions', $names['route_submissions'] );
@@ -192,6 +194,7 @@ class Table_InstallerTest extends EMSTestCase {
         }
 
         $this->assertNotNull( $avail_sql );
+        $this->assertStringContainsString( 'KEY idx_volunteer_expedition', $avail_sql );
         $this->assertStringContainsString( 'KEY idx_user_expedition', $avail_sql );
         $this->assertStringContainsString( 'KEY idx_date', $avail_sql );
     }

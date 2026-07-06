@@ -20,6 +20,7 @@ class Plugin {
     public function __construct() {
         $this->cpt_registry = new CPT_Registry();
         $this->init_hooks();
+        add_shortcode( 'ems-volunteer-signup', [ $this, 'render_volunteer_signup_shortcode' ] );
     }
 
     private function init_hooks(): void {
@@ -93,6 +94,9 @@ class Plugin {
 
             $unit_leader_controller = new \EMS\Admin\Unit_Leader_Controller();
             $unit_leader_controller->register_routes();
+
+            $volunteer_controller = new \EMS\Admin\Volunteer_Controller();
+            $volunteer_controller->register_routes();
 
             register_rest_route( 'ems/v1', '/sync-status', [
                 'methods'             => 'GET',
@@ -394,5 +398,28 @@ class Plugin {
             ( new \EMS\Core\Role_Manager() )->register_roles();
             update_option( 'ems_db_version', EMS_VERSION );
         }
+    }
+
+    public function render_volunteer_signup_shortcode(): string {
+        $js_path = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/volunteer-signup.js';
+        $css_path = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+
+        wp_enqueue_style( 'wp-components' );
+        wp_enqueue_style( 'ems-admin', $css_path, [ 'wp-components' ], EMS_VERSION );
+
+        wp_enqueue_script(
+            'ems-volunteer-signup',
+            $js_path,
+            [ 'wp-element', 'wp-i18n' ],
+            EMS_VERSION,
+            true
+        );
+
+        wp_localize_script( 'ems-volunteer-signup', 'emsVolunteerSignup', [
+            'root_url' => get_rest_url( null, 'ems/v1' ),
+            'nonce'    => wp_create_nonce( 'wp_rest' ),
+        ] );
+
+        return '<div id="ems-volunteer-signup-root"></div>';
     }
 }
