@@ -52,7 +52,7 @@ describe('EventDetailPage Volunteers Tab', () => {
         fireEvent.click(screen.getByText('Volunteers'));
 
         await waitFor(() => {
-            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+            expect(screen.getAllByText(/Jane Doe/)[0]).toBeInTheDocument();
             expect(screen.getByText('Supervisors: 0 / 2')).toBeInTheDocument();
         });
 
@@ -70,7 +70,7 @@ describe('EventDetailPage Volunteers Tab', () => {
         await waitFor(() => {
             const assignCall = (global.fetch as any).mock.calls.find((c: any) => c[0].includes('/volunteers/assign') && c[1]?.method === 'POST');
             expect(assignCall).toBeDefined();
-            expect(JSON.parse(assignCall[1].body)).toEqual({ availability_id: 100, confirmed: 1 });
+            expect(JSON.parse(assignCall[1].body)).toEqual({ volunteer_id: 1, expedition_post_id: 10, confirmed: 1 });
         });
     });
 });

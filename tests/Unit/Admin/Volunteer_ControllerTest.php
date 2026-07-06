@@ -43,7 +43,7 @@ class Volunteer_ControllerTest extends EMSTestCase {
         ]);
         $this->repo->shouldReceive('save_availability')->once()->with(10, 5, [
             ['date' => '2026-08-14', 'overnight' => 1]
-        ]);
+        ], 'part');
 
         $controller = new Volunteer_Controller( $this->repo );
 
@@ -65,6 +65,14 @@ class Volunteer_ControllerTest extends EMSTestCase {
     }
 
     public function test_assign_availability_confirms_shift(): void {
+        $this->repo->shouldReceive('get_availability_table')->once()->andReturn('wp_ems_volunteer_availability');
+        global $wpdb;
+        $wpdb = \Mockery::mock('stdClass');
+        $wpdb->shouldReceive('prepare')->andReturn('SELECT id FROM wp_ems_volunteer_availability WHERE volunteer_id = 42 AND expedition_post_id = 10');
+        $wpdb->shouldReceive('get_results')->once()->andReturn([
+            (object)['id' => 100]
+        ]);
+
         $this->repo->shouldReceive('confirm_availability')->once()->with(100, 1)->andReturn(true);
 
         $controller = new Volunteer_Controller( $this->repo );
@@ -72,7 +80,8 @@ class Volunteer_ControllerTest extends EMSTestCase {
 
         $request = \Mockery::mock( \WP_REST_Request::class );
         $request->shouldReceive('get_json_params')->once()->andReturn([
-            'availability_id' => 100,
+            'volunteer_id' => 42,
+            'expedition_post_id' => 10,
             'confirmed' => 1
         ]);
 

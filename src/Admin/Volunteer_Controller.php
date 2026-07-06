@@ -47,9 +47,10 @@ class Volunteer_Controller {
 
             $expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
             $shifts = isset( $params['shifts'] ) ? (array) $params['shifts'] : [];
+            $signup_type = isset( $params['signup_type'] ) ? sanitize_text_field( $params['signup_type'] ) : 'part';
 
             if ( $expedition_post_id > 0 && ! empty( $shifts ) ) {
-                $this->repo->save_availability( $volunteer['id'], $expedition_post_id, $shifts );
+                $this->repo->save_availability( $volunteer['id'], $expedition_post_id, $shifts, $signup_type );
             }
 
             return new \WP_REST_Response( [
@@ -66,17 +67,32 @@ class Volunteer_Controller {
 
     public function assign( \WP_REST_Request $request ): \WP_REST_Response {
         $params = $request->get_json_params() ?: [];
-        $availability_id = isset( $params['availability_id'] ) ? (int) $params['availability_id'] : 0;
+        $volunteer_id = isset( $params['volunteer_id'] ) ? (int) $params['volunteer_id'] : 0;
+        $expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
         $confirmed = isset( $params['confirmed'] ) ? (int) $params['confirmed'] : 0;
 
-        if ( $availability_id <= 0 ) {
+        if ( $volunteer_id <= 0 || $expedition_post_id <= 0 ) {
             return new \WP_REST_Response( [
                 'success' => false,
-                'message' => 'Invalid availability ID.'
+                'message' => 'Invalid volunteer or expedition ID.'
             ], 400 );
         }
 
-        $success = $this->repo->confirm_availability( $availability_id, $confirmed );
+        // Find all availability records for this volunteer and event, and update them
+        $table = $this->repo->get_availability_table();
+        global $wpdb;
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id FROM {$table} WHERE volunteer_id = %d AND expedition_post_id = %d",
+                $volunteer_id,
+                $expedition_post_id
+            )
+        );
+
+        $success = false;
+        foreach ( $rows as $row ) {
+            $success = $this->repo->confirm_availability( (int) $row->id, $confirmed );
+        }
 
         return new \WP_REST_Response( [
             'success' => $success
