@@ -6,8 +6,9 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 
 | Phase | Milestone | Focus Area | Status |
 |---|---|---|---|
-| Phase 1 | [Milestone 1: Signup Processing & Unit Leader Outreach](#milestone-1-signup-processing--unit-leader-outreach) | Fluent Forms sync, Payments, and Reconciliation | In Progress |
-| Phase 2 | [Milestone 2: Team Formation, Event Dates & Calendar Management](#milestone-2-team-formation-event-dates--calendar-management) | React Expedition Board, Calendar view, and State Sync | In Progress |
+| Phase 1 | Milestone 1: Signup Processing & Unit Leader Outreach | Fluent Forms sync, Payments, and Reconciliation | **Complete** |
+| Phase 2 | Milestone 2: Team Formation, Event Dates & Calendar Management | React Expedition Board, Calendar view, and State Sync | **Complete** |
+| Phase 2.5 | [Milestone 2.5: M1/M2 Carryover](#milestone-25-m1m2-carryover) | Participant export, Season CPT cleanup, BroadcastChannel sync, Assignment emails | Pending |
 | Phase 3 | [Milestone 3: Compliance & Training Progress Monitoring](#milestone-3-compliance--training-progress-monitoring) | Tutor LMS automated enrollments and first aid warning flags | In Progress |
 | Phase 4 | [Milestone 4: Explorer & Parent Front-Facing Web Portal](#milestone-4-explorer--parent-front-facing-web-portal) | Explorer & Parent shortcode SPAs and timeline tracking | Pending |
 | Phase 5 | [Milestone 5: Adult Volunteer Availability Mapping](#milestone-5-adult-volunteer-availability-mapping) | Scheduling grids and supervisor deficit calculations | Pending |
@@ -23,45 +24,31 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 ## Milestone 1: Signup Processing & Unit Leader Outreach
 *Collects DofE levels, payment validation, and expedition preferences, enabling manual admin processing and leader notification.*
 
-*   **Achieved**:
-    *   Dynamic parent-child dropdown fields populated on registration forms.
-    *   Stripe payment hooks connecting sandbox gateway state changes to local record statuses.
-    *   Automatic resolution of ESU units, pre-populating parent, explorer, and leader emails in hidden fields.
-    *   Read-only back-office list view (`ems_signups` table mapping).
-*   **Next Steps (Remains)**:
-    *   [ ] **Manual Actions**: Add triggers to the Signups list view to mark registrations as "Processed" or "Archived".
-    *   [ ] **Leader Outreach**: Build an interface or triggers to email unit leaders requesting their OSM section share when a child signs up. The form will be configured to do a per-entry notification, but we should be able to do a bulk notification.
-    *   [ ] **Participant download**: Build an interface that allows the admin user to download some or all of the participant records.
-    *   [ ] **Single Explorer List**: Build a single list of explorers that highlights sync status, has a detail panel (flyout from right of screen or modal dialogue) that shows all detail about that explorer.
-    *   [ ] **Reconciliation Status**: Build an admin function to reconcile Fluent Forms signups against the OSM sync explorer reference list (including SEEE section reconciliation to allocate new recruits to correct managed Explorer Scout Units) and wordpress logins.
-    *   [ ] **Fuzzy Matching Logic**: Implement ordered matching priority: hidden Scout ID match, fallback to case-insensitive email match, and second fallback to first/last name matches. Displays unlinked accounts as "Proposed Link" or "New Recruit".
-    *   [ ] **Manual Link Dialog**: Create a search dialog dialog overlay to manually link a signup to a synced `scout_id` (triggering `/reconcile` REST endpoint).
-    *   [ ] **ESU Unit Override Dropdown**: Render an editable select dropdown allowing admins to manually override or assign ESU units, showing warnings for unassigned units or options for multiple mapped units.
-    *   [ ] **REST Endpoints**: Register `GET ems/v1/signups`, `POST ems/v1/signups/{id}/reconcile`, and `POST ems/v1/signups/{id}/process`.
-    *   [ ] **Test Data Seeding**: Create a signup test data generator. Generate multiple variants of form submissions to represent realistic test scenarios (different levels, payment statuses, and units), and scale this using AI expansion to produce a large, diverse dataset.
+**Status: Complete** — Implementation spec archived at `docs/archive/milestone-1-implementation-spec.md`.
+
+All core items completed, including reconciliation, fuzzy matching, manual link dialog, DofE push, leader outreach, explorer list, and ESU override. Remaining carryover items moved to [Milestone 2.5](#milestone-25-m1m2-carryover).
 
 ---
 
 ## Milestone 2: Team Formation, Event Dates & Calendar Management
 *Assigns explorers to specific dates and teams, and handles progressive details (dates → teams → route cards).*
 
-*   **Achieved**:
-    *   React Expedition Board SPA allowing events and teams CRUD (Season concept deprecated).
-    *   Interactive drag-and-drop movement of explorers between teams/events.
-    *   Automatic sequential team code generation (e.g. `H-SP1-1`).
-    *   Contiguous layout and team size warning validation (checks for 4–7 members).
+**Status: Complete** — Implementation spec archived at `docs/archive/milestone-2-implementation-spec.md`.
+
+All core items completed, including Events Dashboard, calendar view, first aid warnings, WhatsApp QR codes, UNALLOCATED teams, and ASN tracking. Remaining carryover items moved to [Milestone 2.5](#milestone-25-m1m2-carryover).
+
+---
+
+## Milestone 2.5: M1/M2 Carryover
+*Consolidates the small number of items that carried over from Milestones 1 and 2.*
+
+Full specification: [milestone-2.5-implementation-spec.md](milestone-2.5-implementation-spec.md)
+
 *   **Next Steps (Remains)**:
-    *   [ ] Deprecate CPT `season` and transition the home dashboard to a chronological Events Dashboard (showing upcoming/past events, sorting by start date).
-    *   [ ] Add event status filtering ('active' or 'archived') to toggle archived events in listings.
-    *   [ ] Show Name, Short Code, Mode of Transport, Level, First Aid Requirements, and Dates on the events roster grid.
-    *   [ ] Move all team formation and CRUD rosters strictly to the Event Detail Page.
-    *   [ ] Add a Training tab on the Event Detail Page to define event course training requirements (integrating with `/ems/v1/events/{id}/training-requirements`).
-    *   [ ] Expand event post meta with parent/explorer WhatsApp links and generate corresponding QR codes on the detail page.
-    *   [ ] Allow assigning unallocated explorers to an event via a virtual unallocated team.
-    *   [ ] Implement a calendar dashboard interface showing chronological timelines of all practice/qualifying events.
-    *   [ ] Add communication notifications (emails or alerts) triggered when explorers are assigned to dates or teams.
-    *   [ ] Track Additional Support Needs (ASN) alongside team details.
-    *   [ ] **Cross-Screen State Synchronization**: Implement a synchronization mechanism (e.g. BroadcastChannel) to sync updates between Expedition Board rosters and Explorer Lists.
+    *   [ ] **Participant Download (M1 carryover)**: Build an interface that allows the admin user to download some or all of the participant records (CSV/Excel).
+    *   [ ] **Season CPT Removal (M2 carryover)**: Remove `season` CPT registration from `CPT_Registry.php` — migration already exists in `Table_Installer`, just needs registration cleanup.
+    *   [ ] **Cross-Screen State Synchronization (M2 carryover)**: Implement a `BroadcastChannel('ems-state-sync')` mechanism to sync updates between Expedition Board rosters and Explorer Lists.
+    *   [ ] **Communication Notifications (M2 carryover)**: Add emails or alerts triggered when explorers are assigned to dates or teams.
 
 ---
 
