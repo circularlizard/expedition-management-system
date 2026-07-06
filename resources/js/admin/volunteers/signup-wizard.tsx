@@ -83,9 +83,12 @@ function VolunteerSignupWizard() {
             if (ev) {
                 const dates = getDatesForEvent(ev);
                 const allShifts: Shift[] = [];
-                dates.forEach(d => {
+                dates.forEach((d, idx) => {
                     allShifts.push({ date: d, overnight: 0 });
-                    allShifts.push({ date: d, overnight: 1 });
+                    // No overnight on the last day of the event
+                    if (idx < dates.length - 1) {
+                        allShifts.push({ date: d, overnight: 1 });
+                    }
                 });
                 setShifts(prev => ({ ...prev, [eventId]: allShifts }));
             }
@@ -116,17 +119,6 @@ function VolunteerSignupWizard() {
             updated = [...currentShifts, { date, overnight }];
         }
         setShifts(prev => ({ ...prev, [eventId]: updated }));
-    };
-
-    const handleCopyAvailability = (sourceEventId: number) => {
-        const sourceShifts = shifts[sourceEventId] || [];
-        const updated = { ...shifts };
-        selectedEvents.forEach(targetId => {
-            if (targetId !== sourceEventId && eventOptions[targetId] === 'part') {
-                updated[targetId] = [...sourceShifts];
-            }
-        });
-        setShifts(updated);
     };
 
     const handleOSMAuth = () => {
@@ -301,7 +293,7 @@ function VolunteerSignupWizard() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {eventDates.map(date => (
+                                        {eventDates.map((date, idx) => (
                                             <tr key={date}>
                                                 <td>{date}</td>
                                                 <td>
@@ -312,19 +304,18 @@ function VolunteerSignupWizard() {
                                                     />
                                                 </td>
                                                 <td>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={eventShifts.some(s => s.date === date && s.overnight === 1)}
-                                                        onChange={() => handleShiftToggle(eventId, date, 1)}
-                                                    />
+                                                    {idx < eventDates.length - 1 ? (
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={eventShifts.some(s => s.date === date && s.overnight === 1)}
+                                                            onChange={() => handleShiftToggle(eventId, date, 1)}
+                                                        />
+                                                    ) : '—'}
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                                    <button className="button button-small" onClick={() => handleCopyAvailability(eventId)}>Copy availability to other events</button>
-                                </div>
                             </div>
                         );
                     })}
