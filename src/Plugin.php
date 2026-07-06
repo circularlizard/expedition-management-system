@@ -415,9 +415,23 @@ class Plugin {
             true
         );
 
+        $current_user = wp_get_current_user();
+        $user_data = [
+            'logged_in'  => $current_user->exists(),
+            'first_name' => $current_user->exists() ? ($current_user->user_firstname ?: $current_user->display_name) : '',
+            'last_name'  => $current_user->exists() ? $current_user->user_lastname : '',
+            'email'      => $current_user->exists() ? $current_user->user_email : '',
+            'is_osm'     => $current_user->exists() && ! empty( get_user_meta( $current_user->ID, 'ems_access_type', true ) ),
+        ];
+
+        // Determine current page URL for redirecting back after login
+        $current_url = home_url( add_query_arg( [], $GLOBALS['wp']->request ?? '' ) );
+
         wp_localize_script( 'ems-volunteer-signup', 'emsVolunteerSignup', [
-            'root_url' => get_rest_url( null, 'ems/v1' ),
-            'nonce'    => wp_create_nonce( 'wp_rest' ),
+            'root_url'  => get_rest_url( null, 'ems/v1' ),
+            'nonce'     => wp_create_nonce( 'wp_rest' ),
+            'login_url' => wp_login_url( $current_url ),
+            'user_data' => $user_data,
         ] );
 
         return '<div id="ems-volunteer-signup-root"></div>';
