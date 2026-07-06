@@ -208,7 +208,29 @@ Feature: Milestone 2.5 - Carryover Items
     When the team membership is saved
     Then an email should be queued to "explorer@example.com"
     And the email subject should contain "H-SP1-1"
+
+---
+
+## 5. Style Refactoring Validation & Tooling (Carryover)
+
+**Origin:** [style-refactor-spec.md](style-refactor-spec.md) Section 7
+
+Although all inline styles have been successfully migrated to CSS utility classes in `ems-admin.css`, the automated safeguards and validation checks have not yet been implemented.
+
+### 5.1 CI/CD Lint Safeguard (Grep Check)
+Add a step to the GitHub Action workflow (`.github/workflows/ci.yml`) to enforce that no new inline styles are introduced on structural React components:
+```yaml
+      - name: Verify no inline styles
+        run: |
+          ALLOWED="minHeight|background.*\`|border.*\`|width.*\`"
+          if grep -rn "style={{" resources/js/admin/ --include="*.tsx" | grep -vE "$ALLOWED"; then
+            echo "Error: Lingering or new inline style={{...}} detected. Extract to CSS."
+            exit 1
+          fi
 ```
+
+### 5.2 Unit Test Style Coverage
+Add style verification checks to at least three major React components' Vitest test suites (e.g., `EventForm.test.tsx`, `SignupsBoard.test.tsx`, `EventsDashboard.test.tsx`) to assert that they render without forbidden inline structural style attributes (e.g. asserting `style` attribute is absent or matches permitted exception patterns only).
 
 ---
 
@@ -219,4 +241,6 @@ Feature: Milestone 2.5 - Carryover Items
 | Season CPT Removal | High | None (migration already exists, safe to remove registration) |
 | Participant Download | Medium | None |
 | Cross-Screen State Sync | Medium | None (pure frontend) |
+| Style Refactor Validation & Tooling | Medium | None |
 | Communication Notifications | Low | Milestone 10 (Email Logging) for full audit trail, but can ship without it |
+
