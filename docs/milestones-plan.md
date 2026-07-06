@@ -9,13 +9,13 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 | Phase 1 | Milestone 1: Signup Processing & Unit Leader Outreach | Fluent Forms sync, Payments, and Reconciliation | **Complete** |
 | Phase 2 | Milestone 2: Team Formation, Event Dates & Calendar Management | React Expedition Board, Calendar view, and State Sync | **Complete** |
 | Phase 2.5 | [Milestone 2.5: M1/M2 Carryover](#milestone-25-m1m2-carryover) | Participant export, Season CPT cleanup, BroadcastChannel sync, Assignment emails | Pending |
-| Phase 3 | [Milestone 5: Adult Volunteer Availability Mapping](#milestone-5-adult-volunteer-availability-mapping) | Scheduling grids and supervisor deficit calculations | Pending |
+| Phase 3 | [Milestone 3: Adult Volunteer Availability Mapping](#milestone-3-adult-volunteer-availability-mapping) | Scheduling grids and supervisor deficit calculations | Pending |
 | Phase 4 | [Milestone 4: Explorer & Parent Front-Facing Web Portal](#milestone-4-explorer--parent-front-facing-web-portal) | Explorer & Parent shortcode SPAs and timeline tracking | Pending |
 | Phase 5 | [Milestone 6: Unit Leader Integration Portal & Kit Supply](#milestone-6-unit-leader-integration-portal--kit-supply) | ESU unit visibility, tent groups, and Leader Portal | Pending |
 | Phase 6 | [Milestone 7: Offline/Online Scout Manager Write-Back (Push-Back Sync)](#milestone-7-offlineonline-scout-manager-write-back-push-back-sync) | Writing back status updates and invitations to OSM | Pending |
 | Phase 7 | [Milestone 8: Environment Replication & Configuration Portability](#milestone-8-environment-replication--configuration-portability) | Backup/restore tools, CLI scripts, and configuration exports | Pending |
 | Phase 8 | [Milestone 9: Route Submission & LiC Review Workflow](#milestone-9-route-submission--lic-review-workflow) | GPX/PDF secure uploads, permissions check proxy, and review panel | Pending |
-| Held | [Milestone 3: Compliance & Training Progress Monitoring](#milestone-3-compliance--training-progress-monitoring) | Tutor LMS automated enrollments and first aid warning flags | Held / Deferred |
+| Held | [Milestone 5: Compliance & Training Progress Monitoring](#milestone-5-compliance--training-progress-monitoring) | Tutor LMS automated enrollments and first aid warning flags | Held / Deferred |
 | Held | [Milestone 10: Email Notification Engine & SMTP Logging](#milestone-10-email-notification-engine--smtp-logging) | State-triggered notifications and mail audit logs | Held / Deferred |
 | Held | [Milestone 11: Expedition Board Enhancements & Document Export](#milestone-11-expedition-board-enhancements--document-export) | Drag-and-drop drawers, safeguarding warnings, and printable exports | Held / Deferred |
 
@@ -55,14 +55,14 @@ Full specification: [milestone-2.5-implementation-spec.md](milestone-2.5-impleme
 ## Milestone 3: Adult Volunteer Availability Mapping
 *Gathers adult availability, maps volunteer coverage across dates, and notifies cover assignments.*
 
-*   **Achieved**:
-    *   Database table `ems_volunteer_availability` handles schema mapping.
-    *   Volunteer admin menu registered.
+Full specification: [milestone-3-implementation-spec.md](milestone-3-implementation-spec.md)
+
 *   **Next Steps (Remains)**:
-    *   [ ] Build the volunteer signup front-facing form.
-    *   [ ] Enqueue React components on the Volunteers Admin page to render an availability scheduling grid.
-    *   [ ] Build an assignment engine to link volunteers to events and alert them of scheduled cover.
-    *   [ ] **Staffing Deficit Logic**: Define supervisor/assessor ratios (e.g. "requires 2 supervisors, 1 assessor") and render alert badges (🔴 Deficit, 🟡 Pending, 🟢 Confirmed) based on day-to-day coverage.
+    *   [ ] Build the external-facing volunteer signup wizard form (Step 1 macro-filter, Step 2 micro-availability builder, Step 3 review & submit), integrating OSM OAuth or guest enrollment.
+    *   [ ] Create database schema migrations for the `ems_volunteers` details table and update `ems_volunteer_availability`.
+    *   [ ] Add the **Volunteer Signups Grid** page to the admin panel with a volunteer-vs-dates matrix and Inspector details pane.
+    *   [ ] Extend the **Expedition Detail Page** with a dedicated tab to view available and assigned volunteers for that specific event.
+    *   [ ] Implement conflict-prevention assignment logic preventing volunteers from being double-booked.
 
 ---
 
@@ -139,7 +139,7 @@ Full specification: [milestone-2.5-implementation-spec.md](milestone-2.5-impleme
 
 ## Held / Deferred Milestones
 
-### Milestone 3: Compliance & Training Progress Monitoring
+### Milestone 5: Compliance & Training Progress Monitoring
 *Specifies training requirements for expeditions, validates completions, and monitors team health.*
 
 *   **Achieved**:
@@ -150,7 +150,7 @@ Full specification: [milestone-2.5-implementation-spec.md](milestone-2.5-impleme
 *   **Next Steps (Remains)**:
     *   [ ] Develop an automated enrollment script that hooks into EMS team assignments to register explorers in corresponding Tutor LMS courses.
     *   [ ] Implement automatic warnings on the Expedition Board when a team does not have a member with an active first aid qualification.
-    *   [ ] **Test Data Seeding**: Build a mock data generator for Tutor LMS completion and enrollment states (Complete, In Progress, Not Enrolled) to test training compliance matrices at scale.
+    *   [ ] **Test Data Seeding**: Build a mock data generator for Tutor LMS completion and enrollment states (Complete, In Progress, Not Enrolled) to test training compliance matrices at scale. matrices at scale.
 
 ### Milestone 10: Email Notification Engine & SMTP Logging
 *Handles dispatching automated email notifications on key state changes with SMTP configuration and audit logging.*
