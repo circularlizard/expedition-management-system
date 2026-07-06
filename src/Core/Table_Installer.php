@@ -165,15 +165,37 @@ class Table_Installer {
             KEY idx_user_id (user_id)
         ) {$charset};";
 
+        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_volunteers (
+            id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            osm_user_id     BIGINT UNSIGNED          DEFAULT NULL,
+            user_id         BIGINT UNSIGNED          DEFAULT NULL,
+            first_name      VARCHAR(255)    NOT NULL DEFAULT '',
+            last_name       VARCHAR(255)    NOT NULL DEFAULT '',
+            email           VARCHAR(255)    NOT NULL DEFAULT '',
+            phone           VARCHAR(50)              DEFAULT NULL,
+            dbs_number      VARCHAR(100)             DEFAULT NULL,
+            qualifications  LONGTEXT                 DEFAULT NULL,
+            preferred_roles LONGTEXT                 DEFAULT NULL,
+            created_at      DATETIME        NOT NULL,
+            updated_at      DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_email (email),
+            KEY idx_osm_user_id (osm_user_id),
+            KEY idx_user_id (user_id)
+        ) {$charset};";
+
         $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_volunteer_availability (
             id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            user_id             BIGINT UNSIGNED NOT NULL,
+            volunteer_id        BIGINT UNSIGNED NOT NULL,
+            user_id             BIGINT UNSIGNED          DEFAULT NULL,
             expedition_post_id  BIGINT UNSIGNED NOT NULL,
             date                DATE            NOT NULL,
             overnight           TINYINT(1)      NOT NULL DEFAULT 0,
             confirmed           TINYINT(1)      NOT NULL DEFAULT 0,
             confirmed_by        BIGINT UNSIGNED          DEFAULT NULL,
+            updated_at          DATETIME                 DEFAULT NULL,
             PRIMARY KEY (id),
+            KEY idx_volunteer_expedition (volunteer_id, expedition_post_id),
             KEY idx_user_expedition (user_id, expedition_post_id),
             KEY idx_date (date)
         ) {$charset};";
@@ -337,6 +359,7 @@ class Table_Installer {
     public function get_table_names(): array {
         global $wpdb;
         return [
+            'volunteers'             => $wpdb->prefix . 'ems_volunteers',
             'team_members'          => $wpdb->prefix . 'ems_team_members',
             'volunteer_availability' => $wpdb->prefix . 'ems_volunteer_availability',
             'route_submissions'     => $wpdb->prefix . 'ems_route_submissions',

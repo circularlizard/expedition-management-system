@@ -113,9 +113,6 @@ class Admin_Page {
         <?php
     }
 
-    /**
-     * Registers the Volunteers submenu.
-     */
     public function register_volunteers_menu(): void {
         $volunteers_hook = add_submenu_page(
             'ems',
@@ -125,6 +122,17 @@ class Admin_Page {
             'ems-volunteers',
             [ $this, 'render_volunteers_page' ]
         );
+
+        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $volunteers_hook ) {
+            if ( $hook === $volunteers_hook ) {
+                $this->enqueue_admin_script( 'ems-volunteers', 'assets/js/volunteers.js' );
+                $this->enqueue_admin_styles();
+                wp_localize_script( 'ems-volunteers', 'emsVolunteers', [
+                    'root_url' => get_rest_url( null, 'ems/v1' ),
+                    'nonce'    => wp_create_nonce( 'wp_rest' ),
+                ] );
+            }
+        } );
     }
 
     /**
