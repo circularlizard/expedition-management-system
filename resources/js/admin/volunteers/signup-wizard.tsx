@@ -19,6 +19,7 @@ function VolunteerSignupWizard() {
     const [step, setStep] = useState(1);
     const [events, setEvents] = useState<Expedition[]>([]);
     const [selectedEvents, setSelectedEvents] = useState<number[]>([]);
+    const [eventOptions, setEventOptions] = useState<Record<number, 'whole' | 'part'>>({});
     const [shifts, setShifts] = useState<Record<number, Shift[]>>({});
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -52,9 +53,45 @@ function VolunteerSignupWizard() {
     }, []);
 
     const toggleEvent = (eventId: number) => {
-        setSelectedEvents(prev =>
-            prev.includes(eventId) ? prev.filter(id => id !== eventId) : [...prev, eventId]
-        );
+        setSelectedEvents(prev => {
+            const isSelected = prev.includes(eventId);
+            if (isSelected) {
+                // Cleanup options and shifts
+                setEventOptions(curr => {
+                    const copy = { ...curr };
+                    delete copy[eventId];
+                    return copy;
+                });
+                setShifts(curr => {
+                    const copy = { ...curr };
+                    delete copy[eventId];
+                    return copy;
+                });
+                return prev.filter(id => id !== eventId);
+            } else {
+                setEventOptions(curr => ({ ...curr, [eventId]: 'whole' }));
+                return [...prev, eventId];
+            }
+        });
+    };
+
+    const handleOptionChange = (eventId: number, val: 'whole' | 'part') => {
+        setEventOptions(prev => ({ ...prev, [eventId]: val }));
+        if (val === 'whole') {
+            // Automatically select all shifts for the whole event
+            const ev = events.find(e => e.ID === eventId);
+            if (ev) {
+                const dates = getDatesForEvent(ev);
+                const allShifts: Shift[] = [];
+                dates.forEach(d => {
+                    allShifts.push({ date: d, overnight: 0 });
+                    allShifts.push({ date: d, overnight: 1 });
+                });
+                setShifts(prev => ({ ...prev, [eventId]: allShifts }));
+            }
+        } else {
+            setShifts(prev => ({ ...prev, [eventId]: [] }));
+        }
     };
 
     const getDatesForEvent = (ev: Expedition) => {
@@ -85,9 +122,7 @@ function VolunteerSignupWizard() {
         const sourceShifts = shifts[sourceEventId] || [];
         const updated = { ...shifts };
         selectedEvents.forEach(targetId => {
-            if (targetId !== sourceEventId) {
-                // Copy shifts matching by relative offsets if dates differ, or directly copy if identical structure.
-                // Simple drop-in copy for this stage:
+            if (targetId !== sourceEventId && eventOptions[targetId] === 'part') {
                 updated[targetId] = [...sourceShifts];
             }
         });
@@ -147,6 +182,38 @@ function VolunteerSignupWizard() {
         }
     };
 
+    const hasPartialAvailability = selectedEvents.some(id => eventOptions[id] === 'part');
+
+    const handleNextFromEvents = () => {
+        if (selectedEvents.length === 0) {
+            setErrors(['Select at least one event.']);
+            return;
+        }
+        setErrors([]);
+
+        // For any "whole" event, pre-populate all shifts
+        selectedEvents.forEach(eventId => {
+            if (eventOptions[eventId] === 'whole') {
+                const ev = events.find(e => e.ID === eventId);
+                if (ev) {
+                    const dates = getDatesForEvent(ev);
+                    const allShifts: Shift[] = [];
+                    dates.forEach(d => {
+                        allShifts.push({ date: d, overnight: 0 });
+                        allShifts.push({ date: d, overnight: 1 });
+                    });
+                    setShifts(prev => ({ ...prev, [eventId]: allShifts }));
+                }
+            }
+        });
+
+        if (hasPartialAvailability) {
+            setStep(3); // Go to builder
+        } else {
+            setStep(4); // Skip builder, go to details
+        }
+    };
+
     if (submitted) {
         return (
             <div style={{ padding: '20px', background: '#e5f5fa', borderRadius: '4px', border: '1px solid #00a0d2' }}>
@@ -184,21 +251,40 @@ function VolunteerSignupWizard() {
 
             {step === 2 && (
                 <div>
-                    <h3>Step 1: Select Events</h3>
+                    <h3>Step 1: Select Events & Attendance Type</h3>
                     {events.map(e => (
-                        <label key={e.ID} style={{ display: 'block', margin: '8px 0', cursor: 'pointer' }}>
-                            <input type="checkbox" checked={selectedEvents.includes(e.ID)} onChange={() => toggleEvent(e.ID)} />
-                            <strong>{e.post_title}</strong> ({e.ems_event_code})
-                        </label>
+                        <div key={e.ID} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
+                            <label style={{ display: 'block', fontWeight: 'bold', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={selectedEvents.includes(e.ID)} onChange={() => toggleEvent(e.ID)} />
+                                {e.post_title} ({e.ems_event_code})
+                            </label>
+                            <div style={{ fontSize: '12px', color: '#666', margin: '4px 0 8px 20px' }}>
+                                Dates: {e.ems_start_date} to {e.ems_end_date} 
+                                {e.ems_start_time && ` | Start Time: ${e.ems_start_time}`} 
+                                {e.ems_end_time && ` | End Time: ${e.ems_end_time}`}
+                            </div>
+                            {selectedEvents.includes(e.ID) && (
+                                <div style={{ marginLeft: '20px', display: 'flex', gap: '15px' }}>
+                                    <label style={{ cursor: 'pointer', fontSize: '13px' }}>
+                                        <input type="radio" name={`option-${e.ID}`} checked={eventOptions[e.ID] === 'whole'} onChange={() => handleOptionChange(e.ID, 'whole')} />
+                                        Whole Event
+                                    </label>
+                                    <label style={{ cursor: 'pointer', fontSize: '13px' }}>
+                                        <input type="radio" name={`option-${e.ID}`} checked={eventOptions[e.ID] === 'part'} onChange={() => handleOptionChange(e.ID, 'part')} />
+                                        Part of Event
+                                    </label>
+                                </div>
+                            )}
+                        </div>
                     ))}
-                    <button className="button button-primary" style={{ marginTop: '16px' }} onClick={() => setStep(3)}>Next: Availability Builder</button>
+                    <button className="button button-primary" style={{ marginTop: '16px' }} onClick={handleNextFromEvents}>Next</button>
                 </div>
             )}
 
             {step === 3 && (
                 <div>
                     <h3>Step 2: Availability Builder</h3>
-                    {selectedEvents.map(eventId => {
+                    {selectedEvents.filter(id => eventOptions[id] === 'part').map(eventId => {
                         const ev = events.find(e => e.ID === eventId);
                         if (!ev) return null;
                         const eventDates = getDatesForEvent(ev);
@@ -293,7 +379,7 @@ function VolunteerSignupWizard() {
                             ))}
                         </div>
                     </div>
-                    <button className="button" onClick={() => setStep(3)}>Back</button>
+                    <button className="button" onClick={() => setStep(hasPartialAvailability ? 3 : 2)}>Back</button>
                     <button className="button button-primary" style={{ marginLeft: '10px' }} onClick={handleSubmit}>Submit Availability</button>
                 </div>
             )}
