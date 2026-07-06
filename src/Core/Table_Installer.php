@@ -63,10 +63,22 @@ class Table_Installer {
             $wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
         }
 
-        $expedition_table = $wpdb->prefix . 'ems_expedition_signups';
-        if ( ! $this->column_exists( $wpdb, $expedition_table, 'leader_email' ) ) {
+        $avail_table = $wpdb->prefix . 'ems_volunteer_availability';
+        if ( ! $this->column_exists( $wpdb, $avail_table, 'volunteer_id' ) ) {
+            // Add column
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$expedition_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
+            $wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN volunteer_id BIGINT UNSIGNED NOT NULL AFTER id" );
+            // Add key
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$avail_table} ADD KEY idx_volunteer_expedition (volunteer_id, expedition_post_id)" );
+            // Allow user_id to be NULL as it is deprecated for guests
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$avail_table} MODIFY COLUMN user_id BIGINT UNSIGNED DEFAULT NULL" );
+        }
+
+        if ( ! $this->column_exists( $wpdb, $avail_table, 'updated_at' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN updated_at DATETIME DEFAULT NULL AFTER confirmed_by" );
         }
 
         $this->migrate_season_deprecation( $wpdb );
