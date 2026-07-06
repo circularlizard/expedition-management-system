@@ -65,7 +65,7 @@ class Volunteer_Repository {
         return $fields;
     }
 
-    public function save_availability( int $volunteer_id, int $expedition_post_id, array $shifts ): void {
+    public function save_availability( int $volunteer_id, int $expedition_post_id, array $shifts, string $signup_type = 'part' ): void {
         $table = $this->get_availability_table();
 
         // Clear existing availability for this volunteer and expedition
@@ -90,6 +90,7 @@ class Volunteer_Repository {
                     'overnight'          => empty( $shift['overnight'] ) ? 0 : 1,
                     'confirmed'          => 0,
                     'updated_at'         => $now,
+                    'signup_type'        => sanitize_text_field( $signup_type ),
                 ]
             );
         }
@@ -121,24 +122,60 @@ class Volunteer_Repository {
 
         if ( $row ) {
             if ( $confirmed === 1 ) {
-                // Lock out alternatives: Set confirmed = -1 for other events on same date for same volunteer
-                $this->wpdb->query(
+                // Find all dates this volunteer is assigned to on this event
+                $assigned_dates = $this->wpdb->get_col(
                     $this->wpdb->prepare(
-                        "UPDATE {$table} SET confirmed = -1 WHERE volunteer_id = %d AND date = %s AND expedition_post_id != %d AND confirmed = 0",
+                        "SELECT DISTINCT date FROM {$table} WHERE volunteer_id = %d AND expedition_post_id = %d AND confirmed = 1",
                         $row->volunteer_id,
-                        $row->date,
                         $row->expedition_post_id
                     )
                 );
+
+                if ( ! empty( $assigned_dates ) ) {
+                    $placeholders = implode( ',', array_fill( 0, count( $assigned_dates ), '%s' ) );
+                    // Lock out alternatives for all overlapping dates
+                    $this->wpdb->query(
+                        $this->wpdb->prepare(
+                            "UPDATE {$table} SET confirmed = -1 WHERE volunteer_id = %d AND expedition_post_id != %d AND confirmed = 0 AND date IN ({$placeholders})",
+                            $row->volunteer_id,
+                            $row->expedition_post_id,
+                            ...$assigned_dates
+                        )
+                    );
+                }
             } elseif ( $confirmed === 0 ) {
-                // Release lockout: Reset other conflicted events on same date for same volunteer back to 0
-                $this->wpdb->query(
+                // Find dates that are no longer confirmed on this event
+                $released_dates = $this->wpdb->get_col(
                     $this->wpdb->prepare(
-                        "UPDATE {$table} SET confirmed = 0 WHERE volunteer_id = %d AND date = %s AND confirmed = -1",
+                        "SELECT DISTINCT date FROM {$table} WHERE volunteer_id = %d AND expedition_post_id = %d AND confirmed = 0",
                         $row->volunteer_id,
-                        $row->date
+                        $row->expedition_post_id
                     )
                 );
+
+                if ( ! empty( $released_dates ) ) {
+                    $placeholders = implode( ',', array_fill( 0, count( $released_dates ), '%s' ) );
+                    // Release lockout: Reset other conflicted events back to 0 (unless locked by another confirmed event)
+                    // Check if other events are confirmed on the same date for this volunteer
+                    foreach ( $released_dates as $date ) {
+                        $has_other_confirmed = $this->wpdb->get_var(
+                            $this->wpdb->prepare(
+                                "SELECT COUNT(*) FROM {$table} WHERE volunteer_id = %d AND date = %s AND confirmed = 1",
+                                $row->volunteer_id,
+                                $date
+                            )
+                        );
+                        if ( ! $has_other_confirmed ) {
+                            $this->wpdb->query(
+                                $this->wpdb->prepare(
+                                    "UPDATE {$table} SET confirmed = 0 WHERE volunteer_id = %d AND date = %s AND confirmed = -1",
+                                    $row->volunteer_id,
+                                    $date
+                                )
+                            );
+                        }
+                    }
+                }
             }
         }
 
@@ -176,6 +213,7 @@ class Volunteer_Repository {
                 $avail['overnight'] = (int) $avail['overnight'];
                 $avail['confirmed'] = (int) $avail['confirmed'];
                 $avail['confirmed_by'] = $avail['confirmed_by'] ? (int) $avail['confirmed_by'] : null;
+                $avail['signup_type'] = $avail['signup_type'] ?? 'part';
             }
         }
 

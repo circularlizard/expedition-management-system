@@ -81,6 +81,11 @@ class Table_Installer {
             $wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN updated_at DATETIME DEFAULT NULL AFTER confirmed_by" );
         }
 
+        if ( ! $this->column_exists( $wpdb, $avail_table, 'signup_type' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN signup_type VARCHAR(20) NOT NULL DEFAULT 'part' AFTER updated_at" );
+        }
+
         $this->migrate_season_deprecation( $wpdb );
     }
 
@@ -206,6 +211,7 @@ class Table_Installer {
             confirmed           TINYINT(1)      NOT NULL DEFAULT 0,
             confirmed_by        BIGINT UNSIGNED          DEFAULT NULL,
             updated_at          DATETIME                 DEFAULT NULL,
+            signup_type         VARCHAR(20)     NOT NULL DEFAULT 'part',
             PRIMARY KEY (id),
             KEY idx_volunteer_expedition (volunteer_id, expedition_post_id),
             KEY idx_user_expedition (user_id, expedition_post_id),

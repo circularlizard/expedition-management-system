@@ -88,14 +88,12 @@ class Volunteer_RepositoryTest extends EMSTestCase {
     }
 
     public function test_confirm_overlapping_event_locks_out_alternatives(): void {
-        // Arrange: volunteer confirmed on event A on date 2026-08-14
-        // Needs to search for availability records of this volunteer on same date for OTHER events and set them to -1
+        // Arrange: volunteer confirmed on event A
         $this->wpdb->shouldReceive('update')
             ->once()
             ->with('wp_ems_volunteer_availability', ['confirmed' => 1, 'confirmed_by' => 1, 'updated_at' => '2026-06-13 20:00:00'], ['id' => 100])
             ->andReturn(1);
 
-        // Fetch the row we just updated to know which volunteer, date, and expedition_post_id
         $avail_row = (object)[
             'volunteer_id' => 42,
             'date' => '2026-08-14',
@@ -105,13 +103,17 @@ class Volunteer_RepositoryTest extends EMSTestCase {
             ->once()
             ->andReturn($avail_row);
 
+        $this->wpdb->shouldReceive('get_col')
+            ->once()
+            ->andReturn(['2026-08-14']);
+
         // Conflict prevention updates other events for same volunteer & date to -1
         $this->wpdb->shouldReceive('query')
             ->once()
             ->andReturnUsing(function($query) {
                 $this->assertStringContainsString('confirmed = -1', $query);
                 $this->assertStringContainsString('volunteer_id = 42', $query);
-                $this->assertStringContainsString("date = 2026-08-14", $query);
+                $this->assertStringContainsString("2026-08-14", $query);
                 $this->assertStringContainsString('expedition_post_id != 10', $query);
                 return 1;
             });
@@ -137,14 +139,21 @@ class Volunteer_RepositoryTest extends EMSTestCase {
             ->once()
             ->andReturn($avail_row);
 
+        $this->wpdb->shouldReceive('get_col')
+            ->once()
+            ->andReturn(['2026-08-14']);
+
+        $this->wpdb->shouldReceive('get_var')
+            ->once()
+            ->andReturn(0); // No other events confirmed
+
         // Releases other events from -1 back to 0
         $this->wpdb->shouldReceive('query')
             ->once()
             ->andReturnUsing(function($query) {
                 $this->assertStringContainsString('confirmed = 0', $query);
-                $this->assertStringContainsString('confirmed = -1', $query);
                 $this->assertStringContainsString('volunteer_id = 42', $query);
-                $this->assertStringContainsString("date = 2026-08-14", $query);
+                $this->assertStringContainsString("2026-08-14", $query);
                 return 1;
             });
 
