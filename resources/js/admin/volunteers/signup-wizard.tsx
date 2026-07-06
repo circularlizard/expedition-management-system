@@ -16,41 +16,33 @@ interface Expedition {
 }
 
 function VolunteerSignupWizard() {
-    const [step, setStep] = useState(1);
+    const config = (window as any).emsVolunteerSignup || {
+        root_url: '/wp-json/ems/v1',
+        nonce: '',
+        user_data: { logged_in: false, first_name: '', last_name: '', email: '', is_osm: false }
+    };
+    const [step, setStep] = useState(config.user_data?.logged_in ? 2 : 1);
     const [events, setEvents] = useState<Expedition[]>([]);
     const [selectedEvents, setSelectedEvents] = useState<number[]>([]);
     const [eventOptions, setEventOptions] = useState<Record<number, 'whole' | 'part'>>({});
     const [shifts, setShifts] = useState<Record<number, Shift[]>>({});
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [email, setEmail] = useState('');
+    const [firstName, setFirstName] = useState(config.user_data?.first_name || '');
+    const [lastName, setLastName] = useState(config.user_data?.last_name || '');
+    const [email, setEmail] = useState(config.user_data?.email || '');
     const [phone, setPhone] = useState('');
     const [firstAid, setFirstAid] = useState('none');
     const [roles, setRoles] = useState<string[]>([]);
-    const [isOSM, setIsOSM] = useState(false);
+    const [isOSM, setIsOSM] = useState(!!config.user_data?.logged_in);
     const [errors, setErrors] = useState<string[]>([]);
     const [submitted, setSubmitted] = useState(false);
-
-    const config = (window as any).emsVolunteerSignup || { root_url: '/wp-json/ems/v1', nonce: '' };
-
     useEffect(() => {
-        // Fetch upcoming events to choose from
-        fetch(`${config.root_url}/expedition-board`, { headers: { 'X-WP-Nonce': config.nonce } })
+        fetch(`${config.root_url}/volunteers/events`, { headers: { 'X-WP-Nonce': config.nonce } })
             .then(res => res.ok ? res.json() : Promise.reject())
             .then(data => {
-                const evList: Expedition[] = [];
-                if (data.seasons) {
-                    data.seasons.forEach((s: any) => {
-                        if (s.events) {
-                            s.events.forEach((ev: any) => evList.push(ev));
-                        }
-                    });
-                }
-                setEvents(evList);
+                setEvents(data || []);
             })
             .catch(() => {});
     }, []);
-
     const toggleEvent = (eventId: number) => {
         setSelectedEvents(prev => {
             const isSelected = prev.includes(eventId);
@@ -119,15 +111,13 @@ function VolunteerSignupWizard() {
         }
         setShifts(prev => ({ ...prev, [eventId]: updated }));
     };
-
     const handleOSMAuth = () => {
-        // Trigger OSM Mock OIDC flow
-        setIsOSM(true);
-        setFirstName('Leader');
-        setLastName('OSM');
-        setEmail('leader@scouts.org.uk');
+        if (config.login_url) {
+            window.location.href = config.login_url;
+        } else {
+            window.location.href = '/wp-login.php';
+        }
     };
-
     const handleSubmit = async () => {
         const errs: string[] = [];
         if (!firstName) errs.push('First name is required.');
