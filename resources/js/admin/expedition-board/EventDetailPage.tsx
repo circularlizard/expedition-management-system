@@ -13,7 +13,7 @@ interface EventDetailPageProps {
     initialEdit?: boolean;
 }
 
-type DetailTab = 'overview' | 'teams' | 'training' | 'asn' | 'qrcodes';
+type DetailTab = 'overview' | 'teams' | 'training' | 'asn' | 'volunteers' | 'qrcodes';
 
 const FA_LABELS: Record<FirstAidLevel, string> = {
     none: 'None',
@@ -1079,6 +1079,155 @@ const ASNDrawer: React.FC<ASNDrawerProps> = ({ scoutId, onClose, onSaved }) => {
     );
 };
 
+/* Volunteers Tab */
+const VolunteersTab: React.FC<{ event: Expedition }> = ({ event }) => {
+    const [volunteers, setVolunteers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const config = window.emsExpeditionBoard;
+
+    const fetchVolunteers = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${config.root_url}/volunteers`, { headers: { 'X-WP-Nonce': config.nonce } });
+            if (res && res.ok) {
+                const data = await res.json();
+                setVolunteers(data);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchVolunteers();
+    }, [event.ID]);
+
+    const handleAssign = async (availId: number, confirmVal: number) => {
+        try {
+            const res = await fetch(`${config.root_url}/volunteers/assign`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    availability_id: availId,
+                    confirmed: confirmVal
+                })
+            });
+            if (res.ok) {
+                fetchVolunteers();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    if (loading) {
+        return <div>Loading volunteers list...</div>;
+    }
+
+    // Filter volunteers who are either pending or confirmed on this expedition_post_id
+    const assignedVolunteers = volunteers.filter(v => 
+        v.availability.some((s: any) => s.expedition_post_id === event.ID && s.confirmed === 1)
+    );
+
+    const availableVolunteers = volunteers.filter(v => 
+        v.availability.some((s: any) => s.expedition_post_id === event.ID && s.confirmed === 0)
+    );
+
+    return (
+        <div>
+            <div className="ems-section">
+                <div className="ems-section__header">Staffing Indicators</div>
+                <div style={{ display: 'flex', gap: '10px', margin: '10px 0' }}>
+                    <span className={`ems-status-badge ${assignedVolunteers.length >= 2 ? 'ems-status-badge--active' : 'ems-status-badge--archived'}`}>
+                        Supervisors: {assignedVolunteers.filter(v => v.preferred_roles?.includes('supervisor')).length} / 2
+                    </span>
+                    <span className={`ems-status-badge ${assignedVolunteers.some(v => v.preferred_roles?.includes('assessor')) ? 'ems-status-badge--active' : 'ems-status-badge--archived'}`}>
+                        Assessors: {assignedVolunteers.filter(v => v.preferred_roles?.includes('assessor')).length} / 1
+                    </span>
+                </div>
+            </div>
+
+            <div className="ems-section">
+                <div className="ems-section__header">Assigned Volunteers</div>
+                <table className="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>First Aid</th>
+                            <th>DBS</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {assignedVolunteers.map(v => {
+                            const shift = v.availability.find((s: any) => s.expedition_post_id === event.ID && s.confirmed === 1);
+                            return (
+                                <tr key={v.id}>
+                                    <td>{v.first_name} {v.last_name}</td>
+                                    <td>{v.preferred_roles?.join(', ')}</td>
+                                    <td>{v.qualifications?.first_aid || 'None'}</td>
+                                    <td>{v.dbs_number || '—'}</td>
+                                    <td>
+                                        <button className="button button-small" onClick={() => handleAssign(shift.id, 0)}>Remove</button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {assignedVolunteers.length === 0 && (
+                            <tr>
+                                <td colSpan={5}>No volunteers confirmed yet.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="ems-section">
+                <div className="ems-section__header">Available / Pending Volunteers</div>
+                <table className="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>First Aid</th>
+                            <th>DBS</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {availableVolunteers.map(v => {
+                            const shift = v.availability.find((s: any) => s.expedition_post_id === event.ID && s.confirmed === 0);
+                            return (
+                                <tr key={v.id}>
+                                    <td>{v.first_name} {v.last_name}</td>
+                                    <td>{v.preferred_roles?.join(', ')}</td>
+                                    <td>{v.qualifications?.first_aid || 'None'}</td>
+                                    <td>{v.dbs_number || '—'}</td>
+                                    <td>
+                                        <button className="button button-small button-primary" onClick={() => handleAssign(shift.id, 1)}>Assign / Confirm</button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {availableVolunteers.length === 0 && (
+                            <tr>
+                                <td colSpan={5}>No pending volunteers.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
 /* Main */
 export const EventDetailPage: React.FC<EventDetailPageProps> = ({
     event: initialEvent,
@@ -1175,6 +1324,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
                 {tabBtn('teams', 'Teams', 'ems-detail-tab-teams')}
                 {tabBtn('training', 'Training', 'ems-detail-tab-training')}
                 {tabBtn('asn', 'Support Needs', 'ems-detail-tab-asn')}
+                {tabBtn('volunteers', 'Volunteers', 'ems-detail-tab-volunteers')}
                 {tabBtn('qrcodes', 'QR Codes', 'ems-detail-tab-qrcodes')}
             </nav>
 
@@ -1191,6 +1341,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
                 )}
                 {activeTab === 'training' && <TrainingTab eventId={event.ID} />}
                 {activeTab === 'asn' && <ASNTab eventId={event.ID} onTeamChanged={refreshTeams} />}
+                {activeTab === 'volunteers' && <VolunteersTab event={event} />}
                 {activeTab === 'qrcodes' && <QRCodesTab event={event} />}
             </div>
 
