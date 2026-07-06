@@ -161,7 +161,8 @@ function VolunteerSignupWizard() {
                         },
                         preferred_roles: roles,
                         expedition_post_id: eventId,
-                        shifts: eventShifts
+                        shifts: eventShifts,
+                        signup_type: eventOptions[eventId] || 'part'
                     })
                 });
                 if (!res.ok) throw new Error();

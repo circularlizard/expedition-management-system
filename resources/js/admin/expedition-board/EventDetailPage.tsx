@@ -1080,7 +1080,7 @@ const ASNDrawer: React.FC<ASNDrawerProps> = ({ scoutId, onClose, onSaved }) => {
 };
 
 /* Volunteers Tab */
-const VolunteersTab: React.FC<{ event: Expedition }> = ({ event }) => {
+const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> = ({ event, allEvents = [] }) => {
     const [volunteers, setVolunteers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -1105,7 +1105,7 @@ const VolunteersTab: React.FC<{ event: Expedition }> = ({ event }) => {
         fetchVolunteers();
     }, [event.ID]);
 
-    const handleAssign = async (availId: number, confirmVal: number) => {
+    const handleAssign = async (volunteerId: number, confirmVal: number) => {
         try {
             const res = await fetch(`${config.root_url}/volunteers/assign`, {
                 method: 'POST',
@@ -1114,7 +1114,8 @@ const VolunteersTab: React.FC<{ event: Expedition }> = ({ event }) => {
                     'X-WP-Nonce': config.nonce
                 },
                 body: JSON.stringify({
-                    availability_id: availId,
+                    volunteer_id: volunteerId,
+                    expedition_post_id: event.ID,
                     confirmed: confirmVal
                 })
             });
@@ -1139,10 +1140,25 @@ const VolunteersTab: React.FC<{ event: Expedition }> = ({ event }) => {
         v.availability.some((s: any) => s.expedition_post_id === event.ID && s.confirmed === 0)
     );
 
+    // Helper to get dates array between start and end
+    const getDatesForEvent = () => {
+        const dates: string[] = [];
+        if (!event.ems_start_date || !event.ems_end_date) return dates;
+        let curr = new Date(event.ems_start_date);
+        const end = new Date(event.ems_end_date);
+        while (curr <= end) {
+            dates.push(curr.toISOString().split('T')[0]);
+            curr.setDate(curr.getDate() + 1);
+        }
+        return dates;
+    };
+
+    const datesList = getDatesForEvent();
+
     return (
         <div>
-            <div className="ems-section">
-                <div className="ems-section__header">Staffing Indicators</div>
+            <div className="ems-detail-section">
+                <div className="ems-detail-section-label">Staffing Indicators</div>
                 <div style={{ display: 'flex', gap: '10px', margin: '10px 0' }}>
                     <span className={`ems-status-badge ${assignedVolunteers.length >= 2 ? 'ems-status-badge--active' : 'ems-status-badge--archived'}`}>
                         Supervisors: {assignedVolunteers.filter(v => v.preferred_roles?.includes('supervisor')).length} / 2
@@ -1153,29 +1169,117 @@ const VolunteersTab: React.FC<{ event: Expedition }> = ({ event }) => {
                 </div>
             </div>
 
-            <div className="ems-section">
-                <div className="ems-section__header">Assigned Volunteers</div>
+            {/* Daily Grid View */}
+            <div className="ems-detail-section">
+                <div className="ems-detail-section-label">Event Schedule / Shifts Grid</div>
+                {datesList.length === 0 ? (
+                    <p style={{ fontStyle: 'italic', color: '#666' }}>No event dates defined.</p>
+                ) : (
+                    <table className="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>Volunteer</th>
+                                {datesList.map((d, idx) => (
+                                    <React.Fragment key={d}>
+                                        <th style={{ fontSize: '11px', textAlign: 'center' }}>
+                                            {d}<br/><span style={{ fontSize: '9px', fontWeight: 'normal', color: '#666' }}>(Day)</span>
+                                        </th>
+                                        {idx < datesList.length - 1 && (
+                                            <th style={{ fontSize: '11px', textAlign: 'center' }}>
+                                                {d}<br/><span style={{ fontSize: '9px', fontWeight: 'normal', color: '#666' }}>(Night)</span>
+                                            </th>
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {volunteers.map(v => {
+                                const eventShifts = v.availability.filter((s: any) => s.expedition_post_id === event.ID);
+                                if (eventShifts.length === 0) return null;
+
+                                const signupType = eventShifts[0]?.signup_type || 'part';
+
+                                return (
+                                    <tr key={v.id}>
+                                        <td>
+                                            <strong>{v.first_name} {v.last_name}</strong><br/>
+                                            <span style={{ fontSize: '10px', color: '#666' }}>
+                                                {v.preferred_roles?.join(', ')} ({signupType === 'whole' ? 'Whole' : 'Partial'})
+                                            </span>
+                                        </td>
+                                        {datesList.map((d, idx) => {
+                                            const dayShift = eventShifts.find((s: any) => s.date === d && s.overnight === 0);
+                                            const nightShift = idx < datesList.length - 1 ? eventShifts.find((s: any) => s.date === d && s.overnight === 1) : null;
+
+                                            const renderCell = (shift: any) => {
+                                                if (!shift) return <span style={{ color: '#ccc' }}>—</span>;
+                                                if (shift.confirmed === 1) {
+                                                    return <span style={{ color: '#46b450', fontWeight: 'bold' }}>✓ Confirmed</span>;
+                                                }
+                                                if (shift.confirmed === -1) {
+                                                    // Find the other confirmed event code on the same date/overnight
+                                                    const otherConfirmedShift = v.availability.find(
+                                                        (s: any) => s.date === shift.date && s.overnight === shift.overnight && s.confirmed === 1
+                                                    );
+                                                    let conflictLabel = 'Conflicted';
+                                                    if (otherConfirmedShift) {
+                                                        const otherEvent = allEvents.find((e: any) => e.ID === otherConfirmedShift.expedition_post_id);
+                                                        if (otherEvent) {
+                                                            conflictLabel = `Conflict: ${otherEvent.ems_event_code}`;
+                                                        }
+                                                    }
+                                                    return <span style={{ color: '#dc3232', textDecoration: 'line-through' }} title={conflictLabel}>{conflictLabel}</span>;
+                                                }
+                                                return <span style={{ color: '#f0b818' }}>Pending</span>;
+                                            };
+
+                                            return (
+                                                <React.Fragment key={d}>
+                                                    <td style={{ textAlign: 'center', fontSize: '11px' }}>{renderCell(dayShift)}</td>
+                                                    {idx < datesList.length - 1 && (
+                                                        <td style={{ textAlign: 'center', fontSize: '11px' }}>{renderCell(nightShift)}</td>
+                                                    )}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </tr>
+                                );
+                            })}
+                            {volunteers.filter(v => v.availability.some((s: any) => s.expedition_post_id === event.ID)).length === 0 && (
+                                <tr>
+                                    <td colSpan={datesList.length * 2}>No volunteers available for this event.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+
+            <div className="ems-detail-section">
+                <div className="ems-detail-section-label">Assigned Volunteers</div>
                 <table className="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Role</th>
+                            <th>Commitment</th>
                             <th>First Aid</th>
-                            <th>DBS</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {assignedVolunteers.map(v => {
-                            const shift = v.availability.find((s: any) => s.expedition_post_id === event.ID && s.confirmed === 1);
+                            const eventShifts = v.availability.filter((s: any) => s.expedition_post_id === event.ID);
+                            const signupType = eventShifts[0]?.signup_type || 'part';
                             return (
                                 <tr key={v.id}>
                                     <td>{v.first_name} {v.last_name}</td>
                                     <td>{v.preferred_roles?.join(', ')}</td>
+                                    <td>{signupType === 'whole' ? 'Whole Event' : 'Partial'}</td>
                                     <td>{v.qualifications?.first_aid || 'None'}</td>
-                                    <td>{v.dbs_number || '—'}</td>
                                     <td>
-                                        <button className="button button-small" onClick={() => handleAssign(shift.id, 0)}>Remove</button>
+                                        <button className="button button-small" onClick={() => handleAssign(v.id, 0)}>Remove</button>
                                     </td>
                                 </tr>
                             );
@@ -1189,29 +1293,30 @@ const VolunteersTab: React.FC<{ event: Expedition }> = ({ event }) => {
                 </table>
             </div>
 
-            <div className="ems-section">
-                <div className="ems-section__header">Available / Pending Volunteers</div>
+            <div className="ems-detail-section">
+                <div className="ems-detail-section-label">Available / Pending Volunteers</div>
                 <table className="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Role</th>
+                            <th>Commitment</th>
                             <th>First Aid</th>
-                            <th>DBS</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {availableVolunteers.map(v => {
-                            const shift = v.availability.find((s: any) => s.expedition_post_id === event.ID && s.confirmed === 0);
+                            const eventShifts = v.availability.filter((s: any) => s.expedition_post_id === event.ID);
+                            const signupType = eventShifts[0]?.signup_type || 'part';
                             return (
                                 <tr key={v.id}>
                                     <td>{v.first_name} {v.last_name}</td>
                                     <td>{v.preferred_roles?.join(', ')}</td>
+                                    <td>{signupType === 'whole' ? 'Whole Event' : 'Partial'}</td>
                                     <td>{v.qualifications?.first_aid || 'None'}</td>
-                                    <td>{v.dbs_number || '—'}</td>
                                     <td>
-                                        <button className="button button-small button-primary" onClick={() => handleAssign(shift.id, 1)}>Assign / Confirm</button>
+                                        <button className="button button-small button-primary" onClick={() => handleAssign(v.id, 1)}>Assign / Confirm</button>
                                     </td>
                                 </tr>
                             );
@@ -1341,7 +1446,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
                 )}
                 {activeTab === 'training' && <TrainingTab eventId={event.ID} />}
                 {activeTab === 'asn' && <ASNTab eventId={event.ID} onTeamChanged={refreshTeams} />}
-                {activeTab === 'volunteers' && <VolunteersTab event={event} />}
+                {activeTab === 'volunteers' && <VolunteersTab event={event} allEvents={allEvents} />}
                 {activeTab === 'qrcodes' && <QRCodesTab event={event} />}
             </div>
 

@@ -194,6 +194,7 @@ class Table_InstallerTest extends EMSTestCase {
         }
 
         $this->assertNotNull( $avail_sql );
+        $this->assertStringContainsString( 'signup_type', $avail_sql );
         $this->assertStringContainsString( 'KEY idx_volunteer_expedition', $avail_sql );
         $this->assertStringContainsString( 'KEY idx_user_expedition', $avail_sql );
         $this->assertStringContainsString( 'KEY idx_date', $avail_sql );
