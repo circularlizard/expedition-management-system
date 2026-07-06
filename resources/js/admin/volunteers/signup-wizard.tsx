@@ -25,7 +25,6 @@ function VolunteerSignupWizard() {
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
-    const [dbsNumber, setDbsNumber] = useState('');
     const [firstAid, setFirstAid] = useState('none');
     const [roles, setRoles] = useState<string[]>([]);
     const [isOSM, setIsOSM] = useState(false);
@@ -157,7 +156,6 @@ function VolunteerSignupWizard() {
                         last_name: lastName,
                         email: email,
                         phone: phone,
-                        dbs_number: dbsNumber,
                         qualifications: {
                             first_aid: firstAid
                         },
@@ -190,9 +188,11 @@ function VolunteerSignupWizard() {
                 if (ev) {
                     const dates = getDatesForEvent(ev);
                     const allShifts: Shift[] = [];
-                    dates.forEach(d => {
+                    dates.forEach((d, idx) => {
                         allShifts.push({ date: d, overnight: 0 });
-                        allShifts.push({ date: d, overnight: 1 });
+                        if (idx < dates.length - 1) {
+                            allShifts.push({ date: d, overnight: 1 });
+                        }
                     });
                     setShifts(prev => ({ ...prev, [eventId]: allShifts }));
                 }
@@ -343,10 +343,6 @@ function VolunteerSignupWizard() {
                         <label>
                             Phone
                             <input type="tel" className="regular-text" value={phone} onChange={e => setPhone(e.target.value)} style={{ display: 'block', width: '100%' }} />
-                        </label>
-                        <label>
-                            DBS Number
-                            <input type="text" className="regular-text" value={dbsNumber} onChange={e => setDbsNumber(e.target.value)} style={{ display: 'block', width: '100%' }} />
                         </label>
                         <label>
                             First Aid Qualification
