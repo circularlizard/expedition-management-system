@@ -9,7 +9,6 @@ class Volunteer_Controller {
     public function __construct( ?Volunteer_Repository $repo = null ) {
         $this->repo = $repo ?: new Volunteer_Repository();
     }
-
     public function register_routes(): void {
         register_rest_route( 'ems/v1', '/volunteers', [
             'methods'             => \WP_REST_Server::READABLE,
@@ -23,6 +22,12 @@ class Volunteer_Controller {
             'permission_callback' => '__return_true', // Public endpoint
         ] );
 
+        register_rest_route( 'ems/v1', '/volunteers/events', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'get_public_events' ],
+            'permission_callback' => '__return_true', // Public endpoint
+        ] );
+
         register_rest_route( 'ems/v1', '/volunteers/assign', [
             'methods'             => \WP_REST_Server::CREATABLE,
             'callback'            => [ $this, 'assign' ],
@@ -30,6 +35,23 @@ class Volunteer_Controller {
         ] );
     }
 
+    public function get_public_events( \WP_REST_Request $request ): \WP_REST_Response {
+        $expeditions_repo = new \EMS\Data\Expedition_Repository();
+        $raw_events = $expeditions_repo->list_all_chronological();
+        $events = [];
+        foreach ( $raw_events as $event ) {
+            $events[] = [
+                'ID'             => (int) $event['ID'],
+                'post_title'     => $event['post_title'],
+                'ems_event_code' => $event['ems_event_code'] ?? '',
+                'ems_start_date' => $event['ems_start_date'] ?? '',
+                'ems_end_date'   => $event['ems_end_date'] ?? '',
+                'ems_start_time' => $event['ems_start_time'] ?? '',
+                'ems_end_time'   => $event['ems_end_time'] ?? '',
+            ];
+        }
+        return new \WP_REST_Response( $events, 200 );
+    }
     public function check_permission(): bool {
         return current_user_can( 'manage_options' );
     }

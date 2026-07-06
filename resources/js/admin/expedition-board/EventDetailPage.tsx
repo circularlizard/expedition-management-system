@@ -125,7 +125,7 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                 <EventForm seasonId={0} initialEvent={event} osmEvents={osmEvents} onSaved={(u) => { setEditing(false); onUpdated?.(u); }} onCancel={() => setEditing(false)} />
             ) : (
                 <>
-                    <div className="ems-section"><div className="ems-section__header">Event Details</div>
+                    <div className="ems-tab-section"><h3 className="ems-tab-section-title">Event Details</h3>
                         <div className={grd(4)}>
                             <FieldVal label="Type" value={capitalize(event.ems_type)} />
                             <FieldVal label="Transport" value={capitalize(event.ems_transport || '')} />
@@ -133,7 +133,7 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                             <FieldVal label="First Aid" value={FA_LABELS[event.ems_first_aid_level as FirstAidLevel] ?? event.ems_first_aid_level} />
                         </div>
                     </div>
-                    <div className="ems-section"><div className="ems-section__header">Schedule & Locations</div>
+                    <div className="ems-tab-section"><h3 className="ems-tab-section-title">Schedule & Locations</h3>
                         <div className={grd(4)}>
                             <FieldVal label="Start Date" value={formatDate(event.ems_start_date)} />
                             <FieldVal label="Start Time" value={event.ems_start_time} />
@@ -144,7 +144,7 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                         </div>
                         <OSMReadOnlyMap startLocation={event.ems_start_location} endLocation={event.ems_end_location} />
                     </div>
-                    <div className="ems-section"><div className="ems-section__header">Leader in Charge</div>
+                    <div className="ems-tab-section"><h3 className="ems-tab-section-title">Leader in Charge</h3>
                         <div className={grd(3)}>
                             <FieldVal label="Name" value={event.ems_lic_name} />
                             <FieldVal label="Email" value={event.ems_lic_email} />
@@ -152,7 +152,7 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                             <FieldVal label="LIC ID" value={event.ems_lic_id} />
                         </div>
                     </div>
-                    <div className="ems-section"><div className="ems-section__header">OSM & Route</div>
+                    <div className="ems-tab-section"><h3 className="ems-tab-section-title">OSM & Route</h3>
                         <div className={grd(3)}>
                             <FieldVal label="OSM Event ID" value={event.ems_osm_event_id} />
                             <FieldVal label="Route Deadline" value={formatDate(event.ems_route_deadline)} />
@@ -160,7 +160,7 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                         </div>
                        {event.ems_route_info && (
                              <div>
-                                  <div className="ems-section__header ems-section__header--mt">Route Information</div>
+                                  <h3 className="ems-tab-section-title ems-mt-16">Route Information</h3>
                                  <div
                                      className="ems-rte-readonly ems-rte-readonly__content"
                                      dangerouslySetInnerHTML={{ __html: event.ems_route_info }}
@@ -699,75 +699,79 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
 
     return (
         <div>
-            <h3 className="ems-training-header">Tutor LMS Training Requirements</h3>
-            <p className="ems-training-description">Select the training courses required for participants in this expedition:</p>
+            <div className="ems-tab-section">
+                <h3 className="ems-tab-section-title">Tutor LMS Training Requirements</h3>
+                <p className="ems-tab-section-description">Select the training courses required for participants in this expedition:</p>
 
-            {/* Course Selector Checklist */}
-            <div className="ems-training-grid">
-                {courses.map(course => (
-                    <label key={course.id} className="ems-training-course">
-                        <input
-                            type="checkbox"
-                            checked={selectedIds.includes(course.id)}
-                            onChange={() => handleToggleCourse(course.id)}
-                            className="ems-checkbox ems-m-0"
-                        />
-                        {course.title}
-                    </label>
-                ))}
-                {courses.length === 0 && <p className="ems-training-empty">No Tutor LMS courses found.</p>}
+                {/* Course Selector Checklist */}
+                <div className="ems-training-grid">
+                    {courses.map(course => (
+                        <label key={course.id} className="ems-training-course">
+                            <input
+                                type="checkbox"
+                                checked={selectedIds.includes(course.id)}
+                                onChange={() => handleToggleCourse(course.id)}
+                                className="ems-checkbox ems-m-0"
+                            />
+                            {course.title}
+                        </label>
+                    ))}
+                    {courses.length === 0 && <p className="ems-training-empty">No Tutor LMS courses found.</p>}
+                </div>
+
+                <button type="button" className="button button-primary ems-mt-16" onClick={handleSave} disabled={saving || courses.length === 0}>
+                    {saving ? 'Saving…' : 'Save Training Requirements'}
+                </button>
             </div>
 
-            <button type="button" className="button button-primary ems-mt-16 ems-mb-24" onClick={handleSave} disabled={saving || courses.length === 0}>
-                {saving ? 'Saving…' : 'Save Training Requirements'}
-            </button>
-
-            {/* Participant Completion Matrix */}
-            <h4 className="ems-completion-header ems-mb-12">Explorer Completion Status</h4>
-            {requiredCourses.length === 0 ? (
-                <div className="ems-training-info-box">
-                    No training requirements selected. Select courses above to track participant completion.
-                </div>
-            ) : (
-                <table className="widefat striped ems-completion-table">
-                    <thead>
-                        <tr>
-                            <th>Explorer</th>
-                            {requiredCourses.map(c => (
-                                <th key={c.id}>{c.title}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {[...completion].sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)).map(row => (
-                            <tr key={row.scout_id}>
-                                <td className="ems-completion-name">
-                                    <div>{row.first_name} {row.last_name}</div>
-                                    <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>Unit: {row.unit_name ?? 'Unassigned'}</div>
-                                </td>
-                                {requiredCourses.map(c => {
-                                    const status = row.matrix[c.id];
-                                    const isComplete = status === 'complete';
-                                    return (
-                                        <td key={c.id}>
-                                            <span className={`ems-status-badge ems-status-badge--${isComplete ? 'success' : 'danger'}`}>
-                                                {isComplete ? '✅ Complete' : '❌ Incomplete'}
-                                            </span>
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        ))}
-                        {completion.length === 0 && (
+            <div className="ems-tab-section">
+                {/* Participant Completion Matrix */}
+                <h3 className="ems-tab-section-title">Explorer Completion Status</h3>
+                {requiredCourses.length === 0 ? (
+                    <div className="ems-training-info-box">
+                        No training requirements selected. Select courses above to track participant completion.
+                    </div>
+                ) : (
+                    <table className="widefat striped ems-completion-table">
+                        <thead>
                             <tr>
-                                <td colSpan={requiredCourses.length + 1} className="ems-empty-cell">
-                                    No participants assigned to this event yet.
-                                </td>
+                                <th>Explorer</th>
+                                {requiredCourses.map(c => (
+                                    <th key={c.id}>{c.title}</th>
+                                ))}
                             </tr>
-                        )}
-                    </tbody>
-                </table>
-            )}
+                        </thead>
+                        <tbody>
+                            {[...completion].sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)).map(row => (
+                                <tr key={row.scout_id}>
+                                    <td className="ems-completion-name">
+                                        <div>{row.first_name} {row.last_name}</div>
+                                        <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>Unit: {row.unit_name ?? 'Unassigned'}</div>
+                                    </td>
+                                    {requiredCourses.map(c => {
+                                        const status = row.matrix[c.id];
+                                        const isComplete = status === 'complete';
+                                        return (
+                                            <td key={c.id}>
+                                                <span className={`ems-status-badge ems-status-badge--${isComplete ? 'success' : 'danger'}`}>
+                                                    {isComplete ? '✅ Complete' : '❌ Incomplete'}
+                                                </span>
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                            {completion.length === 0 && (
+                                <tr>
+                                    <td colSpan={requiredCourses.length + 1} className="ems-empty-cell">
+                                        No participants assigned to this event yet.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                )}
+            </div>
         </div>
     );
 };
@@ -858,9 +862,9 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
     if (loading) return <p>Loading support needs…</p>;
 
     return (
-        <div>
-            <h3 className="ems-asn-header">Additional Support Needs (Medical / PII)</h3>
-            <p className="ems-asn-desc">Secure directory of registered medical or accessibility requirements for this expedition.</p>
+        <div className="ems-tab-section">
+            <h3 className="ems-tab-section-title">Additional Support Needs (Medical / PII)</h3>
+            <p className="ems-tab-section-description">Secure directory of registered medical or accessibility requirements for this expedition.</p>
 
             <table className="widefat striped ems-asn-table">
                 <thead>
@@ -936,8 +940,8 @@ const QRCodesTab: React.FC<{ event: Expedition }> = ({ event }) => {
     };
 
     return (
-        <div>
-            <h3 className="ems-qr-header">WhatsApp Group Links & QR Codes</h3>
+        <div className="ems-tab-section">
+            <h3 className="ems-tab-section-title">WhatsApp Group Links & QR Codes</h3>
             <form onSubmit={save} className="ems-qr-form">
                 <table className="form-table ems-qr-table">
                     <tbody>
@@ -1157,8 +1161,8 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
 
     return (
         <div>
-            <div className="ems-detail-section">
-                <div className="ems-detail-section-label">Staffing Indicators</div>
+            <div className="ems-tab-section">
+                <h3 className="ems-tab-section-title">Staffing Indicators</h3>
                 <div style={{ display: 'flex', gap: '10px', margin: '10px 0' }}>
                     <span className={`ems-status-badge ${assignedVolunteers.length >= 2 ? 'ems-status-badge--active' : 'ems-status-badge--archived'}`}>
                         Supervisors: {assignedVolunteers.filter(v => v.preferred_roles?.includes('supervisor')).length} / 2
@@ -1170,8 +1174,8 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
             </div>
 
             {/* Daily Grid View */}
-            <div className="ems-detail-section">
-                <div className="ems-detail-section-label">Event Schedule / Shifts Grid</div>
+            <div className="ems-tab-section">
+                <h3 className="ems-tab-section-title">Event Schedule / Shifts Grid</h3>
                 {datesList.length === 0 ? (
                     <p style={{ fontStyle: 'italic', color: '#666' }}>No event dates defined.</p>
                 ) : (
@@ -1256,8 +1260,8 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
                 )}
             </div>
 
-            <div className="ems-detail-section">
-                <div className="ems-detail-section-label">Assigned Volunteers</div>
+            <div className="ems-tab-section">
+                <h3 className="ems-tab-section-title">Assigned Volunteers</h3>
                 <table className="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
@@ -1293,8 +1297,8 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
                 </table>
             </div>
 
-            <div className="ems-detail-section">
-                <div className="ems-detail-section-label">Available / Pending Volunteers</div>
+            <div className="ems-tab-section">
+                <h3 className="ems-tab-section-title">Available / Pending Volunteers</h3>
                 <table className="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
