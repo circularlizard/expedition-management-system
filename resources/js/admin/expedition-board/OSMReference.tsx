@@ -39,7 +39,7 @@ function FirstAidPill({ level }: { level?: FirstAidLevel }) {
     const icon = l === 'first_response' ? '✚' : l === 'full_first_aid' ? '⊕' : null;
     return (
         <span className={FA_PILL_CLASS[l] ?? FA_PILL_CLASS.none}>
-            {icon && <span style={{ marginRight: '4px' }}>{icon}</span>}
+            {icon && <span className="ems-mr-4">{icon}</span>}
             {FA_LABELS[l]}
         </span>
     );
@@ -152,10 +152,9 @@ function SortHeader({ label, sortKey, active, dir, onSort }: {
     const isActive = active === sortKey;
     return (
         <th
-            className="ems-osm-ref-col-header"
+            className="ems-osm-ref-col-header ems-cursor-pointer"
             onClick={() => onSort(sortKey)}
             aria-sort={isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-            style={{ cursor: 'pointer' }}
         >
             {label}{' '}
             <span className={`ems-osm-ref-col-sort ${isActive ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
@@ -420,8 +419,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                             <tr 
                                                 key={explorer.scout_id} 
                                                 onClick={() => setSelectedScoutId(explorer.scout_id)}
-                                                className={`ems-row-hoverable ${isSelected ? 'ems-row-selected' : ''}`}
-                                                style={{ cursor: 'pointer' }}
+                                                className={`ems-row-hoverable ems-cursor-pointer ${isSelected ? 'ems-row-selected' : ''}`}
                                             >
                                                 <td>
                                                     <span className="ems-osm-ref-name">
@@ -483,9 +481,8 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                             <button
                                 type="button"
                                 onClick={() => setSelectedScoutId(null)}
-                                className="button-link"
+                                className="ems-inspector__close"
                                 aria-label="&times;"
-                                style={{ fontSize: '20px', marginLeft: '10px', textDecoration: 'none', border: 'none', background: 'none', cursor: 'pointer' }}
                             >
                                 &times;
                             </button>
@@ -546,8 +543,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                             value={levels[selectedScoutId] ?? 'none'}
                                             onChange={(e) => updateLevel(sorted.find(r => r.explorer.scout_id === selectedScoutId)!.explorer, e.target.value as FirstAidLevel)}
                                             disabled={saving[selectedScoutId]}
-                                            className="ems-select"
-                                            style={{ width: '100%', maxWidth: '240px' }}
+                                            className="ems-select ems-width-full-max-240"
                                         >
                                             {(Object.keys(FA_LABELS) as FirstAidLevel[]).map((level) => (
                                                 <option key={level} value={level}>{FA_LABELS[level]}</option>
@@ -559,14 +555,14 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     </div>
                                 </div>
 
-                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+                                <hr className="ems-divider" />
 
                                 {/* Event status matrix */}
                                 <div>
                                     <span className="ems-signups-inspector__label">Training Events</span>
                                     <div className="ems-mt-4">
                                         {profileData.training_events && profileData.training_events.length > 0 ? (
-                                            <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
+                                            <ul className="ems-inspector-list">
                                                 {profileData.training_events.map((ev: any, idx: number) => (
                                                     <li key={idx}>
                                                         <strong>{ev.event_title} ({ev.team_code})</strong> — Status: <i>{ev.osm_status}</i>
@@ -581,7 +577,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     <span className="ems-signups-inspector__label">Practice Events</span>
                                     <div className="ems-mt-4">
                                         {profileData.practice_events && profileData.practice_events.length > 0 ? (
-                                            <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
+                                            <ul className="ems-inspector-list">
                                                 {profileData.practice_events.map((ev: any, idx: number) => (
                                                     <li key={idx}>
                                                         <strong>{ev.event_title} ({ev.team_code})</strong> — Status: <i>{ev.osm_status}</i>
@@ -596,7 +592,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     <span className="ems-signups-inspector__label">Qualifiers Events</span>
                                     <div className="ems-mt-4">
                                         {profileData.qualifiers_events && profileData.qualifiers_events.length > 0 ? (
-                                            <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
+                                            <ul className="ems-inspector-list">
                                                 {profileData.qualifiers_events.map((ev: any, idx: number) => (
                                                     <li key={idx}>
                                                         <strong>{ev.event_title} ({ev.team_code})</strong> — Status: <i>{ev.osm_status}</i>
@@ -607,12 +603,12 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     </div>
                                 </div>
 
-                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+                                <hr className="ems-divider" />
 
                                 {/* Additional support needs (ASN) */}
                                 <div>
                                     <span className="ems-signups-inspector__label">Parent Additional Support Needs</span>
-                                    <div className="ems-mt-4 ems-signups-inspector__support-box" style={{ background: '#f6f7f7', padding: '8px', borderRadius: '4px' }}>
+                                    <div className="ems-mt-4 ems-signups-inspector__support-box">
                                         {profileData.parent_asn || 'No support needs declared by parent.'}
                                     </div>
                                 </div>
@@ -621,8 +617,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     <label htmlFor="confidential-notes" className="ems-signups-inspector__label">Confidential Leaders' Notes</label>
                                     <textarea
                                         id="confidential-notes"
-                                        className="ems-signups-inspector__input ems-mt-4"
-                                        style={{ width: '100%' }}
+                                        className="ems-signups-inspector__input ems-mt-4 ems-block-input"
                                         rows={4}
                                         value={editedNotes}
                                         onChange={(e) => setEditedNotes(e.target.value)}
@@ -639,7 +634,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     </button>
                                 </div>
 
-                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+                                <hr className="ems-divider" />
 
                                 {/* Expedition Preferences */}
                                 <div>
@@ -662,13 +657,13 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     ) : <div className="ems-signups-inspector__value">—</div>}
                                 </div>
 
-                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+                                <hr className="ems-divider" />
 
                                 {/* Tutor LMS training records */}
                                 <div>
                                     <span className="ems-signups-inspector__label">Tutor LMS Training Records</span>
                                     {profileData.training_records && profileData.training_records.length > 0 ? (
-                                        <table className="widefat striped ems-table ems-mt-4" style={{ border: '1px solid #ccd0d4' }}>
+                                        <table className="widefat striped ems-table ems-mt-4 ems-table--bordered">
                                             <thead>
                                                 <tr>
                                                     <th>Course Title</th>
@@ -691,13 +686,13 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     ) : <div className="ems-signups-inspector__value">—</div>}
                                 </div>
 
-                                <hr style={{ borderTop: '1px solid #ccd0d4', margin: '8px 0' }} />
+                                <hr className="ems-divider" />
 
                                 {/* Participant place signups */}
                                 <div>
                                     <span className="ems-signups-inspector__label">Participant Place Signups</span>
                                     {profileData.participant_signups && profileData.participant_signups.length > 0 ? (
-                                        <table className="widefat striped ems-table ems-mt-4" style={{ border: '1px solid #ccd0d4' }}>
+                                        <table className="widefat striped ems-table ems-mt-4 ems-table--bordered">
                                             <thead>
                                                 <tr>
                                                     <th>Level</th>
