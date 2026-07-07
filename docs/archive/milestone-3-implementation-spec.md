@@ -104,7 +104,7 @@ To prevent double-booking volunteers across concurrent events, the backend contr
 
 ## 4. Admin Interfaces (WordPress Backend)
 
-All admin UI components must adhere to the style guide in [style-refactor-spec.md](style-refactor-spec.md) and use the native WordPress/EMS palette.
+All admin UI components must adhere to the style guide in [style-refactor-spec.md](../style-refactor-spec.md) and use the native WordPress/EMS palette.
 
 ### 4.1 Volunteer Signups Page & Matrix Grid
 Add a submenu page **Volunteer Signups** (`EMS -> Volunteer Signups`) rendering a comprehensive grid.

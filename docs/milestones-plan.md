@@ -55,7 +55,7 @@ Full specification: [milestone-2.5-implementation-spec.md](milestone-2.5-impleme
 ## Milestone 3: Adult Volunteer Availability Mapping
 *Gathers adult availability, maps volunteer coverage across dates, and notifies cover assignments.*
 
-Full specification: [milestone-3-implementation-spec.md](milestone-3-implementation-spec.md)
+Full specification: [milestone-3-implementation-spec.md](archive/milestone-3-implementation-spec.md)
 
 *   **Next Steps (Remains)**:
     *   [ ] Build the external-facing volunteer signup wizard form (Step 1 macro-filter, Step 2 micro-availability builder, Step 3 review & submit), integrating OSM OAuth or guest enrollment.
