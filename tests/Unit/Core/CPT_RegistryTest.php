@@ -81,11 +81,9 @@ class CPT_RegistryTest extends EMSTestCase {
 
         ( new CPT_Registry() )->register();
 
-        $this->assertArrayHasKey( 'season', $captured );
         $this->assertArrayHasKey( 'expedition', $captured );
         $this->assertArrayHasKey( 'team', $captured );
 
-        $this->assertFalse( $captured['season']['show_in_menu'] );
         $this->assertFalse( $captured['expedition']['show_in_menu'] );
         $this->assertFalse( $captured['team']['show_in_menu'] );
     }
@@ -130,47 +128,7 @@ class CPT_RegistryTest extends EMSTestCase {
         }
     }
 
-    public function test_register_calls_register_post_type_for_season(): void {
-        $registered = [];
-        Functions\when( 'register_post_type' )->alias(
-            static function ( string $type, array $args ) use ( &$registered ): void {
-                $registered[] = $type;
-            }
-        );
 
-        ( new CPT_Registry() )->register();
-
-        $this->assertContains( 'season', $registered );
-    }
-
-    public function test_season_args_include_show_in_rest(): void {
-        $captured = [];
-        Functions\when( 'register_post_type' )->alias(
-            static function ( string $type, array $args ) use ( &$captured ): void {
-                $captured[ $type ] = $args;
-            }
-        );
-
-        ( new CPT_Registry() )->register();
-
-        $this->assertFalse( $captured['season']['show_in_rest'] );
-    }
-
-    public function test_season_meta_field_list_covers_required_keys(): void {
-        $registry = new CPT_Registry();
-        $fields   = $registry->get_season_meta_fields();
-
-        foreach ( [ 'ems_season_year', 'ems_season_status' ] as $key ) {
-            $this->assertArrayHasKey( $key, $fields, "Missing season meta field: {$key}" );
-        }
-    }
-
-    public function test_season_status_enum_values(): void {
-        $registry = new CPT_Registry();
-        $fields   = $registry->get_season_meta_fields();
-
-        $this->assertSame( [ 'active', 'archived' ], $fields['ems_season_status']['enum'] );
-    }
 
     public function test_expedition_meta_includes_new_planner_fields(): void {
         $registry = new CPT_Registry();

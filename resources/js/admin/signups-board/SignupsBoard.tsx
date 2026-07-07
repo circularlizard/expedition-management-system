@@ -396,6 +396,17 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                 <option value="biking">Biking</option>
                             </select>
                         </div>
+
+                        <button
+                            type="button"
+                            className="button button-secondary"
+                            onClick={() => {
+                                const exportUrl = `${config.root_url}/signups/participants/export?status=${statusFilter}&level=${levelFilter}&_wpnonce=${config.nonce}`;
+                                window.location.href = exportUrl;
+                            }}
+                        >
+                            Export CSV
+                        </button>
                     </div>
                 </div>
 
