@@ -272,7 +272,7 @@ export default function EventPlanningBoard() {
 
           {/* Right header row */}
           <div className="ems-toolbar ems-planning-toolbar">
-            <h3 className="ems-section-heading ems-planning-header">
+            <h3 className="ems-section-heading ems-planning-header ems-m-0">
               {selectedEvent
                 ? `Explorer Availability (${selectedEvent.event_code})`
                 : 'Explorer Availability'}

@@ -1,5 +1,5 @@
 import '../../../css/ems-admin.css';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 
 interface Shift {
@@ -39,6 +39,21 @@ function VolunteersDashboard() {
     const [events, setEvents] = useState<Expedition[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
+    const inspectorRef = useRef<HTMLDivElement>(null);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [itemsPerPage, setItemsPerPage] = useState<number>(25);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [itemsPerPage]);
+
+    useEffect(() => {
+        if (selectedVolunteer && inspectorRef.current) {
+            inspectorRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [selectedVolunteer]);
 
     const config = (window as any).emsVolunteers || { root_url: '/wp-json/ems/v1', nonce: '' };
 
@@ -77,6 +92,12 @@ function VolunteersDashboard() {
         fetchAll();
     }, []);
 
+    const totalPages = Math.ceil(volunteers.length / itemsPerPage);
+    const paginatedVolunteers = volunteers.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
     const handleAssign = async (eventId: number, confirmVal: number) => {
         if (!selectedVolunteer) return;
         try {
@@ -109,72 +130,64 @@ function VolunteersDashboard() {
     };
 
     if (loading) {
-        return <div style={{ padding: '20px' }}>Loading volunteers availability grid...</div>;
+        return <div className="ems-p-20">Loading volunteers availability grid...</div>;
     }
 
     return (
-        <div>
+        <div className="wrap">
+            <div className="ems-flex-between ems-mb-16">
+                <h2 className="ems-m-0">Volunteers Grid</h2>
+                <span className="ems-meta-text">Total Volunteers: {volunteers.length}</span>
+            </div>
             {/* Status Legend Key */}
-            <div style={{
-                background: '#fff',
-                border: '1px solid #ccd0d4',
-                padding: '12px 16px',
-                borderRadius: '6px',
-                marginBottom: '20px',
-                display: 'flex',
-                gap: '24px',
-                fontSize: '13px',
-                color: '#1d2327',
-                alignItems: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-            }}>
-                <strong>Status Key:</strong>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ background: '#46b450', color: '#fff', width: '20px', height: '20px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '11px' }}>✓</span>
-                    Confirmed
+            <div className="ems-volunteers-legend-bar">
+                <span className="ems-inline-flex-center ems-gap-8">
+                    <span className="ems-volunteers-status-icon ems-volunteers-status-icon--confirmed">✓</span>
+                    Confirmed shift(s) on event
                 </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ background: '#f0b818', color: '#fff', width: '20px', height: '20px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '11px' }}>?</span>
-                    Pending
+                <span className="ems-inline-flex-center ems-gap-8">
+                    <span className="ems-volunteers-status-icon ems-volunteers-status-icon--pending">?</span>
+                    Overnight requested but not confirmed
                 </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ background: '#dc3232', color: '#fff', width: '20px', height: '20px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '11px' }}>✖</span>
-                    Conflicted
+                <span className="ems-inline-flex-center ems-gap-8">
+                    <span className="ems-volunteers-status-icon ems-volunteers-status-icon--rejected">✖</span>
+                    Shift requested on different event (Conflict)
                 </span>
-                <span style={{ borderLeft: '1px solid #ccd0d4', height: '16px', margin: '0 8px' }} />
+                <span className="ems-volunteers-v-divider" />
                 <span><strong>Border Style:</strong> Solid Circle = Whole Event, Dotted Circle = Partial Commitment</span>
             </div>
 
-            <div style={{ display: 'flex', gap: '20px', position: 'relative' }}>
-                <div style={{ flex: 1, overflowX: 'auto' }}>
+            <div className="ems-volunteers-split">
+                <div className="ems-volunteers-table-wrap">
                     <table className="wp-list-table widefat fixed striped table-view-list">
                         <thead>
                             <tr>
-                                <th style={{ width: '200px' }}>Volunteer</th>
+                                <th className="ems-volunteers-col-name">Volunteer</th>
                                 {events.map(e => (
-                                    <th key={e.ID} style={{ fontSize: '11px', textAlign: 'center', width: '100px' }} title={`${e.post_title} (${e.ems_event_code})`}>
-                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.post_title}</div>
-                                        <span style={{ fontSize: '9px', color: '#666', fontWeight: 'normal' }}>({e.ems_event_code})</span>
+                                    <th key={e.ID} className="ems-volunteers-col-event" title={`${e.post_title} (${e.ems_event_code})`}>
+                                        <div className="ems-ellipsis">{e.post_title}</div>
+                                        <span className="ems-volunteers-event-code">({e.ems_event_code})</span>
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {volunteers.map(v => (
-                                <tr key={v.id} onClick={() => setSelectedVolunteer(v)} style={{ cursor: 'pointer' }}>
+                            {paginatedVolunteers.map(v => (
+                                <tr key={v.id} onClick={() => setSelectedVolunteer(v)} className="ems-row-hoverable ems-cursor-pointer">
                                     <td>
                                         <strong>{v.first_name} {v.last_name}</strong><br/>
-                                        <span style={{ fontSize: '11px', color: '#666' }}>{v.email}</span>
+                                        <span className="ems-table-cell--meta">{v.email}</span>
                                     </td>
                                     {events.map(e => {
                                         const eventShifts = v.availability.filter(s => s.expedition_post_id === e.ID);
                                         if (eventShifts.length === 0) {
-                                            return <td key={e.ID} style={{ textAlign: 'center', color: '#ccc' }}>—</td>;
+                                            return <td key={e.ID} className="ems-volunteers-cell-empty">—</td>;
                                         }
 
                                         const hasConfirmed = eventShifts.some(s => s.confirmed === 1);
                                         const hasConflicted = eventShifts.some(s => s.confirmed === -1);
                                         const isWhole = eventShifts[0]?.signup_type === 'whole';
+                                        const isOvernightSignup = eventShifts.some(s => s.overnight === 1);
 
                                         let badgeColor = '#f0b818';
                                         let symbol = '?';
@@ -189,7 +202,6 @@ function VolunteersDashboard() {
                                             titleText = 'Conflicted';
                                         }
 
-                                        // Desaturate fill color for partial commitment
                                         let finalBadgeColor = badgeColor;
                                         if (!isWhole) {
                                             if (hasConfirmed) {
@@ -205,22 +217,13 @@ function VolunteersDashboard() {
                                         const fullTooltip = `${titleText} (${commitmentLabel}) on ${e.post_title}`;
 
                                         return (
-                                            <td key={e.ID} style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                            <td key={e.ID} className="ems-volunteers-cell-value">
                                                 <div
                                                     title={fullTooltip}
+                                                    className="ems-volunteers-cell-indicator"
                                                     style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        width: '24px',
-                                                        height: '24px',
-                                                        borderRadius: '50%',
                                                         background: finalBadgeColor,
-                                                        color: '#fff',
-                                                        fontWeight: 'bold',
-                                                        fontSize: '11px',
-                                                        border: isWhole ? '2px solid transparent' : '2px dashed #666',
-                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                                        border: isWhole ? '2px solid transparent' : '2px dashed #666'
                                                     }}
                                                 >
                                                     {symbol}
@@ -230,14 +233,77 @@ function VolunteersDashboard() {
                                     })}
                                 </tr>
                             ))}
-                        </tbody>
-                    </table>
+                     </table>
+
+                    {/* Pagination Bar */}
+                    {volunteers.length > 0 && (
+                        <div className="ems-table-pagination">
+                            <div className="ems-meta-text">
+                                Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, volunteers.length)} of {volunteers.length} records
+                            </div>
+                            <div className="ems-flex-center ems-gap-8">
+                                <label htmlFor="vol-items-per-page" className="ems-toolbar__label">Items per page:</label>
+                                <select
+                                    id="vol-items-per-page"
+                                    className="ems-select-sm"
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(parseInt(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+
+                                <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        «
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        ‹ Prev
+                                    </button>
+                                    <span className="ems-meta-text ems-mx-8">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next ›
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        »
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {selectedVolunteer && (
-                    <div style={{ width: '320px', background: '#fff', border: '1px solid #ccd0d4', padding: '16px', borderRadius: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                            <h3>Volunteer Details</h3>
+                    <div ref={inspectorRef} className="ems-signups-inspector ems-p-16">
+                        <div className="ems-flex-between ems-mb-12">
+                            <h3 className="ems-m-0 ems-font-semibold">Volunteer Details</h3>
                             <button className="button" onClick={() => setSelectedVolunteer(null)}>Close</button>
                         </div>
                         <p><strong>Name:</strong> {selectedVolunteer.first_name} {selectedVolunteer.last_name}</p>
@@ -255,24 +321,24 @@ function VolunteersDashboard() {
                             const signupType = eventShifts[0]?.signup_type || 'part';
 
                             return (
-                                <div key={ev.ID} style={{ borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '8px' }}>
-                                    <p style={{ margin: '0 0 4px 0', fontSize: '12px' }}>
+                                <div key={ev.ID} className="ems-volunteer-avail-item">
+                                    <p className="ems-m-0 ems-mb-4 ems-meta-text">
                                         <strong>{ev.post_title}</strong> ({ev.ems_event_code})
                                     </p>
-                                    <p style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#666' }}>
+                                    <p className="ems-m-0 ems-mb-6 ems-table-cell--meta">
                                         Commitment: <strong>{signupType === 'whole' ? 'Whole Event' : 'Partial'}</strong>
                                     </p>
                                     {signupType === 'part' && (
-                                        <div style={{ background: '#f9f9f9', padding: '6px', borderRadius: '3px', fontSize: '11px', marginBottom: '8px' }}>
-                                            <strong style={{ display: 'block', marginBottom: '2px' }}>Requested Shifts:</strong>
+                                        <div className="ems-volunteer-avail-shifts">
+                                            <strong className="ems-mb-2 ems-display-block">Requested Shifts:</strong>
                                             {eventShifts.map((s, idx) => (
-                                                <div key={idx} style={{ padding: '2px 0' }}>
+                                                <div key={idx} className="ems-volunteer-avail-shift">
                                                     📅 {s.date} {s.overnight ? '(Overnight)' : '(Day)'}
                                                 </div>
                                             ))}
                                         </div>
                                     )}
-                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                    <div className="ems-flex-center ems-gap-6">
                                         {!isConfirmed && (
                                             <button className="button button-small button-primary" onClick={() => handleAssign(ev.ID, 1)}>Confirm Assignment</button>
                                         )}
