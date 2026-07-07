@@ -31,7 +31,7 @@ interface EventTeam {
 type LevelFilter    = 'silver' | 'gold';
 type TypeFilter     = 'practice' | 'qualifier';
 type AllocationMode = 'unallocated' | 'new_team' | 'existing_team';
-type SortBy         = 'name' | 'unit';
+type SortBy         = 'name' | 'unit' | 'allocation';
 
 function Spinner() {
   return <span className="ems-spinner" aria-label="Loading…" />;
@@ -53,6 +53,8 @@ export default function EventPlanningBoard() {
   const [explorersLoading, setExplorersLoading] = useState(false);
   const [selectedScoutIds, setSelectedScoutIds] = useState<number[]>([]);
   const [sortBy,           setSortBy]           = useState<SortBy>('name');
+  const [filterUnit,       setFilterUnit]       = useState<string>('all');
+  const [filterAllocated,  setFilterAllocated]  = useState<'all' | 'allocated' | 'unallocated'>('all');
   const [allocationMode,   setAllocationMode]   = useState<AllocationMode>('unallocated');
   const [targetTeamId,     setTargetTeamId]     = useState<number>(0);
   const [eventTeams,       setEventTeams]       = useState<EventTeam[]>([]);
@@ -82,6 +84,8 @@ export default function EventPlanningBoard() {
     setSelectedScoutIds([]);
     setEventTeams([]);
     setAllocationMode('unallocated');
+    setFilterUnit('all');
+    setFilterAllocated('all');
     setFeedback(null);
     setExplorersLoading(true);
 
@@ -103,10 +107,15 @@ export default function EventPlanningBoard() {
       prev.includes(scout_id) ? prev.filter(id => id !== scout_id) : [...prev, scout_id]
     );
 
-  const handleToggleSelectAll = () =>
-    setSelectedScoutIds(prev =>
-      prev.length === explorers.length ? [] : explorers.map(e => e.scout_id)
-    );
+  const handleToggleSelectAll = () => {
+    const visibleIds = sortedExplorers.map(e => e.scout_id);
+    const allVisibleSelected = visibleIds.every(id => selectedScoutIds.includes(id));
+    if (allVisibleSelected) {
+      setSelectedScoutIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedScoutIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
 
   // ── Apply allocation action ────────────────────────────────────────────────
   const handleApplyAction = async () => {
@@ -140,13 +149,29 @@ export default function EventPlanningBoard() {
   };
 
   // ── Sort explorers ─────────────────────────────────────────────────────────
-  const sortedExplorers = [...explorers].sort((a, b) => {
+  // ── Sort & Filter explorers ────────────────────────────────────────────────
+  const availableUnits = Array.from(new Set(explorers.map(e => e.unit_name).filter(Boolean))).sort();
+
+  const filteredExplorers = explorers.filter(exp => {
+    if (filterUnit !== 'all' && exp.unit_name !== filterUnit) return false;
+    if (filterAllocated === 'allocated' && !exp.allocated_event_code) return false;
+    if (filterAllocated === 'unallocated' && exp.allocated_event_code) return false;
+    return true;
+  });
+
+  const sortedExplorers = [...filteredExplorers].sort((a, b) => {
     if (sortBy === 'unit') return a.unit_name.localeCompare(b.unit_name);
+    if (sortBy === 'allocation') {
+      const aAlloc = !!a.allocated_event_code;
+      const bAlloc = !!b.allocated_event_code;
+      if (aAlloc !== bAlloc) return aAlloc ? 1 : -1; // Unallocated first
+      return `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`);
+    }
     return `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`);
   });
 
-  const allSelected  = explorers.length > 0 && selectedScoutIds.length === explorers.length;
-  const someSelected = selectedScoutIds.length > 0 && selectedScoutIds.length < explorers.length;
+  const allSelected  = sortedExplorers.length > 0 && sortedExplorers.every(e => selectedScoutIds.includes(e.scout_id));
+  const someSelected = sortedExplorers.length > 0 && sortedExplorers.some(e => selectedScoutIds.includes(e.scout_id)) && !allSelected;
 
   return (
     <div className="ems-panel ems-panel--full-height">
@@ -254,16 +279,48 @@ export default function EventPlanningBoard() {
             </h3>
             {selectedEvent && (
               <div className="ems-toolbar__group">
-                <label className="ems-toolbar__label" htmlFor="epb-sort">Sort</label>
-                <select
-                  id="epb-sort"
-                  className="ems-select-sm"
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as SortBy)}
-                >
-                  <option value="name">Name</option>
-                  <option value="unit">Unit</option>
-                </select>
+                <div className="ems-flex-center ems-gap-4">
+                  <label className="ems-toolbar__label" htmlFor="epb-sort">Sort</label>
+                  <select
+                    id="epb-sort"
+                    className="ems-select-sm"
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as SortBy)}
+                  >
+                    <option value="name">Name</option>
+                    <option value="unit">Unit</option>
+                    <option value="allocation">Allocation Status</option>
+                  </select>
+                </div>
+
+                <div className="ems-flex-center ems-gap-4">
+                  <label className="ems-toolbar__label" htmlFor="epb-filter-unit">Unit</label>
+                  <select
+                    id="epb-filter-unit"
+                    className="ems-select-sm"
+                    value={filterUnit}
+                    onChange={e => setFilterUnit(e.target.value)}
+                  >
+                    <option value="all">All Units</option>
+                    {availableUnits.map(unit => (
+                      <option key={unit} value={unit}>{unit}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="ems-flex-center ems-gap-4">
+                  <label className="ems-toolbar__label" htmlFor="epb-filter-alloc">Status</label>
+                  <select
+                    id="epb-filter-alloc"
+                    className="ems-select-sm"
+                    value={filterAllocated}
+                    onChange={e => setFilterAllocated(e.target.value as typeof filterAllocated)}
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="allocated">Allocated</option>
+                    <option value="unallocated">Unallocated</option>
+                  </select>
+                </div>
               </div>
             )}
           </div>
@@ -316,7 +373,7 @@ export default function EventPlanningBoard() {
                             <div className="ems-table__name">{exp.first_name} {exp.last_name}</div>
                             <div className="ems-table__meta">Unit: {exp.unit_name}</div>
                           </td>
-                          <td style={{ fontSize: '11px', color: '#666' }}>
+                          <td className="ems-table-cell--meta">
                             {exp.team_preferences || '—'}
                           </td>
                           <td>
@@ -335,47 +392,50 @@ export default function EventPlanningBoard() {
                 </table>
               </div>
 
-              {/* Action bar */}
-              <div className="ems-action-bar">
-                <div className="ems-action-bar__controls">
-                  <select
-                    className="ems-select"
-                    value={allocationMode}
-                    onChange={e => setAllocationMode(e.target.value as AllocationMode)}
-                    aria-label="Allocation action"
-                  >
-                    <option value="unallocated">Add to Unallocated</option>
-                    <option value="new_team">Add to New Team</option>
-                    {eventTeams.length > 0 && (
-                      <option value="existing_team">Add to Existing Team…</option>
-                    )}
-                  </select>
-
-                  {allocationMode === 'existing_team' && eventTeams.length > 0 && (
+              {/* Floating Action bar */}
+              {selectedScoutIds.length > 0 && (
+                <div className="ems-action-bar ems-action-bar--fixed">
+                  <div>
+                    <strong>With Selected ({selectedScoutIds.length}):</strong>
+                  </div>
+                  <div className="ems-flex-center ems-gap-12">
                     <select
-                      className="ems-select"
-                      value={targetTeamId}
-                      onChange={e => setTargetTeamId(parseInt(e.target.value))}
-                      aria-label="Target team"
+                      className="ems-select ems-m-0"
+                      value={allocationMode}
+                      onChange={e => setAllocationMode(e.target.value as AllocationMode)}
+                      aria-label="Allocation action"
                     >
-                      {eventTeams.map(t => (
-                        <option key={t.ID} value={t.ID}>Team {t.ems_team_code}</option>
-                      ))}
+                      <option value="unallocated">Add to Unallocated</option>
+                      <option value="new_team">Add to New Team</option>
+                      {eventTeams.length > 0 && (
+                        <option value="existing_team">Add to Existing Team…</option>
+                      )}
                     </select>
-                  )}
-                </div>
 
-                <div className="ems-action-bar__actions">
-                  <button
-                    type="button"
-                    className="button button-primary"
-                    onClick={handleApplyAction}
-                    disabled={loading || selectedScoutIds.length === 0}
-                  >
-                    {loading ? 'Applying…' : 'Apply Action'}
-                  </button>
+                    {allocationMode === 'existing_team' && eventTeams.length > 0 && (
+                      <select
+                        className="ems-select ems-m-0"
+                        value={targetTeamId}
+                        onChange={e => setTargetTeamId(parseInt(e.target.value))}
+                        aria-label="Target team"
+                      >
+                        {eventTeams.map(t => (
+                          <option key={t.ID} value={t.ID}>Team {t.ems_team_code}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    <button
+                      type="button"
+                      className="button button-primary"
+                      onClick={handleApplyAction}
+                      disabled={loading}
+                    >
+                      {loading ? 'Applying…' : 'Apply Action'}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>

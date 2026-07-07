@@ -11,28 +11,11 @@ interface EventsDashboardProps {
 
 type DashboardTab = 'upcoming' | 'past';
 
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-    active:   { bg: '#d1fae5', color: '#065f46' },
-    archived: { bg: '#f3f4f6', color: '#6b7280' },
-    planning: { bg: '#e0f2fe', color: '#0369a1' },
-    open:     { bg: '#d1fae5', color: '#065f46' },
-    confirmed: { bg: '#c7d2fe', color: '#3730a3' },
-    completed: { bg: '#f3f4f6', color: '#6b7280' },
-    draft:    { bg: '#fef9c3', color: '#854d0e' },
-};
-
 function statusBadge(status?: string): React.ReactNode {
     const s = status || 'active';
-    const c = STATUS_COLORS[s] || { bg: '#eee', color: '#555' };
     return (
-        <span 
-            className="ems-status-badge"
-            style={{
-                background: c.bg,
-                color: c.color,
-            }}
-        >
-            {s || 'active'}
+        <span className={`ems-status-badge ems-status-badge--${s.toLowerCase()}`}>
+            {s}
         </span>
     );
 }
@@ -256,8 +239,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                     {onEditEvent && (
                                         <button
                                             type="button"
-                                            className="button button-small"
-                                            style={{ marginRight: '8px' }}
+                                            className="button button-small ems-mr-8"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 onEditEvent(event);

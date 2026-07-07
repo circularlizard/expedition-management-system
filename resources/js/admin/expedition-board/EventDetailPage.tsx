@@ -324,12 +324,11 @@ const TeamCard: React.FC<TeamCardProps> = ({
                 {sortByName(members).map((m) => {
                     const isChecked = selectedScoutIds.includes(m.scout_id ?? 0);
                     return (
-                        <li key={m.scout_id ?? m.user_id} className={`ems-team-card__member ${isChecked ? 'ems-team-card__member--selected' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <li key={m.scout_id ?? m.user_id} className={`ems-team-card__member ${isChecked ? 'ems-team-card__member--selected' : ''}`}>
+                            <div className="ems-flex-center">
                                 <input
                                     type="checkbox"
-                                    className="ems-checkbox"
-                                    style={{ marginRight: '8px' }}
+                                    className="ems-checkbox ems-mr-8"
                                     checked={isChecked}
                                     onChange={() => onToggleSelectMember(m.scout_id ?? 0)}
                                     aria-label={`Select ${m.first_name} ${m.last_name}`}
@@ -344,8 +343,8 @@ const TeamCard: React.FC<TeamCardProps> = ({
                                             ⚠️
                                         </span>
                                     )}
-                                    {m.first_aid_level === 'full_first_aid' && <span className="ems-member-fa-full" title="Full First Aid">⊕</span>}
-                                    {m.first_aid_level === 'first_response' && <span className="ems-member-fa-response" title="First Response">✚</span>}
+                                    {m.first_aid_level === 'full_first_aid' && <span className="ems-fa-full" title="Full First Aid">⊕</span>}
+                                    {m.first_aid_level === 'first_response' && <span className="ems-fa-response" title="First Response">✚</span>}
                                     {m.first_name} {m.last_name}
                                 </span>
                             </div>
@@ -560,8 +559,8 @@ const TeamsTab: React.FC<{ event: Expedition; explorers?: Explorer[]; allEvents?
             <div className="ems-teams-header">
                 <div className="ems-teams-header__summary">
                     {teams.filter(t => t.ems_team_code !== 'UNALLOCATED').length} teams • {teams.reduce((s, t) => s + (t.member_count ?? (t.members?.length ?? 0)), 0)} members
-                    <span className="ems-teams-header__legend" style={{ marginLeft: '15px', color: '#666', fontSize: '12px' }}>
-                        Legend: <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>⊕</span> Full First Aid • <span style={{ color: '#10b981', fontWeight: 'bold' }}>✚</span> First Response
+                    <span className="ems-teams-header__legend">
+                        Legend: <span className="ems-fa-full">⊕</span> Full First Aid • <span className="ems-fa-response">✚</span> First Response
                     </span>
                 </div>
                 <button id="ems-add-team-btn" type="button" className="button" onClick={createTeam} disabled={creating}>{creating ? 'Creating…' : '+ Add Team'}</button>
@@ -587,30 +586,16 @@ const TeamsTab: React.FC<{ event: Expedition; explorers?: Explorer[]; allEvents?
             </div>
 
             {selectedScoutIds.length > 0 && (
-                <div className="ems-action-bar ems-action-bar--fixed" style={{
-                    position: 'fixed',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: '#fff',
-                    borderTop: '1px solid #ccc',
-                    padding: '16px 24px',
-                    boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
-                    zIndex: 9999,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                }}>
+                <div className="ems-action-bar ems-action-bar--fixed">
                     <div>
                         <strong>With Selected ({selectedScoutIds.length}):</strong>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div className="ems-flex-center ems-gap-12">
                         <select
                             aria-label="Bulk target team"
                             value={bulkTargetTeam}
                             onChange={(e) => setBulkTargetTeam(e.target.value)}
-                            className="ems-select"
-                            style={{ margin: 0 }}
+                            className="ems-select ems-m-0"
                         >
                             <option value="">Move to team…</option>
                             <option value="UNALLOCATED">Unallocated</option>
@@ -746,7 +731,7 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
                                 <tr key={row.scout_id}>
                                     <td className="ems-completion-name">
                                         <div>{row.first_name} {row.last_name}</div>
-                                        <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>Unit: {row.unit_name ?? 'Unassigned'}</div>
+                                        <div className="ems-table-cell--meta">Unit: {row.unit_name ?? 'Unassigned'}</div>
                                     </td>
                                     {requiredCourses.map(c => {
                                         const status = row.matrix[c.id];
@@ -907,9 +892,9 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                 </tbody>
             </table>
             
-            <div className="ems-flex-between ems-mt-16" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+            <div className="ems-flex-between ems-mt-16">
                 <div>
-                    {savedStatus && <span className="ems-saved-indicator" style={{ color: 'green', fontWeight: 'bold' }}>✓ Confidential notes saved successfully.</span>}
+                    {savedStatus && <span className="ems-saved-indicator">✓ Confidential notes saved successfully.</span>}
                 </div>
                 <button
                     type="button"
@@ -1163,7 +1148,7 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
         <div>
             <div className="ems-tab-section">
                 <h3 className="ems-tab-section-title">Staffing Indicators</h3>
-                <div style={{ display: 'flex', gap: '10px', margin: '10px 0' }}>
+                <div className="ems-staffing-summary">
                     <span className={`ems-status-badge ${assignedVolunteers.length >= 2 ? 'ems-status-badge--active' : 'ems-status-badge--archived'}`}>
                         Supervisors: {assignedVolunteers.filter(v => v.preferred_roles?.includes('supervisor')).length} / 2
                     </span>
@@ -1177,7 +1162,7 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
             <div className="ems-tab-section">
                 <h3 className="ems-tab-section-title">Event Schedule / Shifts Grid</h3>
                 {datesList.length === 0 ? (
-                    <p style={{ fontStyle: 'italic', color: '#666' }}>No event dates defined.</p>
+                    <p className="ems-empty-italic">No event dates defined.</p>
                 ) : (
                     <table className="wp-list-table widefat fixed striped">
                         <thead>
@@ -1185,12 +1170,12 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
                                 <th>Volunteer</th>
                                 {datesList.map((d, idx) => (
                                     <React.Fragment key={d}>
-                                        <th style={{ fontSize: '11px', textAlign: 'center' }}>
-                                            {d}<br/><span style={{ fontSize: '9px', fontWeight: 'normal', color: '#666' }}>(Day)</span>
+                                        <th className="ems-schedule-th">
+                                            {d}<br/><span className="ems-schedule-sub">(Day)</span>
                                         </th>
                                         {idx < datesList.length - 1 && (
-                                            <th style={{ fontSize: '11px', textAlign: 'center' }}>
-                                                {d}<br/><span style={{ fontSize: '9px', fontWeight: 'normal', color: '#666' }}>(Night)</span>
+                                            <th className="ems-schedule-th">
+                                                {d}<br/><span className="ems-schedule-sub">(Night)</span>
                                             </th>
                                         )}
                                     </React.Fragment>
@@ -1208,7 +1193,7 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
                                     <tr key={v.id}>
                                         <td>
                                             <strong>{v.first_name} {v.last_name}</strong><br/>
-                                            <span style={{ fontSize: '10px', color: '#666' }}>
+                                            <span className="ems-table-cell--meta">
                                                 {v.preferred_roles?.join(', ')} ({signupType === 'whole' ? 'Whole' : 'Partial'})
                                             </span>
                                         </td>
@@ -1217,9 +1202,9 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
                                             const nightShift = idx < datesList.length - 1 ? eventShifts.find((s: any) => s.date === d && s.overnight === 1) : null;
 
                                             const renderCell = (shift: any) => {
-                                                if (!shift) return <span style={{ color: '#ccc' }}>—</span>;
+                                                if (!shift) return <span className="ems-schedule-status-nil">—</span>;
                                                 if (shift.confirmed === 1) {
-                                                    return <span style={{ color: '#46b450', fontWeight: 'bold' }}>✓ Confirmed</span>;
+                                                    return <span className="ems-schedule-status-confirmed">✓ Confirmed</span>;
                                                 }
                                                 if (shift.confirmed === -1) {
                                                     // Find the other confirmed event code on the same date/overnight
@@ -1233,16 +1218,16 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
                                                             conflictLabel = `Conflict: ${otherEvent.ems_event_code}`;
                                                         }
                                                     }
-                                                    return <span style={{ color: '#dc3232', textDecoration: 'line-through' }} title={conflictLabel}>{conflictLabel}</span>;
+                                                    return <span className="ems-schedule-status-conflict" title={conflictLabel}>{conflictLabel}</span>;
                                                 }
-                                                return <span style={{ color: '#f0b818' }}>Pending</span>;
+                                                return <span className="ems-schedule-status-pending">Pending</span>;
                                             };
 
                                             return (
                                                 <React.Fragment key={d}>
-                                                    <td style={{ textAlign: 'center', fontSize: '11px' }}>{renderCell(dayShift)}</td>
+                                                    <td className="ems-schedule-td">{renderCell(dayShift)}</td>
                                                     {idx < datesList.length - 1 && (
-                                                        <td style={{ textAlign: 'center', fontSize: '11px' }}>{renderCell(nightShift)}</td>
+                                                        <td className="ems-schedule-td">{renderCell(nightShift)}</td>
                                                     )}
                                                 </React.Fragment>
                                             );
