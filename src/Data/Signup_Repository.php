@@ -282,4 +282,42 @@ class Signup_Repository {
         ) );
         return ! empty( $exp_asn );
     }
+
+    /**
+     * Get participant signups for CSV export
+     */
+    public function get_participant_signups_for_export( string $status = 'all', string $level = 'all' ): array {
+        $conditions = [];
+        $params     = [];
+
+        if ( $status !== 'all' ) {
+            $conditions[] = 'p.signup_status = %s';
+            $params[]     = sanitize_text_field( $status );
+        }
+        if ( $level !== 'all' ) {
+            $conditions[] = 'p.dofe_level = %s';
+            $params[]     = sanitize_text_field( $level );
+        }
+
+        $where = '';
+        if ( ! empty( $conditions ) ) {
+            $where = 'WHERE ' . implode( ' AND ', $conditions );
+        }
+
+        $sql = "SELECT p.*, 
+                       u1.display_name AS processed_by_name,
+                       o.wp_user_id AS osm_wp_user_id,
+                       CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS has_osm_record
+                FROM {$this->wpdb->prefix}ems_participant_signups p
+                LEFT JOIN {$this->wpdb->base_prefix}users u1 ON p.processed_by = u1.ID
+                LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON p.scout_id = o.scout_id
+                {$where}
+                ORDER BY p.created_at DESC";
+
+        if ( ! empty( $params ) ) {
+            $sql = $this->wpdb->prepare( $sql, $params );
+        }
+
+        return $this->wpdb->get_results( $sql, ARRAY_A ) ?: [];
+    }
 }

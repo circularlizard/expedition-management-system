@@ -253,5 +253,20 @@ describe('SignupsBoard', () => {
         // Restore location
         window.location = oldLocation;
     });
+
+    it('renders without forbidden inline structural styles', async () => {
+        (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockParticipantSignups });
+        const { container } = render(<SignupsBoard type="participant" />);
+        await waitFor(() => expect(screen.getByText('Bob Jones')).toBeInTheDocument());
+
+        const elementsWithStyle = container.querySelectorAll('[style]');
+        elementsWithStyle.forEach((el) => {
+            const styleAttr = el.getAttribute('style') || '';
+            const forbiddenStyles = ['display', 'margin', 'padding', 'flex', 'grid', 'position', 'left', 'top', 'right', 'bottom', 'gap', 'border-radius', 'border:'];
+            forbiddenStyles.forEach((prop) => {
+                expect(styleAttr).not.toContain(prop);
+            });
+        });
+    });
 });
 

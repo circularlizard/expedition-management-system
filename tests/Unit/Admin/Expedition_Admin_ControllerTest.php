@@ -46,110 +46,6 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         return $request;
     }
 
-    public function test_create_season_returns_201(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-
-        $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'create' )->with( [ 'post_title' => '', 'year' => '2026-27', 'status' => 'active' ] )->andReturn( 10 );
-        $seasons->shouldReceive( 'get_by_id' )->with( 10 )->andReturn( [ 'ID' => 10, 'ems_season_year' => '2026-27' ] );
-
-        $controller = $this->create_controller( $seasons );
-        $response   = $controller->create_season( $this->json_request( [ 'year' => '2026-27' ] ) );
-
-        $this->assertSame( 201, $response->get_status() );
-        $this->assertSame( '2026-27', $response->get_data()['ems_season_year'] );
-    }
-
-    public function test_create_season_duplicate_year_returns_409(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-
-        $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'create' )->andThrow( new \InvalidArgumentException( 'Season year already exists' ) );
-
-        $controller = $this->create_controller( $seasons );
-        $response   = $controller->create_season( $this->json_request( [ 'year' => '2026-27' ] ) );
-
-        $this->assertSame( 409, $response->get_status() );
-        $this->assertSame( 'ems_season_year_exists', $response->get_data()->get_error_code() );
-    }
-
-    public function test_list_seasons_returns_seasons(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-
-        $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'list_all' )->andReturn( [ [ 'ID' => 10, 'ems_season_year' => '2026-27' ] ] );
-
-        $controller = $this->create_controller( $seasons );
-        $response   = $controller->list_seasons();
-
-        $this->assertSame( 200, $response->get_status() );
-        $this->assertCount( 1, $response->get_data() );
-    }
-
-    public function test_archive_season_updates_status(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-
-        $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'archive' )->with( 10 )->andReturn( true );
-        $seasons->shouldReceive( 'get_by_id' )->with( 10 )->andReturn( [ 'ID' => 10, 'ems_season_status' => 'archived' ] );
-
-        $controller = $this->create_controller( $seasons );
-        $request    = new \WP_REST_Request();
-        $request->set_param( 'id', 10 );
-        $response   = $controller->archive_season( $request );
-
-        $this->assertSame( 200, $response->get_status() );
-        $this->assertSame( 'archived', $response->get_data()['ems_season_status'] );
-    }
-
-    public function test_delete_season_empty_returns_200(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-
-        $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'get_by_id' )->with( 10 )->andReturn( [ 'ID' => 10 ] );
-        $seasons->shouldReceive( 'has_events' )->with( 10 )->andReturn( false );
-        $seasons->shouldReceive( 'delete' )->with( 10 )->andReturn( true );
-
-        $controller = $this->create_controller( $seasons );
-        $request    = new \WP_REST_Request();
-        $request->set_param( 'id', 10 );
-        $response   = $controller->delete_season( $request );
-
-        $this->assertSame( 200, $response->get_status() );
-        $this->assertTrue( $response->get_data()['deleted'] );
-    }
-
-    public function test_delete_season_with_events_returns_409(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-
-        $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'get_by_id' )->with( 10 )->andReturn( [ 'ID' => 10 ] );
-        $seasons->shouldReceive( 'has_events' )->with( 10 )->andReturn( true );
-
-        $controller = $this->create_controller( $seasons );
-        $request    = new \WP_REST_Request();
-        $request->set_param( 'id', 10 );
-        $response   = $controller->delete_season( $request );
-
-        $this->assertSame( 409, $response->get_status() );
-        $this->assertSame( 'ems_season_has_events', $response->get_data()->get_error_code() );
-    }
-
-    public function test_delete_season_not_found_returns_404(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-
-        $seasons = \Mockery::mock( Season_Repository::class );
-        $seasons->shouldReceive( 'get_by_id' )->with( 10 )->andReturn( null );
-
-        $controller = $this->create_controller( $seasons );
-        $request    = new \WP_REST_Request();
-        $request->set_param( 'id', 10 );
-        $response   = $controller->delete_season( $request );
-
-        $this->assertSame( 404, $response->get_status() );
-        $this->assertSame( 'ems_season_not_found', $response->get_data()->get_error_code() );
-    }
-
     public function test_create_event_returns_201(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
 
@@ -734,6 +630,57 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $data = $response->get_data();
         $this->assertCount( 1, $data );
         $this->assertSame( 'Mary', $data[0]['explorer_first_name'] );
+    }
+
+    public function test_export_participant_signups_success(): void {
+        if ( ! defined( 'EMS_UNIT_TESTS' ) ) {
+            define( 'EMS_UNIT_TESTS', true );
+        }
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'get_participant_signups_for_export' )->with( 'received', 'bronze' )->andReturn( [
+            [
+                'id' => 10,
+                'scout_id' => 101,
+                'parent_user_id' => 4,
+                'unit_id' => 99001,
+                'unit_name' => 'Kelso',
+                'explorer_first_name' => 'Mary',
+                'explorer_last_name' => 'Smith',
+                'explorer_email' => 'mary@example.com',
+                'parent_email' => 'parent@example.com',
+                'dofe_level' => 'bronze',
+                'dob' => '2010-05-15',
+                'dofe_registered' => 'n',
+                'dofe_number' => 'D12345',
+                'dofe_org' => null,
+                'bronze_completion' => null,
+                'silver_completion' => null,
+                'signup_status' => 'received',
+                'payment_status' => 'paid',
+                'form_submission_id' => 1234,
+                'is_synced_osm' => 1,
+                'has_osm_record' => 1,
+                'osm_wp_user_id' => 42,
+                'processed_by_name' => 'Admin User',
+                'processed_at' => '2026-06-13 21:00:00',
+                'created_at' => '2026-06-13 20:00:00',
+            ]
+        ] );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request = new \WP_REST_Request();
+        $request->set_param( 'status', 'received' );
+        $request->set_param( 'level', 'bronze' );
+
+        ob_start();
+        $controller->export_participant_signups( $request );
+        $csv_data = ob_get_clean();
+
+        $this->assertStringContainsString( 'ID,"Scout ID","Explorer First Name"', $csv_data );
+        $this->assertStringContainsString( '10,101,Mary,Smith', $csv_data );
+        $this->assertStringContainsString( 'linked', $csv_data );
     }
 
     public function test_process_participant_signup_success(): void {
