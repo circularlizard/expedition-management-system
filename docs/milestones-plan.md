@@ -55,14 +55,7 @@ Full specification: [milestone-2.5-implementation-spec.md](milestone-2.5-impleme
 ## Milestone 3: Adult Volunteer Availability Mapping
 *Gathers adult availability, maps volunteer coverage across dates, and notifies cover assignments.*
 
-Full specification: [milestone-3-implementation-spec.md](archive/milestone-3-implementation-spec.md)
-
-*   **Next Steps (Remains)**:
-    *   [ ] Build the external-facing volunteer signup wizard form (Step 1 macro-filter, Step 2 micro-availability builder, Step 3 review & submit), integrating OSM OAuth or guest enrollment.
-    *   [ ] Create database schema migrations for the `ems_volunteers` details table and update `ems_volunteer_availability`.
-    *   [ ] Add the **Volunteer Signups Grid** page to the admin panel with a volunteer-vs-dates matrix and Inspector details pane.
-    *   [ ] Extend the **Expedition Detail Page** with a dedicated tab to view available and assigned volunteers for that specific event.
-    *   [ ] Implement conflict-prevention assignment logic preventing volunteers from being double-booked.
+**Status: Complete** — Implementation spec archived at: [milestone-3-implementation-spec.md](archive/milestone-3-implementation-spec.md)
 
 ---
 
