@@ -148,4 +148,18 @@ describe('EventPlanningBoard', () => {
 
     confirmSpy.mockRestore();
   });
+
+  it('renders without forbidden inline structural styles', async () => {
+    const { container } = render(<EventPlanningBoard />);
+    await waitFor(() => expect(screen.getByText(/Hill Practice 1/)).toBeInTheDocument());
+
+    const elementsWithStyle = container.querySelectorAll('[style]');
+    elementsWithStyle.forEach((el) => {
+      const styleAttr = el.getAttribute('style') || '';
+      const forbiddenStyles = ['display', 'margin', 'padding', 'flex', 'grid', 'position', 'left', 'top', 'right', 'bottom', 'gap', 'border-radius', 'border:'];
+      forbiddenStyles.forEach((prop) => {
+        expect(styleAttr).not.toContain(prop);
+      });
+    });
+  });
 });

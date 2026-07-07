@@ -38,3 +38,11 @@ jobs:
 
       - name: Vitest
         run: npm test
+
+      - name: Verify no inline styles
+        run: |
+          ALLOWED="minHeight|background.*\`|border.*\`|width.*\`"
+          if grep -rn "style={{" resources/js/admin/ --include="*.tsx" | grep -vE "$ALLOWED"; then
+            echo "Error: Lingering or new inline style={{...}} detected. Extract to CSS."
+            exit 1
+          fi

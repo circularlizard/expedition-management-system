@@ -3,16 +3,6 @@ namespace EMS\Core;
 
 class CPT_Registry {
     public function register(): void {
-        register_post_type( 'season', [
-            'labels'       => [ 'name' => 'Seasons', 'singular_name' => 'Season' ],
-            'public'       => false,
-            'show_ui'      => false,
-            'show_in_rest' => false,
-            'show_in_menu' => false,
-            'menu_icon'    => 'dashicons-calendar-alt',
-            'supports'     => [ 'title', 'custom-fields' ],
-        ] );
-
         register_post_type( 'expedition', [
             'labels'       => [ 'name' => 'Events', 'singular_name' => 'Event' ],
             'public'       => true,
@@ -65,13 +55,6 @@ class CPT_Registry {
             'ems_osm_event_id'                   => [ 'type' => 'integer', 'minimum'  => 0 ],
             'ems_status'                         => [ 'type' => 'string',  'enum'     => [ 'active', 'archived' ] ],
             'ems_route_status'                   => [ 'type' => 'string',  'enum'     => [ 'draft', 'confirmed' ] ],
-        ];
-    }
-
-    public function get_season_meta_fields(): array {
-        return [
-            'ems_season_year'   => [ 'type' => 'string' ],
-            'ems_season_status' => [ 'type' => 'string', 'enum' => [ 'active', 'archived' ] ],
         ];
     }
 

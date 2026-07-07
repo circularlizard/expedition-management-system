@@ -8,7 +8,7 @@ This document outlines the roadmap for the remaining deliverables of the Expedit
 |---|---|---|---|
 | Phase 1 | Milestone 1: Signup Processing & Unit Leader Outreach | Fluent Forms sync, Payments, and Reconciliation | **Complete** |
 | Phase 2 | Milestone 2: Team Formation, Event Dates & Calendar Management | React Expedition Board, Calendar view, and State Sync | **Complete** |
-| Phase 2.5 | [Milestone 2.5: M1/M2 Carryover](#milestone-25-m1m2-carryover) | Participant export, Season CPT cleanup, BroadcastChannel sync, Assignment emails | Pending |
+| Phase 2.5 | [Milestone 2.5: M1/M2 Carryover](#milestone-25-m1m2-carryover) | Participant export, Season CPT cleanup, BroadcastChannel sync, Assignment emails | **Complete** |
 | Phase 3 | [Milestone 3: Adult Volunteer Availability Mapping](#milestone-3-adult-volunteer-availability-mapping) | Scheduling grids and supervisor deficit calculations | Pending |
 | Phase 4 | [Milestone 4: Explorer & Parent Front-Facing Web Portal](#milestone-4-explorer--parent-front-facing-web-portal) | Explorer & Parent shortcode SPAs and timeline tracking | Pending |
 | Phase 5 | [Milestone 6: Unit Leader Integration Portal & Kit Supply](#milestone-6-unit-leader-integration-portal--kit-supply) | ESU unit visibility, tent groups, and Leader Portal | Pending |
@@ -42,13 +42,13 @@ All core items completed, including Events Dashboard, calendar view, first aid w
 ## Milestone 2.5: M1/M2 Carryover
 *Consolidates the small number of items that carried over from Milestones 1 and 2.*
 
-Full specification: [milestone-2.5-implementation-spec.md](milestone-2.5-implementation-spec.md)
+**Status: Complete** — Implementation spec archived at `docs/archive/milestone-2.5-implementation-spec.md`.
 
-*   **Next Steps (Remains)**:
-    *   [ ] **Participant Download (M1 carryover)**: Build an interface that allows the admin user to download some or all of the participant records (CSV/Excel).
-    *   [ ] **Season CPT Removal (M2 carryover)**: Remove `season` CPT registration from `CPT_Registry.php` — migration already exists in `Table_Installer`, just needs registration cleanup.
-    *   [ ] **Cross-Screen State Synchronization (M2 carryover)**: Implement a `BroadcastChannel('ems-state-sync')` mechanism to sync updates between Expedition Board rosters and Explorer Lists.
-    *   [ ] **Communication Notifications (M2 carryover)**: Add emails or alerts triggered when explorers are assigned to dates or teams.
+All items completed or resolved:
+*   [x] **Participant Download (M1 carryover)**: Created `GET ems/v1/signups/participants/export` and CSV download button.
+*   [x] **Season CPT Removal (M2 carryover)**: Cleaned CPT registrations and REST controllers.
+*   [x] **Cross-Screen State Synchronization (M2 carryover)**: Assessed and determined not needed for admin workflow.
+*   [x] **Communication Notifications (M2 carryover)**: Transferred / deferred to [Milestone 10: Email Notification Engine](#milestone-10-email-notification-engine--smtp-logging) workflow triggers.
 
 ---
 

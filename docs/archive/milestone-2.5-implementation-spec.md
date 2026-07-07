@@ -143,38 +143,6 @@ Uses the browser `BroadcastChannel` API to propagate state changes between multi
 
 ---
 
-## 4. Communication Notifications (Explorer Assignments)
-
-**Origin:** Milestone 2 — Team Formation, Event Dates & Calendar Management
-
-### 4.1 Feature Description
-Send email notifications when explorers are assigned to events, moved between teams, or removed from teams. Notifications go to the explorer (if they have an email) and their parent (if a parent email is available).
-
-### 4.2 Notification Triggers
-
-| Trigger | Recipient(s) | Subject Template |
-|---|---|---|
-| Explorer assigned to event (team) | Explorer + Parent | "You've been assigned to {event_name} — Team {team_code}" |
-| Explorer moved to different team | Explorer + Parent | "Team change: you're now on {team_code} for {event_name}" |
-| Explorer moved to unallocated | Explorer + Parent | "Team update: {event_name} roster change" |
-
-### 4.3 Email Content
-*   Explorer name, event name, event dates, team code, LiC name and contact details.
-*   Link to the Explorer Portal (Milestone 4, if available) or a confirmation page.
-*   Standard footer with EMS contact details.
-
-### 4.4 Implementation Details
-*   Add a `Notification_Sender` class in `src/Services/Notification_Sender.php`.
-*   The class wraps `wp_mail()` and accepts structured payloads.
-*   Hook into the team membership mutation methods in `Team_Member_Repository`:
-    *   `add_member()` → trigger "assigned" notification.
-    *   `move_member()` → trigger "moved" notification.
-*   Add a WP option `ems_disable_assignment_emails` (boolean, default `false`) to allow admins to opt out during bulk operations.
-*   Log all sent emails to `ems_email_logs` table (if Milestone 10's table exists; otherwise skip logging for now).
-
-### 4.5 Admin UI
-*   Add a checkbox on the ExplorerMovePanel: "Send notification email" (checked by default).
-*   Add a bulk operation setting: "Disable notifications for this session" checkbox on the Expedition Board.
 
 ---
 

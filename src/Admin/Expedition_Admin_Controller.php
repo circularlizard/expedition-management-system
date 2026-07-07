@@ -42,7 +42,6 @@ class Expedition_Admin_Controller {
     }
 
     public function register_routes(): void {
-        $this->register_season_routes();
         $this->register_event_routes();
         $this->register_team_routes();
         $this->register_member_routes();
@@ -51,38 +50,6 @@ class Expedition_Admin_Controller {
         $this->register_signup_routes();
         $this->register_whatsapp_routes();
         $this->register_planning_routes();
-    }
-
-    private function register_season_routes(): void {
-        register_rest_route( 'ems/v1', '/seasons', [
-            'methods'             => \WP_REST_Server::CREATABLE,
-            'callback'            => [ $this, 'create_season' ],
-            'permission_callback' => [ $this, 'check_permission' ],
-        ] );
-
-        register_rest_route( 'ems/v1', '/seasons', [
-            'methods'             => \WP_REST_Server::READABLE,
-            'callback'            => [ $this, 'list_seasons' ],
-            'permission_callback' => [ $this, 'check_permission' ],
-        ] );
-
-        register_rest_route( 'ems/v1', '/seasons/(?P<id>\d+)/archive', [
-            'methods'             => \WP_REST_Server::EDITABLE,
-            'callback'            => [ $this, 'archive_season' ],
-            'permission_callback' => [ $this, 'check_permission' ],
-            'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
-            ],
-        ] );
-
-        register_rest_route( 'ems/v1', '/seasons/(?P<id>\d+)', [
-            'methods'             => \WP_REST_Server::DELETABLE,
-            'callback'            => [ $this, 'delete_season' ],
-            'permission_callback' => [ $this, 'check_permission' ],
-            'args'                => [
-                'id' => [ 'type' => 'integer', 'required' => true ],
-            ],
-        ] );
     }
 
     private function register_event_routes(): void {
@@ -258,47 +225,6 @@ class Expedition_Admin_Controller {
 
     public function check_permission(): bool {
         return current_user_can( 'manage_options' );
-    }
-
-    public function create_season( \WP_REST_Request $request ): \WP_REST_Response {
-        $body = $request->get_json_params() ?: [];
-        try {
-            $id = $this->seasons->create( [
-                'post_title' => $body['post_title'] ?? '',
-                'year'       => $body['year'] ?? '',
-                'status'     => $body['status'] ?? 'active',
-            ] );
-            return new \WP_REST_Response( $this->seasons->get_by_id( $id ), 201 );
-        } catch ( \InvalidArgumentException $e ) {
-            return $this->error( 'ems_season_year_exists', $e->getMessage(), 409 );
-        }
-    }
-
-    public function list_seasons(): \WP_REST_Response {
-        return new \WP_REST_Response( $this->seasons->list_all() );
-    }
-
-    public function archive_season( \WP_REST_Request $request ): \WP_REST_Response {
-        $id = (int) $request->get_param( 'id' );
-        if ( ! $this->seasons->archive( $id ) ) {
-            return $this->error( 'ems_season_not_found', 'Season not found.', 404 );
-        }
-        return new \WP_REST_Response( $this->seasons->get_by_id( $id ) );
-    }
-
-    public function delete_season( \WP_REST_Request $request ): \WP_REST_Response {
-        $id = (int) $request->get_param( 'id' );
-
-        if ( ! $this->seasons->get_by_id( $id ) ) {
-            return $this->error( 'ems_season_not_found', 'Season not found.', 404 );
-        }
-
-        if ( $this->seasons->has_events( $id ) ) {
-            return $this->error( 'ems_season_has_events', 'Cannot delete season with events.', 409 );
-        }
-
-        $this->seasons->delete( $id );
-        return new \WP_REST_Response( [ 'deleted' => true ] );
     }
 
     public function create_event( \WP_REST_Request $request ): \WP_REST_Response {
@@ -839,6 +765,12 @@ class Expedition_Admin_Controller {
         register_rest_route( 'ems/v1', '/signups/participants', [
             'methods'             => \WP_REST_Server::READABLE,
             'callback'            => [ $this, 'list_participant_signups' ],
+            'permission_callback' => [ $this, 'check_permission' ],
+        ] );
+
+        register_rest_route( 'ems/v1', '/signups/participants/export', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'export_participant_signups' ],
             'permission_callback' => [ $this, 'check_permission' ],
         ] );
 
@@ -1503,6 +1435,79 @@ class Expedition_Admin_Controller {
         }
 
         return new \WP_REST_Response( [ 'success' => true ] );
+    }
+
+    public function export_participant_signups( \WP_REST_Request $request ) {
+        $status = $request->get_param( 'status' ) ?: 'all';
+        $level  = $request->get_param( 'level' ) ?: 'all';
+
+        $signups = $this->signups->get_participant_signups_for_export( $status, $level );
+
+        // Generate filename
+        $filename = 'ems-participant-signups-' . current_time( 'Y-m-d' ) . '.csv';
+
+        // Set up response headers for download
+        header( 'Content-Type: text/csv; charset=utf-8' );
+        header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+        header( 'Pragma: no-cache' );
+        header( 'Expires: 0' );
+
+        $output = fopen( 'php://output', 'w' );
+
+        // Header columns
+        fputcsv( $output, [
+            'ID',
+            'Scout ID',
+            'Explorer First Name',
+            'Explorer Last Name',
+            'Email',
+            'Parent Email',
+            'DofE Level',
+            'DofE Number',
+            'First Aid Status',
+            'ESU Unit',
+            'Payment Status',
+            'Signup Status',
+            'Linkage Status',
+            'Processed By',
+            'Processed At',
+            'Reconciled By',
+            'Reconciled At',
+            'Created At'
+        ] );
+
+        foreach ( $signups as $signup ) {
+            $linkage_status = 'unlinked';
+            if ( ! empty( $signup['has_osm_record'] ) ) {
+                $linkage_status = ! empty( $signup['osm_wp_user_id'] ) ? 'linked' : 'proposed';
+            }
+
+            fputcsv( $output, [
+                $signup['id'],
+                $signup['scout_id'],
+                $signup['explorer_first_name'],
+                $signup['explorer_last_name'],
+                $signup['explorer_email'],
+                $signup['parent_email'] ?: '',
+                ucfirst( $signup['dofe_level'] ),
+                $signup['dofe_number'] ?: '',
+                '', // First Aid Status is not on participant signups, output empty
+                $signup['unit_name'] ?: 'Unassigned',
+                ucfirst( $signup['payment_status'] ),
+                ucfirst( $signup['signup_status'] ),
+                $linkage_status,
+                $signup['processed_by_name'] ?: '',
+                $signup['processed_at'] ?: '',
+                '', // Reconciled By
+                '', // Reconciled At
+                $signup['created_at']
+            ] );
+        }
+
+        fclose( $output );
+        if ( ! defined( 'EMS_UNIT_TESTS' ) ) {
+            exit;
+        }
     }
 }
 

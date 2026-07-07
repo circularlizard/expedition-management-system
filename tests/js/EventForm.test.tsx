@@ -84,4 +84,16 @@ describe('EventForm', () => {
         render(<EventForm seasonId={1} />);
         expect(screen.getByRole('textbox', { name: 'Notes' })).toBeInTheDocument();
     });
+
+    it('renders without forbidden inline structural styles', () => {
+        const { container } = render(<EventForm seasonId={1} />);
+        const elementsWithStyle = container.querySelectorAll('[style]');
+        elementsWithStyle.forEach((el) => {
+            const styleAttr = el.getAttribute('style') || '';
+            const forbiddenStyles = ['display', 'margin', 'padding', 'flex', 'grid', 'position', 'left', 'top', 'right', 'bottom', 'gap', 'border-radius', 'border:'];
+            forbiddenStyles.forEach((prop) => {
+                expect(styleAttr).not.toContain(prop);
+            });
+        });
+    });
 });
