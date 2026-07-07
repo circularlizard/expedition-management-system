@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BoardData, Expedition, Explorer, FirstAidLevel } from './types';
 
 interface OSMReferenceProps {
@@ -176,6 +176,13 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
 
     // Selected explorer ID for the right-hand Profile Inspector
     const [selectedScoutId, setSelectedScoutId] = useState<number | null>(null);
+    const inspectorRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (selectedScoutId && inspectorRef.current) {
+            inspectorRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [selectedScoutId]);
 
     // Profile details fetched on demand
     const [profileData, setProfileData] = useState<any | null>(null);
@@ -456,7 +463,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
 
             {/* Profile Inspector slide-out panel */}
             {selectedScoutId && (
-                <div className="ems-signups-inspector">
+                <div ref={inspectorRef} className="ems-signups-inspector">
                     <div className="ems-signups-inspector__header">
                         <h3 className="ems-signups-inspector__title">Explorer Profile</h3>
                         <div className="ems-flex-center ems-gap-6">
