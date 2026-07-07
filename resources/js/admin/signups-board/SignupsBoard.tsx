@@ -328,15 +328,6 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         <div className="ems-signups-container">
             {/* Main Content Area */}
             <div className="ems-signups-main">
-                <div className="ems-flex-between ems-mb-16">
-                    <h2 className="ems-m-0">
-                        {type === 'participant' ? 'Participant Place Signups' : 'Expedition Signups'}
-                    </h2>
-                    <span className="ems-meta-text">
-                        Showing {filteredSignups.length} of {signups.length} records
-                    </span>
-                </div>
-
                 {error && (
                     <div className="ems-error-notice">
                         {error}
