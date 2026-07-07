@@ -135,10 +135,7 @@ function VolunteersDashboard() {
 
     return (
         <div className="wrap">
-            <div className="ems-flex-between ems-mb-16">
-                <h2 className="ems-m-0">Volunteers Grid</h2>
-                <span className="ems-meta-text">Total Volunteers: {volunteers.length}</span>
-            </div>
+            <h2>Volunteers Grid</h2>
             {/* Status Legend Key */}
             <div className="ems-volunteers-legend-bar">
                 <span className="ems-inline-flex-center ems-gap-8">
@@ -233,7 +230,8 @@ function VolunteersDashboard() {
                                     })}
                                 </tr>
                             ))}
-                     </table>
+                        </tbody>
+                    </table>
 
                     {/* Pagination Bar */}
                     {volunteers.length > 0 && (
