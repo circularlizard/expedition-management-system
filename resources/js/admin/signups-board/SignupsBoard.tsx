@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface SignupsConfig {
     root_url: string;
@@ -46,6 +46,21 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
     // Selected signup for Inspector Panel
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
     const [editedDofeNumber, setEditedDofeNumber] = useState<string>('');
+    const inspectorRef = useRef<HTMLDivElement>(null);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [itemsPerPage, setItemsPerPage] = useState<number>(25);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter, levelFilter, expedTypeFilter, sortKey, sortOrder]);
+
+    useEffect(() => {
+        if (selectedSignup && inspectorRef.current) {
+            inspectorRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [selectedSignup]);
 
     const fetchSignups = async () => {
         setLoading(true);
@@ -152,12 +167,12 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         }
     };
 
-    // Filter signups in memory by Level
+    // Filter signups in memory by Level and Expedition Type
     const filteredSignups = signups.filter(s => {
         if (levelFilter !== 'all' && s.dofe_level !== levelFilter) {
             return false;
         }
-        if (type === 'expedition' && expedTypeFilter !== 'all') {
+        if (expedTypeFilter !== 'all') {
             const expedType = s.expedition_preferences?.exped_type || '';
             if (expedType.toLowerCase() !== expedTypeFilter.toLowerCase()) {
                 return false;
@@ -192,13 +207,18 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
     };
 
     const sortedSignups = [...filteredSignups].sort((a, b) => {
-        const aVal = getSortValue(a, sortKey);
-        const bVal = getSortValue(b, sortKey);
-
-        if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+        let valA = getSortValue(a, sortKey);
+        let valB = getSortValue(b, sortKey);
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
     });
+
+    const totalPages = Math.ceil(filteredSignups.length / itemsPerPage);
+    const paginatedSignups = sortedSignups.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     const toggleSort = (key: string) => {
         if (sortKey === key) {
@@ -308,6 +328,15 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         <div className="ems-signups-container">
             {/* Main Content Area */}
             <div className="ems-signups-main">
+                <div className="ems-flex-between ems-mb-16">
+                    <h2 className="ems-m-0">
+                        {type === 'participant' ? 'Participant Place Signups' : 'Expedition Signups'}
+                    </h2>
+                    <span className="ems-meta-text">
+                        Showing {filteredSignups.length} of {signups.length} records
+                    </span>
+                </div>
+
                 {error && (
                     <div className="ems-error-notice">
                         {error}
@@ -361,23 +390,21 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             </select>
                         </div>
 
-                        {type === 'expedition' && (
-                            <div className="ems-flex-center ems-gap-8">
-                                <label htmlFor="exped-type-filter" className="ems-toolbar__label">Expedition Type:</label>
-                                <select
-                                    id="exped-type-filter"
-                                    aria-label="Filter Expedition Type"
-                                    value={expedTypeFilter}
-                                    onChange={(e) => setExpedTypeFilter(e.target.value)}
-                                    className="ems-select"
-                                >
-                                    <option value="all">All Types</option>
-                                    <option value="hillwalking">Hillwalking</option>
-                                    <option value="paddling">Paddling</option>
-                                    <option value="biking">Biking</option>
-                                </select>
-                            </div>
-                        )}
+                        <div className="ems-flex-center ems-gap-8">
+                            <label htmlFor="exped-type-filter" className="ems-toolbar__label">Expedition Type:</label>
+                            <select
+                                id="exped-type-filter"
+                                aria-label="Filter Expedition Type"
+                                value={expedTypeFilter}
+                                onChange={(e) => setExpedTypeFilter(e.target.value)}
+                                className="ems-select"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="hillwalking">Hillwalking</option>
+                                <option value="paddling">Paddling</option>
+                                <option value="biking">Biking</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -408,14 +435,14 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedSignups.length === 0 ? (
+                            {paginatedSignups.length === 0 ? (
                                 <tr>
                                     <td colSpan={type === 'participant' ? 10 : 9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                         No signup records found for this filter state.
                                     </td>
                                 </tr>
                             ) : (
-                                sortedSignups.map((s) => (
+                                paginatedSignups.map((s) => (
                                     <tr 
                                         key={s.id} 
                                         onClick={() => setSelectedSignup(s)}
@@ -482,12 +509,76 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             )}
                         </tbody>
                     </table>
+
+                    {/* Pagination Bar */}
+                    {filteredSignups.length > 0 && (
+                        <div className="ems-table-pagination">
+                            <div className="ems-meta-text">
+                                Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredSignups.length)} of {filteredSignups.length} records
+                            </div>
+                            <div className="ems-flex-center ems-gap-8">
+                                <label htmlFor="items-per-page" className="ems-toolbar__label">Items per page:</label>
+                                <select
+                                    id="items-per-page"
+                                    className="ems-select-sm"
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(parseInt(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+
+                                <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        «
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        ‹ Prev
+                                    </button>
+                                    <span className="ems-meta-text ems-mx-8">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next ›
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        »
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Inspector Panel - Slide-Out/Docked Layout */}
             {selectedSignup && (
-                <div className="ems-signups-inspector">
+                <div ref={inspectorRef} className="ems-signups-inspector">
                     {/* Header */}
                     <div className="ems-signups-inspector__header">
                         <h3 className="ems-m-0 ems-font-semibold">Explorer Details</h3>
