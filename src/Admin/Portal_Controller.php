@@ -311,12 +311,18 @@ class Portal_Controller {
             ];
         }
 
+        $latest_support_needs = $wpdb->get_var( $wpdb->prepare(
+            "SELECT additional_support_needs FROM {$wpdb->prefix}ems_expedition_signups WHERE scout_id = %d AND additional_support_needs != '' ORDER BY id DESC LIMIT 1",
+            $scout_id
+        ) ) ?: '';
+
         return new \WP_REST_Response( [
             'explorer'           => [
-                'scout_id'        => $scout_id,
-                'first_name'      => $explorer['first_name'] ?? '',
-                'last_name'       => $explorer['last_name'] ?? '',
-                'first_aid_level' => $explorer['first_aid_level'] ?? 'none',
+                'scout_id'                 => $scout_id,
+                'first_name'               => $explorer['first_name'] ?? '',
+                'last_name'                => $explorer['last_name'] ?? '',
+                'first_aid_level'          => $explorer['first_aid_level'] ?? 'none',
+                'additional_support_needs' => $latest_support_needs,
             ],
             'signups'            => $signups,
             'events'             => $events,

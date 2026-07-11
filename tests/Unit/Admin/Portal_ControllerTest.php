@@ -141,6 +141,7 @@ class Portal_ControllerTest extends EMSTestCase {
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($query, ...$args) {
             return [$query, $args];
         });
+        $wpdb->shouldReceive('get_var')->andReturn('');
 
         $wpdb->shouldReceive('get_results')->andReturnUsing(function($prepared) {
             $query = $prepared[0];
