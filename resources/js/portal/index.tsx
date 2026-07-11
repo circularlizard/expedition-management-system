@@ -535,6 +535,8 @@ export function PortalApp() {
                                                                 <div>
                                                                     <p><strong>Level:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.level}</span></p>
                                                                     <p><strong>Type:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.type}</span></p>
+                                                                    <p><strong>Start Date & Time:</strong> {ev.start_date} {ev.start_time && `@ ${ev.start_time}`}</p>
+                                                                    <p><strong>End Date & Time:</strong> {ev.end_date} {ev.end_time && `@ ${ev.end_time}`}</p>
                                                                 </div>
                                                                 <div>
                                                                     {ev.leader_in_charge?.name && (
