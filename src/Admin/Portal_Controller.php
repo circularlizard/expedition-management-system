@@ -183,13 +183,22 @@ class Portal_Controller {
             $whatsapp_link = get_post_meta( $expedition_id, $whatsapp_meta_key, true ) ?: null;
 
             $event_data = [
-                'id'               => $expedition_id,
-                'name'             => $expedition_post->post_title,
-                'start_date'       => get_post_meta( $expedition_id, 'ems_start_date', true ) ?: '',
-                'end_date'         => get_post_meta( $expedition_id, 'ems_end_date', true ) ?: '',
-                'location'         => get_post_meta( $expedition_id, 'ems_start_location', true ) ?: '',
-                'osm_event_url'    => get_post_meta( $expedition_id, 'ems_osm_event_url', true ) ?: null,
-                'leader_in_charge' => [
+                'id'                        => $expedition_id,
+                'name'                      => $expedition_post->post_title,
+                'start_date'                => get_post_meta( $expedition_id, 'ems_start_date', true ) ?: '',
+                'end_date'                  => get_post_meta( $expedition_id, 'ems_end_date', true ) ?: '',
+                'location'                  => get_post_meta( $expedition_id, 'ems_start_location', true ) ?: '',
+                'end_location'              => get_post_meta( $expedition_id, 'ems_end_location', true ) ?: '',
+                'type'                      => $type,
+                'level'                     => $level,
+                'event_code'                => get_post_meta( $expedition_id, 'ems_expedition_code', true ) ?: get_post_meta( $expedition_id, 'ems_event_code', true ) ?: '',
+                'required_first_aid_level'  => get_post_meta( $expedition_id, 'ems_first_aid_level', true ) ?: 'none',
+                'route_deadline'            => get_post_meta( $expedition_id, 'ems_route_deadline', true ) ?: '',
+                'route_info'                => get_post_meta( $expedition_id, 'ems_expedition_route_info', true ) ?: '',
+                'whatsapp_explorers'        => get_post_meta( $expedition_id, 'ems_expedition_whatsapp_explorers', true ) ?: null,
+                'whatsapp_parents'          => get_post_meta( $expedition_id, 'ems_expedition_whatsapp_parents', true ) ?: null,
+                'osm_event_url'             => get_post_meta( $expedition_id, 'ems_osm_event_url', true ) ?: null,
+                'leader_in_charge'          => [
                     'name'  => get_post_meta( $expedition_id, 'ems_lic_name', true ) ?: '',
                     'email' => get_post_meta( $expedition_id, 'ems_lic_email', true ) ?: '',
                     'phone' => get_post_meta( $expedition_id, 'ems_lic_phone', true ) ?: '',
@@ -266,9 +275,10 @@ class Portal_Controller {
 
         return new \WP_REST_Response( [
             'explorer'           => [
-                'scout_id'   => $scout_id,
-                'first_name' => $explorer['first_name'] ?? '',
-                'last_name'  => $explorer['last_name'] ?? '',
+                'scout_id'        => $scout_id,
+                'first_name'      => $explorer['first_name'] ?? '',
+                'last_name'       => $explorer['last_name'] ?? '',
+                'first_aid_level' => $explorer['first_aid_level'] ?? 'none',
             ],
             'signups'            => $signups,
             'events'             => $events,
