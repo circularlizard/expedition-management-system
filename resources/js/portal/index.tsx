@@ -209,32 +209,56 @@ export function PortalApp() {
                 <p>Welcome, <strong>{me?.display_name}</strong></p>
 
                 {me?.access_type === 'parent' && me.profiles && me.profiles.length > 1 && (
-                    <div className="child-selector" style={{ marginTop: '15px', marginBottom: '15px' }}>
-                        <span style={{ marginRight: '10px', fontWeight: 'bold' }}>Select Profile:</span>
-                        {me.profiles.map(p => (
-                            <button
-                                key={p.scout_id}
-                                onClick={() => setActiveScoutId(p.scout_id)}
-                                className={`button ${Number(activeScout) === Number(p.scout_id) ? 'button-primary' : 'button-secondary'}`}
-                                style={{ marginRight: '8px' }}
-                            >
-                                {p.first_name} {p.last_name}
-                            </button>
-                        ))}
+                    <div className="child-selector" style={{ marginTop: '15px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <label htmlFor="ems-child-select" style={{ fontWeight: 'bold' }}>Showing details for:</label>
+                        <select
+                            id="ems-child-select"
+                            value={activeScout || ''}
+                            onChange={(e) => setActiveScoutId(Number(e.target.value))}
+                            style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid #ccc', background: '#fff', fontSize: '14px' }}
+                        >
+                            {me.profiles.map(p => (
+                                <option key={p.scout_id} value={p.scout_id}>
+                                    {p.first_name} {p.last_name} ({p.patrol || 'No Patrol'})
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 )}
 
                 {/* Top-Level Portal Page Navigation */}
-                <div className="portal-nav-tabs" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <div className="portal-nav-tabs" style={{ display: 'flex', gap: '5px', marginTop: '20px', borderBottom: '1px solid #ccc' }}>
                     <button
                         onClick={() => setCurrentPage('signups')}
-                        className={`button ${currentPage === 'signups' ? 'button-primary' : 'button-secondary'}`}
+                        className={`portal-tab ${currentPage === 'signups' ? 'active' : ''}`}
+                        style={{
+                            padding: '10px 20px',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: currentPage === 'signups' ? '3px solid #0073aa' : '3px solid transparent',
+                            color: currentPage === 'signups' ? '#0073aa' : '#555',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '15px',
+                            transition: 'all 0.2s ease'
+                        }}
                     >
                         Applications / Sign-ups
                     </button>
                     <button
                         onClick={() => setCurrentPage('expeditions')}
-                        className={`button ${currentPage === 'expeditions' ? 'button-primary' : 'button-secondary'}`}
+                        className={`portal-tab ${currentPage === 'expeditions' ? 'active' : ''}`}
+                        style={{
+                            padding: '10px 20px',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: currentPage === 'expeditions' ? '3px solid #0073aa' : '3px solid transparent',
+                            color: currentPage === 'expeditions' ? '#0073aa' : '#555',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '15px',
+                            transition: 'all 0.2s ease'
+                        }}
                     >
                         Expeditions & Events
                     </button>
@@ -254,7 +278,7 @@ export function PortalApp() {
                     {/* Page 1: Sign-up Applications */}
                     {currentPage === 'signups' && (
                         <div className="portal-section" style={{ marginBottom: '35px' }}>
-                            <h3>Sign-up Applications</h3>
+                            <h3>Sign-ups for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
                             {explorerDetail.signups.length === 0 ? (
                                 <p>No active sign-ups found.</p>
                             ) : (
@@ -287,7 +311,7 @@ export function PortalApp() {
                     {/* Page 2: Expeditions & Events */}
                     {currentPage === 'expeditions' && (
                         <div className="portal-section">
-                            <h3>Expeditions & Events</h3>
+                            <h3>Expeditions & Events for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
                             <div className="category-tabs" style={{ display: 'flex', borderBottom: '2px solid #ccc', marginBottom: '20px' }}>
                             {(['training', 'practice', 'qualifying'] as const).map(tab => {
                                 const count = explorerDetail.events[tab]?.length || 0;
