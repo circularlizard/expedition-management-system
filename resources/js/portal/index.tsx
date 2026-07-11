@@ -516,6 +516,14 @@ export function PortalApp() {
                                                     )}
                                                     {s.type === 'expedition' && (
                                                         <>
+                                                            {s.expedition_preferences?.expedition_type && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">Expedition Type</span>
+                                                                    <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
+                                                                        {s.expedition_preferences.expedition_type}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                             {s.first_aid_status && (
                                                                 <div>
                                                                     <span className="ems-signups-inspector__label">First Aid Status</span>
@@ -547,15 +555,20 @@ export function PortalApp() {
                                                                             const formatPrefKey = (k: string): string => {
                                                                                 const maps: Record<string, string> = {
                                                                                     transport: 'Preferred Transport',
-                                                                                    expedition_type: 'Expedition Type',
                                                                                     location_preference: 'Preferred Location',
                                                                                     date_preference: 'Preferred Dates',
+                                                                                    practice_availability: 'Practice availability',
+                                                                                    qualifier_availability: 'Qualifier availability',
+                                                                                    preferred_teammates: 'Preferred team mates',
                                                                                     notes: 'Additional Preference Notes',
                                                                                     dofe_level: 'DofE Level Preferences',
                                                                                 };
                                                                                 return maps[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                                                                             };
-                                                                            return Object.entries(s.expedition_preferences).map(([key, val]) => (
+                                                                            const prefs = { ...s.expedition_preferences };
+                                                                            delete prefs.expedition_type;
+
+                                                                            return Object.entries(prefs).map(([key, val]) => (
                                                                                 <div key={key} style={{ marginBottom: '5px' }}>
                                                                                     <strong>{formatPrefKey(key)}:</strong> {String(val)}
                                                                                 </div>
@@ -719,6 +732,13 @@ export function PortalApp() {
                                                                     )}
                                                                 </div>
                                                             </div>
+
+                                                            {explorerDetail.explorer.additional_support_needs && (
+                                                                <div style={{ marginTop: '15px', padding: '15px', background: '#fff0f0', borderRadius: '6px', borderLeft: '4px solid #d32f2f', color: '#c00', marginBottom: '15px' }}>
+                                                                    <strong>Additional Support Needs:</strong>
+                                                                    <p style={{ margin: '5px 0 0 0' }}>{explorerDetail.explorer.additional_support_needs}</p>
+                                                                </div>
+                                                            )}
 
                                                             <div style={{ borderTop: '1px solid #eee', paddingTop: '15px', marginTop: '15px' }}>
                                                                 <h5>WhatsApp Groups & QR Codes</h5>
