@@ -205,9 +205,6 @@ export function PortalApp() {
     return (
         <div className="ems-portal-container" style={{ maxWidth: '1000px', margin: '0 auto', fontFamily: 'inherit' }}>
             <div className="portal-header" style={{ marginBottom: '30px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
-                <h2>Participant Portal</h2>
-                <p>Welcome, <strong>{me?.display_name}</strong></p>
-
                 {me?.access_type === 'parent' && me.profiles && me.profiles.length > 1 && (
                     <div className="child-selector" style={{ marginTop: '15px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <label htmlFor="ems-child-select" style={{ fontWeight: 'bold' }}>Showing details for:</label>
@@ -219,7 +216,7 @@ export function PortalApp() {
                         >
                             {me.profiles.map(p => (
                                 <option key={p.scout_id} value={p.scout_id}>
-                                    {p.first_name} {p.last_name} ({p.patrol || 'No Patrol'})
+                                    {p.first_name} {p.last_name}
                                 </option>
                             ))}
                         </select>
