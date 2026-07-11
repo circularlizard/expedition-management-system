@@ -327,7 +327,7 @@ export function PortalApp() {
         <div className="ems-portal-container" style={{ maxWidth: '1000px', margin: '0 auto', fontFamily: 'inherit' }}>
             <div className="portal-header" style={{ marginBottom: '30px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
                 {me?.access_type === 'parent' && me.profiles && me.profiles.length > 1 && (
-                    <div className="child-selector" style={{ marginTop: '15px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div className="child-selector" style={{ marginTop: '15px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                         <label htmlFor="ems-child-select" style={{ fontWeight: 'bold' }}>Showing details for:</label>
                         <select
                             id="ems-child-select"
@@ -345,7 +345,7 @@ export function PortalApp() {
                 )}
 
                 {/* Top-Level Portal Page Navigation */}
-                <div className="portal-nav-tabs" style={{ display: 'flex', gap: '5px', marginTop: '20px', borderBottom: '1px solid #ccc' }}>
+                <div className="portal-nav-tabs" style={{ display: 'flex', gap: '5px', marginTop: '20px', borderBottom: '1px solid #ccc', flexWrap: 'wrap' }}>
                     <button
                         onClick={() => setCurrentPage('expeditions')}
                         className={`portal-tab ${currentPage === 'expeditions' ? 'active' : ''}`}
@@ -404,7 +404,7 @@ export function PortalApp() {
                                 <p>No active sign-ups found.</p>
                             ) : (
                                 <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                    <div style={{ flex: 1, minWidth: '300px' }}>
+                                    <div style={{ flex: 1, minWidth: '300px', overflowX: 'auto' }}>
                                         <table className="wp-list-table widefat fixed striped" style={{ width: '100%' }}>
                                             <thead>
                                                 <tr>
@@ -602,7 +602,7 @@ export function PortalApp() {
                     {currentPage === 'expeditions' && (
                         <div className="portal-section">
                             <h3>Expeditions & Events for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
-                            <div className="category-tabs" style={{ display: 'flex', borderBottom: '2px solid #ccc', marginBottom: '20px' }}>
+                            <div className="category-tabs" style={{ display: 'flex', borderBottom: '2px solid #ccc', marginBottom: '20px', flexWrap: 'wrap' }}>
                             {(['training', 'practice', 'qualifying'] as const).map(tab => {
                                 const count = explorerDetail.events[tab]?.length || 0;
                                 const isGreyed = count === 0;
@@ -658,7 +658,7 @@ export function PortalApp() {
 
                                 return (
                                     <div className="event-details-card" style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '8px', padding: '20px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #eaeaea', paddingBottom: '10px' }}>
+                                        <div className="ems-portal-event-header">
                                             <div>
                                                 <h4 style={{ margin: 0 }}>{ev.name} {ev.event_code && `(${ev.event_code})`}</h4>
                                                 <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '14px' }}>
@@ -693,7 +693,7 @@ export function PortalApp() {
                                             </div>
                                         ) : (
                                             <div className="expedition-event-details">
-                                                <div className="sub-tabs" style={{ display: 'flex', gap: '5px', borderBottom: '1px solid #eee', marginBottom: '15px' }}>
+                                                <div className="sub-tabs" style={{ display: 'flex', gap: '5px', borderBottom: '1px solid #eee', marginBottom: '15px', flexWrap: 'wrap' }}>
                                                     {(['overview', 'team', 'training', 'route'] as const).map(subTab => (
                                                         <button
                                                             key={subTab}
@@ -715,7 +715,7 @@ export function PortalApp() {
                                                 <div className="sub-tab-content">
                                                     {activeSubTab === 'overview' && (
                                                         <div>
-                                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                                                            <div className="ems-portal-overview-grid">
                                                                 <div>
                                                                     <p><strong>Level:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.level}</span></p>
                                                                     <p><strong>Type:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.type}</span></p>
