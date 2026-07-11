@@ -262,10 +262,16 @@ class Portal_Controller {
             $course_map[ (int) $c->ID ] = $c->post_title;
         }
 
+        $matrix = [];
+        if ( $explorer_wp_user_id && ! empty( $required_courses ) ) {
+            $matrix = $this->tutor_client->get_enrollment_matrix( [ $explorer_wp_user_id ], $required_courses );
+        }
+
         foreach ( $required_courses as $course_id ) {
             $completed = false;
             if ( $explorer_wp_user_id ) {
-                $completed = (bool) get_user_meta( $explorer_wp_user_id, '_tutor_completed_course_' . $course_id, true );
+                $status = $matrix[ $explorer_wp_user_id ][ $course_id ] ?? 'not_enrolled';
+                $completed = ( $status === 'complete' );
             }
             $training_checklist[] = [
                 'course_name'     => $course_map[ $course_id ] ?? 'Unknown Course',
