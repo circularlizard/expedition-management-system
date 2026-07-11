@@ -88,6 +88,7 @@ export function PortalApp() {
     const [activeTab, setActiveTab] = useState<'training' | 'practice' | 'qualifying'>('training');
     const [activeEventId, setActiveEventId] = useState<number | null>(null);
     const [activeSubTab, setActiveSubTab] = useState<'overview' | 'team' | 'training' | 'resources'>('overview');
+    const [currentPage, setCurrentPage] = useState<'signups' | 'expeditions'>('signups');
 
     useEffect(() => {
         if (!config.user_data?.logged_in) {
@@ -206,13 +207,13 @@ export function PortalApp() {
                 <p>Welcome, <strong>{me?.display_name}</strong></p>
 
                 {me?.access_type === 'parent' && me.profiles && me.profiles.length > 1 && (
-                    <div className="child-selector" style={{ marginTop: '15px' }}>
+                    <div className="child-selector" style={{ marginTop: '15px', marginBottom: '15px' }}>
                         <span style={{ marginRight: '10px', fontWeight: 'bold' }}>Select Profile:</span>
                         {me.profiles.map(p => (
                             <button
                                 key={p.scout_id}
                                 onClick={() => setActiveScoutId(p.scout_id)}
-                                className={`button ${activeScoutId === p.scout_id ? 'button-primary' : 'button-secondary'}`}
+                                className={`button ${Number(activeScoutId) === Number(p.scout_id) ? 'button-primary' : 'button-secondary'}`}
                                 style={{ marginRight: '8px' }}
                             >
                                 {p.first_name} {p.last_name}
@@ -220,6 +221,22 @@ export function PortalApp() {
                         ))}
                     </div>
                 )}
+
+                {/* Top-Level Portal Page Navigation */}
+                <div className="portal-nav-tabs" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <button
+                        onClick={() => setCurrentPage('signups')}
+                        className={`button ${currentPage === 'signups' ? 'button-primary' : 'button-secondary'}`}
+                    >
+                        Applications / Sign-ups
+                    </button>
+                    <button
+                        onClick={() => setCurrentPage('expeditions')}
+                        className={`button ${currentPage === 'expeditions' ? 'button-primary' : 'button-secondary'}`}
+                    >
+                        Expeditions & Events
+                    </button>
+                </div>
             </div>
 
             {error && (
@@ -232,61 +249,44 @@ export function PortalApp() {
 
             {!loading && explorerDetail && (
                 <div className="portal-content">
-                    {/* Timeline Tracker */}
-                    <div className="portal-timeline" style={{ display: 'flex', justifyContent: 'space-between', background: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
-                        <div className={`timeline-step ${getTimelineClass(1)}`} style={{ textAlign: 'center', flex: 1 }}>
-                            <div className="step-badge" style={{ fontSize: '20px', fontWeight: 'bold' }}>1</div>
-                            <div>Signed Up</div>
-                        </div>
-                        <div className={`timeline-step ${getTimelineClass(2)}`} style={{ textAlign: 'center', flex: 1 }}>
-                            <div className="step-badge" style={{ fontSize: '20px', fontWeight: 'bold' }}>2</div>
-                            <div>Date Assigned</div>
-                        </div>
-                        <div className={`timeline-step ${getTimelineClass(3)}`} style={{ textAlign: 'center', flex: 1 }}>
-                            <div className="step-badge" style={{ fontSize: '20px', fontWeight: 'bold' }}>3</div>
-                            <div>Team Formed</div>
-                        </div>
-                        <div className={`timeline-step ${getTimelineClass(4)}`} style={{ textAlign: 'center', flex: 1 }}>
-                            <div className="step-badge" style={{ fontSize: '20px', fontWeight: 'bold' }}>4</div>
-                            <div>Route Approved</div>
-                        </div>
-                    </div>
-
-                    {/* High Level Forms details */}
-                    <div className="portal-section" style={{ marginBottom: '35px' }}>
-                        <h3>Sign-up Applications</h3>
-                        {explorerDetail.signups.length === 0 ? (
-                            <p>No active sign-ups found.</p>
-                        ) : (
-                            <table className="wp-list-table widefat fixed striped" style={{ width: '100%' }}>
-                                <thead>
-                                    <tr>
-                                        <th>Level</th>
-                                        <th>Application Type</th>
-                                        <th>Status</th>
-                                        <th>Payment</th>
-                                        <th>Submitted</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {explorerDetail.signups.map(s => (
-                                        <tr key={s.id}>
-                                            <td style={{ textTransform: 'capitalize' }}><strong>{s.dofe_level}</strong></td>
-                                            <td style={{ textTransform: 'capitalize' }}>{s.type}</td>
-                                            <td><span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span></td>
-                                            <td>{s.payment_status ? <span className={`payment-badge payment-${s.payment_status}`} style={{ textTransform: 'capitalize' }}>{s.payment_status}</span> : '—'}</td>
-                                            <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                    {/* Page 1: Sign-up Applications */}
+                    {currentPage === 'signups' && (
+                        <div className="portal-section" style={{ marginBottom: '35px' }}>
+                            <h3>Sign-up Applications</h3>
+                            {explorerDetail.signups.length === 0 ? (
+                                <p>No active sign-ups found.</p>
+                            ) : (
+                                <table className="wp-list-table widefat fixed striped" style={{ width: '100%' }}>
+                                    <thead>
+                                        <tr>
+                                            <th>Level</th>
+                                            <th>Application Type</th>
+                                            <th>Status</th>
+                                            <th>Payment</th>
+                                            <th>Submitted</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
+                                    </thead>
+                                    <tbody>
+                                        {explorerDetail.signups.map(s => (
+                                            <tr key={s.id}>
+                                                <td style={{ textTransform: 'capitalize' }}><strong>{s.dofe_level}</strong></td>
+                                                <td style={{ textTransform: 'capitalize' }}>{s.type}</td>
+                                                <td><span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span></td>
+                                                <td>{s.payment_status ? <span className={`payment-badge payment-${s.payment_status}`} style={{ textTransform: 'capitalize' }}>{s.payment_status}</span> : '—'}</td>
+                                                <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    )}
 
-                    {/* Expedition Sign-ups Categories Tabs */}
-                    <div className="portal-section">
-                        <h3>Expeditions & Events</h3>
-                        <div className="category-tabs" style={{ display: 'flex', borderBottom: '2px solid #ccc', marginBottom: '20px' }}>
+                    {/* Page 2: Expeditions & Events */}
+                    {currentPage === 'expeditions' && (
+                        <div className="portal-section">
+                            <h3>Expeditions & Events</h3>
+                            <div className="category-tabs" style={{ display: 'flex', borderBottom: '2px solid #ccc', marginBottom: '20px' }}>
                             {(['training', 'practice', 'qualifying'] as const).map(tab => {
                                 const count = explorerDetail.events[tab]?.length || 0;
                                 const isGreyed = count === 0;
@@ -468,9 +468,10 @@ export function PortalApp() {
                                         )}
                                     </div>
                                 );
-                            })()}
+                             })()}
                         </div>
                     </div>
+                    )}
                 </div>
             )}
         </div>
