@@ -114,6 +114,29 @@ class Portal_Controller {
 
         global $wpdb;
 
+        $all_courses = $this->tutor_client->get_all_courses() ?: [];
+        $course_map = [];
+        foreach ( $all_courses as $c ) {
+            $course_map[ (int) $c->ID ] = $c->post_title;
+        }
+
+        $map_completion = function( $completion_data ) use ( $course_map ) {
+            if ( ! is_array( $completion_data ) ) {
+                return $completion_data;
+            }
+            $mapped = [];
+            foreach ( $completion_data as $key => $val ) {
+                $course_id = (int) preg_replace( '/[^0-9]/', '', $key );
+                if ( $course_id && isset( $course_map[ $course_id ] ) ) {
+                    $new_key = $course_map[ $course_id ];
+                } else {
+                    $new_key = ucwords( str_replace( '_', ' ', $key ) );
+                }
+                $mapped[ $new_key ] = $val;
+            }
+            return $mapped;
+        };
+
         // Fetch signups
         $participant_signups = $wpdb->get_results( $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}ems_participant_signups WHERE scout_id = %d",
@@ -138,8 +161,8 @@ class Portal_Controller {
                 'dofe_registered'    => $s['dofe_registered'],
                 'dofe_number'        => $s['dofe_number'],
                 'dofe_org'           => $s['dofe_org'],
-                'bronze_completion'  => ! empty( $s['bronze_completion'] ) ? json_decode( $s['bronze_completion'], true ) : null,
-                'silver_completion'  => ! empty( $s['silver_completion'] ) ? json_decode( $s['silver_completion'], true ) : null,
+                'bronze_completion'  => ! empty( $s['bronze_completion'] ) ? $map_completion( json_decode( $s['bronze_completion'], true ) ) : null,
+                'silver_completion'  => ! empty( $s['silver_completion'] ) ? $map_completion( json_decode( $s['silver_completion'], true ) ) : null,
                 'form_submission_id' => (int) $s['form_submission_id'],
             ];
         }
@@ -268,11 +291,6 @@ class Portal_Controller {
         $training_checklist = [];
         $explorer_wp_user_id = $explorer['wp_user_id'] ? (int) $explorer['wp_user_id'] : null;
 
-        $all_courses = $this->tutor_client->get_all_courses() ?: [];
-        $course_map = [];
-        foreach ( $all_courses as $c ) {
-            $course_map[ (int) $c->ID ] = $c->post_title;
-        }
 
         $matrix = [];
         if ( $explorer_wp_user_id && ! empty( $required_courses ) ) {
