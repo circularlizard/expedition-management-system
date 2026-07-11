@@ -116,33 +116,45 @@ class Portal_Controller {
 
         // Fetch signups
         $participant_signups = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, dofe_level, signup_status, payment_status, created_at FROM {$wpdb->prefix}ems_participant_signups WHERE scout_id = %d",
+            "SELECT * FROM {$wpdb->prefix}ems_participant_signups WHERE scout_id = %d",
             $scout_id
         ), ARRAY_A ) ?: [];
 
         $expedition_signups = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, dofe_level, signup_status, created_at FROM {$wpdb->prefix}ems_expedition_signups WHERE scout_id = %d",
+            "SELECT * FROM {$wpdb->prefix}ems_expedition_signups WHERE scout_id = %d",
             $scout_id
         ), ARRAY_A ) ?: [];
 
         $signups = [];
         foreach ( $participant_signups as $s ) {
             $signups[] = [
-                'id'             => (int) $s['id'],
-                'dofe_level'     => $s['dofe_level'],
-                'signup_status'  => $s['signup_status'],
-                'payment_status' => $s['payment_status'],
-                'created_at'     => $s['created_at'],
-                'type'           => 'participant',
+                'id'                 => (int) $s['id'],
+                'dofe_level'         => $s['dofe_level'],
+                'signup_status'      => $s['signup_status'],
+                'payment_status'     => $s['payment_status'],
+                'created_at'         => $s['created_at'],
+                'type'               => 'participant',
+                'dob'                => $s['dob'],
+                'dofe_registered'    => $s['dofe_registered'],
+                'dofe_number'        => $s['dofe_number'],
+                'dofe_org'           => $s['dofe_org'],
+                'bronze_completion'  => ! empty( $s['bronze_completion'] ) ? json_decode( $s['bronze_completion'], true ) : null,
+                'silver_completion'  => ! empty( $s['silver_completion'] ) ? json_decode( $s['silver_completion'], true ) : null,
+                'form_submission_id' => (int) $s['form_submission_id'],
             ];
         }
         foreach ( $expedition_signups as $s ) {
             $signups[] = [
-                'id'            => (int) $s['id'],
-                'dofe_level'    => $s['dofe_level'],
-                'signup_status' => $s['signup_status'],
-                'created_at'    => $s['created_at'],
-                'type'          => 'expedition',
+                'id'                       => (int) $s['id'],
+                'dofe_level'               => $s['dofe_level'],
+                'signup_status'            => $s['signup_status'],
+                'created_at'               => $s['created_at'],
+                'type'                     => 'expedition',
+                'expedition_preferences'   => ! empty( $s['expedition_preferences'] ) ? json_decode( $s['expedition_preferences'], true ) : null,
+                'additional_support_needs' => $s['additional_support_needs'],
+                'first_aid_status'         => $s['first_aid_status'],
+                'first_aid_expiry'         => $s['first_aid_expiry'],
+                'form_submission_id'       => (int) $s['form_submission_id'],
             ];
         }
 
