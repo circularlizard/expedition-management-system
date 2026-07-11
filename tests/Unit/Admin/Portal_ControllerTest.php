@@ -219,6 +219,16 @@ class Portal_ControllerTest extends EMSTestCase {
             (object)[ 'ID' => 102, 'post_title' => 'Campcraft & Cooking' ],
         ]);
 
+        $this->tutor_client->shouldReceive( 'get_enrollment_matrix' )
+            ->once()
+            ->with( [ 456 ], [ 101, 102 ] )
+            ->andReturn([
+                456 => [
+                    101 => 'complete',
+                    102 => 'in_progress',
+                ]
+            ]);
+
         Functions\when( 'get_permalink' )->alias( function($id) {
             return "https://example.com/course/" . $id;
         } );
