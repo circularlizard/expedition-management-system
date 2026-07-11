@@ -28,6 +28,7 @@ export default defineConfig({
                 'signups-board':    resolve( __dirname, 'resources/js/admin/signups-board/index.tsx' ),
                 'volunteers':       resolve( __dirname, 'resources/js/admin/volunteers/index.tsx' ),
                 'volunteer-signup': resolve( __dirname, 'resources/js/admin/volunteers/signup-wizard.tsx' ),
+                'ems-portal':       resolve( __dirname, 'resources/js/portal/index.tsx' ),
             },
             output: {
                 entryFileNames: '[name].js',
