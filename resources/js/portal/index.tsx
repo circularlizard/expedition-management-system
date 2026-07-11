@@ -651,9 +651,42 @@ export function PortalApp() {
                                                             </div>
 
                                                             {(ev.location || ev.end_location) && (() => {
-                                                                const url = (ev.location && ev.end_location)
-                                                                    ? `https://www.openstreetmap.org/directions?engine=fossgis_osrm_foot&route=${encodeURIComponent(ev.location)}%3B${encodeURIComponent(ev.end_location)}`
-                                                                    : `https://www.openstreetmap.org/search?query=${encodeURIComponent(ev.location || ev.end_location || '')}`;
+                                                                const parseCoords = (val?: string): [number, number] | null => {
+                                                                    if (!val) return null;
+                                                                    const match = val.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+                                                                    return match ? [parseFloat(match[1]), parseFloat(match[2])] : null;
+                                                                };
+                                                                const start = parseCoords(ev.location);
+                                                                const end = parseCoords(ev.end_location);
+
+                                                                let url = '';
+                                                                let label = 'Open in OpenStreetMaps ↗';
+
+                                                                if (start && end) {
+                                                                    const geojson = {
+                                                                        type: 'FeatureCollection',
+                                                                        features: [
+                                                                            {
+                                                                                type: 'Feature',
+                                                                                geometry: {
+                                                                                    type: 'LineString',
+                                                                                    coordinates: [
+                                                                                        [start[1], start[0]],
+                                                                                        [end[1], end[0]]
+                                                                                    ]
+                                                                                },
+                                                                                properties: {
+                                                                                    name: 'Start to End Straight Line'
+                                                                                }
+                                                                            }
+                                                                        ]
+                                                                    };
+                                                                    url = `https://geojson.io/#data=data:application/json,${encodeURIComponent(JSON.stringify(geojson))}`;
+                                                                    label = 'Open Route Map (Straight Line) ↗';
+                                                                } else {
+                                                                    url = `https://www.openstreetmap.org/search?query=${encodeURIComponent(ev.location || ev.end_location || '')}`;
+                                                                }
+
                                                                 return (
                                                                     <div style={{ textAlign: 'right', marginTop: '-15px', marginBottom: '15px' }}>
                                                                         <a
@@ -662,7 +695,7 @@ export function PortalApp() {
                                                                             rel="noopener noreferrer"
                                                                             style={{ fontSize: '12px', color: '#0073aa', textDecoration: 'underline', fontWeight: 'bold' }}
                                                                         >
-                                                                            Open in OpenStreetMaps ↗
+                                                                            {label}
                                                                         </a>
                                                                     </div>
                                                                 );
