@@ -421,6 +421,7 @@ export function PortalApp() {
                                                     <th>Status</th>
                                                     <th>Payment</th>
                                                     <th>Submitted</th>
+                                                    <th style={{ width: '100px', textAlign: 'right' }}>Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -428,6 +429,7 @@ export function PortalApp() {
                                                     <tr 
                                                         key={s.id}
                                                         onClick={() => setSelectedSignupId(s.id === selectedSignupId ? null : s.id)}
+                                                        className="ems-clickable-row"
                                                         style={{ cursor: 'pointer', background: selectedSignupId === s.id ? '#f0f6fa' : undefined }}
                                                     >
                                                         <td style={{ textTransform: 'capitalize' }}><strong>{s.dofe_level}</strong></td>
@@ -435,6 +437,11 @@ export function PortalApp() {
                                                         <td><span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span></td>
                                                         <td>{s.payment_status ? <span className={`payment-badge payment-${s.payment_status}`} style={{ textTransform: 'capitalize' }}>{s.payment_status}</span> : '—'}</td>
                                                         <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: '500' }}>
+                                                            <span style={{ color: '#0073aa', textDecoration: 'underline' }}>
+                                                                {selectedSignupId === s.id ? 'Hide' : 'View'}
+                                                            </span>
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
