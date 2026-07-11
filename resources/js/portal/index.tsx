@@ -618,6 +618,11 @@ export function PortalApp() {
 
                                                     {activeSubTab === 'training' && (
                                                         <div>
+                                                            <div style={{ margin: '0 0 15px 0', padding: '12px 15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
+                                                                <p style={{ margin: 0, fontSize: '13px', color: '#0073aa', fontWeight: 'bold' }}>
+                                                                    <IconWarning />Note: The explorer must log in to their own account to complete the training. If a parent completes it, the progress will not be logged against the explorer.
+                                                                </p>
+                                                            </div>
                                                             <h5>Training Course Requirements</h5>
                                                             {explorerDetail.training_checklist.length === 0 ? (
                                                                 <p>No training course requirements configured for this event.</p>
