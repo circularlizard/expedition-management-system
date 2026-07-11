@@ -90,6 +90,8 @@ export function PortalApp() {
     const [activeSubTab, setActiveSubTab] = useState<'overview' | 'team' | 'training' | 'resources'>('overview');
     const [currentPage, setCurrentPage] = useState<'signups' | 'expeditions'>('signups');
 
+    const activeScout = activeScoutId || (me?.profiles && me.profiles.length > 0 ? me.profiles[0].scout_id : null);
+
     useEffect(() => {
         if (!config.user_data?.logged_in) {
             setLoading(false);
@@ -114,7 +116,7 @@ export function PortalApp() {
     }, []);
 
     useEffect(() => {
-        if (!activeScoutId) {
+        if (!activeScout) {
             setExplorerDetail(null);
             return;
         }
@@ -123,7 +125,7 @@ export function PortalApp() {
         setError(null);
         setActiveEventId(null);
 
-        fetch(`${config.root_url}/portal/explorer/${activeScoutId}`, {
+        fetch(`${config.root_url}/portal/explorer/${activeScout}`, {
             headers: { 'X-WP-Nonce': config.nonce }
         })
             .then(res => {
@@ -143,7 +145,7 @@ export function PortalApp() {
                 setError(typeof err === 'string' ? err : 'An error occurred while loading.');
                 setLoading(false);
             });
-    }, [activeScoutId]);
+    }, [activeScout]);
 
     // Handle initial selection for tab event view
     useEffect(() => {
@@ -213,7 +215,7 @@ export function PortalApp() {
                             <button
                                 key={p.scout_id}
                                 onClick={() => setActiveScoutId(p.scout_id)}
-                                className={`button ${Number(activeScoutId) === Number(p.scout_id) ? 'button-primary' : 'button-secondary'}`}
+                                className={`button ${Number(activeScout) === Number(p.scout_id) ? 'button-primary' : 'button-secondary'}`}
                                 style={{ marginRight: '8px' }}
                             >
                                 {p.first_name} {p.last_name}
