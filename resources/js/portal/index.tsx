@@ -127,6 +127,47 @@ const ResolvedLocation: React.FC<{ value?: string }> = ({ value }) => {
     );
 };
 
+const IconUser = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+    </svg>
+);
+
+const IconWarning = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cc0000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+);
+
+const IconCheck = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2e7d32" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+        <polyline points="20 6 9 17 4 12" />
+    </svg>
+);
+
+const IconCross = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d32f2f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+);
+
+const IconMapPin = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+        <circle cx="12" cy="10" r="3" />
+    </svg>
+);
+
+const IconWhatsApp = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.739-1.453L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.025 14.12 1 11.49 1 6.059 1 1.633 5.37 1.63 10.8c-.001 1.73.456 3.418 1.32 4.925L1.91 20.353l4.737-1.199z" />
+    </svg>
+);
+
 interface Profile {
     scout_id: number;
     first_name: string;
@@ -513,10 +554,10 @@ export function PortalApp() {
                                                                         <div style={{ flex: 1, minWidth: '200px', textAlign: 'center', padding: '10px', border: '1px solid #eee', borderRadius: '6px' }}>
                                                                             <h6 style={{ margin: '0 0 10px 0' }}>Explorers Group</h6>
                                                                             <p style={{ color: '#cc0000', fontSize: '12px', fontWeight: 'bold', margin: '5px 0 10px 0' }}>
-                                                                                Warning: Explorers groups are for explorers only.
+                                                                                <IconWarning />Warning: Explorers groups are for explorers only.
                                                                             </p>
                                                                             <a href={ev.whatsapp_explorers} target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ marginBottom: '10px', display: 'inline-block' }}>
-                                                                                Join Explorers Chat
+                                                                                <IconWhatsApp />Join Explorers Chat
                                                                             </a>
                                                                             <div style={{ marginTop: '10px' }}>
                                                                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ev.whatsapp_explorers)}`} alt="Explorer WhatsApp QR" style={{ width: '120px', height: '120px' }} />
@@ -527,7 +568,7 @@ export function PortalApp() {
                                                                         <div style={{ flex: 1, minWidth: '200px', textAlign: 'center', padding: '10px', border: '1px solid #eee', borderRadius: '6px' }}>
                                                                             <h6 style={{ margin: '0 0 10px 0' }}>Parents Group</h6>
                                                                             <a href={ev.whatsapp_parents} target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ marginBottom: '10px', display: 'inline-block' }}>
-                                                                                Join Parents Chat
+                                                                                <IconWhatsApp />Join Parents Chat
                                                                             </a>
                                                                             <div style={{ marginTop: '10px' }}>
                                                                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ev.whatsapp_parents)}`} alt="Parent WhatsApp QR" style={{ width: '120px', height: '120px' }} />
@@ -553,7 +594,7 @@ export function PortalApp() {
                                                                         <p style={{ margin: '0 0 8px 0' }}><strong>Your First Aid Status:</strong> <span style={{ textTransform: 'capitalize' }}>{explorerDetail.explorer.first_aid_level.replace(/_/g, ' ')}</span></p>
                                                                         {ev.required_first_aid_level !== 'none' && (
                                                                             <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#cc0000', fontWeight: 'bold' }}>
-                                                                                Warning: At least 2 people in the team need the required level of first aid.
+                                                                                <IconWarning />Warning: At least 2 people in the team need the required level of first aid.
                                                                             </p>
                                                                         )}
                                                                     </div>
@@ -562,7 +603,7 @@ export function PortalApp() {
                                                                     <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
                                                                         {explorerDetail.team.teammates.map((tm, idx) => (
                                                                             <li key={idx} style={{ padding: '8px 10px', borderBottom: '1px solid #eee', background: '#fff' }}>
-                                                                                • {tm.first_name} {tm.last_initial} ({tm.patrol || 'No Patrol'})
+                                                                                <IconUser /> {tm.first_name} {tm.last_initial} ({tm.patrol || 'No Patrol'})
                                                                             </li>
                                                                         ))}
                                                                     </ul>
@@ -583,7 +624,7 @@ export function PortalApp() {
                                                                     {explorerDetail.training_checklist.map((tc, idx) => (
                                                                         <li key={idx} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                                                             <span>
-                                                                                {tc.completed ? '✅' : '❌'} {tc.course_name}
+                                                                                {tc.completed ? <IconCheck /> : <IconCross />} {tc.course_name}
                                                                             </span>
                                                                             <a href={tc.course_url} target="_blank" rel="noopener noreferrer" className="button button-small">
                                                                                 Go to Course
@@ -598,8 +639,8 @@ export function PortalApp() {
                                                     {activeSubTab === 'route' && (
                                                         <div>
                                                             <h5>Route details</h5>
-                                                            <p><strong>Start Point:</strong> <ResolvedLocation value={ev.location} /></p>
-                                                            <p><strong>End Point:</strong> <ResolvedLocation value={ev.end_location} /></p>
+                                                            <p><strong><IconMapPin />Start Point:</strong> <ResolvedLocation value={ev.location} /></p>
+                                                            <p><strong><IconMapPin />End Point:</strong> <ResolvedLocation value={ev.end_location} /></p>
                                                             <p><strong>Route Status:</strong> <span className={`status-badge status-${explorerDetail.team?.route_status || 'pending'}`} style={{ textTransform: 'capitalize' }}>{explorerDetail.team?.route_status || 'pending'}</span></p>
                                                             <p><strong>Route Deadline:</strong> {ev.route_deadline || 'No Deadline Set'}</p>
 
