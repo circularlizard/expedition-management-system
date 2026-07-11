@@ -120,6 +120,20 @@ class Portal_Controller {
             $course_map[ (int) $c->ID ] = $c->post_title;
         }
 
+        $decode_field = function( $val ) {
+            if ( empty( $val ) ) {
+                return null;
+            }
+            $decoded = json_decode( $val, true );
+            if ( json_last_error() === JSON_ERROR_NONE ) {
+                return $decoded;
+            }
+            if ( is_serialized( $val ) ) {
+                return maybe_unserialize( $val );
+            }
+            return $val;
+        };
+
         $map_completion = function( $completion_data ) use ( $course_map ) {
             if ( ! is_array( $completion_data ) ) {
                 return $completion_data;
@@ -161,8 +175,8 @@ class Portal_Controller {
                 'dofe_registered'    => $s['dofe_registered'],
                 'dofe_number'        => $s['dofe_number'],
                 'dofe_org'           => $s['dofe_org'],
-                'bronze_completion'  => ! empty( $s['bronze_completion'] ) ? $map_completion( json_decode( $s['bronze_completion'], true ) ) : null,
-                'silver_completion'  => ! empty( $s['silver_completion'] ) ? $map_completion( json_decode( $s['silver_completion'], true ) ) : null,
+                'bronze_completion'  => ! empty( $s['bronze_completion'] ) ? $map_completion( $decode_field( $s['bronze_completion'] ) ) : null,
+                'silver_completion'  => ! empty( $s['silver_completion'] ) ? $map_completion( $decode_field( $s['silver_completion'] ) ) : null,
                 'form_submission_id' => (int) $s['form_submission_id'],
             ];
         }
@@ -173,7 +187,7 @@ class Portal_Controller {
                 'signup_status'            => $s['signup_status'],
                 'created_at'               => $s['created_at'],
                 'type'                     => 'expedition',
-                'expedition_preferences'   => ! empty( $s['expedition_preferences'] ) ? json_decode( $s['expedition_preferences'], true ) : null,
+                'expedition_preferences'   => ! empty( $s['expedition_preferences'] ) ? $decode_field( $s['expedition_preferences'] ) : null,
                 'additional_support_needs' => $s['additional_support_needs'],
                 'first_aid_status'         => $s['first_aid_status'],
                 'first_aid_expiry'         => $s['first_aid_expiry'],
