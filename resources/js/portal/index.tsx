@@ -610,7 +610,7 @@ export function PortalApp() {
                                                             {ev.route_info && (
                                                                 <div style={{ marginTop: '15px', marginBottom: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
                                                                     <strong>Route Planning Information:</strong>
-                                                                    <p style={{ margin: '5px 0 0 0', whiteSpace: 'pre-line' }}>{ev.route_info}</p>
+                                                                    <div style={{ margin: '10px 0 0 0' }} dangerouslySetInnerHTML={{ __html: ev.route_info }} />
                                                                 </div>
                                                             )}
 
