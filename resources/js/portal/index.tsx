@@ -134,8 +134,8 @@ const IconUser = () => (
     </svg>
 );
 
-const IconWarning = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cc0000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+const IconWarning = ({ color = '#0073aa' }: { color?: string }) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -555,8 +555,8 @@ export function PortalApp() {
                                                                     {ev.whatsapp_explorers && (
                                                                         <div style={{ flex: 1, minWidth: '200px', textAlign: 'center', padding: '10px', border: '1px solid #eee', borderRadius: '6px' }}>
                                                                             <h6 style={{ margin: '0 0 10px 0' }}>Explorers Group</h6>
-                                                                            <p style={{ color: '#cc0000', fontSize: '12px', fontWeight: 'bold', margin: '5px 0 10px 0' }}>
-                                                                                <IconWarning />Warning: Explorers groups are for explorers only.
+                                                                            <p style={{ color: '#0073aa', fontSize: '12px', fontWeight: 'bold', margin: '5px 0 10px 0' }}>
+                                                                                <IconWarning />Note: Explorers groups are for explorers only.
                                                                             </p>
                                                                             <a href={ev.whatsapp_explorers} target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ marginBottom: '10px', display: 'inline-block' }}>
                                                                                 <IconWhatsApp />Join Explorers Chat
@@ -595,8 +595,8 @@ export function PortalApp() {
                                                                         <p style={{ margin: '0 0 8px 0' }}><strong>Required First Aid Level:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.required_first_aid_level.replace(/_/g, ' ')}</span></p>
                                                                         <p style={{ margin: '0 0 8px 0' }}><strong>Your First Aid Status:</strong> <span style={{ textTransform: 'capitalize' }}>{explorerDetail.explorer.first_aid_level.replace(/_/g, ' ')}</span></p>
                                                                         {ev.required_first_aid_level !== 'none' && (
-                                                                            <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#cc0000', fontWeight: 'bold' }}>
-                                                                                <IconWarning />Warning: At least 2 people in the team need the required level of first aid.
+                                                                            <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#0073aa', fontWeight: 'bold' }}>
+                                                                                <IconWarning />Note: At least 2 people in the team need the required level of first aid.
                                                                             </p>
                                                                         )}
                                                                     </div>
