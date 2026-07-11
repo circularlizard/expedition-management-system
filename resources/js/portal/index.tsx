@@ -41,6 +41,17 @@ interface Signup {
     payment_status?: string;
     created_at: string;
     type: 'participant' | 'expedition';
+    dob?: string;
+    dofe_registered?: string;
+    dofe_number?: string;
+    dofe_org?: string;
+    bronze_completion?: any;
+    silver_completion?: any;
+    expedition_preferences?: any;
+    additional_support_needs?: string;
+    first_aid_status?: string;
+    first_aid_expiry?: string;
+    form_submission_id?: number;
 }
 
 interface TrainingCourse {
@@ -197,7 +208,8 @@ export function PortalApp() {
     const [activeTab, setActiveTab] = useState<'training' | 'practice' | 'qualifying'>('training');
     const [activeEventId, setActiveEventId] = useState<number | null>(null);
     const [activeSubTab, setActiveSubTab] = useState<'overview' | 'team' | 'training' | 'resources'>('overview');
-    const [currentPage, setCurrentPage] = useState<'signups' | 'expeditions'>('signups');
+    const [currentPage, setCurrentPage] = useState<'signups' | 'expeditions'>('expeditions');
+    const [selectedSignupId, setSelectedSignupId] = useState<number | null>(null);
 
     const activeScout = activeScoutId || (me?.profiles && me.profiles.length > 0 ? me.profiles[0].scout_id : null);
 
@@ -335,23 +347,6 @@ export function PortalApp() {
                 {/* Top-Level Portal Page Navigation */}
                 <div className="portal-nav-tabs" style={{ display: 'flex', gap: '5px', marginTop: '20px', borderBottom: '1px solid #ccc' }}>
                     <button
-                        onClick={() => setCurrentPage('signups')}
-                        className={`portal-tab ${currentPage === 'signups' ? 'active' : ''}`}
-                        style={{
-                            padding: '10px 20px',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: currentPage === 'signups' ? '3px solid #0073aa' : '3px solid transparent',
-                            color: currentPage === 'signups' ? '#0073aa' : '#555',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            fontSize: '15px',
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        Applications / Sign-ups
-                    </button>
-                    <button
                         onClick={() => setCurrentPage('expeditions')}
                         className={`portal-tab ${currentPage === 'expeditions' ? 'active' : ''}`}
                         style={{
@@ -367,6 +362,26 @@ export function PortalApp() {
                         }}
                     >
                         Expeditions & Events
+                    </button>
+                    <button
+                        onClick={() => {
+                            setCurrentPage('signups');
+                            setSelectedSignupId(null);
+                        }}
+                        className={`portal-tab ${currentPage === 'signups' ? 'active' : ''}`}
+                        style={{
+                            padding: '10px 20px',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: currentPage === 'signups' ? '3px solid #0073aa' : '3px solid transparent',
+                            color: currentPage === 'signups' ? '#0073aa' : '#555',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '15px',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        Sign up forms
                     </button>
                 </div>
             </div>
@@ -384,32 +399,170 @@ export function PortalApp() {
                     {/* Page 1: Sign-up Applications */}
                     {currentPage === 'signups' && (
                         <div className="portal-section" style={{ marginBottom: '35px' }}>
-                            <h3>Sign-ups for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
+                            <h3>Sign up forms for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
                             {explorerDetail.signups.length === 0 ? (
                                 <p>No active sign-ups found.</p>
                             ) : (
-                                <table className="wp-list-table widefat fixed striped" style={{ width: '100%' }}>
-                                    <thead>
-                                        <tr>
-                                            <th>Level</th>
-                                            <th>Application Type</th>
-                                            <th>Status</th>
-                                            <th>Payment</th>
-                                            <th>Submitted</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {explorerDetail.signups.map(s => (
-                                            <tr key={s.id}>
-                                                <td style={{ textTransform: 'capitalize' }}><strong>{s.dofe_level}</strong></td>
-                                                <td style={{ textTransform: 'capitalize' }}>{s.type}</td>
-                                                <td><span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span></td>
-                                                <td>{s.payment_status ? <span className={`payment-badge payment-${s.payment_status}`} style={{ textTransform: 'capitalize' }}>{s.payment_status}</span> : '—'}</td>
-                                                <td>{new Date(s.created_at).toLocaleDateString()}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                    <div style={{ flex: 1, minWidth: '300px' }}>
+                                        <table className="wp-list-table widefat fixed striped" style={{ width: '100%' }}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Level</th>
+                                                    <th>Application Type</th>
+                                                    <th>Status</th>
+                                                    <th>Payment</th>
+                                                    <th>Submitted</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {explorerDetail.signups.map(s => (
+                                                    <tr 
+                                                        key={s.id}
+                                                        onClick={() => setSelectedSignupId(s.id === selectedSignupId ? null : s.id)}
+                                                        style={{ cursor: 'pointer', background: selectedSignupId === s.id ? '#f0f6fa' : undefined }}
+                                                    >
+                                                        <td style={{ textTransform: 'capitalize' }}><strong>{s.dofe_level}</strong></td>
+                                                        <td style={{ textTransform: 'capitalize' }}>{s.type}</td>
+                                                        <td><span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span></td>
+                                                        <td>{s.payment_status ? <span className={`payment-badge payment-${s.payment_status}`} style={{ textTransform: 'capitalize' }}>{s.payment_status}</span> : '—'}</td>
+                                                        <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {selectedSignupId && (() => {
+                                        const s = explorerDetail.signups.find(item => item.id === selectedSignupId);
+                                        if (!s) return null;
+                                        return (
+                                            <div className="ems-signups-inspector" style={{ alignSelf: 'flex-start' }}>
+                                                <div className="ems-signups-inspector__header">
+                                                    <h3 className="ems-signups-inspector__title" style={{ margin: 0, fontSize: '15px' }}>Application Details</h3>
+                                                    <button 
+                                                        onClick={() => setSelectedSignupId(null)} 
+                                                        style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 5px', color: '#666' }}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                                <div className="ems-signups-inspector__body">
+                                                    <div>
+                                                        <span className="ems-signups-inspector__label">DofE Level</span>
+                                                        <div className="ems-signups-inspector__value--large" style={{ textTransform: 'capitalize' }}>{s.dofe_level}</div>
+                                                    </div>
+                                                    <div>
+                                                        <span className="ems-signups-inspector__label">Application Type</span>
+                                                        <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize' }}>{s.type} signup</div>
+                                                    </div>
+                                                    <div>
+                                                        <span className="ems-signups-inspector__label">Signup Status</span>
+                                                        <div className="ems-signups-inspector__value">
+                                                            <span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span>
+                                                        </div>
+                                                    </div>
+                                                    {s.type === 'participant' && (
+                                                        <>
+                                                            <div>
+                                                                <span className="ems-signups-inspector__label">Payment Status</span>
+                                                                <div className="ems-signups-inspector__value">
+                                                                    <span className={`payment-badge payment-${s.payment_status || 'pending'}`} style={{ textTransform: 'capitalize' }}>{s.payment_status || 'pending'}</span>
+                                                                </div>
+                                                            </div>
+                                                            {s.dob && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">Date of Birth</span>
+                                                                    <div className="ems-signups-inspector__value">{new Date(s.dob).toLocaleDateString()}</div>
+                                                                </div>
+                                                            )}
+                                                            <div>
+                                                                <span className="ems-signups-inspector__label">DofE Registered</span>
+                                                                <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize' }}>{s.dofe_registered}</div>
+                                                            </div>
+                                                            {s.dofe_number && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">DofE Number</span>
+                                                                    <div className="ems-signups-inspector__value ems-monospace">{s.dofe_number}</div>
+                                                                </div>
+                                                            )}
+                                                            {s.dofe_org && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">DofE Operating Authority</span>
+                                                                    <div className="ems-signups-inspector__value">{s.dofe_org}</div>
+                                                                </div>
+                                                            )}
+                                                            {s.bronze_completion && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">Bronze Completion Details</span>
+                                                                    <div className="ems-signups-inspector__value" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+                                                                        {Object.entries(s.bronze_completion).map(([key, val]) => (
+                                                                            <div key={key}><strong>{key.replace(/_/g, ' ')}:</strong> {String(val)}</div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {s.silver_completion && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">Silver Completion Details</span>
+                                                                    <div className="ems-signups-inspector__value" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+                                                                        {Object.entries(s.silver_completion).map(([key, val]) => (
+                                                                            <div key={key}><strong>{key.replace(/_/g, ' ')}:</strong> {String(val)}</div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                    {s.type === 'expedition' && (
+                                                        <>
+                                                            {s.first_aid_status && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">First Aid Status</span>
+                                                                    <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize' }}>{s.first_aid_status}</div>
+                                                                </div>
+                                                            )}
+                                                            {s.first_aid_expiry && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">First Aid Expiry</span>
+                                                                    <div className="ems-signups-inspector__value">{s.first_aid_expiry}</div>
+                                                                </div>
+                                                            )}
+                                                            {s.additional_support_needs && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">Additional Support Needs</span>
+                                                                    <div className="ems-signups-inspector__value" style={{ background: '#fff0f0', padding: '8px 10px', borderRadius: '4px', borderLeft: '3px solid #d32f2f', color: '#c00' }}>
+                                                                        {s.additional_support_needs}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {s.expedition_preferences && (
+                                                                <div>
+                                                                    <span className="ems-signups-inspector__label">Expedition Preferences</span>
+                                                                    <div className="ems-signups-inspector__value" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
+                                                                        {Object.entries(s.expedition_preferences).map(([key, val]) => (
+                                                                            <div key={key}><strong>{key.replace(/_/g, ' ')}:</strong> {String(val)}</div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                    <div>
+                                                        <span className="ems-signups-inspector__label">Submission Date</span>
+                                                        <div className="ems-signups-inspector__value">{new Date(s.created_at).toLocaleString()}</div>
+                                                    </div>
+                                                    {s.form_submission_id && (
+                                                        <div>
+                                                            <span className="ems-signups-inspector__label">Fluent Forms Entry ID</span>
+                                                            <div className="ems-signups-inspector__value ems-monospace">#{s.form_submission_id}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
                             )}
                         </div>
                     )}
