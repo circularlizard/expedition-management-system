@@ -21,6 +21,7 @@ class Plugin {
         $this->cpt_registry = new CPT_Registry();
         $this->init_hooks();
         add_shortcode( 'ems-volunteer-signup', [ $this, 'render_volunteer_signup_shortcode' ] );
+        add_shortcode( 'ems-portal', [ $this, 'render_portal_shortcode' ] );
     }
 
     private function init_hooks(): void {
@@ -97,6 +98,9 @@ class Plugin {
 
             $volunteer_controller = new \EMS\Admin\Volunteer_Controller();
             $volunteer_controller->register_routes();
+
+            $portal_controller = new \EMS\Admin\Portal_Controller();
+            $portal_controller->register_routes();
 
             register_rest_route( 'ems/v1', '/sync-status', [
                 'methods'             => 'GET',
@@ -435,5 +439,41 @@ class Plugin {
         ] );
 
         return '<div id="ems-volunteer-signup-root"></div>';
+    }
+
+    public function render_portal_shortcode(): string {
+        $js_path = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.js';
+        $css_path = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+
+        wp_enqueue_style( 'wp-components' );
+        wp_enqueue_style( 'ems-admin', $css_path, [ 'wp-components' ], EMS_VERSION );
+
+        wp_enqueue_script(
+            'ems-portal',
+            $js_path,
+            [ 'wp-element', 'wp-i18n' ],
+            EMS_VERSION,
+            true
+        );
+
+        $current_user = wp_get_current_user();
+        $user_data = [
+            'logged_in'   => $current_user->exists(),
+            'first_name'  => $current_user->exists() ? ($current_user->user_firstname ?: $current_user->display_name) : '',
+            'last_name'   => $current_user->exists() ? $current_user->user_lastname : '',
+            'email'       => $current_user->exists() ? $current_user->user_email : '',
+            'access_type' => $current_user->exists() ? get_user_meta( $current_user->ID, 'ems_access_type', true ) : '',
+        ];
+
+        $current_url = home_url( add_query_arg( [], $GLOBALS['wp']->request ?? '' ) );
+
+        wp_localize_script( 'ems-portal', 'emsPortal', [
+            'root_url'  => get_rest_url( null, 'ems/v1' ),
+            'nonce'     => wp_create_nonce( 'wp_rest' ),
+            'login_url' => wp_login_url( $current_url ),
+            'user_data' => $user_data,
+        ] );
+
+        return '<div id="ems-portal-root"></div>';
     }
 }
