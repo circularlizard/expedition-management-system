@@ -2609,6 +2609,7 @@
 /* Slide-out Inspector Panel */
 .ems-signups-inspector {
     width: 380px;
+    max-width: 100%;
     background: #fff;
     border: 1px solid #ccd0d4;
     border-radius: 8px;
@@ -3024,6 +3025,51 @@
     background: #f6f7f7;
     border-top: 1px solid #ccd0d4;
 }
+
+/* Participant Portal Responsive Enhancements */
+.ems-portal-overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.ems-portal-event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eaeaea;
+    padding-bottom: 10px;
+    gap: 12px;
+}
+
+@media screen and (max-width: 768px) {
+    .ems-portal-container {
+        padding: 12px;
+    }
+    
+    .ems-portal-overview-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ems-portal-event-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .ems-portal-event-header button {
+        align-self: flex-start;
+    }
+
+    .portal-nav-tabs,
+    .category-tabs,
+    .sub-tabs,
+    .child-selector {
+        flex-wrap: wrap !important;
+    }
+}
+
 
 
 
