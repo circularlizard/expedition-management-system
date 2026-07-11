@@ -356,15 +356,19 @@ export function PortalApp() {
                                 </div>
                             )}
 
-                            {/* Event Details render */}
                             {activeEventId && (() => {
                                 const ev = explorerDetail.events[activeTab]?.find(e => e.id === activeEventId);
                                 if (!ev) return null;
 
                                 return (
                                     <div className="event-details-card" style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '8px', padding: '20px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                            <h4>{ev.name}</h4>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #eaeaea', paddingBottom: '10px' }}>
+                                            <div>
+                                                <h4 style={{ margin: 0 }}>{ev.name} {ev.event_code && `(${ev.event_code})`}</h4>
+                                                <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '14px' }}>
+                                                    <strong>Dates:</strong> {ev.start_date} to {ev.end_date}
+                                                </p>
+                                            </div>
                                             {explorerDetail.events[activeTab].length > 1 && (
                                                 <button onClick={() => setActiveEventId(null)} className="button">
                                                     Back to list
@@ -375,7 +379,6 @@ export function PortalApp() {
                                         {/* Sub-tabs for Practice and Qualifying, Training displays basic details directly */}
                                         {activeTab === 'training' ? (
                                             <div className="training-event-details">
-                                                <p><strong>Dates:</strong> {ev.start_date} to {ev.end_date}</p>
                                                 <p><strong>Location:</strong> {ev.location}</p>
                                                 {ev.osm_event_url && (
                                                     <p>
@@ -395,7 +398,7 @@ export function PortalApp() {
                                         ) : (
                                             <div className="expedition-event-details">
                                                 <div className="sub-tabs" style={{ display: 'flex', gap: '5px', borderBottom: '1px solid #eee', marginBottom: '15px' }}>
-                                                    {(['overview', 'team', 'training', 'resources'] as const).map(subTab => (
+                                                    {(['overview', 'team', 'training', 'route'] as const).map(subTab => (
                                                         <button
                                                             key={subTab}
                                                             onClick={() => setActiveSubTab(subTab)}
@@ -416,15 +419,52 @@ export function PortalApp() {
                                                 <div className="sub-tab-content">
                                                     {activeSubTab === 'overview' && (
                                                         <div>
-                                                            <p><strong>Dates:</strong> {ev.start_date} to {ev.end_date}</p>
-                                                            <p><strong>Start Location:</strong> {ev.location}</p>
-                                                            {ev.leader_in_charge?.name && (
-                                                                <div style={{ marginTop: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '4px' }}>
-                                                                    <strong>Leader in Charge:</strong> {ev.leader_in_charge.name}<br/>
-                                                                    Email: <a href={`mailto:${ev.leader_in_charge.email}`}>{ev.leader_in_charge.email}</a><br/>
-                                                                    Phone: {ev.leader_in_charge.phone}
+                                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                                                                <div>
+                                                                    <p><strong>Level:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.level}</span></p>
+                                                                    <p><strong>Type:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.type}</span></p>
                                                                 </div>
-                                                            )}
+                                                                <div>
+                                                                    {ev.leader_in_charge?.name && (
+                                                                        <div style={{ padding: '10px', background: '#f9f9f9', borderRadius: '4px' }}>
+                                                                            <strong>Leader in Charge:</strong> {ev.leader_in_charge.name}<br/>
+                                                                            Email: <a href={`mailto:${ev.leader_in_charge.email}`}>{ev.leader_in_charge.email}</a><br/>
+                                                                            Phone: {ev.leader_in_charge.phone}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            <div style={{ borderTop: '1px solid #eee', paddingTop: '15px', marginTop: '15px' }}>
+                                                                <h5>WhatsApp Groups & QR Codes</h5>
+                                                                <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+                                                                    {ev.whatsapp_explorers && (
+                                                                        <div style={{ flex: 1, minWidth: '200px', textAlign: 'center', padding: '10px', border: '1px solid #eee', borderRadius: '6px' }}>
+                                                                            <h6 style={{ margin: '0 0 10px 0' }}>Explorers Group</h6>
+                                                                            <a href={ev.whatsapp_explorers} target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ marginBottom: '10px', display: 'inline-block' }}>
+                                                                                Join Explorers Chat
+                                                                            </a>
+                                                                            <div style={{ marginTop: '10px' }}>
+                                                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ev.whatsapp_explorers)}`} alt="Explorer WhatsApp QR" style={{ width: '120px', height: '120px' }} />
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    {ev.whatsapp_parents && (
+                                                                        <div style={{ flex: 1, minWidth: '200px', textAlign: 'center', padding: '10px', border: '1px solid #eee', borderRadius: '6px' }}>
+                                                                            <h6 style={{ margin: '0 0 10px 0' }}>Parents Group</h6>
+                                                                            <a href={ev.whatsapp_parents} target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ marginBottom: '10px', display: 'inline-block' }}>
+                                                                                Join Parents Chat
+                                                                            </a>
+                                                                            <div style={{ marginTop: '10px' }}>
+                                                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ev.whatsapp_parents)}`} alt="Parent WhatsApp QR" style={{ width: '120px', height: '120px' }} />
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    {!ev.whatsapp_explorers && !ev.whatsapp_parents && (
+                                                                        <p style={{ color: '#666', fontStyle: 'italic' }}>No WhatsApp group links configured for this event yet.</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     )}
 
@@ -433,21 +473,22 @@ export function PortalApp() {
                                                             {explorerDetail.team ? (
                                                                 <div>
                                                                     <p><strong>Team Code:</strong> {explorerDetail.team.team_code}</p>
-                                                                    <p><strong>Route Status:</strong> <span className={`status-badge status-${explorerDetail.team.route_status}`}>{explorerDetail.team.route_status}</span></p>
 
-                                                                    {explorerDetail.team.whatsapp_link && (
-                                                                        <div style={{ margin: '15px 0' }}>
-                                                                            <a href={explorerDetail.team.whatsapp_link} target="_blank" rel="noopener noreferrer" className="button button-primary">
-                                                                                Join WhatsApp Group
-                                                                            </a>
-                                                                        </div>
-                                                                    )}
+                                                                    <div style={{ margin: '15px 0', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
+                                                                        <p style={{ margin: '0 0 8px 0' }}><strong>Required First Aid Level:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.required_first_aid_level.replace(/_/g, ' ')}</span></p>
+                                                                        <p style={{ margin: '0 0 8px 0' }}><strong>Your First Aid Status:</strong> <span style={{ textTransform: 'capitalize' }}>{explorerDetail.explorer.first_aid_level.replace(/_/g, ' ')}</span></p>
+                                                                        {ev.required_first_aid_level !== 'none' && (
+                                                                            <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#cc0000', fontWeight: 'bold' }}>
+                                                                                ⚠️ Safeguarding Requirement: At least 2 people in the team need the required level of first aid.
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
 
                                                                     <h5>Teammates</h5>
-                                                                    <ul>
+                                                                    <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
                                                                         {explorerDetail.team.teammates.map((tm, idx) => (
-                                                                            <li key={idx}>
-                                                                                {tm.first_name} {tm.last_initial} ({tm.patrol || 'No Patrol'})
+                                                                            <li key={idx} style={{ padding: '8px 10px', borderBottom: '1px solid #eee', background: '#fff' }}>
+                                                                                👥 {tm.first_name} {tm.last_initial} ({tm.patrol || 'No Patrol'})
                                                                             </li>
                                                                         ))}
                                                                     </ul>
@@ -480,10 +521,33 @@ export function PortalApp() {
                                                         </div>
                                                     )}
 
-                                                    {activeSubTab === 'resources' && (
+                                                    {activeSubTab === 'route' && (
                                                         <div>
-                                                            <h5>Resources & Attachments</h5>
-                                                            <p style={{ color: '#666', fontStyle: 'italic' }}>Risk Assessments, Planning Docs, and Route Card submission tools will be available here soon.</p>
+                                                            <h5>Route details</h5>
+                                                            <p><strong>Start Point:</strong> {ev.location || 'Not Specified'}</p>
+                                                            <p><strong>End Point:</strong> {ev.end_location || 'Not Specified'}</p>
+                                                            <p><strong>Route Status:</strong> <span className={`status-badge status-${explorerDetail.team?.route_status || 'pending'}`} style={{ textTransform: 'capitalize' }}>{explorerDetail.team?.route_status || 'pending'}</span></p>
+                                                            <p><strong>Route Deadline:</strong> {ev.route_deadline || 'No Deadline Set'}</p>
+
+                                                            {ev.route_info && (
+                                                                <div style={{ marginTop: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
+                                                                    <strong>Route Planning Information:</strong>
+                                                                    <p style={{ margin: '5px 0 0 0', whiteSpace: 'pre-line' }}>{ev.route_info}</p>
+                                                                </div>
+                                                            )}
+
+                                                            <div style={{ marginTop: '20px', height: '200px', background: '#e5e3de', border: '1px solid #ccc', borderRadius: '6px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+                                                                <div style={{ textAlign: 'center' }}>
+                                                                    <span style={{ fontSize: '24px' }}>🗺️</span>
+                                                                    <p style={{ margin: '5px 0 0 0', fontWeight: 'bold' }}>Route Map Preview</p>
+                                                                    <p style={{ margin: 0, fontSize: '12px' }}>OpenStreetMap interface is ready for GPX coordinate mapping (Milestone 9)</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #0073aa', borderRadius: '6px', background: '#fcfdff', textAlign: 'center' }}>
+                                                                <p style={{ margin: 0, fontWeight: 'bold', color: '#0073aa' }}>📁 Route Card & GPX Upload Area</p>
+                                                                <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>Route card PDF/GPX submission tools will be wired here (Milestone 9).</p>
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -491,7 +555,7 @@ export function PortalApp() {
                                         )}
                                     </div>
                                 );
-                             })()}
+                            })()}
                         </div>
                     </div>
                     )}
