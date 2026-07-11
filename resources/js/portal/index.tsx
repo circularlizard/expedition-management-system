@@ -650,6 +650,19 @@ export function PortalApp() {
                                                                 <OSMReadOnlyMap startLocation={ev.location} endLocation={ev.end_location} />
                                                             </div>
 
+                                                            {(ev.location || ev.end_location) && (
+                                                                <div style={{ textAlign: 'right', marginTop: '-15px', marginBottom: '15px' }}>
+                                                                    <a
+                                                                        href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(ev.location || ev.end_location || '')}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        style={{ fontSize: '12px', color: '#0073aa', textDecoration: 'underline', fontWeight: 'bold' }}
+                                                                    >
+                                                                        Open in OpenStreetMaps ↗
+                                                                    </a>
+                                                                </div>
+                                                            )}
+
                                                             {ev.route_info && (
                                                                 <div style={{ marginTop: '15px', marginBottom: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
                                                                     <strong>Route Planning Information:</strong>
