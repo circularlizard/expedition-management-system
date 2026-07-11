@@ -126,7 +126,7 @@ const ResolvedLocation: React.FC<{ value?: string }> = ({ value }) => {
     return (
         <span>
             <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="ems-detail-link" style={{ marginRight: '8px' }}>
-                {lat}, {lng} ↗
+                {lat}, {lng} <IconExternalLink />
             </a>
             {loading && <span style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>Resolving address…</span>}
             {!loading && resolvedName && (
@@ -176,6 +176,14 @@ const IconMapPin = () => (
 const IconWhatsApp = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
         <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.739-1.453L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.025 14.12 1 11.49 1 6.059 1 1.633 5.37 1.63 10.8c-.001 1.73.456 3.418 1.32 4.925L1.91 20.353l4.737-1.199z" />
+    </svg>
+);
+
+const IconExternalLink = () => (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '2px', verticalAlign: 'middle' }}>
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        <polyline points="15 3 21 3 21 9" />
+        <line x1="10" y1="14" x2="21" y2="3" />
     </svg>
 );
 
@@ -845,57 +853,6 @@ export function PortalApp() {
                                                             <div style={{ marginTop: '20px', marginBottom: '20px' }}>
                                                                 <OSMReadOnlyMap startLocation={ev.location} endLocation={ev.end_location} />
                                                             </div>
-
-                                                            {(ev.location || ev.end_location) && (() => {
-                                                                const parseCoords = (val?: string): [number, number] | null => {
-                                                                    if (!val) return null;
-                                                                    const match = val.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
-                                                                    return match ? [parseFloat(match[1]), parseFloat(match[2])] : null;
-                                                                };
-                                                                const start = parseCoords(ev.location);
-                                                                const end = parseCoords(ev.end_location);
-
-                                                                let url = '';
-                                                                let label = 'Open in OpenStreetMaps ↗';
-
-                                                                if (start && end) {
-                                                                    const geojson = {
-                                                                        type: 'FeatureCollection',
-                                                                        features: [
-                                                                            {
-                                                                                type: 'Feature',
-                                                                                geometry: {
-                                                                                    type: 'LineString',
-                                                                                    coordinates: [
-                                                                                        [start[1], start[0]],
-                                                                                        [end[1], end[0]]
-                                                                                    ]
-                                                                                },
-                                                                                properties: {
-                                                                                    name: 'Start to End Straight Line'
-                                                                                }
-                                                                            }
-                                                                        ]
-                                                                    };
-                                                                    url = `https://geojson.io/#data=data:application/json,${encodeURIComponent(JSON.stringify(geojson))}`;
-                                                                    label = 'Open Route Map (Straight Line) ↗';
-                                                                } else {
-                                                                    url = `https://www.openstreetmap.org/search?query=${encodeURIComponent(ev.location || ev.end_location || '')}`;
-                                                                }
-
-                                                                return (
-                                                                    <div style={{ textAlign: 'right', marginTop: '-15px', marginBottom: '15px' }}>
-                                                                        <a
-                                                                            href={url}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            style={{ fontSize: '12px', color: '#0073aa', textDecoration: 'underline', fontWeight: 'bold' }}
-                                                                        >
-                                                                            {label}
-                                                                        </a>
-                                                                    </div>
-                                                                );
-                                                            })()}
 
                                                             {ev.route_info && (
                                                                 <div style={{ marginTop: '15px', marginBottom: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
