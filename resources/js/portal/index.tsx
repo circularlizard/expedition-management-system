@@ -516,11 +516,11 @@ export function PortalApp() {
                                                     )}
                                                     {s.type === 'expedition' && (
                                                         <>
-                                                            {s.expedition_preferences?.expedition_type && (
+                                                            {s.expedition_preferences?.exped_type && (
                                                                 <div>
                                                                     <span className="ems-signups-inspector__label">Expedition Type</span>
                                                                     <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
-                                                                        {s.expedition_preferences.expedition_type}
+                                                                        {s.expedition_preferences.exped_type}
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -557,16 +557,16 @@ export function PortalApp() {
                                                                                     transport: 'Preferred Transport',
                                                                                     location_preference: 'Preferred Location',
                                                                                     date_preference: 'Preferred Dates',
-                                                                                    practice_availability: 'Practice availability',
-                                                                                    qualifier_availability: 'Qualifier availability',
-                                                                                    preferred_teammates: 'Preferred team mates',
+                                                                                    exped_practice_dates: 'Practice availability',
+                                                                                    exped_qualifier_dates: 'Qualifier availability',
+                                                                                    exped_team_names: 'Preferred team mates',
                                                                                     notes: 'Additional Preference Notes',
                                                                                     dofe_level: 'DofE Level Preferences',
                                                                                 };
                                                                                 return maps[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                                                                             };
                                                                             const prefs = { ...s.expedition_preferences };
-                                                                            delete prefs.expedition_type;
+                                                                            delete prefs.exped_type;
 
                                                                             return Object.entries(prefs).map(([key, val]) => (
                                                                                 <div key={key} style={{ marginBottom: '5px' }}>
