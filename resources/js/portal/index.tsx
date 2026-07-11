@@ -1,6 +1,7 @@
 import '../../css/ems-admin.css';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { OSMReadOnlyMap } from '../admin/expedition-board/OSMReadOnlyMap';
 
 interface Teammate {
     first_name: string;
@@ -14,6 +15,15 @@ interface EventData {
     start_date: string;
     end_date: string;
     location: string;
+    end_location?: string;
+    required_first_aid_level: string;
+    route_deadline?: string;
+    route_info?: string;
+    whatsapp_explorers?: string | null;
+    whatsapp_parents?: string | null;
+    level: string;
+    type: string;
+    event_code?: string;
     osm_event_url: string | null;
     leader_in_charge: {
         name: string;
@@ -43,6 +53,7 @@ interface ExplorerDetail {
         scout_id: number;
         first_name: string;
         last_name: string;
+        first_aid_level: string;
     };
     signups: Signup[];
     events: {
@@ -58,6 +69,61 @@ interface ExplorerDetail {
         teammates: Teammate[];
     } | null;
 }
+
+const ResolvedLocation: React.FC<{ value?: string }> = ({ value }) => {
+    const [resolvedName, setResolvedName] = useState('');
+    const [loading, setLoading] = useState(false);
+    const coordsMatch = value ? value.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/) : null;
+
+    useEffect(() => {
+        if (!coordsMatch) {
+            setResolvedName('');
+            return;
+        }
+        const lat = parseFloat(coordsMatch[1]);
+        const lng = parseFloat(coordsMatch[2]);
+        setLoading(true);
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+            headers: { 'Accept-Language': 'en' }
+        })
+            .then(res => {
+                if (res.ok) return res.json();
+                throw new Error();
+            })
+            .then(data => {
+                const addr = data.address;
+                const name = addr.road || addr.suburb || addr.town || addr.city || addr.county || '';
+                const county = addr.county || addr.state || '';
+                setResolvedName(name ? (county ? `${name}, ${county}` : name) : '');
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, [value]);
+
+    if (!value) return <span>Not Specified</span>;
+
+    if (!coordsMatch) {
+        return <span>{value}</span>;
+    }
+
+    const lat = coordsMatch[1];
+    const lng = coordsMatch[2];
+    const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+
+    return (
+        <span>
+            <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="ems-detail-link" style={{ marginRight: '8px' }}>
+                {lat}, {lng} ↗
+            </a>
+            {loading && <span style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>Resolving address…</span>}
+            {!loading && resolvedName && (
+                <span style={{ fontSize: '13px', color: '#444' }}>
+                    ({resolvedName})
+                </span>
+            )}
+        </span>
+    );
+};
 
 interface Profile {
     scout_id: number;
@@ -441,6 +507,9 @@ export function PortalApp() {
                                                                     {ev.whatsapp_explorers && (
                                                                         <div style={{ flex: 1, minWidth: '200px', textAlign: 'center', padding: '10px', border: '1px solid #eee', borderRadius: '6px' }}>
                                                                             <h6 style={{ margin: '0 0 10px 0' }}>Explorers Group</h6>
+                                                                            <p style={{ color: '#cc0000', fontSize: '12px', fontWeight: 'bold', margin: '5px 0 10px 0' }}>
+                                                                                Warning: Explorers groups are for explorers only.
+                                                                            </p>
                                                                             <a href={ev.whatsapp_explorers} target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ marginBottom: '10px', display: 'inline-block' }}>
                                                                                 Join Explorers Chat
                                                                             </a>
@@ -479,7 +548,7 @@ export function PortalApp() {
                                                                         <p style={{ margin: '0 0 8px 0' }}><strong>Your First Aid Status:</strong> <span style={{ textTransform: 'capitalize' }}>{explorerDetail.explorer.first_aid_level.replace(/_/g, ' ')}</span></p>
                                                                         {ev.required_first_aid_level !== 'none' && (
                                                                             <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#cc0000', fontWeight: 'bold' }}>
-                                                                                ⚠️ Safeguarding Requirement: At least 2 people in the team need the required level of first aid.
+                                                                                Warning: At least 2 people in the team need the required level of first aid.
                                                                             </p>
                                                                         )}
                                                                     </div>
@@ -488,7 +557,7 @@ export function PortalApp() {
                                                                     <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
                                                                         {explorerDetail.team.teammates.map((tm, idx) => (
                                                                             <li key={idx} style={{ padding: '8px 10px', borderBottom: '1px solid #eee', background: '#fff' }}>
-                                                                                👥 {tm.first_name} {tm.last_initial} ({tm.patrol || 'No Patrol'})
+                                                                                • {tm.first_name} {tm.last_initial} ({tm.patrol || 'No Patrol'})
                                                                             </li>
                                                                         ))}
                                                                     </ul>
@@ -524,25 +593,21 @@ export function PortalApp() {
                                                     {activeSubTab === 'route' && (
                                                         <div>
                                                             <h5>Route details</h5>
-                                                            <p><strong>Start Point:</strong> {ev.location || 'Not Specified'}</p>
-                                                            <p><strong>End Point:</strong> {ev.end_location || 'Not Specified'}</p>
+                                                            <p><strong>Start Point:</strong> <ResolvedLocation value={ev.location} /></p>
+                                                            <p><strong>End Point:</strong> <ResolvedLocation value={ev.end_location} /></p>
                                                             <p><strong>Route Status:</strong> <span className={`status-badge status-${explorerDetail.team?.route_status || 'pending'}`} style={{ textTransform: 'capitalize' }}>{explorerDetail.team?.route_status || 'pending'}</span></p>
                                                             <p><strong>Route Deadline:</strong> {ev.route_deadline || 'No Deadline Set'}</p>
 
+                                                            <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+                                                                <OSMReadOnlyMap startLocation={ev.location} endLocation={ev.end_location} />
+                                                            </div>
+
                                                             {ev.route_info && (
-                                                                <div style={{ marginTop: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
+                                                                <div style={{ marginTop: '15px', marginBottom: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
                                                                     <strong>Route Planning Information:</strong>
                                                                     <p style={{ margin: '5px 0 0 0', whiteSpace: 'pre-line' }}>{ev.route_info}</p>
                                                                 </div>
                                                             )}
-
-                                                            <div style={{ marginTop: '20px', height: '200px', background: '#e5e3de', border: '1px solid #ccc', borderRadius: '6px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
-                                                                <div style={{ textAlign: 'center' }}>
-                                                                    <span style={{ fontSize: '24px' }}>🗺️</span>
-                                                                    <p style={{ margin: '5px 0 0 0', fontWeight: 'bold' }}>Route Map Preview</p>
-                                                                    <p style={{ margin: 0, fontSize: '12px' }}>OpenStreetMap interface is ready for GPX coordinate mapping (Milestone 9)</p>
-                                                                </div>
-                                                            </div>
 
                                                             <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #0073aa', borderRadius: '6px', background: '#fcfdff', textAlign: 'center' }}>
                                                                 <p style={{ margin: 0, fontWeight: 'bold', color: '#0073aa' }}>📁 Route Card & GPX Upload Area</p>
