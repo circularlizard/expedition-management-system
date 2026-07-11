@@ -3070,6 +3070,17 @@
     }
 }
 
+/* Clickable table row hover transitions */
+.ems-clickable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.ems-clickable-row:hover {
+    background-color: #f4f8fa !important;
+}
+
+
 
 
 
