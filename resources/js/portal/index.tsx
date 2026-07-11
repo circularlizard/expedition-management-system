@@ -539,10 +539,28 @@ export function PortalApp() {
                                                             {s.expedition_preferences && (
                                                                 <div>
                                                                     <span className="ems-signups-inspector__label">Expedition Preferences</span>
+                                                                    <div style={{ margin: '5px 0 10px 0', padding: '8px 12px', background: '#eef7fa', borderRadius: '4px', borderLeft: '3px solid #0073aa', fontSize: '12px', color: '#0073aa' }}>
+                                                                        <strong>Note:</strong> We will do our best to honour these preferences, but they are not definitive and cannot be guaranteed.
+                                                                    </div>
                                                                     <div className="ems-signups-inspector__value" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
-                                                                        {Object.entries(s.expedition_preferences).map(([key, val]) => (
-                                                                            <div key={key}><strong>{key.replace(/_/g, ' ')}:</strong> {String(val)}</div>
-                                                                        ))}
+                                                                        {(() => {
+                                                                            const formatPrefKey = (k: string): string => {
+                                                                                const maps: Record<string, string> = {
+                                                                                    transport: 'Preferred Transport',
+                                                                                    expedition_type: 'Expedition Type',
+                                                                                    location_preference: 'Preferred Location',
+                                                                                    date_preference: 'Preferred Dates',
+                                                                                    notes: 'Additional Preference Notes',
+                                                                                    dofe_level: 'DofE Level Preferences',
+                                                                                };
+                                                                                return maps[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                                                            };
+                                                                            return Object.entries(s.expedition_preferences).map(([key, val]) => (
+                                                                                <div key={key} style={{ marginBottom: '5px' }}>
+                                                                                    <strong>{formatPrefKey(key)}:</strong> {String(val)}
+                                                                                </div>
+                                                                            ));
+                                                                        })()}
                                                                     </div>
                                                                 </div>
                                                             )}
