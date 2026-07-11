@@ -70,8 +70,8 @@ describe('PortalApp', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Sarah Strachan')).toBeDefined();
-            expect(screen.getByText('David Strachan')).toBeDefined();
-            expect(screen.getByText('James Strachan')).toBeDefined();
+            expect(screen.getByText('David Strachan (Falcons)')).toBeDefined();
+            expect(screen.getByText('James Strachan (Kestrels)')).toBeDefined();
         });
     });
 });
