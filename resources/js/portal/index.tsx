@@ -13,7 +13,9 @@ interface EventData {
     id: number;
     name: string;
     start_date: string;
+    start_time?: string;
     end_date: string;
+    end_time?: string;
     location: string;
     end_location?: string;
     required_first_aid_level: string;
@@ -411,11 +413,14 @@ export function PortalApp() {
                                         {explorerDetail.events[activeTab].map(ev => (
                                             <button
                                                 key={ev.id}
-                                                onClick={() => setActiveEventId(ev.id)}
-                                                className="button button-large"
+                                                onClick={() => {
+                                                    setActiveEventId(ev.id);
+                                                    setActiveSubTab('overview');
+                                                }}
+                                                className="button button-secondary"
                                                 style={{ textAlign: 'left', padding: '15px' }}
                                             >
-                                                <strong>{ev.name}</strong> ({ev.start_date} to {ev.end_date})
+                                                <strong>{ev.name}</strong> ({ev.start_date} {ev.start_time && `@ ${ev.start_time}`} to {ev.end_date} {ev.end_time && `@ ${ev.end_time}`})
                                             </button>
                                         ))}
                                     </div>
@@ -432,7 +437,7 @@ export function PortalApp() {
                                             <div>
                                                 <h4 style={{ margin: 0 }}>{ev.name} {ev.event_code && `(${ev.event_code})`}</h4>
                                                 <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '14px' }}>
-                                                    <strong>Dates:</strong> {ev.start_date} to {ev.end_date}
+                                                    <strong>Dates & Times:</strong> {ev.start_date} {ev.start_time && `@ ${ev.start_time}`} to {ev.end_date} {ev.end_time && `@ ${ev.end_time}`}
                                                 </p>
                                             </div>
                                             {explorerDetail.events[activeTab].length > 1 && (
