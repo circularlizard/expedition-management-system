@@ -433,7 +433,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
         $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
 
-        $expected_transient_key = 'ems_sess_children_' . md5( 'mock-session-token' );
+        $expected_transient_key = 'ems_sess_children_42';
         $this->assertArrayHasKey( $expected_transient_key, $transients );
 
         $decrypted = \EMS\Core\Encryption::decrypt( $transients[ $expected_transient_key ] );
@@ -453,9 +453,9 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         } );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->cleanup_session_transient();
+        $integration->cleanup_session_transient( 42 );
 
-        $expected_key = 'ems_sess_children_' . md5( 'mock-session-token' );
+        $expected_key = 'ems_sess_children_42';
         $this->assertSame( $expected_key, $deleted );
     }
 }
