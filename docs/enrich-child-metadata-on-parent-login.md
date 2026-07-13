@@ -1,8 +1,8 @@
-# Enriching Child Metadata on Parent Login
+# Specification: Enriching Child Metadata on Parent Login (Session-Linked Transient Storage)
 
 ## Problem
 
-When a parent logs in via OIDC, the `ems_children` user meta is populated with only:
+When a parent logs in via OIDC, the `ems_children` user meta is populated with basic information:
 ```php
 [
     'scout_id'    => int,
@@ -12,80 +12,93 @@ When a parent logs in via OIDC, the `ems_children` user meta is populated with o
 ]
 ```
 
-The signup form and parent portal need **email** and **date of birth** for each child to pre-populate form fields. Neither field is available in the `getDataPayload` response.
+However, the expedition signup and participant forms require **email** and **date of birth** (DOB) for each child to pre-populate form fields. 
+For security and privacy, we must **not** persist these sensitive details (DOB and email) permanently in our database tables (such as `ems_osm_explorers`) or long-term User Meta. Instead, they must be stored transiently for the duration of the user's active session.
 
-## Current Flow (for reference)
+---
+
+## Technical Solution: Session-Linked Transient
+
+Rather than storing the sensitive fields inside custom DB tables or long-term WP User Meta, we will write them to a WordPress Transient bound to the user's specific login session:
+- **Transient Key**: `ems_sess_children_{session_hash}` (where `session_hash` is `md5( wp_get_session_token() )`).
+- **Expiration**: Tied to the active WordPress session lifespan (typically 2 days, or 14 days if "Remember Me" was checked).
+- **Security**: The DOB and email payload is encrypted using the server's `SECURE_AUTH_KEY` before saving to the transient, keeping the sensitive data secure at rest.
+- **Auto-Cleanup**: Hooked into standard WordPress logout actions (`wp_logout`, `clear_auth_cookie`) to delete the transient immediately upon session termination.
+
+---
+
+## Detailed Data Fetching Flow
 
 ```
 Parent OIDC login
   → OIDC_Login_Handler::handle_osm_login()
-    → api_client->get_data_payload()          // 1 API call
-    → parser->parse_children($payload)        // extracts from member_access
-    → update_user_meta( 'ems_children', $children )
-```
-
-The `member_access` block in `getDataPayload` contains only `access_type`, `first_name`, and `last_name` per child. No email or DOB.
-
-## Data Sources
-
-### Email
-- **API**: `get_member_detail(section_id, scout_id, term_id)` → `ext/customdata/`
-- **Already implemented** in `OSM_API_Client::get_member_detail()`
-- **Parser**: `OSM_Parser::parse_member_detail()` extracts `email` and `parent_email` from group_id=6, column_id=12/14
-- **Mock data**: `tests/mocks/osm-member-detail.json` — keyed by `scout_id`, returns `{email, parent_email}`
-- **Cost**: 1 API call per child
-
-### Date of Birth
-- **API**: `get_contact_details(section_id, scout_id, term_id)` → `ext/members/contact/` with `action=getContactDetails`
-- **NOT yet implemented** — needs new driver method in `Driver_Interface`, `Live_Driver`, and `Mock_Driver`
-- **No parser** — needs `OSM_Parser::parse_contact_details()`
-- **Mock data**: Needs `tests/mocks/osm-get-contact-details.json` — should include `dob` (ISO format `YYYY-MM-DD`)
-- **Cost**: 1 API call per child
-- **Parent-safe**: This is a per-member endpoint. Unlike `get_section_members` (`getListOfMembers`), a parent who is **not** also a leader can call this for their own children.
-
-## Recommended Approach
-
-**Fetch DOB via `get_contact_details` + fetch email via `get_member_detail` — both per-child.**
-
-Rationale:
-- `get_section_members` (`getListOfMembers`) requires leader access — a parent-only account cannot call it
-- `get_contact_details` (`getContactDetails`) is a per-member endpoint that a parent can call for their own children
-- Email already requires a per-member call via `get_member_detail`
-- 2 calls per child is acceptable (parents have 1-3 children)
-
-### Step-by-step flow
-
-```
-Parent OIDC login
-  → handle_osm_login()
-    → get_data_payload()                              // 1 call (existing)
-    → parse_access_type(), parse_scout_ids(), parse_section_ids()
-    → parse_children()                                // existing, returns base children
-    → parse_terms()                                   // needed to find current term per section
-
-    // NEW: Enrich per child (2 calls per child)
+    → api_client->get_data_payload()                      // 1 API call (existing)
+    → parser->parse_children($payload)                    // extracts from member_access (existing)
+    
+    // NEW: Enrich per child (2 API calls per child)
     → For each child in $children:
-        → get_member_detail(section_id, scout_id, term_id)       // email
-        → get_contact_details(section_id, scout_id, term_id)     // DOB
+        → get_member_detail(section_id, scout_id, term_id)   // fetches email from ext/customdata/
+        → get_contact_details(section_id, scout_id, term_id) // fetches DOB from ext/members/contact/
 
-    → Merge enrichments into $children array
-    → update_user_meta('ems_children', $children)    // now includes email + dob
+    // NEW: Storage & Hydration
+    → Save first/last name of the parent user in WP core profile fields.
+    → Save base children records (scout_id, names, section_ids) in `ems_children` User Meta.
+    
+    // NEW: Encrypt & Store sensitive enrichment data (email, DOB) in the session transient:
+    → $session_hash = md5( wp_get_session_token() );
+    → $encrypted_data = ems_encrypt_data( $enriched_data );
+    → set_transient( 'ems_sess_children_' . $session_hash, $encrypted_data, $session_lifespan )
 ```
 
-## Files to Modify
+---
+
+## Form Population Logic Updates
+
+When rendering Fluent Forms, we combine the long-term child meta structure with the active session transient to populate form fields dynamically on the frontend.
+
+### 1. `Fluent_Forms_Sync::enqueue_form_script`
+When injecting Javascript mappings for the form pre-population:
+- Load the children meta from `ems_children`.
+- Retrieve the current session token hash: `md5( wp_get_session_token() )`.
+- Fetch the matching session transient `ems_sess_children_{session_hash}` and decrypt it.
+- If present, merge the transient's `email` and `dob` fields into the child arrays.
+- Populate `$js_mappings` with `explorerEmail` and `dob` fields:
+  ```php
+  $js_mappings[ $scout_id ] = [
+      'firstName'     => $child['first_name'] ?? '',
+      'lastName'      => $child['last_name'] ?? '',
+      'unitCode'      => $res['short_code'],
+      'unitId'        => $res['unit_id'],
+      'explorerEmail' => $child['email'] ?? '',
+      'dob'           => $child['dob'] ?? '',
+      'leaderEmail'   => $res['leader_email'],
+  ];
+  ```
+
+### 2. Frontend JS Population
+Extend the injected JavaScript in `Fluent_Forms_Sync.php` to handle the DOB field configuration:
+- Add `dobField` to `window.emsFields` using the mapped Fluent Forms field name.
+- When a child is selected from the dropdown, populate the DOB field:
+  ```javascript
+  var dobInput = document.querySelector('input[name="' + window.emsFields.dobField + '"]');
+  if (dobInput && mapping.dob) {
+      dobInput.value = mapping.dob;
+      dobInput.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  ```
+
+---
+
+## File Changes & API Signatures
 
 ### 1. `src/Integrations/Drivers/Driver_Interface.php`
-
-**Change**: Add `get_contact_details()` to the interface.
-
+Add the new interface signature:
 ```php
 public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array;
 ```
 
 ### 2. `src/Integrations/Drivers/Live_Driver.php`
-
-**Change**: Implement `get_contact_details()` — new action on existing endpoint.
-
+Implement request execution for DOB contact details:
 ```php
 public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array {
     $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
@@ -101,21 +114,29 @@ public function get_contact_details( int $section_id, int $scout_id, int $term_i
 ```
 
 ### 3. `src/Integrations/Drivers/Mock_Driver.php`
-
-**Change**: Implement `get_contact_details()` — load from `tests/mocks/osm-get-contact-details.json`.
-
+Load mock response:
 ```php
 public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array {
     return $this->load( 'osm-get-contact-details.json' );
 }
 ```
+Create a new mock file at `tests/mocks/osm-get-contact-details.json` containing `data.data.dob`.
 
-**Also create**: `tests/mocks/osm-get-contact-details.json` — mock response including `dob` field.
+### 4. `src/Integrations/OSM_Parser.php`
+Parse the DOB response:
+```php
+public function parse_contact_details( array $raw ): array {
+    return [
+        'scout_id'   => (int) ( $raw['data']['scoutid'] ?? 0 ),
+        'first_name' => $raw['data']['firstname'] ?? '',
+        'last_name'  => $raw['data']['lastname'] ?? '',
+        'dob'        => $raw['data']['dob'] ?? '',
+    ];
+}
+```
 
-### 4. `src/Integrations/OSM_API_Client.php`
-
-**Change**: Add `get_contact_details()` wrapper method.
-
+### 5. `src/Integrations/OSM_API_Client.php`
+Wrap the driver method:
 ```php
 public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array {
     $this->rate_limiter->consume();
@@ -129,175 +150,21 @@ public function get_contact_details( int $section_id, int $scout_id, int $term_i
 }
 ```
 
-### 5. `src/Integrations/OSM_Parser.php`
+---
 
-**Change**: Add `parse_contact_details()` method to extract DOB.
-
+## Session Cleanup & Hooks
+To ensure immediate deletion upon user sign-out:
 ```php
-public function parse_contact_details( array $raw ): array {
-    return [
-        'scout_id'   => (int) ( $raw['data']['scoutid'] ?? 0 ),
-        'first_name' => $raw['data']['firstname'] ?? '',
-        'last_name'  => $raw['data']['lastname'] ?? '',
-        'dob'        => $raw['data']['dob'] ?? '',
-    ];
-}
-```
-
-### 6. `src/Integrations/OIDC_Login_Handler.php`
-
-**Change**: After `parse_children()`, enrich each child with `email` and `dob`.
-
-New private method:
-```php
-private function enrich_children(array $children, array $payload): array {
-    $terms = $this->parser->parse_terms($payload);
-
-    foreach ($children as &$child) {
-        $scout_id = $child['scout_id'];
-        foreach ($child['section_ids'] as $section_id) {
-            $term = $this->parser->find_current_term($terms, $section_id);
-            if (!$term) continue;
-
-            // Fetch email via get_member_detail
-            try {
-                $detail = $this->api_client->get_member_detail(
-                    $section_id, $scout_id, $term['term_id']
-                );
-                if (!empty($detail['email'])) {
-                    $child['email'] = $detail['email'];
-                }
-                if (!empty($detail['parent_email'])) {
-                    $child['parent_email'] = $detail['parent_email'];
-                }
-            } catch (\Exception $e) {
-                error_log('[EMS] Failed to fetch email for scout ' . $scout_id . ': ' . $e->getMessage());
-            }
-
-            // Fetch DOB via get_contact_details (parent-safe, no leader access required)
-            if (empty($child['dob'])) {
-                try {
-                    $contact = $this->api_client->get_contact_details(
-                        $section_id, $scout_id, $term['term_id']
-                    );
-                    if (!empty($contact['dob'])) {
-                        $child['dob'] = $contact['dob'];
-                    }
-                } catch (\Exception $e) {
-                    error_log('[EMS] Failed to fetch DOB for scout ' . $scout_id . ': ' . $e->getMessage());
-                }
-            }
-        }
+add_action( 'wp_logout', function() {
+    $session_token = wp_get_session_token();
+    if ( $session_token ) {
+        delete_transient( 'ems_sess_children_' . md5( $session_token ) );
     }
-    unset($child);
-    return $children;
-}
+} );
 ```
 
-Then call it in `handle_osm_login()` after the existing `parse_children()` call:
-```php
-$children = $this->parser->parse_children($payload);
-if (!empty($children)) {
-    $children = $this->enrich_children($children, $payload);
-    update_user_meta($user->ID, 'ems_children', $children);
-}
-```
+---
 
-### 7. `src/Integrations/Fluent_Forms_Sync.php`
-
-**Change**: Use `email` and `dob` from the `ems_children` meta when rendering the child dropdown and pre-populating form fields. Currently the dropdown only uses `first_name` and `last_name`. The `dob` can be used to populate a date-of-birth field in the form.
-
-### 8. `tests/Unit/Integrations/OSM_ParserTest.php`
-
-**Change**: Add test cases:
-- `test_parse_contact_details_extracts_dob`
-- `test_parse_contact_details_handles_missing_dob`
-
-### 9. `tests/Unit/Integrations/OSM_API_ClientTest.php`
-
-**Change**: Add test case:
-- `test_get_contact_details_delegates_to_driver_and_parser`
-
-### 10. `tests/Unit/Integrations/OIDC_Login_HandlerTest.php`
-
-**Change**: Add test cases:
-- `test_handle_osm_login_enriches_children_with_email_and_dob`
-- `test_enrich_children_handles_missing_dob`
-- `test_enrich_children_handles_missing_email`
-- `test_enrich_children_handles_api_failure_gracefully`
-- `test_enrich_children_uses_get_contact_details_not_get_section_members`
-
-### 11. `tests/features/auth-oidc-mapping.feature`
-
-**Change**: Update or add scenarios:
-```gherkin
-Scenario: Parent login enriches child records with email and date of birth
-  Given a parent user with access to children
-  When the parent logs in via OSM OIDC
-  Then the user meta "ems_children" should contain "email" for each child
-  And the user meta "ems_children" should contain "dob" for each child
-```
-
-## Resulting `ems_children` Structure
-
-After the change, `ems_children` will contain:
-```php
-[
-    [
-        'scout_id'     => 30001,
-        'first_name'   => 'Child',
-        'last_name'    => 'One',
-        'section_ids'  => [99001, 99002],
-        'email'        => 'child.one@example.com',       // NEW
-        'parent_email' => 'parent@example.com',           // NEW
-        'dob'          => '2007-01-01',                   // NEW
-    ],
-    // ...
-]
-```
-
-## Rate Limit Considerations
-
-For a parent with N children:
-- **Current**: 1 API call (`getDataPayload`)
-- **After change**: 1 + 2N calls (`get_contact_details` + `get_member_detail` per child)
-- **Typical parent**: 1 + 4 = **5 calls** (2 children)
-- **Max expected**: 1 + 6 = **7 calls** (3 children)
-
-The `Rate_Limiter` (10 calls/1s default) will handle this comfortably. The login hook runs synchronously, so the user will wait for all calls to complete — this is acceptable given the low call count.
-
-## Error Handling
-
-Each API call must be wrapped in try/catch. If a single `get_member_detail` or `get_contact_details` call fails:
-- Log the error with `error_log()`
-- Continue processing remaining children
-- Persist whatever data was successfully retrieved
-- The child record will simply lack `email` or `dob` if those specific calls failed
-
-This is preferable to blocking the entire login because one child's data couldn't be fetched.
-
-## Alternative Approaches Considered
-
-### A: Fetch on-demand via REST API
-Instead of enriching at login, add a new REST endpoint (`ems/v1/children/{scout_id}/detail`) that fetches email/DOB lazily when the parent portal requests it. This keeps login fast but adds latency to form rendering and requires caching logic.
-
-**Rejected**: Parents have few children; the upfront cost is minimal and simpler. Caching would just duplicate what `ems_children` already does.
-
-### B: Use `get_section_members` batch list for DOB
-The `getListOfMembers` endpoint returns all members with `dob` in one call per section.
-
-**Rejected**: Requires leader access. A parent-only account cannot call this endpoint. Every parent is not also a leader.
-
-### C: Use `get_individual` for DOB
-The `get_individual` endpoint (`action=getIndividual`) exists in the drivers and returns DOB. But the OSM API requires `getContactDetails` for parent-level access to contact details.
-
-**Rejected**: `getContactDetails` is the correct endpoint for a parent to fetch their child's contact details. `getIndividual` may require leader access.
-
-### D: Include in bulk OSM sync
-Rely on the existing `OSM_Reference_Sync` bulk sync to populate `ems_osm_explorers` with email and DOB, then look up from the database.
-
-**Not sufficient**: The bulk sync runs on a schedule, not at login time. A parent logging in for the first time would still see missing data until the next sync. The login-time enrichment ensures data is always fresh.
-
-## Important Constraint
-
-**`get_section_members` (`getListOfMembers`) requires leader access.** Only use per-member endpoints (`get_contact_details`, `get_member_detail`) for parent-only accounts. These are the only endpoints a parent OIDC token can call for their own children.
+## Error Handling & Resilience
+- Every API call per child is wrapped in a `try/catch` block. 
+- If a call fails, we log it via `error_log` and proceed to the next child, ensuring login completes successfully.
