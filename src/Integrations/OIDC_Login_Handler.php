@@ -183,6 +183,9 @@ class OIDC_Login_Handler {
                         $email  = $detail['email'] ?? '';
                         $parent_email = $detail['parent_email'] ?? '';
                         error_log( '[EMS Debug] get_member_detail successful for ' . $scout_id . '. Email: ' . $email . ', Parent Email: ' . $parent_email );
+                    } catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception | \EMS\Integrations\Exceptions\Rate_Limit_Exception $e ) {
+                        error_log( '[EMS] Critical API error fetching email: ' . $e->getMessage() . '. Aborting child metadata enrichment.' );
+                        break 2;
                     } catch ( \Exception $e ) {
                         error_log( '[EMS] Failed to fetch email for scout ' . $scout_id . ': ' . $e->getMessage() );
                     }
@@ -194,6 +197,9 @@ class OIDC_Login_Handler {
                         $contact = $this->api_client->get_contact_details( (int) $section_id, $scout_id, (int) $term['term_id'] );
                         $dob     = $contact['dob'] ?? '';
                         error_log( '[EMS Debug] get_contact_details successful for ' . $scout_id . '. DOB: ' . $dob );
+                    } catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception | \EMS\Integrations\Exceptions\Rate_Limit_Exception $e ) {
+                        error_log( '[EMS] Critical API error fetching DOB: ' . $e->getMessage() . '. Aborting child metadata enrichment.' );
+                        break 2;
                     } catch ( \Exception $e ) {
                         error_log( '[EMS] Failed to fetch DOB for scout ' . $scout_id . ': ' . $e->getMessage() );
                     }
