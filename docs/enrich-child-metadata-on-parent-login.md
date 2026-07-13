@@ -103,11 +103,10 @@ Implement request execution for DOB contact details:
 public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array {
     $base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
     $url = add_query_arg( [
-        'action'    => 'getContactDetails',
-        'sectionid' => $section_id,
-        'scoutid'   => $scout_id,
-        'termid'    => $term_id,
-    ], $base . '/ext/members/contact/' );
+        'action'     => 'getContactDetails',
+        'section_id' => $section_id,
+        'member_id'  => $scout_id,
+    ], $base . '/ext/mymember/details/' );
 
     return $this->request( $url );
 }
