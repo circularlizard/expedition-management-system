@@ -157,6 +157,7 @@ class OIDC_Login_Handler {
      * Fetch children's sensitive details (emails & DOB) and save them to a secure session transient.
      */
     private function enrich_children( array $children, array $payload, int $user_id ): void {
+        error_log( '[EMS Debug] Starting enrich_children for user ID: ' . $user_id . '. Count: ' . count( $children ) );
         $terms = $this->parser->parse_terms( $payload );
         $enriched = [];
 
@@ -166,9 +167,12 @@ class OIDC_Login_Handler {
             $parent_email = '';
             $dob = '';
 
+            error_log( '[EMS Debug] Processing child: ' . $scout_id . ' (Section count: ' . count( $child['section_ids'] ?? [] ) . ')' );
+
             foreach ( (array) ( $child['section_ids'] ?? [] ) as $section_id ) {
                 $term = $this->parser->find_current_term( $terms, (int) $section_id );
                 if ( ! $term ) {
+                    error_log( '[EMS Debug] No current term found for section ID: ' . $section_id );
                     continue;
                 }
 
@@ -178,6 +182,7 @@ class OIDC_Login_Handler {
                         $detail = $this->api_client->get_member_detail( (int) $section_id, $scout_id, (int) $term['term_id'] );
                         $email  = $detail['email'] ?? '';
                         $parent_email = $detail['parent_email'] ?? '';
+                        error_log( '[EMS Debug] get_member_detail successful for ' . $scout_id . '. Email: ' . $email . ', Parent Email: ' . $parent_email );
                     } catch ( \Exception $e ) {
                         error_log( '[EMS] Failed to fetch email for scout ' . $scout_id . ': ' . $e->getMessage() );
                     }
@@ -188,6 +193,7 @@ class OIDC_Login_Handler {
                     try {
                         $contact = $this->api_client->get_contact_details( (int) $section_id, $scout_id, (int) $term['term_id'] );
                         $dob     = $contact['dob'] ?? '';
+                        error_log( '[EMS Debug] get_contact_details successful for ' . $scout_id . '. DOB: ' . $dob );
                     } catch ( \Exception $e ) {
                         error_log( '[EMS] Failed to fetch DOB for scout ' . $scout_id . ': ' . $e->getMessage() );
                     }
@@ -206,10 +212,14 @@ class OIDC_Login_Handler {
 
         // Encrypt and store in the session transient
         $json_payload = json_encode( $enriched );
+        error_log( '[EMS Debug] Storing enriched data in transient for user ' . $user_id . ': ' . $json_payload );
         $encrypted    = \EMS\Core\Encryption::encrypt( $json_payload );
         if ( $encrypted !== false ) {
             $expiration = 2 * DAY_IN_SECONDS;
-            set_transient( 'ems_sess_children_' . $user_id, $encrypted, $expiration );
+            $success = set_transient( 'ems_sess_children_' . $user_id, $encrypted, $expiration );
+            error_log( '[EMS Debug] set_transient result: ' . ( $success ? 'success' : 'failed' ) );
+        } else {
+            error_log( '[EMS Debug] Failed to encrypt transient payload!' );
         }
     }
 
