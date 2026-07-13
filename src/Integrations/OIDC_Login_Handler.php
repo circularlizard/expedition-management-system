@@ -205,25 +205,21 @@ class OIDC_Login_Handler {
         }
 
         // Encrypt and store in the session transient
-        $session_token = wp_get_session_token();
-        if ( ! empty( $session_token ) ) {
-            $session_hash = md5( $session_token );
-            $json_payload = json_encode( $enriched );
-            $encrypted    = \EMS\Core\Encryption::encrypt( $json_payload );
-            if ( $encrypted !== false ) {
-                $expiration = 2 * DAY_IN_SECONDS;
-                set_transient( 'ems_sess_children_' . $session_hash, $encrypted, $expiration );
-            }
+        $json_payload = json_encode( $enriched );
+        $encrypted    = \EMS\Core\Encryption::encrypt( $json_payload );
+        if ( $encrypted !== false ) {
+            $expiration = 2 * DAY_IN_SECONDS;
+            set_transient( 'ems_sess_children_' . $user_id, $encrypted, $expiration );
         }
     }
 
     /**
      * Deletes the session-linked transient on user logout.
      */
-    public function cleanup_session_transient(): void {
-        $session_token = wp_get_session_token();
-        if ( $session_token ) {
-            delete_transient( 'ems_sess_children_' . md5( $session_token ) );
+    public function cleanup_session_transient( int $user_id = 0 ): void {
+        $uid = $user_id ?: get_current_user_id();
+        if ( $uid ) {
+            delete_transient( 'ems_sess_children_' . $uid );
         }
     }
 }
