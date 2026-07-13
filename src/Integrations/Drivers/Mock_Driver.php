@@ -80,6 +80,10 @@ class Mock_Driver implements Driver_Interface {
         return $this->load( 'osm-get-individual.json' );
     }
 
+    public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array {
+        return $this->load( 'osm-get-contact-details.json' );
+    }
+
     public function get_event_attendance( int $event_id, int $term_id ): array {
         return $this->load( 'osm-event-attendance.json' );
     }

@@ -623,7 +623,21 @@ class Fluent_Forms_Sync {
             'leaderEmailField'   => $config['leader_email_field'] ?? 'signup_leader_email',
             'firstNameField'     => $config['first_name_field'] ?? 'signup_child_name',
             'lastNameField'      => $config['last_name_field'] ?? 'signup_child_name',
+            'dobField'           => $config['dob_field'] ?? 'signup_dob',
         ];
+
+        $temp_children = [];
+        $session_token = wp_get_session_token();
+        if ( ! empty( $session_token ) ) {
+            $encrypted = get_transient( 'ems_sess_children_' . md5( $session_token ) );
+            if ( $encrypted ) {
+                $decrypted = \EMS\Core\Encryption::decrypt( $encrypted );
+                if ( $decrypted ) {
+                    $temp_children = json_decode( $decrypted, true ) ?: [];
+                }
+            }
+        }
+        $temp_by_id = array_column( $temp_children, null, 'scout_id' );
 
         $js_mappings = [];
         foreach ( $children_meta as $child ) {
@@ -642,12 +656,17 @@ class Fluent_Forms_Sync {
                 ARRAY_A
             );
 
+            $child_enrich = $temp_by_id[ $scout_id ] ?? [];
+            $explorer_email = $child_enrich['email'] ?? $explorer_row['email'] ?? '';
+            $dob = $child_enrich['dob'] ?? '';
+
             $js_mappings[ $scout_id ] = [
                 'firstName'     => $child['first_name'] ?? '',
                 'lastName'      => $child['last_name'] ?? '',
                 'unitCode'      => $res['short_code'],
                 'unitId'        => $res['unit_id'],
-                'explorerEmail' => $explorer_row['email'] ?? '',
+                'explorerEmail' => $explorer_email,
+                'dob'           => $dob,
                 'leaderEmail'   => $res['leader_email'],
             ];
         }
@@ -745,6 +764,16 @@ class Fluent_Forms_Sync {
                                 leaderEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
                             } else if (Date.now() < deadline) {
                                 setTimeout(function() { trySetLeaderEmail(deadline); }, 100);
+                            }
+                        })(Date.now() + 3000);
+
+                        (function trySetDob(deadline) {
+                            var dobInput = document.querySelector('input[name="' + window.emsFields.dobField + '"]');
+                            if (dobInput) {
+                                dobInput.value = mapping.dob || '';
+                                dobInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else if (Date.now() < deadline) {
+                                setTimeout(function() { trySetDob(deadline); }, 100);
                             }
                         })(Date.now() + 3000);
                     }

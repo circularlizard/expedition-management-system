@@ -120,6 +120,17 @@ class OSM_API_Client {
         return $data;
     }
 
+    public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array {
+        $this->rate_limiter->consume();
+        $start = microtime( true );
+        try {
+            $data = $this->driver->get_contact_details( $section_id, $scout_id, $term_id );
+        } finally {
+            $this->after_call( 'get_contact_details', $start );
+        }
+        return $this->parser->parse_contact_details( $data );
+    }
+
     private function after_call( string $call_type, float $start ): void {
         $headers     = $this->driver->get_last_response_headers();
         $duration_ms = ( microtime( true ) - $start ) * 1000;

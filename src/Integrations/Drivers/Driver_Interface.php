@@ -11,7 +11,9 @@ interface Driver_Interface {
     public function get_flexi_record_structure( int $section_id, int $flexi_id ): array;
     public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array;
     public function get_individual( int $section_id, int $member_id, int $term_id = 0 ): array;
+    public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array;
     public function get_event_attendance( int $event_id, int $term_id ): array;
+
 
     /**
      * Sets the access token for the driver to use in subsequent requests.

@@ -274,4 +274,21 @@ class OSM_API_ClientTest extends EMSTestCase {
         $limiter->consume();
         $this->assertSame( 499.0, $limiter->get_token_count() );
     }
+
+    public function test_get_contact_details_delegates_to_driver_and_parser(): void {
+        $raw = [ 'data' => [ 'scoutid' => 12345, 'dob' => '2010-01-01' ] ];
+        $this->driver->shouldReceive( 'get_contact_details' )
+            ->once()
+            ->with( 99001, 12345, 5001 )
+            ->andReturn( $raw );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
+
+        $client = new OSM_API_Client( $this->driver, $this->parser );
+        $result = $client->get_contact_details( 99001, 12345, 5001 );
+
+        $this->assertSame( 12345, $result['scout_id'] );
+        $this->assertSame( '2010-01-01', $result['dob'] );
+    }
 }
