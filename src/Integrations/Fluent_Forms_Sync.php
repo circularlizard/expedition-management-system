@@ -770,8 +770,23 @@ class Fluent_Forms_Sync {
                         (function trySetDob(deadline) {
                             var dobInput = document.querySelector('input[name="' + window.emsFields.dobField + '"]');
                             if (dobInput) {
-                                dobInput.value = mapping.dob || '';
-                                dobInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                var rawDob = mapping.dob || '';
+                                var formattedDob = rawDob;
+                                if (rawDob && rawDob.includes('-')) {
+                                    var parts = rawDob.split('-');
+                                    if (parts.length === 3) {
+                                        formattedDob = parts[2] + '/' + parts[1] + '/' + parts[0];
+                                    }
+                                }
+                                console.log('[EMS Sync] Pre-populating DOB. Scout ID:', scoutId, 'Raw:', rawDob, 'Formatted:', formattedDob);
+                                if (dobInput._flatpickr) {
+                                    console.log('[EMS Sync] Flatpickr instance found. Setting date.');
+                                    dobInput._flatpickr.setDate(rawDob, true);
+                                } else {
+                                    dobInput.value = formattedDob;
+                                    dobInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                    dobInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
                             } else if (Date.now() < deadline) {
                                 setTimeout(function() { trySetDob(deadline); }, 100);
                             }
