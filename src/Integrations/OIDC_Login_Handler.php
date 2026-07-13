@@ -21,6 +21,7 @@ class OIDC_Login_Handler {
         add_action( 'rtcamp.google_user_logged_in', [ $this, 'handle_osm_login'    ], 10, 2 );
         add_action( 'rtcamp.google_user_created',   [ $this, 'handle_user_created' ], 10, 2 );
         add_filter( 'http_response',                [ $this, 'capture_token_from_response' ], 10, 3 );
+        add_action( 'wp_logout',                    [ $this, 'cleanup_session_transient' ] );
     }
 
     /**
@@ -75,6 +76,15 @@ class OIDC_Login_Handler {
                     return;
                 }
 
+                $first_name = $payload['data']['globals']['firstname'] ?? '';
+                $last_name  = $payload['data']['globals']['lastname'] ?? '';
+                if ( ! empty( $first_name ) ) {
+                    update_user_meta( $user->ID, 'first_name', $first_name );
+                }
+                if ( ! empty( $last_name ) ) {
+                    update_user_meta( $user->ID, 'last_name', $last_name );
+                }
+
                 $access_type = $this->parser->parse_access_type( $payload );
                 $scout_ids   = $this->parser->parse_scout_ids( $payload );
                 $section_ids = $this->parser->parse_section_ids( $payload );
@@ -86,6 +96,7 @@ class OIDC_Login_Handler {
                 $children = $this->parser->parse_children( $payload );
                 if ( ! empty( $children ) ) {
                     update_user_meta( $user->ID, 'ems_children', $children );
+                    $this->enrich_children( $children, $payload, $user->ID );
                 }
             }
             // Access token intentionally NOT stored — ADR 009.
@@ -140,5 +151,79 @@ class OIDC_Login_Handler {
             return;
         }
         $this->explorer_repo->link_wp_user_by_email( $user->user_email, $user->ID );
+    }
+
+    /**
+     * Fetch children's sensitive details (emails & DOB) and save them to a secure session transient.
+     */
+    private function enrich_children( array $children, array $payload, int $user_id ): void {
+        $terms = $this->parser->parse_terms( $payload );
+        $enriched = [];
+
+        foreach ( $children as $child ) {
+            $scout_id = (int) $child['scout_id'];
+            $email = '';
+            $parent_email = '';
+            $dob = '';
+
+            foreach ( (array) ( $child['section_ids'] ?? [] ) as $section_id ) {
+                $term = $this->parser->find_current_term( $terms, (int) $section_id );
+                if ( ! $term ) {
+                    continue;
+                }
+
+                // Fetch email via get_member_detail
+                if ( empty( $email ) ) {
+                    try {
+                        $detail = $this->api_client->get_member_detail( (int) $section_id, $scout_id, (int) $term['term_id'] );
+                        $email  = $detail['email'] ?? '';
+                        $parent_email = $detail['parent_email'] ?? '';
+                    } catch ( \Exception $e ) {
+                        error_log( '[EMS] Failed to fetch email for scout ' . $scout_id . ': ' . $e->getMessage() );
+                    }
+                }
+
+                // Fetch DOB via get_contact_details
+                if ( empty( $dob ) ) {
+                    try {
+                        $contact = $this->api_client->get_contact_details( (int) $section_id, $scout_id, (int) $term['term_id'] );
+                        $dob     = $contact['dob'] ?? '';
+                    } catch ( \Exception $e ) {
+                        error_log( '[EMS] Failed to fetch DOB for scout ' . $scout_id . ': ' . $e->getMessage() );
+                    }
+                }
+            }
+
+            // Always take the first non-empty email between column 12 and 14
+            $explorer_email = ! empty( $email ) ? $email : $parent_email;
+
+            $enriched[] = [
+                'scout_id' => $scout_id,
+                'email'    => $explorer_email,
+                'dob'      => $dob,
+            ];
+        }
+
+        // Encrypt and store in the session transient
+        $session_token = wp_get_session_token();
+        if ( ! empty( $session_token ) ) {
+            $session_hash = md5( $session_token );
+            $json_payload = json_encode( $enriched );
+            $encrypted    = \EMS\Core\Encryption::encrypt( $json_payload );
+            if ( $encrypted !== false ) {
+                $expiration = 2 * DAY_IN_SECONDS;
+                set_transient( 'ems_sess_children_' . $session_hash, $encrypted, $expiration );
+            }
+        }
+    }
+
+    /**
+     * Deletes the session-linked transient on user logout.
+     */
+    public function cleanup_session_transient(): void {
+        $session_token = wp_get_session_token();
+        if ( $session_token ) {
+            delete_transient( 'ems_sess_children_' . md5( $session_token ) );
+        }
     }
 }

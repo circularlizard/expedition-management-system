@@ -227,4 +227,35 @@ class OSM_ParserTest extends EMSTestCase {
         $this->assertNotSame( 'explorers', $names[37458]['name'] );
         $this->assertSame( 'explorers', $names[37458]['type'] );
     }
+
+    public function test_parse_contact_details_extracts_dob(): void {
+        $raw = [
+            'data' => [
+                'data' => [
+                    'scoutid'   => 12345,
+                    'firstname' => 'John',
+                    'lastname'  => 'Doe',
+                    'dob'       => '2010-05-15',
+                ],
+            ],
+        ];
+        $parsed = $this->parser->parse_contact_details( $raw );
+        $this->assertSame( 12345, $parsed['scout_id'] );
+        $this->assertSame( 'John', $parsed['first_name'] );
+        $this->assertSame( 'Doe', $parsed['last_name'] );
+        $this->assertSame( '2010-05-15', $parsed['dob'] );
+    }
+
+    public function test_parse_contact_details_handles_missing_dob(): void {
+        $raw = [
+            'data' => [
+                'data' => [
+                    'member_id' => 67890,
+                ],
+            ],
+        ];
+        $parsed = $this->parser->parse_contact_details( $raw );
+        $this->assertSame( 67890, $parsed['scout_id'] );
+        $this->assertSame( '', $parsed['dob'] );
+    }
 }

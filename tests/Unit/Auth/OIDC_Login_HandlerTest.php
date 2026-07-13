@@ -334,4 +334,128 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
         $this->addToAssertionCount( 1 );
     }
+
+    public function test_handle_osm_login_updates_user_profile_first_last_name(): void {
+        $stored = [];
+        Functions\when( 'update_user_meta' )->alias( static function ( $uid, $key, $val ) use ( &$stored ): bool {
+            $stored[ $key ] = $val;
+            return true;
+        } );
+
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                    'firstname'     => 'Alice',
+                    'lastname'      => 'Smith',
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'local' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( [] );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+
+        $this->assertSame( 'Alice', $stored['first_name'] );
+        $this->assertSame( 'Smith', $stored['last_name'] );
+    }
+
+    public function test_handle_osm_login_enriches_children_and_saves_to_session_transient(): void {
+        if ( ! defined( 'AUTH_KEY' ) ) {
+            define( 'AUTH_KEY', 'authkeyauthkeyauthkeyauthkeyauthkey' );
+        }
+        if ( ! defined( 'SECURE_AUTH_KEY' ) ) {
+            define( 'SECURE_AUTH_KEY', 'secureauthkeysecureauthkeysecurea' );
+        }
+
+        $stored_meta = [];
+        Functions\when( 'update_user_meta' )->alias( static function ( $uid, $key, $val ) use ( &$stored_meta ): bool {
+            $stored_meta[ $key ] = $val;
+            return true;
+        } );
+
+        $transients = [];
+        Functions\when( 'set_transient' )->alias( static function ( $key, $val, $exp ) use ( &$transients ): bool {
+            $transients[ $key ] = $val;
+            return true;
+        } );
+
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'parent' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [ 30001 ] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [ 99001 ] );
+        
+        $children = [
+            [
+                'scout_id'    => 30001,
+                'first_name'  => 'Child',
+                'last_name'   => 'One',
+                'section_ids' => [ 99001 ],
+            ]
+        ];
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( $children );
+        
+        $terms = [
+            99001 => [
+                [ 'term_id' => 5001, 'start' => '2026-01-01', 'end' => '2026-12-31' ]
+            ]
+        ];
+        $this->parser->shouldReceive( 'parse_terms' )->once()->andReturn( $terms );
+        $this->parser->shouldReceive( 'find_current_term' )->once()->with( $terms, 99001 )->andReturn( $terms[99001][0] );
+
+        $this->api_client->shouldReceive( 'get_member_detail' )
+            ->once()
+            ->with( 99001, 30001, 5001 )
+            ->andReturn( [ 'email' => 'child@ems.test', 'parent_email' => 'parent@ems.test' ] );
+
+        $this->api_client->shouldReceive( 'get_contact_details' )
+            ->once()
+            ->with( 99001, 30001, 5001 )
+            ->andReturn( [ 'scout_id' => 30001, 'dob' => '2010-01-01' ] );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+
+        $expected_transient_key = 'ems_sess_children_' . md5( 'mock-session-token' );
+        $this->assertArrayHasKey( $expected_transient_key, $transients );
+
+        $decrypted = \EMS\Core\Encryption::decrypt( $transients[ $expected_transient_key ] );
+        $this->assertNotFalse( $decrypted );
+
+        $data = json_decode( $decrypted, true );
+        $this->assertSame( 30001, $data[0]['scout_id'] );
+        $this->assertSame( 'child@ems.test', $data[0]['email'] );
+        $this->assertSame( '2010-01-01', $data[0]['dob'] );
+    }
+
+    public function test_cleanup_session_transient_deletes_transient(): void {
+        $deleted = '';
+        Functions\when( 'delete_transient' )->alias( static function ( $key ) use ( &$deleted ): bool {
+            $deleted = $key;
+            return true;
+        } );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->cleanup_session_transient();
+
+        $expected_key = 'ems_sess_children_' . md5( 'mock-session-token' );
+        $this->assertSame( $expected_key, $deleted );
+    }
 }
