@@ -215,4 +215,18 @@ class OSM_Parser {
 
         return [ 'email' => $email, 'parent_email' => $parent_email ];
     }
+
+    /**
+     * Parses a getContactDetails response and extracts DOB.
+     */
+    public function parse_contact_details( array $raw ): array {
+        // Safe mapping of the nested structure in getContactDetails response
+        $data = $raw['data']['data'] ?? $raw['data'] ?? [];
+        return [
+            'scout_id'   => (int) ( $data['scoutid'] ?? $data['member_id'] ?? 0 ),
+            'first_name' => $data['firstname'] ?? '',
+            'last_name'  => $data['lastname'] ?? '',
+            'dob'        => $data['dob'] ?? '',
+        ];
+    }
 }
