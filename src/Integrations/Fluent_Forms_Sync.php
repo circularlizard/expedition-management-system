@@ -628,10 +628,13 @@ class Fluent_Forms_Sync {
 
         $temp_children = [];
         $encrypted = get_transient( 'ems_sess_children_' . $user_id );
+        error_log( '[EMS Debug] Fluent_Forms_Sync fetching transient key ems_sess_children_' . $user_id . '. Exists: ' . ( $encrypted ? 'yes' : 'no' ) );
         if ( $encrypted ) {
             $decrypted = \EMS\Core\Encryption::decrypt( $encrypted );
+            error_log( '[EMS Debug] Transient decryption ' . ( $decrypted !== false ? 'successful' : 'failed' ) );
             if ( $decrypted ) {
                 $temp_children = json_decode( $decrypted, true ) ?: [];
+                error_log( '[EMS Debug] Decrypted transient children: ' . print_r( $temp_children, true ) );
             }
         }
         $temp_by_id = array_column( $temp_children, null, 'scout_id' );
