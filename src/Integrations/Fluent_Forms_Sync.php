@@ -627,14 +627,11 @@ class Fluent_Forms_Sync {
         ];
 
         $temp_children = [];
-        $session_token = wp_get_session_token();
-        if ( ! empty( $session_token ) ) {
-            $encrypted = get_transient( 'ems_sess_children_' . md5( $session_token ) );
-            if ( $encrypted ) {
-                $decrypted = \EMS\Core\Encryption::decrypt( $encrypted );
-                if ( $decrypted ) {
-                    $temp_children = json_decode( $decrypted, true ) ?: [];
-                }
+        $encrypted = get_transient( 'ems_sess_children_' . $user_id );
+        if ( $encrypted ) {
+            $decrypted = \EMS\Core\Encryption::decrypt( $encrypted );
+            if ( $decrypted ) {
+                $temp_children = json_decode( $decrypted, true ) ?: [];
             }
         }
         $temp_by_id = array_column( $temp_children, null, 'scout_id' );
