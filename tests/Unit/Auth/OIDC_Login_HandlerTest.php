@@ -458,4 +458,48 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $expected_key = 'ems_sess_children_42';
         $this->assertSame( $expected_key, $deleted );
     }
+
+    public function test_handle_osm_login_aborts_enrichment_on_api_blocked_exception(): void {
+        Functions\stubs( [ 'update_user_meta', 'set_transient' ] );
+
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'parent' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [ 30001, 30002 ] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [ 99001 ] );
+        
+        $children = [
+            [ 'scout_id' => 30001, 'first_name' => 'C1', 'section_ids' => [ 99001 ] ],
+            [ 'scout_id' => 30002, 'first_name' => 'C2', 'section_ids' => [ 99001 ] ],
+        ];
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( $children );
+        
+        $terms = [ 99001 => [ [ 'term_id' => 5001, 'start' => '2026-01-01', 'end' => '2026-12-31' ] ] ];
+        $this->parser->shouldReceive( 'parse_terms' )->once()->andReturn( $terms );
+        $this->parser->shouldReceive( 'find_current_term' )->once()->with( $terms, 99001 )->andReturn( $terms[99001][0] );
+
+        // First call to get_member_detail throws Api_Blocked_Exception
+        $this->api_client->shouldReceive( 'get_member_detail' )
+            ->once()
+            ->with( 99001, 30001, 5001 )
+            ->andThrow( new \EMS\Integrations\Exceptions\Api_Blocked_Exception( 'blocked-header', 'http://osm' ) );
+
+        // The second child should NEVER be processed because the loop should abort immediately
+        $this->api_client->shouldReceive( 'get_member_detail' )
+            ->never()
+            ->with( 99001, 30002, 5001 );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+        $this->addToAssertionCount( 1 );
+    }
 }
