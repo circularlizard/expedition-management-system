@@ -161,15 +161,28 @@ class OIDC_Login_Handler {
         $terms = $this->parser->parse_terms( $payload );
         $enriched = [];
 
+        global $wpdb;
+        $active_sections = [];
+        if ( ! empty( $wpdb ) ) {
+            $active_sections = $wpdb->get_col( "SELECT DISTINCT section_id FROM {$wpdb->prefix}ems_units WHERE active = 1" );
+        }
+        $active_sections = array_map( 'intval', $active_sections ?: [] );
+
         foreach ( $children as $child ) {
             $scout_id = (int) $child['scout_id'];
             $email = '';
             $parent_email = '';
             $dob = '';
 
-            error_log( '[EMS Debug] Processing child: ' . $scout_id . ' (Section count: ' . count( $child['section_ids'] ?? [] ) . ')' );
+            // Filter sections to only active/managed sections in the units table
+            $section_ids = (array) ( $child['section_ids'] ?? [] );
+            if ( ! empty( $active_sections ) ) {
+                $section_ids = array_values( array_intersect( $section_ids, $active_sections ) );
+            }
 
-            foreach ( (array) ( $child['section_ids'] ?? [] ) as $section_id ) {
+            error_log( '[EMS Debug] Processing child: ' . $scout_id . ' (Section count: ' . count( $section_ids ) . ')' );
+
+            foreach ( $section_ids as $section_id ) {
                 $term = $this->parser->find_current_term( $terms, (int) $section_id );
                 if ( ! $term ) {
                     error_log( '[EMS Debug] No current term found for section ID: ' . $section_id );
@@ -180,6 +193,7 @@ class OIDC_Login_Handler {
                 if ( empty( $email ) ) {
                     try {
                         $detail = $this->api_client->get_member_detail( (int) $section_id, $scout_id, (int) $term['term_id'] );
+                        error_log( '[EMS Debug] Raw email payload from get_member_detail: ' . print_r( $detail, true ) );
                         $email  = $detail['email'] ?? '';
                         $parent_email = $detail['parent_email'] ?? '';
                         error_log( '[EMS Debug] get_member_detail successful for ' . $scout_id . '. Email: ' . $email . ', Parent Email: ' . $parent_email );
@@ -191,18 +205,24 @@ class OIDC_Login_Handler {
                     }
                 }
 
-                // Fetch DOB via get_contact_details
+                // Fetch DOB via get_individual
                 if ( empty( $dob ) ) {
                     try {
-                        $contact = $this->api_client->get_contact_details( (int) $section_id, $scout_id, (int) $term['term_id'] );
+                        $contact = $this->api_client->get_individual( (int) $section_id, $scout_id, (int) $term['term_id'] );
+                        error_log( '[EMS Debug] Raw contact payload from get_individual: ' . print_r( $contact, true ) );
                         $dob     = $contact['dob'] ?? '';
-                        error_log( '[EMS Debug] get_contact_details successful for ' . $scout_id . '. DOB: ' . $dob );
+                        error_log( '[EMS Debug] get_individual successful for ' . $scout_id . '. DOB: ' . $dob );
                     } catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception | \EMS\Integrations\Exceptions\Rate_Limit_Exception $e ) {
                         error_log( '[EMS] Critical API error fetching DOB: ' . $e->getMessage() . '. Aborting child metadata enrichment.' );
                         break 2;
                     } catch ( \Exception $e ) {
                         error_log( '[EMS] Failed to fetch DOB for scout ' . $scout_id . ': ' . $e->getMessage() );
                     }
+                }
+
+                // Break early if both email and DOB have been successfully populated
+                if ( ! empty( $email ) && ! empty( $dob ) ) {
+                    break;
                 }
             }
 
