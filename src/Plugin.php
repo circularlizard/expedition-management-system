@@ -335,20 +335,44 @@ class Plugin {
             }
             check_admin_referer( 'ems_purge_osm_data' );
 
+            if ( empty( $_POST['ems_purge_phrase'] ) || sanitize_text_field( wp_unslash( $_POST['ems_purge_phrase'] ) ) !== 'PURGE SYSTEM' ) {
+                wp_die( 'Error: Invalid confirmation phrase.' );
+            }
+
             global $wpdb;
-            foreach ( [
-                'ems_osm_event_attendance',
-                'ems_osm_events',
+            $tables = [
+                'ems_team_members',
+                'ems_volunteer_availability',
+                'ems_route_submissions',
                 'ems_osm_explorers',
-            ] as $table ) {
+                'ems_osm_events',
+                'ems_osm_event_attendance',
+                'ems_units',
+                'ems_volunteers',
+                'ems_participant_signups',
+                'ems_expedition_signups',
+                'ems_audit_logs',
+            ];
+            foreach ( $tables as $table ) {
                 $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}{$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL
             }
-            $wpdb->query( "UPDATE {$wpdb->prefix}ems_units SET active = 0" );
+
+            $posts = get_posts( [
+                'post_type'   => [ 'team', 'expedition' ],
+                'post_status' => 'any',
+                'numberposts' => -1,
+                'fields'      => 'ids',
+            ] );
+            foreach ( $posts as $post_id ) {
+                wp_delete_post( $post_id, true );
+            }
 
             delete_transient( 'ems_last_sync_result' );
             delete_transient( 'ems_last_sync_log' );
             delete_transient( 'ems_last_payload_dump' );
             delete_transient( 'ems_available_sections' );
+            delete_transient( 'ems_sync_status' );
+            delete_transient( 'ems_pending_sync_job' );
 
             wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=general&purged=1' ) );
             exit;
