@@ -125,8 +125,20 @@ class OSM_API_Client {
         $start = microtime( true );
         try {
             $data = $this->driver->get_contact_details( $section_id, $scout_id, $term_id );
+            error_log( '[EMS Debug] Raw API response from driver in get_contact_details: ' . print_r( $data, true ) );
         } finally {
             $this->after_call( 'get_contact_details', $start );
+        }
+        return $this->parser->parse_contact_details( $data );
+    }
+
+    public function get_individual( int $section_id, int $scout_id, int $term_id ): array {
+        $this->rate_limiter->consume();
+        $start = microtime( true );
+        try {
+            $data = $this->driver->get_individual( $section_id, $scout_id, $term_id );
+        } finally {
+            $this->after_call( 'get_individual', $start );
         }
         return $this->parser->parse_contact_details( $data );
     }

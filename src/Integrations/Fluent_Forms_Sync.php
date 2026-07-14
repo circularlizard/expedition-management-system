@@ -513,23 +513,28 @@ class Fluent_Forms_Sync {
             return $data;
         }
 
+        $temp_children = [];
+        $encrypted = get_transient( 'ems_sess_children_' . $user_id );
+        if ( $encrypted !== false ) {
+            $decrypted = \EMS\Core\Encryption::decrypt( $encrypted );
+            if ( $decrypted !== false ) {
+                $temp_children = json_decode( $decrypted, true ) ?: [];
+            }
+        }
+        $temp_by_id = array_column( $temp_children, null, 'scout_id' );
+
         foreach ( $children_meta as $child ) {
             $scout_id = (int) ( $child['scout_id'] ?? 0 );
             if ( ! $scout_id ) {
                 continue;
             }
 
-            $row = $this->wpdb->get_row(
-                $this->wpdb->prepare(
-                    "SELECT email FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d LIMIT 1",
-                    $scout_id
-                ),
-                ARRAY_A
-            );
+            $child_enrich = $temp_by_id[ $scout_id ] ?? [];
+            $email = $child_enrich['email'] ?? '';
 
-            if ( ! empty( $row['email'] ) ) {
-                $data['attributes']['value'] = $row['email'];
-                $data['settings']['value']   = $row['email'];
+            if ( ! empty( $email ) ) {
+                $data['attributes']['value'] = $email;
+                $data['settings']['value']   = $email;
                 
                 // Add ff-read-only class
                 if ( isset( $data['attributes']['class'] ) && is_array( $data['attributes']['class'] ) ) {
@@ -648,16 +653,8 @@ class Fluent_Forms_Sync {
 
             $res = $this->resolve_unit_for_child( $child );
 
-            $explorer_row = $this->wpdb->get_row(
-                $this->wpdb->prepare(
-                    "SELECT email FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d LIMIT 1",
-                    $scout_id
-                ),
-                ARRAY_A
-            );
-
             $child_enrich = $temp_by_id[ $scout_id ] ?? [];
-            $explorer_email = $child_enrich['email'] ?? $explorer_row['email'] ?? '';
+            $explorer_email = $child_enrich['email'] ?? '';
             $dob = $child_enrich['dob'] ?? '';
 
             $js_mappings[ $scout_id ] = [
@@ -781,11 +778,26 @@ class Fluent_Forms_Sync {
                                 console.log('[EMS Sync] Pre-populating DOB. Scout ID:', scoutId, 'Raw:', rawDob, 'Formatted:', formattedDob);
                                 if (dobInput._flatpickr) {
                                     console.log('[EMS Sync] Flatpickr instance found. Setting date.');
-                                    dobInput._flatpickr.setDate(rawDob, true);
+                                    if (rawDob && rawDob.includes('-')) {
+                                        var parts = rawDob.split('-');
+                                        var localDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                                        dobInput._flatpickr.setDate(localDate, true);
+                                    } else {
+                                        dobInput._flatpickr.setDate(rawDob, true);
+                                    }
                                 } else {
                                     dobInput.value = formattedDob;
                                     dobInput.dispatchEvent(new Event('change', { bubbles: true }));
                                     dobInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                                if (rawDob) {
+                                    dobInput.classList.add('ff-read-only');
+                                    dobInput.setAttribute('readonly', 'readonly');
+                                    dobInput.style.pointerEvents = 'none';
+                                } else {
+                                    dobInput.classList.remove('ff-read-only');
+                                    dobInput.removeAttribute('readonly');
+                                    dobInput.style.pointerEvents = '';
                                 }
                             } else if (Date.now() < deadline) {
                                 setTimeout(function() { trySetDob(deadline); }, 100);

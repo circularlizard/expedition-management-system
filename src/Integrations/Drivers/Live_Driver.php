@@ -21,6 +21,13 @@ class Live_Driver implements Driver_Interface {
             ] );
         }
 
+        $auth = $args['headers']['Authorization'] ?? 'None';
+        if ( $auth !== 'None' ) {
+            $auth = substr( $auth, 0, 18 ) . '... (len: ' . strlen( $auth ) . ')';
+        }
+        error_log( '[EMS Debug] Request URL: ' . $url );
+        error_log( '[EMS Debug] Request Authorization Header: ' . $auth );
+
         $args['timeout'] = $args['timeout'] ?? 15;
         $response = wp_remote_get( $url, $args );
 
