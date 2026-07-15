@@ -163,6 +163,14 @@ class Settings_Page {
         if ( isset( $_GET['purged'] ) ) {
             echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'All reference data and submissions purged successfully.', 'ems-plugin' ) . '</p></div>';
         }
+        if ( isset( $_GET['seeded'] ) ) {
+            $p_count = isset( $_GET['p_count'] ) ? (int) $_GET['p_count'] : 0;
+            $e_count = isset( $_GET['e_count'] ) ? (int) $_GET['e_count'] : 0;
+            echo '<div class="notice notice-success is-dismissible"><p>' . sprintf( esc_html__( 'Successfully seeded %d participant place submissions and %d expedition preference submissions.', 'ems-plugin' ), $p_count, $e_count ) . '</p></div>';
+        }
+        if ( isset( $_GET['seed_error'] ) ) {
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sanitize_text_field( wp_unslash( $_GET['seed_error'] ) ) ) . '</p></div>';
+        }
         ?>
         <form method="post">
             <?php wp_nonce_field( 'ems_settings_general' ); ?>
@@ -200,22 +208,40 @@ class Settings_Page {
         </script>
 
         <hr style="margin:2em 0" />
-        <h3 style="color:#b32d2e"><?php esc_html_e( 'Danger Zone', 'ems-plugin' ); ?></h3>
-        <p class="description"><?php esc_html_e( 'Permanently deletes all synced OSM reference data, form submissions, teams, and expeditions from the database. This cannot be undone.', 'ems-plugin' ); ?></p>
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="
-            var phrase = prompt('WARNING: This will permanently delete all form submissions, teams, expeditions, and synced OSM reference data. To confirm, please type \'PURGE SYSTEM\' (case sensitive):');
-            if (phrase !== 'PURGE SYSTEM') {
-                alert('Deletion cancelled. The confirmation phrase did not match.');
-                return false;
-            }
-            document.getElementById('ems_purge_phrase').value = phrase;
-            return true;
-        ">
-            <?php wp_nonce_field( 'ems_purge_osm_data' ); ?>
-            <input type="hidden" name="action" value="ems_purge_osm_data" />
-            <input type="hidden" name="ems_purge_phrase" id="ems_purge_phrase" value="" />
-            <input type="submit" class="button button-link-delete" value="<?php esc_attr_e( 'Purge All Reference Data & Submissions', 'ems-plugin' ); ?>" />
-        </form>
+        <h3 style="color:#b32d2e"><?php esc_html_e( 'Danger Zone / Test Seeding', 'ems-plugin' ); ?></h3>
+        <table class="form-table">
+            <tr>
+                <th scope="row"><?php esc_html_e( 'Purge Database', 'ems-plugin' ); ?></th>
+                <td>
+                    <p class="description" style="margin-bottom: 10px;"><?php esc_html_e( 'Permanently deletes all synced OSM reference data, form submissions, teams, and expeditions from the database. This cannot be undone.', 'ems-plugin' ); ?></p>
+                    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="
+                        var phrase = prompt('WARNING: This will permanently delete all form submissions, teams, expeditions, and synced OSM reference data. To confirm, please type \'PURGE SYSTEM\' (case sensitive):');
+                        if (phrase !== 'PURGE SYSTEM') {
+                            alert('Deletion cancelled. The confirmation phrase did not match.');
+                            return false;
+                        }
+                        document.getElementById('ems_purge_phrase').value = phrase;
+                        return true;
+                    ">
+                        <?php wp_nonce_field( 'ems_purge_osm_data' ); ?>
+                        <input type="hidden" name="action" value="ems_purge_osm_data" />
+                        <input type="hidden" name="ems_purge_phrase" id="ems_purge_phrase" value="" />
+                        <input type="submit" class="button button-link-delete" value="<?php esc_attr_e( 'Purge All Reference Data & Submissions', 'ems-plugin' ); ?>" />
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e( 'Seed Test Data', 'ems-plugin' ); ?></th>
+                <td>
+                    <p class="description" style="margin-bottom: 10px;"><?php esc_html_e( 'Clears old test signups, expeditions, and teams, then creates mock expeditions and generates Fluent Forms submissions for each synced explorer.', 'ems-plugin' ); ?></p>
+                    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                        <?php wp_nonce_field( 'ems_seed_test_data' ); ?>
+                        <input type="hidden" name="action" value="ems_seed_test_data" />
+                        <input type="submit" class="button button-secondary" value="<?php esc_attr_e( 'Seed Test Data', 'ems-plugin' ); ?>" />
+                    </form>
+                </td>
+            </tr>
+        </table>
         <?php
     }
 
