@@ -33,6 +33,7 @@ This document consolidates all outstanding plans, specifications, and steps that
     *   Build a UI preview step showing the administrator exactly what updates/syncs will be executed before any data is sent to the OSM API.
 *   [ ] **Strict Rate Limit & Error Handling**:
     *   Rate limits and error headers returned by the OSM API **MUST be totally respected** to avoid triggering client bans or API blocks.
+    *   *Rate-Limit Lockout Safety Valve*: Implement a prominent warning banner in the WordPress Admin Dashboard if the `ems_rate_limit_status` or `ems_api_blocked` options are active, warning administrators against manual sync retries during the cooldown period.
 *   [ ] **OSM Write Operations**: Implement write operations in `OSM_API_Client` for events and flexi-records.
 *   [ ] **Admin-Driven Write-Back Recovery UI**:
     *   Build a queue manager interface within the Settings page allowing the administrator, while authenticated with an active OSM OAuth session, to view, review, and manually trigger retries for failed write-back jobs (stored in the `ems_failed_pushback_queue` option). This avoids the need for a background cron job which would violate the "no server-side token storage" security policy.
