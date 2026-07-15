@@ -139,6 +139,10 @@ class Settings_Page {
 					class="nav-tab<?php echo $active_tab === 'form_mappings' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Form Mappings', 'ems-plugin' ); ?>
 				</a>
+				<a href="<?php echo esc_url( $page_url . '&tab=audit_logs' ); ?>"
+					class="nav-tab<?php echo $active_tab === 'audit_logs' ? ' nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Audit Logs', 'ems-plugin' ); ?>
+				</a>
 			</nav>
 			<?php
 			if ( $active_tab === 'general' ) {
@@ -149,6 +153,8 @@ class Settings_Page {
 				$this->render_unit_leaders_tab();
 			} elseif ( $active_tab === 'form_mappings' ) {
 				$this->render_form_mappings_tab();
+			} elseif ( $active_tab === 'audit_logs' ) {
+				$this->render_audit_logs_tab();
 			} else {
 				$this->render_sections_tab();
 			}
@@ -684,6 +690,253 @@ class Settings_Page {
 				<input type="submit" name="ems_save_form_mappings" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Form Configuration', 'ems-plugin' ); ?>" />
 			</p>
 		</form>
+		<?php
+	}
+
+	private function render_audit_logs_tab(): void {
+		global $wpdb;
+		$table = $wpdb->prefix . 'ems_audit_logs';
+
+		$filter_action = isset( $_GET['ems_filter_action'] ) ? sanitize_text_field( wp_unslash( $_GET['ems_filter_action'] ) ) : '';
+		$filter_user   = isset( $_GET['ems_filter_user'] ) ? (int) $_GET['ems_filter_user'] : 0;
+		$filter_scout  = isset( $_GET['ems_filter_scout'] ) ? (int) $_GET['ems_filter_scout'] : 0;
+		$filter_start  = isset( $_GET['ems_filter_start'] ) ? sanitize_text_field( wp_unslash( $_GET['ems_filter_start'] ) ) : '';
+		$filter_end    = isset( $_GET['ems_filter_end'] ) ? sanitize_text_field( wp_unslash( $_GET['ems_filter_end'] ) ) : '';
+
+		$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
+		$per_page = 20;
+		$offset   = ( $paged - 1 ) * $per_page;
+
+		$where = array( '1=1' );
+		$args  = array();
+
+		if ( $filter_action !== '' ) {
+			$where[] = 'action = %s';
+			$args[]  = $filter_action;
+		}
+		if ( $filter_user > 0 ) {
+			$where[] = 'user_id = %d';
+			$args[]  = $filter_user;
+		}
+		if ( $filter_scout > 0 ) {
+			$where[] = 'target_scout_id = %d';
+			$args[]  = $filter_scout;
+		}
+		if ( $filter_start !== '' ) {
+			$where[] = 'timestamp >= %s';
+			$args[]  = $filter_start . ' 00:00:00';
+		}
+		if ( $filter_end !== '' ) {
+			$where[] = 'timestamp <= %s';
+			$args[]  = $filter_end . ' 23:59:59';
+		}
+
+		$where_clause = implode( ' AND ', $where );
+
+		// Count
+		$count_sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}";
+		if ( ! empty( $args ) ) {
+			$count_sql = $wpdb->prepare( $count_sql, ...$args );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared safely above
+		$total_items = (int) $wpdb->get_var( $count_sql );
+
+		// Query results
+		$results_sql = "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY id DESC";
+		if ( ! empty( $args ) ) {
+			$results_sql = $wpdb->prepare( $results_sql, ...$args );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared safely above
+		$results_sql .= $wpdb->prepare( ' LIMIT %d OFFSET %d', $per_page, $offset );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared safely above
+		$logs = $wpdb->get_results( $results_sql, ARRAY_A ) ?: array();
+
+		$total_pages = (int) ceil( $total_items / $per_page );
+		$page_url    = admin_url( 'admin.php?page=ems-settings&tab=audit_logs' );
+
+		// Build filter parameters for pagination links
+		$link_params = '';
+		if ( $filter_action !== '' ) {
+			$link_params .= '&ems_filter_action=' . urlencode( $filter_action );
+		}
+		if ( $filter_user > 0 ) {
+			$link_params .= '&ems_filter_user=' . $filter_user;
+		}
+		if ( $filter_scout > 0 ) {
+			$link_params .= '&ems_filter_scout=' . $filter_scout;
+		}
+		if ( $filter_start !== '' ) {
+			$link_params .= '&ems_filter_start=' . urlencode( $filter_start );
+		}
+		if ( $filter_end !== '' ) {
+			$link_params .= '&ems_filter_end=' . urlencode( $filter_end );
+		}
+		?>
+		<style>
+			.ems-audit-filters {
+				background: #fff;
+				border: 1px solid #ccd0d4;
+				padding: 15px;
+				margin-bottom: 20px;
+				margin-top: 15px;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 15px;
+				align-items: flex-end;
+			}
+			.ems-audit-filters div {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+			}
+			.ems-audit-filters label {
+				font-weight: 600;
+			}
+			.ems-audit-pagination {
+				margin-top: 15px;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+			}
+			.ems-audit-table td {
+				word-break: break-all;
+				white-space: normal;
+				vertical-align: middle;
+			}
+			.ems-audit-table th {
+				vertical-align: middle;
+			}
+		</style>
+
+		<div class="notice notice-info">
+			<p><?php esc_html_e( 'Audit retention policy: Logs are kept for 365 days and capped at a maximum of 50,000 entries. Older records are automatically cleaned up daily.', 'ems-plugin' ); ?></p>
+		</div>
+
+		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>">
+			<input type="hidden" name="page" value="ems-settings" />
+			<input type="hidden" name="tab" value="audit_logs" />
+
+			<div class="ems-audit-filters">
+				<div>
+					<label for="ems_filter_action"><?php esc_html_e( 'Action', 'ems-plugin' ); ?></label>
+					<select name="ems_filter_action" id="ems_filter_action">
+						<option value=""><?php esc_html_e( '— All Actions —', 'ems-plugin' ); ?></option>
+						<?php
+						$actions = array(
+							'team_create'        => 'team_create',
+							'team_delete'        => 'team_delete',
+							'team_member_add'    => 'team_member_add',
+							'team_member_remove' => 'team_member_remove',
+							'team_member_move'   => 'team_member_move',
+							'setting_update'     => 'setting_update',
+							'event_update'       => 'event_update',
+							'explorer_update'    => 'explorer_update',
+							'sync_start'         => 'sync_start',
+							'sync_success'       => 'sync_success',
+							'sync_failure'       => 'sync_failure',
+							'view_gpx'           => 'view_gpx',
+							'export_roster'      => 'export_roster',
+							'view_asn'           => 'view_asn',
+							'login_success'      => 'login_success',
+							'login_failure'      => 'login_failure',
+							'role_updated'       => 'role_updated',
+							'logout'             => 'logout',
+						);
+						foreach ( $actions as $val => $lbl ) {
+							printf( '<option value="%s" %s>%s</option>', esc_attr( $val ), selected( $filter_action, $val, false ), esc_html( $lbl ) );
+						}
+						?>
+					</select>
+				</div>
+				<div>
+					<label for="ems_filter_user"><?php esc_html_e( 'User ID', 'ems-plugin' ); ?></label>
+					<input type="number" name="ems_filter_user" id="ems_filter_user" value="<?php echo $filter_user > 0 ? esc_attr( $filter_user ) : ''; ?>" min="1" style="width:100px;" />
+				</div>
+				<div>
+					<label for="ems_filter_scout"><?php esc_html_e( 'Scout ID', 'ems-plugin' ); ?></label>
+					<input type="number" name="ems_filter_scout" id="ems_filter_scout" value="<?php echo $filter_scout > 0 ? esc_attr( $filter_scout ) : ''; ?>" min="1" style="width:120px;" />
+				</div>
+				<div>
+					<label for="ems_filter_start"><?php esc_html_e( 'Start Date', 'ems-plugin' ); ?></label>
+					<input type="date" name="ems_filter_start" id="ems_filter_start" value="<?php echo esc_attr( $filter_start ); ?>" />
+				</div>
+				<div>
+					<label for="ems_filter_end"><?php esc_html_e( 'End Date', 'ems-plugin' ); ?></label>
+					<input type="date" name="ems_filter_end" id="ems_filter_end" value="<?php echo esc_attr( $filter_end ); ?>" />
+				</div>
+				<div>
+					<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Filter Logs', 'ems-plugin' ); ?>" />
+					<a href="<?php echo esc_url( $page_url ); ?>" class="button button-secondary"><?php esc_html_e( 'Clear Filters', 'ems-plugin' ); ?></a>
+				</div>
+			</div>
+		</form>
+
+		<table class="wp-list-table widefat striped ems-audit-table">
+			<thead>
+				<tr>
+					<th style="width: 60px;"><?php esc_html_e( 'ID', 'ems-plugin' ); ?></th>
+					<th style="width: 130px;"><?php esc_html_e( 'User', 'ems-plugin' ); ?></th>
+					<th style="width: 150px;"><?php esc_html_e( 'Action', 'ems-plugin' ); ?></th>
+					<th style="width: 120px;"><?php esc_html_e( 'Target Scout ID', 'ems-plugin' ); ?></th>
+					<th style="width: 120px;"><?php esc_html_e( 'IP Address', 'ems-plugin' ); ?></th>
+					<th><?php esc_html_e( 'User Agent', 'ems-plugin' ); ?></th>
+					<th style="width: 150px;"><?php esc_html_e( 'Timestamp', 'ems-plugin' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php if ( empty( $logs ) ) : ?>
+					<tr>
+						<td colspan="7"><?php esc_html_e( 'No audit log entries found matching the filter criteria.', 'ems-plugin' ); ?></td>
+					</tr>
+				<?php else : ?>
+					<?php foreach ( $logs as $log ) : ?>
+						<tr>
+							<td><?php echo esc_html( $log['id'] ); ?></td>
+							<td>
+								<?php
+								$log_user_id = (int) $log['user_id'];
+								if ( $log_user_id === 0 ) {
+									esc_html_e( 'System / Unauth', 'ems-plugin' );
+								} else {
+									$u = get_userdata( $log_user_id );
+									echo esc_html( $u ? $u->user_login . ' (ID: ' . $log_user_id . ')' : 'Deleted (ID: ' . $log_user_id . ')' );
+								}
+								?>
+							</td>
+							<td><code><?php echo esc_html( $log['action'] ); ?></code></td>
+							<td><?php echo $log['target_scout_id'] ? esc_html( $log['target_scout_id'] ) : '—'; ?></td>
+							<td><?php echo esc_html( $log['ip_address'] ); ?></td>
+							<td>
+								<?php echo esc_html( $log['user_agent'] ); ?>
+							</td>
+							<td><?php echo esc_html( $log['timestamp'] ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+				<?php endif; ?>
+			</tbody>
+		</table>
+
+		<div class="ems-audit-pagination">
+			<div>
+				<?php
+				printf(
+					/* translators: 1: Total matches */
+					esc_html__( 'Total Records: %d', 'ems-plugin' ),
+					(int) $total_items
+				);
+				?>
+			</div>
+			<div>
+				<?php if ( $paged > 1 ) : ?>
+					<a href="<?php echo esc_url( $page_url . '&paged=' . ( $paged - 1 ) . $link_params ); ?>" class="button"><?php esc_html_e( '« Previous', 'ems-plugin' ); ?></a>
+				<?php endif; ?>
+				<span><?php printf( esc_html__( 'Page %1$d of %2$d', 'ems-plugin' ), (int) $paged, (int) $total_pages ); ?></span>
+				<?php if ( $paged < $total_pages ) : ?>
+					<a href="<?php echo esc_url( $page_url . '&paged=' . ( $paged + 1 ) . $link_params ); ?>" class="button"><?php esc_html_e( 'Next »', 'ems-plugin' ); ?></a>
+				<?php endif; ?>
+			</div>
+		</div>
 		<?php
 	}
 }
