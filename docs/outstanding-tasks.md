@@ -66,3 +66,24 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 *   [ ] **Safeguarding Flags**: Highlight explorers turning 18 before or during the expedition dates.
 *   [ ] **Maps Integration**: Add Leaflet map previews for start/end coordinates.
 *   [ ] **Export Engine**: Build print templates for Team Sheets (PDF), Volunteer Cover Sheets (Excel), and Route Cards (Zip bundle).
+
+---
+
+## 8. QA, Rollout & Operational Tasks
+
+*   [ ] **Logging Configuration & Guards**: Ensure that child metadata enrichment debug logging is guarded and can be easily toggled on/off to keep system logs clean.
+*   [ ] **Documentation & Screen Review**: Run a detailed review of all active admin screens and portal pages, fixing styling issues and completing any missing inline documentation.
+*   [ ] **Website Integration**: Review how shortcodes fit and render inside the parent site's templates and stylesheets.
+*   [ ] **Rollout & Guides**:
+    *   Coordinate alignment/onboarding with John / Cheryl.
+    *   Draft processes and manuals for new expedition workflows (e.g. Leader-in-Charge engagement instructions).
+
+---
+
+## 9. Future Enhancements & Extensions
+
+*   [ ] **Network Expedition Signups**: Add support and rules handling signups/eligibility for Network members (aged 18–25).
+*   [ ] **Security Policy Review**: Investigate 2FA and DB-level encryption requirements for storing explorer profiles.
+*   [ ] **Expedition Risk Assessment & Docs**: Add options to attach Risk Assessment (RA) or Parent Info documents to expeditions (or determine if this should be delegated to OSM).
+*   [ ] **Volunteers' Front-End View**: Create a public/login frontend view allowing adult volunteers to log in, see which expeditions they are assigned to, check what they volunteered for, and access helper documents.
+
