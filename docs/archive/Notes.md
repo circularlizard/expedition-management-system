@@ -17,6 +17,7 @@
 * Website integration
 * Edge cases
   * Network expedition signup
+* Security settings - 2FA, encryption?
 
 * roll out process
   * Need to get John / Cheryl on board

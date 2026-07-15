@@ -76,7 +76,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 7. Milestone 10: Email Notification Engine & SMTP Logging (Held / Deferred)
+## 7. Milestone 10: Email Notification Engine & SMTP Logging (Pending)
 
 *   [ ] **Workflow Triggers**: Trigger emails on events like: Signup Received, Invite ESU Share (unit leader), Volunteer Availability, Assignment Confirmed, and Route Review Feedback.
 *   [ ] **SMTP Delivery**: Route notifications using standard `wp_mail()` wrappers configured to run via host SMTP.
@@ -84,7 +84,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 8. Milestone 11: Expedition Board Enhancements & Document Export (Held / Deferred)
+## 8. Milestone 11: Expedition Board Enhancements & Document Export (Pending)
 
 *   [ ] **Unassigned Sidebar**: Add an unassigned explorer sidebar on the Expedition Board for fast drag-and-drop allocations.
 *   [ ] **Safeguarding Flags**: Highlight explorers turning 18 before or during the expedition dates.
