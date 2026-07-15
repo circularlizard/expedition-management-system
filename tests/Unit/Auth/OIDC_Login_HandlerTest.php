@@ -24,10 +24,6 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user->shouldReceive( 'set_role' )->byDefault();
     }
 
-    protected function tearDown(): void {
-        Mockery::close();
-        parent::tearDown();
-    }
 
     public function test_handle_osm_login_does_not_store_access_token_in_session(): void {
         Functions\stubs( [ 'update_user_meta' ] );
@@ -425,7 +421,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
             ->with( 99001, 30001, 5001 )
             ->andReturn( [ 'email' => 'child@ems.test', 'parent_email' => 'parent@ems.test' ] );
 
-        $this->api_client->shouldReceive( 'get_contact_details' )
+        $this->api_client->shouldReceive( 'get_individual' )
             ->once()
             ->with( 99001, 30001, 5001 )
             ->andReturn( [ 'scout_id' => 30001, 'dob' => '2010-01-01' ] );

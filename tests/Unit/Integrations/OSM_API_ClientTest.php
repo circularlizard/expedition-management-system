@@ -18,10 +18,6 @@ class OSM_API_ClientTest extends EMSTestCase {
         $this->parser = new OSM_Parser();
     }
 
-    protected function tearDown(): void {
-        Mockery::close();
-        parent::tearDown();
-    }
 
     // -------------------------------------------------------------------
     // Rate_Limiter unit tests (tested in isolation)
