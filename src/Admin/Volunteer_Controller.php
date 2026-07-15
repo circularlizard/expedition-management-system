@@ -4,120 +4,148 @@ namespace EMS\Admin;
 use EMS\Data\Volunteer_Repository;
 
 class Volunteer_Controller {
-    private Volunteer_Repository $repo;
+	private Volunteer_Repository $repo;
 
-    public function __construct( ?Volunteer_Repository $repo = null ) {
-        $this->repo = $repo ?: new Volunteer_Repository();
-    }
-    public function register_routes(): void {
-        register_rest_route( 'ems/v1', '/volunteers', [
-            'methods'             => \WP_REST_Server::READABLE,
-            'callback'            => [ $this, 'get_volunteers' ],
-            'permission_callback' => [ $this, 'check_permission' ],
-        ] );
+	public function __construct( ?Volunteer_Repository $repo = null ) {
+		$this->repo = $repo ?: new Volunteer_Repository();
+	}
+	public function register_routes(): void {
+		register_rest_route(
+			'ems/v1',
+			'/volunteers',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_volunteers' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 
-        register_rest_route( 'ems/v1', '/volunteers/signup', [
-            'methods'             => \WP_REST_Server::CREATABLE,
-            'callback'            => [ $this, 'signup' ],
-            'permission_callback' => '__return_true', // Public endpoint
-        ] );
+		register_rest_route(
+			'ems/v1',
+			'/volunteers/signup',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'signup' ),
+				'permission_callback' => '__return_true', // Public endpoint
+			)
+		);
 
-        register_rest_route( 'ems/v1', '/volunteers/events', [
-            'methods'             => \WP_REST_Server::READABLE,
-            'callback'            => [ $this, 'get_public_events' ],
-            'permission_callback' => '__return_true', // Public endpoint
-        ] );
+		register_rest_route(
+			'ems/v1',
+			'/volunteers/events',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_public_events' ),
+				'permission_callback' => '__return_true', // Public endpoint
+			)
+		);
 
-        register_rest_route( 'ems/v1', '/volunteers/assign', [
-            'methods'             => \WP_REST_Server::CREATABLE,
-            'callback'            => [ $this, 'assign' ],
-            'permission_callback' => [ $this, 'check_permission' ],
-        ] );
-    }
+		register_rest_route(
+			'ems/v1',
+			'/volunteers/assign',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'assign' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+	}
 
-    public function get_public_events( \WP_REST_Request $request ): \WP_REST_Response {
-        $expeditions_repo = new \EMS\Data\Expedition_Repository();
-        $raw_events = $expeditions_repo->list_all_chronological();
-        $events = [];
-        foreach ( $raw_events as $event ) {
-            $events[] = [
-                'ID'             => (int) $event['ID'],
-                'post_title'     => $event['post_title'],
-                'ems_event_code' => $event['ems_event_code'] ?? '',
-                'ems_start_date' => $event['ems_start_date'] ?? '',
-                'ems_end_date'   => $event['ems_end_date'] ?? '',
-                'ems_start_time' => $event['ems_start_time'] ?? '',
-                'ems_end_time'   => $event['ems_end_time'] ?? '',
-            ];
-        }
-        return new \WP_REST_Response( $events, 200 );
-    }
-    public function check_permission(): bool {
-        return current_user_can( 'manage_options' );
-    }
+	public function get_public_events( \WP_REST_Request $request ): \WP_REST_Response {
+		$expeditions_repo = new \EMS\Data\Expedition_Repository();
+		$raw_events       = $expeditions_repo->list_all_chronological();
+		$events           = array();
+		foreach ( $raw_events as $event ) {
+			$events[] = array(
+				'ID'             => (int) $event['ID'],
+				'post_title'     => $event['post_title'],
+				'ems_event_code' => $event['ems_event_code'] ?? '',
+				'ems_start_date' => $event['ems_start_date'] ?? '',
+				'ems_end_date'   => $event['ems_end_date'] ?? '',
+				'ems_start_time' => $event['ems_start_time'] ?? '',
+				'ems_end_time'   => $event['ems_end_time'] ?? '',
+			);
+		}
+		return new \WP_REST_Response( $events, 200 );
+	}
+	public function check_permission(): bool {
+		return current_user_can( 'manage_options' );
+	}
 
-    public function get_volunteers( \WP_REST_Request $request ): \WP_REST_Response {
-        $data = $this->repo->get_volunteers();
-        return new \WP_REST_Response( $data, 200 );
-    }
+	public function get_volunteers( \WP_REST_Request $request ): \WP_REST_Response {
+		$data = $this->repo->get_volunteers();
+		return new \WP_REST_Response( $data, 200 );
+	}
 
-    public function signup( \WP_REST_Request $request ): \WP_REST_Response {
-        $params = $request->get_json_params() ?: [];
+	public function signup( \WP_REST_Request $request ): \WP_REST_Response {
+		$params = $request->get_json_params() ?: array();
 
-        try {
-            $volunteer = $this->repo->save_volunteer( $params );
+		try {
+			$volunteer = $this->repo->save_volunteer( $params );
 
-            $expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
-            $shifts = isset( $params['shifts'] ) ? (array) $params['shifts'] : [];
-            $signup_type = isset( $params['signup_type'] ) ? sanitize_text_field( $params['signup_type'] ) : 'part';
+			$expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
+			$shifts             = isset( $params['shifts'] ) ? (array) $params['shifts'] : array();
+			$signup_type        = isset( $params['signup_type'] ) ? sanitize_text_field( $params['signup_type'] ) : 'part';
 
-            if ( $expedition_post_id > 0 && ! empty( $shifts ) ) {
-                $this->repo->save_availability( $volunteer['id'], $expedition_post_id, $shifts, $signup_type );
-            }
+			if ( $expedition_post_id > 0 && ! empty( $shifts ) ) {
+				$this->repo->save_availability( $volunteer['id'], $expedition_post_id, $shifts, $signup_type );
+			}
 
-            return new \WP_REST_Response( [
-                'success' => true,
-                'volunteer_id' => $volunteer['id']
-            ], 200 );
-        } catch ( \Exception $e ) {
-            return new \WP_REST_Response( [
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400 );
-        }
-    }
+			return new \WP_REST_Response(
+				array(
+					'success'      => true,
+					'volunteer_id' => $volunteer['id'],
+				),
+				200
+			);
+		} catch ( \Exception $e ) {
+			return new \WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => $e->getMessage(),
+				),
+				400
+			);
+		}
+	}
 
-    public function assign( \WP_REST_Request $request ): \WP_REST_Response {
-        $params = $request->get_json_params() ?: [];
-        $volunteer_id = isset( $params['volunteer_id'] ) ? (int) $params['volunteer_id'] : 0;
-        $expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
-        $confirmed = isset( $params['confirmed'] ) ? (int) $params['confirmed'] : 0;
+	public function assign( \WP_REST_Request $request ): \WP_REST_Response {
+		$params             = $request->get_json_params() ?: array();
+		$volunteer_id       = isset( $params['volunteer_id'] ) ? (int) $params['volunteer_id'] : 0;
+		$expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
+		$confirmed          = isset( $params['confirmed'] ) ? (int) $params['confirmed'] : 0;
 
-        if ( $volunteer_id <= 0 || $expedition_post_id <= 0 ) {
-            return new \WP_REST_Response( [
-                'success' => false,
-                'message' => 'Invalid volunteer or expedition ID.'
-            ], 400 );
-        }
+		if ( $volunteer_id <= 0 || $expedition_post_id <= 0 ) {
+			return new \WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => 'Invalid volunteer or expedition ID.',
+				),
+				400
+			);
+		}
 
-        // Find all availability records for this volunteer and event, and update them
-        $table = $this->repo->get_availability_table();
-        global $wpdb;
-        $rows = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT id FROM {$table} WHERE volunteer_id = %d AND expedition_post_id = %d",
-                $volunteer_id,
-                $expedition_post_id
-            )
-        );
+		// Find all availability records for this volunteer and event, and update them
+		$table = $this->repo->get_availability_table();
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE volunteer_id = %d AND expedition_post_id = %d",
+				$volunteer_id,
+				$expedition_post_id
+			)
+		);
 
-        $success = false;
-        foreach ( $rows as $row ) {
-            $success = $this->repo->confirm_availability( (int) $row->id, $confirmed );
-        }
+		$success = false;
+		foreach ( $rows as $row ) {
+			$success = $this->repo->confirm_availability( (int) $row->id, $confirmed );
+		}
 
-        return new \WP_REST_Response( [
-            'success' => $success
-        ], $success ? 200 : 400 );
-    }
+		return new \WP_REST_Response(
+			array(
+				'success' => $success,
+			),
+			$success ? 200 : 400
+		);
+	}
 }

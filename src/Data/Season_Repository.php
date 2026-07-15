@@ -19,11 +19,14 @@ class Season_Repository {
 			$title = $year . ' Season';
 		}
 
-		$post_id = wp_insert_post( [
-			'post_type'   => 'season',
-			'post_title'  => $title,
-			'post_status' => 'publish',
-		], true );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'   => 'season',
+				'post_title'  => $title,
+				'post_status' => 'publish',
+			),
+			true
+		);
 
 		if ( is_wp_error( $post_id ) ) {
 			throw new \RuntimeException( $post_id->get_error_message() );
@@ -44,15 +47,17 @@ class Season_Repository {
 	}
 
 	public function list_all(): array {
-		$posts = get_posts( [
-			'post_type'   => 'season',
-			'post_status' => 'publish',
-			'numberposts' => -1,
-			'orderby'     => 'date',
-			'order'       => 'DESC',
-		] );
+		$posts = get_posts(
+			array(
+				'post_type'   => 'season',
+				'post_status' => 'publish',
+				'numberposts' => -1,
+				'orderby'     => 'date',
+				'order'       => 'DESC',
+			)
+		);
 
-		return array_map( [ $this, 'to_array' ], $posts );
+		return array_map( array( $this, 'to_array' ), $posts );
 	}
 
 	public function archive( int $id ): bool {
@@ -72,38 +77,42 @@ class Season_Repository {
 	}
 
 	public function has_events( int $id ): bool {
-		$events = get_posts( [
-			'post_type'   => 'expedition',
-			'post_status' => 'publish',
-			'numberposts' => 1,
-			'post_parent' => $id,
-		] );
+		$events = get_posts(
+			array(
+				'post_type'   => 'expedition',
+				'post_status' => 'publish',
+				'numberposts' => 1,
+				'post_parent' => $id,
+			)
+		);
 		return ! empty( $events );
 	}
 
 	private function year_exists( string $year ): bool {
-		$existing = get_posts( [
-			'post_type'   => 'season',
-			'post_status' => 'publish',
-			'numberposts' => 1,
-			'meta_query'  => [
-				[
-					'key'   => 'ems_season_year',
-					'value' => $year,
-				],
-			],
-		] );
+		$existing = get_posts(
+			array(
+				'post_type'   => 'season',
+				'post_status' => 'publish',
+				'numberposts' => 1,
+				'meta_query'  => array(
+					array(
+						'key'   => 'ems_season_year',
+						'value' => $year,
+					),
+				),
+			)
+		);
 
 		return ! empty( $existing );
 	}
 
 	private function to_array( object $post ): array {
-		return [
-			'ID'                  => $post->ID,
-			'post_title'          => $post->post_title,
-			'post_status'         => $post->post_status,
-			'ems_season_year'     => get_post_meta( $post->ID, 'ems_season_year', true ),
-			'ems_season_status'   => get_post_meta( $post->ID, 'ems_season_status', true ) ?: 'active',
-		];
+		return array(
+			'ID'                => $post->ID,
+			'post_title'        => $post->post_title,
+			'post_status'       => $post->post_status,
+			'ems_season_year'   => get_post_meta( $post->ID, 'ems_season_year', true ),
+			'ems_season_status' => get_post_meta( $post->ID, 'ems_season_status', true ) ?: 'active',
+		);
 	}
 }
