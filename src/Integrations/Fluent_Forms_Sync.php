@@ -742,8 +742,12 @@ class Fluent_Forms_Sync {
 							(function trySetUnit(deadline) {
 								var choices = emsGetChoices(unitSelect);
 								if (choices) {
-									choices.setChoiceByValue(mapping.unitCode);
-									unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
+									try {
+										choices.setChoiceByValue(mapping.unitCode);
+										unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
+									} catch (e) {
+										console.warn('[EMS Sync] Choices.js failed to set unit choice:', mapping.unitCode, e);
+									}
 								} else if (Date.now() < deadline) {
 									setTimeout(function() { trySetUnit(deadline); }, 100);
 								} else {
@@ -836,8 +840,12 @@ class Fluent_Forms_Sync {
 						(function trySetChild(deadline) {
 							var choices = emsGetChoices(childSelect);
 							if (choices) {
-								choices.setChoiceByValue(targetVal);
-								childSelect.dispatchEvent(new Event('change', { bubbles: true }));
+								try {
+									choices.setChoiceByValue(targetVal);
+									childSelect.dispatchEvent(new Event('change', { bubbles: true }));
+								} catch (e) {
+									console.warn('[EMS Sync] Choices.js failed to set child choice:', targetVal, e);
+								}
 							} else if (Date.now() < deadline) {
 								setTimeout(function() { trySetChild(deadline); }, 100);
 							} else {
