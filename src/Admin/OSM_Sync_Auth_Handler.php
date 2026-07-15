@@ -168,7 +168,7 @@ class OSM_Sync_Auth_Handler {
 			return new \WP_Error( 'osm_token_error', 'Token URL must use HTTPS to protect client credentials.' );
 		}
 
-		$response = wp_remote_post(
+		$response = wp_safe_remote_post(
 			$this->token_url,
 			array(
 				'body' => array(

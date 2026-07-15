@@ -18,8 +18,8 @@ class OIDC_Login_Handler {
 		$this->api_client    = $api_client;
 		$this->parser        = $parser;
 		$this->explorer_repo = $explorer_repo;
-		add_action( 'rtcamp.google_user_logged_in', array( $this, 'handle_osm_login' ), 10, 2 );
-		add_action( 'rtcamp.google_user_created', array( $this, 'handle_user_created' ), 10, 2 );
+		add_action( 'oauth.login_user_logged_in', array( $this, 'handle_osm_login' ), 10, 2 );
+		add_action( 'oauth.login_user_created', array( $this, 'handle_user_created' ), 10, 2 );
 		add_filter( 'http_response', array( $this, 'capture_token_from_response' ), 10, 3 );
 		add_action( 'wp_logout', array( $this, 'cleanup_session_transient' ) );
 	}

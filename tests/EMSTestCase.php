@@ -23,10 +23,46 @@ class EMSTestCase extends TestCase {
         Functions\when( 'wp_die' )->alias( function( $message ) {
             throw new \Exception( $message );
         } );
+        Functions\when( 'wp_safe_remote_get' )->alias( function( $url, $args = null ) {
+            if ( func_num_args() > 1 ) {
+                return wp_remote_get( $url, $args );
+            }
+            return wp_remote_get( $url );
+        } );
+        Functions\when( 'wp_safe_remote_post' )->alias( function( $url, $args = null ) {
+            if ( func_num_args() > 1 ) {
+                return wp_remote_post( $url, $args );
+            }
+            return wp_remote_post( $url );
+        } );
+
+        global $wpdb;
+        $wpdb = null;
     }
 
     protected function tearDown(): void {
+        global $wpdb;
+        $wpdb = null;
+
+        // Reset all properties on the test class instance to prevent Mockery mock memory leakage / destructor crashes.
+        // We do this BEFORE closing Mockery/Monkey so that destructors run while the container is still open.
+        $refl = new \ReflectionClass( $this );
+        foreach ( $refl->getProperties() as $prop ) {
+            if ( ! $prop->isStatic() && ! str_starts_with( $prop->getDeclaringClass()->getName(), 'PHPUnit\\' ) ) {
+                $name = $prop->getName();
+                $declaringClass = $prop->getDeclaringClass()->getName();
+                $unsetter = \Closure::bind( function( $name ) {
+                    unset( $this->$name );
+                }, $this, $declaringClass );
+                $unsetter( $name );
+            }
+        }
+
         Monkey\tearDown();
+        if ( class_exists( '\Mockery' ) ) {
+            \Mockery::close();
+        }
+
         parent::tearDown();
     }
 }

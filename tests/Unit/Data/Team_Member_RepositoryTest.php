@@ -13,10 +13,6 @@ class Team_Member_RepositoryTest extends EMSTestCase {
         }
     }
 
-    protected function tearDown(): void {
-        \Mockery::close();
-        parent::tearDown();
-    }
 
     private function mock_wpdb(): \Mockery\MockInterface {
         $wpdb = \Mockery::mock( 'stdClass' );
