@@ -164,7 +164,9 @@ class OIDC_Login_Handler {
 		global $wpdb;
 		$active_sections = array();
 		if ( ! empty( $wpdb ) ) {
-			$active_sections = $wpdb->get_col( "SELECT DISTINCT section_id FROM {$wpdb->prefix}ems_units WHERE active = 1" );
+			$sections = $wpdb->get_col( "SELECT DISTINCT section_id FROM {$wpdb->prefix}ems_units WHERE active = 1" );
+			$units    = $wpdb->get_col( "SELECT DISTINCT unit_id FROM {$wpdb->prefix}ems_units WHERE active = 1 AND unit_id IS NOT NULL" );
+			$active_sections = array_merge( $sections ?: array(), $units ?: array() );
 		}
 		$active_sections = array_map( 'intval', $active_sections ?: array() );
 
