@@ -96,6 +96,9 @@ class Plugin {
 				);
 				$flexi_controller->register_routes();
 
+				$sync_preview_controller = new \EMS\Admin\Sync_Preview_Controller( $osm_client );
+				$sync_preview_controller->register_routes();
+
 				$view_controller = new \EMS\Admin\Admin_View_Controller(
 					new \EMS\Data\Expedition_Repository(),
 					new \EMS\Data\Team_Repository(),

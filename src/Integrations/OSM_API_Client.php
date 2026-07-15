@@ -143,6 +143,50 @@ class OSM_API_Client {
 		return $this->parser->parse_contact_details( $data );
 	}
 
+	public function update_event_attendance( int $section_id, int $event_id, array $member_updates ): array {
+		$this->rate_limiter->consume();
+		$start = microtime( true );
+		try {
+			$data = $this->driver->update_event_attendance( $section_id, $event_id, $member_updates );
+		} finally {
+			$this->after_call( 'update_event_attendance', $start );
+		}
+		return $data;
+	}
+
+	public function create_flexi_record( int $section_id, string $name ): array {
+		$this->rate_limiter->consume();
+		$start = microtime( true );
+		try {
+			$data = $this->driver->create_flexi_record( $section_id, $name );
+		} finally {
+			$this->after_call( 'create_flexi_record', $start );
+		}
+		return $data;
+	}
+
+	public function add_flexi_record_column( int $section_id, int $flexi_id, string $column_name ): array {
+		$this->rate_limiter->consume();
+		$start = microtime( true );
+		try {
+			$data = $this->driver->add_flexi_record_column( $section_id, $flexi_id, $column_name );
+		} finally {
+			$this->after_call( 'add_flexi_record_column', $start );
+		}
+		return $data;
+	}
+
+	public function update_flexi_record_data( int $section_id, int $flexi_id, array $values ): array {
+		$this->rate_limiter->consume();
+		$start = microtime( true );
+		try {
+			$data = $this->driver->update_flexi_record_data( $section_id, $flexi_id, $values );
+		} finally {
+			$this->after_call( 'update_flexi_record_data', $start );
+		}
+		return $data;
+	}
+
 	private function after_call( string $call_type, float $start ): void {
 		$headers     = $this->driver->get_last_response_headers();
 		$duration_ms = ( microtime( true ) - $start ) * 1000;
