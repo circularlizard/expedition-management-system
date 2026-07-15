@@ -4,7 +4,22 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
-## 1. Milestone 7: Offline/Online Scout Manager Write-Back (Push-Back Sync) (Active / Next)
+## 1. Milestone 7.5: System-Wide Audit Logging & Log Viewer (Active / Next)
+
+*   [ ] **Centralized Audit Logger**:
+    *   Create a reusable logger class (e.g. `EMS\Core\Audit_Logger`) using the existing `ems_audit_logs` schema to write audit rows capturing IP address, user agent, timestamp, action type, user ID, and target scout ID.
+*   [ ] **Instrumentation of Views & Updates**:
+    *   Instrument all REST controllers, background tasks, and admin post actions to ensure critical actions are logged.
+    *   *Updates to Log*: Team creations/deletions, member additions/moves/deletions, event configuration modifications, route status changes, and setting updates.
+    *   *Views to Log*: Exporting rosters/participants, downloading GPX route files, and accessing personal/sensitive scout details (e.g. the existing ASN data check).
+*   [ ] **Audit Log Viewer UI**:
+    *   Develop a Log Viewer interface on the EMS admin settings pages.
+    *   Support filtering by Action Type, User ID/Name, Target Scout ID, and Date Range.
+    *   Ensure proper authorization boundaries (accessible only to global EMS administrators/manage_options).
+
+---
+
+## 2. Milestone 7: Offline/Online Scout Manager Write-Back (Push-Back Sync) (Pending)
 
 *   [ ] **Data Sync Scope Assessment**:
     *   Determine exactly which data fields should be written back to OSM. Since EMS now maintains a master list of expedition preferences, participant signups, and team formations within its own database, we must determine which attributes (e.g. event attendance, patrol groups, custom flexi-record columns) actually need to map back to OSM fields vs. remaining local to EMS.
@@ -18,21 +33,6 @@ This document consolidates all outstanding plans, specifications, and steps that
 *   [ ] **OSM Write Operations**: Implement write operations in `OSM_API_Client` for events and flexi-records.
 *   [ ] **Failed Write-Back Recovery**: Build a background dispatcher to process and retry failed jobs stored in the `ems_failed_pushback_queue` option.
 *   [ ] **OSM Event Invitations**: Build tools to trigger and dispatch event invitations from EMS back to OSM.
-
----
-
-## 2. Milestone 7.5: System-Wide Audit Logging & Log Viewer (Pending)
-
-*   [ ] **Centralized Audit Logger**:
-    *   Create a reusable logger class (e.g. `EMS\Core\Audit_Logger`) using the existing `ems_audit_logs` schema to write audit rows capturing IP address, user agent, timestamp, action type, user ID, and target scout ID.
-*   [ ] **Instrumentation of Views & Updates**:
-    *   Instrument all REST controllers, background tasks, and admin post actions to ensure critical actions are logged.
-    *   *Updates to Log*: Team creations/deletions, member additions/moves/deletions, event configuration modifications, route status changes, and setting updates.
-    *   *Views to Log*: Exporting rosters/participants, downloading GPX route files, and accessing personal/sensitive scout details (e.g. the existing ASN data check).
-*   [ ] **Audit Log Viewer UI**:
-    *   Develop a Log Viewer interface on the EMS admin settings pages.
-    *   Support filtering by Action Type, User ID/Name, Target Scout ID, and Date Range.
-    *   Ensure proper authorization boundaries (accessible only to global EMS administrators/manage_options).
 
 ---
 
