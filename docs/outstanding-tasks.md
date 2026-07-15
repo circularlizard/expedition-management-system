@@ -21,7 +21,22 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
-## 2. Milestone 5: Compliance & Training Progress Monitoring (Pending)
+## 2. Milestone 7.5: System-Wide Audit Logging & Log Viewer (Pending)
+
+*   [ ] **Centralized Audit Logger**:
+    *   Create a reusable logger class (e.g. `EMS\Core\Audit_Logger`) using the existing `ems_audit_logs` schema to write audit rows capturing IP address, user agent, timestamp, action type, user ID, and target scout ID.
+*   [ ] **Instrumentation of Views & Updates**:
+    *   Instrument all REST controllers, background tasks, and admin post actions to ensure critical actions are logged.
+    *   *Updates to Log*: Team creations/deletions, member additions/moves/deletions, event configuration modifications, route status changes, and setting updates.
+    *   *Views to Log*: Exporting rosters/participants, downloading GPX route files, and accessing personal/sensitive scout details (e.g. the existing ASN data check).
+*   [ ] **Audit Log Viewer UI**:
+    *   Develop a Log Viewer interface on the EMS admin settings pages.
+    *   Support filtering by Action Type, User ID/Name, Target Scout ID, and Date Range.
+    *   Ensure proper authorization boundaries (accessible only to global EMS administrators/manage_options).
+
+---
+
+## 3. Milestone 5: Compliance & Training Progress Monitoring (Pending)
 
 Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/archive/held-milestone-5-implementation-spec.md):
 
@@ -35,7 +50,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 3. Milestone 6: Unit Leader Integration Portal & Kit Supply (Pending)
+## 4. Milestone 6: Unit Leader Integration Portal & Kit Supply (Pending)
 
 *   [ ] **Unit Leader Portal**: Build a dashboard showing all explorer allocations and status updates scoped to leaders' managed ESU units.
 *   [ ] **Kit List Supply Tool**: Track and map gear/equipment requests back to specific units. Determine if this content should be in a post or a database table.
@@ -44,7 +59,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 4. Milestone 8: Environment Replication & Configuration Portability (Pending)
+## 5. Milestone 8: Environment Replication & Configuration Portability (Pending)
 
 *   [ ] **Export/Import Engine**: Implement a backup and restore mechanism for EMS-specific database configurations and WP options.
 *   [ ] **ESU Unit Mapping Portability**: Create an export/import utility (JSON/CSV) to migrate ESU unit leader listings, patrol linkages, and active section structures between development, staging, and production environments.
@@ -52,7 +67,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 5. Milestone 9: Route Submission & LiC Review Workflow (Pending)
+## 6. Milestone 9: Route Submission & LiC Review Workflow (Pending)
 
 *   [ ] **Upload Handling**: Build `[ems-route-submit]` and `[ems-route-status]` frontend forms. Restrict file types to `.gpx` and `.pdf`, enforce naming conventions (`[Team_Code]_[File_Type]_v[Version].[ext]`), and auto-increment version numbers.
 *   [ ] **Secure Storage Proxy**: Block direct access to route files using `.htaccess` (e.g. `/uploads/ems-secure/`) and serve them via a custom REST proxy `/ems/v1/download-route/{id}` gated by participant/leader permissions.
@@ -61,7 +76,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 6. Milestone 10: Email Notification Engine & SMTP Logging (Held / Deferred)
+## 7. Milestone 10: Email Notification Engine & SMTP Logging (Held / Deferred)
 
 *   [ ] **Workflow Triggers**: Trigger emails on events like: Signup Received, Invite ESU Share (unit leader), Volunteer Availability, Assignment Confirmed, and Route Review Feedback.
 *   [ ] **SMTP Delivery**: Route notifications using standard `wp_mail()` wrappers configured to run via host SMTP.
@@ -69,7 +84,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 7. Milestone 11: Expedition Board Enhancements & Document Export (Held / Deferred)
+## 8. Milestone 11: Expedition Board Enhancements & Document Export (Held / Deferred)
 
 *   [ ] **Unassigned Sidebar**: Add an unassigned explorer sidebar on the Expedition Board for fast drag-and-drop allocations.
 *   [ ] **Safeguarding Flags**: Highlight explorers turning 18 before or during the expedition dates.
@@ -78,7 +93,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 8. QA, Rollout & Operational Tasks
+## 9. QA, Rollout & Operational Tasks
 
 *   [ ] **Logging Configuration & Guards**: Ensure that child metadata enrichment debug logging is guarded and can be easily toggled on/off to keep system logs clean.
 *   [ ] **Documentation & Screen Review**: Run a detailed review of all active admin screens and portal pages, fixing styling issues and completing any missing inline documentation.
@@ -89,7 +104,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 9. Future Enhancements & Extensions
+## 10. Future Enhancements & Extensions
 
 *   [ ] **Network Expedition Signups**: Add support and rules handling signups/eligibility for Network members (aged 18–25).
 *   [ ] **Security Policy Review**: Investigate 2FA and DB-level encryption requirements for storing explorer profiles.
