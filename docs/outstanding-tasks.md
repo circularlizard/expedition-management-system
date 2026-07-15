@@ -4,7 +4,7 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
-## 1. Milestone 7.5: System-Wide Audit Logging & Log Viewer (Active / Next)
+## 1. Milestone 4: System-Wide Audit Logging & Log Viewer (Active / Next)
 
 *   [ ] **Centralized Audit Logger**:
     *   Create a reusable logger class (e.g. `EMS\Core\Audit_Logger`) using the existing `ems_audit_logs` schema to write audit rows capturing IP address, user agent, timestamp, action type, user ID, and target scout ID.
@@ -19,7 +19,7 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
-## 2. Milestone 7: Offline/Online Scout Manager Write-Back (Push-Back Sync) (Pending)
+## 2. Milestone 5: Offline/Online Scout Manager Write-Back (Push-Back Sync) (Pending)
 
 *   [ ] **Data Sync Scope Assessment**:
     *   Determine exactly which data fields should be written back to OSM. Since EMS now maintains a master list of expedition preferences, participant signups, and team formations within its own database, we must determine which attributes (e.g. event attendance, patrol groups, custom flexi-record columns) actually need to map back to OSM fields vs. remaining local to EMS.
@@ -36,7 +36,7 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
-## 3. Milestone 5: Compliance & Training Progress Monitoring (Pending)
+## 3. Milestone 6: Compliance & Training Progress Monitoring (Pending)
 
 Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/archive/held-milestone-5-implementation-spec.md):
 
@@ -50,7 +50,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 4. Milestone 6: Unit Leader Integration Portal & Kit Supply (Pending)
+## 4. Milestone 7: Unit Leader Integration Portal & Kit Supply (Pending)
 
 *   [ ] **Unit Leader Portal**: Build a dashboard showing all explorer allocations and status updates scoped to leaders' managed ESU units.
 *   [ ] **Kit List Supply Tool**: Track and map gear/equipment requests back to specific units. Determine if this content should be in a post or a database table.
