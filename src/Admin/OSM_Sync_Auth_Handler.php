@@ -28,26 +28,29 @@ class OSM_Sync_Auth_Handler {
 	 * Callers must call exit after this returns to terminate the request.
 	 *
 	 * @param callable|null $on_success Invoked with token when cached token is used.
+	 * @param string        $mode       Optional flow mode (e.g. 'sync' or 'pushback').
 	 */
-	public function initiate( ?callable $on_success = null ): void {
+	public function initiate( ?callable $on_success = null, string $mode = 'sync' ): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=forbidden' ) );
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=forbidden' : 'admin.php?page=ems-reference&error=forbidden';
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
 		if ( get_option( 'ems_api_blocked', false ) ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=api_blocked' ) );
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=api_blocked' : 'admin.php?page=ems-reference&error=api_blocked';
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
 		$cached = $this->get_cached_token();
 		if ( $cached !== '' && $on_success !== null ) {
-			$on_success( $cached );
+			$on_success( $cached, $mode );
 			return;
 		}
 
 		$scope = get_option( 'ems_osm_scope', 'section:member:read section:event:read section:flexirecord:read' );
-		$state = wp_create_nonce( 'ems_osm_sync' );
+		$state = wp_create_nonce( 'ems_osm_sync' ) . ':' . $mode;
 		$query = http_build_query(
 			array(
 				'client_id'     => $this->client_id,
@@ -65,56 +68,68 @@ class OSM_Sync_Auth_Handler {
 	 * Handles the callback from OSM.
 	 * Callers must call exit after this returns.
 	 *
-	 * @param callable $on_success Callback function to invoke with the access token.
+	 * @param callable $on_success Callback function to invoke with the access token and flow mode.
 	 */
 	public function handle_callback( callable $on_success ): void {
+		$state_param = $_GET['state'] ?? '';
+		$parts       = explode( ':', $state_param );
+		$state_nonce = $parts[0] ?? '';
+		$mode        = $parts[1] ?? 'sync';
+
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=forbidden' ) );
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=forbidden' : 'admin.php?page=ems-reference&error=forbidden';
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
 		if ( get_option( 'ems_api_blocked', false ) ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=api_blocked' ) );
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=api_blocked' : 'admin.php?page=ems-reference&error=api_blocked';
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
 		if ( ! empty( $_GET['error'] ) ) {
-			$osm_error = sanitize_key( $_GET['error'] );
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=osm_' . $osm_error ) );
+			$osm_error     = sanitize_key( $_GET['error'] );
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=osm_' . $osm_error : 'admin.php?page=ems-reference&error=osm_' . $osm_error;
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
-		$state = $_GET['state'] ?? '';
-		if ( ! wp_verify_nonce( $state, 'ems_osm_sync' ) ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=invalid_state' ) );
+		if ( ! wp_verify_nonce( $state_nonce, 'ems_osm_sync' ) ) {
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=invalid_state' : 'admin.php?page=ems-reference&error=invalid_state';
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
 		$code = $_GET['code'] ?? '';
 		if ( empty( $code ) ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=missing_code' ) );
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=missing_code' : 'admin.php?page=ems-reference&error=missing_code';
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
 		$token_data = $this->exchange_code_for_token( $code );
 
 		if ( is_wp_error( $token_data ) ) {
-			$safe_msg = substr( $token_data->get_error_message(), 0, 100 );
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=token_exchange&error_msg=' . rawurlencode( $safe_msg ) ) );
+			$safe_msg      = substr( $token_data->get_error_message(), 0, 100 );
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=token_exchange&error_msg=' . rawurlencode( $safe_msg ) : 'admin.php?page=ems-reference&error=token_exchange&error_msg=' . rawurlencode( $safe_msg );
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
 		$access_token = $token_data['access_token'] ?? '';
 		if ( empty( $access_token ) ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=no_access_token' ) );
+			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=no_access_token' : 'admin.php?page=ems-reference&error=no_access_token';
+			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
 		}
 
 		$this->cache_token( $access_token, (int) ( $token_data['expires_in'] ?? 3600 ) );
 
-		$on_success( $access_token );
+		$on_success( $access_token, $mode );
 
-		wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=success' ) );
+		$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&auth=success' : 'admin.php?page=ems-reference&sync=success';
+		wp_safe_redirect( admin_url( $redirect_page ) );
 	}
 
 	/**

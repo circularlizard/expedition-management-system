@@ -202,6 +202,20 @@ class Plugin {
 			}
 		);
 
+		// OSM Pushback authentication handler
+		add_action(
+			'admin_post_ems_pushback_auth',
+			function () {
+				if ( ! current_user_can( 'manage_options' ) ) {
+					wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&tab=pushback&error=forbidden' ) );
+					exit;
+				}
+				check_admin_referer( 'ems_pushback_auth' );
+				( new \EMS\Admin\OSM_Sync_Auth_Handler() )->initiate( null, 'pushback' );
+				exit;
+			}
+		);
+
 		// OSM Reference page "Sync from OSM" form handler
 		add_action(
 			'admin_post_ems_sync_osm',
@@ -285,7 +299,10 @@ class Plugin {
 			function () {
 				$handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
 				$handler->handle_callback(
-					function ( string $token ) {
+					function ( string $token, string $mode = 'sync' ) {
+						if ( $mode === 'pushback' ) {
+							return;
+						}
 						$api_mode   = get_option( 'ems_api_mode', 'mock' );
 						$parser     = new OSM_Parser();
 						$driver     = new Live_Driver();

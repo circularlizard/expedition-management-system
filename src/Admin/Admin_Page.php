@@ -155,7 +155,7 @@ class Admin_Page {
 	 * Registers the OSM Reference Data submenu.
 	 */
 	public function register_reference_menu(): void {
-		add_submenu_page(
+		$reference_hook = add_submenu_page(
 			'ems',
 			__( 'OSM Sync', 'ems-plugin' ),
 			__( 'OSM Sync', 'ems-plugin' ),
@@ -164,19 +164,10 @@ class Admin_Page {
 			array( $this, 'render_reference_page' )
 		);
 
-		$pushback_hook = add_submenu_page(
-			'ems',
-			__( 'OSM Pushback', 'ems-plugin' ),
-			__( 'OSM Pushback', 'ems-plugin' ),
-			'manage_options',
-			'ems-pushback',
-			array( $this, 'render_pushback_page' )
-		);
-
 		add_action(
 			'admin_enqueue_scripts',
-			function ( $hook ) use ( $pushback_hook ) {
-				if ( $hook === $pushback_hook ) {
+			function ( $hook ) use ( $reference_hook ) {
+				if ( $hook === $reference_hook ) {
 					$this->enqueue_dashboard_assets();
 				}
 			}
@@ -270,7 +261,7 @@ class Admin_Page {
 		global $wpdb;
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'explorers';
-		$valid_tabs = array( 'explorers', 'patrols', 'events', 'diagnostics' );
+		$valid_tabs = array( 'explorers', 'patrols', 'events', 'diagnostics', 'pushback' );
 		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 			$active_tab = 'explorers';
 		}
@@ -323,6 +314,7 @@ class Admin_Page {
 			'explorers'   => __( 'Explorers', 'ems-plugin' ),
 			'patrols'     => __( 'Patrols', 'ems-plugin' ),
 			'events'      => __( 'Events', 'ems-plugin' ),
+			'pushback'    => __( 'Pushback Sync', 'ems-plugin' ),
 			'diagnostics' => __( 'Diagnostics', 'ems-plugin' ),
 		);
 
@@ -342,17 +334,30 @@ class Admin_Page {
 			$this->render_events_tab( $wpdb );
 		} elseif ( $active_tab === 'diagnostics' ) {
 			$this->render_diagnostics_tab();
+		} elseif ( $active_tab === 'pushback' ) {
+			$this->render_pushback_tab();
 		}
 
 		echo '</div>';
 		echo '</div>';
 	}
 
-	public function render_pushback_page(): void {
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'OSM Pushback Sync', 'ems-plugin' ) . '</h1>';
-		echo '<div id="ems-pushback-root"></div>';
-		echo '</div>';
+	private function render_pushback_tab(): void {
+		$auth_handler = new \EMS\Admin\OSM_Sync_Auth_Handler();
+		$cached_token = $auth_handler->get_cached_token();
+
+		if ( empty( $cached_token ) ) {
+			echo '<div class="notice notice-info inline" style="margin: 20px 0; padding: 15px; display: block;">';
+			echo '<p>' . esc_html__( 'To preview or execute push-back synchronization, you must first authenticate with Online Scout Manager.', 'ems-plugin' ) . '</p>';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			echo '<input type="hidden" name="action" value="ems_pushback_auth" />';
+			wp_nonce_field( 'ems_pushback_auth' );
+			echo '<button type="submit" class="button button-primary">' . esc_html__( 'Authenticate with OSM', 'ems-plugin' ) . '</button>';
+			echo '</form>';
+			echo '</div>';
+		} else {
+			echo '<div id="ems-pushback-root" data-token="' . esc_attr( $cached_token ) . '"></div>';
+		}
 	}
 
 	private function render_explorers_tab( $wpdb ): void {
