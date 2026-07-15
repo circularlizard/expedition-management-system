@@ -163,6 +163,24 @@ class Admin_Page {
 			'ems-reference',
 			array( $this, 'render_reference_page' )
 		);
+
+		$pushback_hook = add_submenu_page(
+			'ems',
+			__( 'OSM Pushback', 'ems-plugin' ),
+			__( 'OSM Pushback', 'ems-plugin' ),
+			'manage_options',
+			'ems-pushback',
+			array( $this, 'render_pushback_page' )
+		);
+
+		add_action(
+			'admin_enqueue_scripts',
+			function ( $hook ) use ( $pushback_hook ) {
+				if ( $hook === $pushback_hook ) {
+					$this->enqueue_dashboard_assets();
+				}
+			}
+		);
 	}
 
 	/**
@@ -200,6 +218,7 @@ class Admin_Page {
 				'root_url'  => get_rest_url( null, 'ems/v1' ),
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'admin_url' => admin_url( 'post.php' ),
+				'sections'  => (array) get_option( 'ems_managed_sections', array() ),
 			)
 		);
 	}
@@ -326,6 +345,13 @@ class Admin_Page {
 		}
 
 		echo '</div>';
+		echo '</div>';
+	}
+
+	public function render_pushback_page(): void {
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'OSM Pushback Sync', 'ems-plugin' ) . '</h1>';
+		echo '<div id="ems-pushback-root"></div>';
 		echo '</div>';
 	}
 
