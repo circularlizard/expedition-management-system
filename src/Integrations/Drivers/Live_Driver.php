@@ -25,7 +25,13 @@ class Live_Driver implements Driver_Interface {
 		}
 
 		$args['timeout'] = $args['timeout'] ?? 15;
-		$response        = wp_safe_remote_get( $url, $args );
+		$method          = $args['method'] ?? 'GET';
+
+		if ( $method === 'POST' ) {
+			$response = wp_safe_remote_post( $url, $args );
+		} else {
+			$response = wp_safe_remote_get( $url, $args );
+		}
 
 		if ( is_wp_error( $response ) ) {
 			throw new Api_Response_Exception( $response->get_error_message(), $url );
@@ -239,5 +245,75 @@ class Live_Driver implements Driver_Interface {
 		);
 
 		return $this->request( $url );
+	}
+
+	public function update_event_attendance( int $section_id, int $event_id, array $member_updates ): array {
+		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
+		$url  = $base . '/v3/events/event/' . $event_id . '/members/attendance/updateMany';
+		return $this->request( $url, array(
+			'method' => 'POST',
+			'body'   => array(
+				'field'      => 'attending',
+				'value'      => 'invited',
+				'member_ids' => implode( ',', $member_updates ),
+			),
+		) );
+	}
+
+	public function create_flexi_record( int $section_id, string $name ): array {
+		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
+		$url  = add_query_arg(
+			array(
+				'action'    => 'addRecordSet',
+				'sectionid' => $section_id,
+			),
+			$base . '/ext/members/flexirecords/'
+		);
+		return $this->request( $url, array(
+			'method' => 'POST',
+			'body'   => array(
+				'name'   => $name,
+				'patrol' => 1,
+				'type'   => 'none',
+			),
+		) );
+	}
+
+	public function add_flexi_record_column( int $section_id, int $flexi_id, string $column_name ): array {
+		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
+		$url  = add_query_arg(
+			array(
+				'action'    => 'addColumn',
+				'sectionid' => $section_id,
+				'extraid'   => $flexi_id,
+			),
+			$base . '/ext/members/flexirecords/'
+		);
+		return $this->request( $url, array(
+			'method' => 'POST',
+			'body'   => array(
+				'columnName' => $column_name,
+			),
+		) );
+	}
+
+	public function update_flexi_record_data( int $section_id, int $flexi_id, array $values ): array {
+		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
+		$url  = add_query_arg(
+			array(
+				'action'    => 'multiUpdate',
+				'sectionid' => $section_id,
+			),
+			$base . '/ext/members/flexirecords/'
+		);
+		return $this->request( $url, array(
+			'method' => 'POST',
+			'body'   => array(
+				'scouts'  => wp_json_encode( array_map( 'strval', $values['scouts'] ) ),
+				'value'   => $values['value'],
+				'col'     => $values['col'],
+				'extraid' => $flexi_id,
+			),
+		) );
 	}
 }

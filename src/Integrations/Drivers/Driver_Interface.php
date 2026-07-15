@@ -14,6 +14,11 @@ interface Driver_Interface {
 	public function get_contact_details( int $section_id, int $scout_id, int $term_id ): array;
 	public function get_event_attendance( int $event_id, int $term_id ): array;
 
+	public function update_event_attendance( int $section_id, int $event_id, array $member_updates ): array;
+	public function create_flexi_record( int $section_id, string $name ): array;
+	public function add_flexi_record_column( int $section_id, int $flexi_id, string $column_name ): array;
+	public function update_flexi_record_data( int $section_id, int $flexi_id, array $values ): array;
+
 
 	/**
 	 * Sets the access token for the driver to use in subsequent requests.
@@ -29,3 +34,4 @@ interface Driver_Interface {
 	 */
 	public function get_last_response_headers(): array;
 }
+
