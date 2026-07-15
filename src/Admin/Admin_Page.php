@@ -1,685 +1,712 @@
 <?php
 namespace EMS\Admin;
 
-
 class Admin_Page {
-    private Diagnostic_Panel $diagnostic;
+	private Diagnostic_Panel $diagnostic;
 
-    public function __construct( Diagnostic_Panel $diagnostic ) {
-        $this->diagnostic = $diagnostic;
-    }
+	public function __construct( Diagnostic_Panel $diagnostic ) {
+		$this->diagnostic = $diagnostic;
+	}
 
-    public function register(): void {
-        add_action( 'admin_footer', [ $this, 'render_build_timestamp' ] );
+	public function register(): void {
+		add_action( 'admin_footer', array( $this, 'render_build_timestamp' ) );
 
-        add_menu_page(
-            'EMS',
-            'EMS',
-            'manage_options',
-            'ems',
-            [ $this, 'render_dashboard' ],
-            'dashicons-location-alt',
-            5
-        );
+		add_menu_page(
+			'EMS',
+			'EMS',
+			'manage_options',
+			'ems',
+			array( $this, 'render_dashboard' ),
+			'dashicons-location-alt',
+			5
+		);
 
-        $dashboard_hook = add_submenu_page(
-            'ems',
-            __( 'Expeditions', 'ems-plugin' ),
-            __( 'Expeditions', 'ems-plugin' ),
-            'manage_options',
-            'ems',
-            [ $this, 'render_dashboard' ]
-        );
+		$dashboard_hook = add_submenu_page(
+			'ems',
+			__( 'Expeditions', 'ems-plugin' ),
+			__( 'Expeditions', 'ems-plugin' ),
+			'manage_options',
+			'ems',
+			array( $this, 'render_dashboard' )
+		);
 
-        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $dashboard_hook ) {
-            if ( $hook === $dashboard_hook ) {
-                $this->enqueue_dashboard_assets();
-            }
-        } );
-    }
+		add_action(
+			'admin_enqueue_scripts',
+			function ( $hook ) use ( $dashboard_hook ) {
+				if ( $hook === $dashboard_hook ) {
+					$this->enqueue_dashboard_assets();
+				}
+			}
+		);
+	}
 
-    /**
-     * Registers the Explorer List and Signups submenus.
-     */
-    public function register_explorers_menu(): void {
-        $explorers_hook = add_submenu_page(
-            'ems',
-            __( 'Explorers', 'ems-plugin' ),
-            __( 'Explorers', 'ems-plugin' ),
-            'manage_options',
-            'ems-explorers',
-            [ $this, 'render_explorers_page' ]
-        );
+	/**
+	 * Registers the Explorer List and Signups submenus.
+	 */
+	public function register_explorers_menu(): void {
+		$explorers_hook = add_submenu_page(
+			'ems',
+			__( 'Explorers', 'ems-plugin' ),
+			__( 'Explorers', 'ems-plugin' ),
+			'manage_options',
+			'ems-explorers',
+			array( $this, 'render_explorers_page' )
+		);
 
-        $participant_hook = add_submenu_page(
-            'ems',
-            __( 'Participant Places', 'ems-plugin' ),
-            __( 'Participant Places', 'ems-plugin' ),
-            'manage_options',
-            'ems-participant-signups',
-            [ $this, 'render_participant_signups_page' ]
-        );
+		$participant_hook = add_submenu_page(
+			'ems',
+			__( 'Participant Places', 'ems-plugin' ),
+			__( 'Participant Places', 'ems-plugin' ),
+			'manage_options',
+			'ems-participant-signups',
+			array( $this, 'render_participant_signups_page' )
+		);
 
-        $expedition_hook = add_submenu_page(
-            'ems',
-            __( 'Expedition Signups', 'ems-plugin' ),
-            __( 'Expedition Signups', 'ems-plugin' ),
-            'manage_options',
-            'ems-expedition-signups',
-            [ $this, 'render_expedition_signups_page' ]
-        );
+		$expedition_hook = add_submenu_page(
+			'ems',
+			__( 'Expedition Signups', 'ems-plugin' ),
+			__( 'Expedition Signups', 'ems-plugin' ),
+			'manage_options',
+			'ems-expedition-signups',
+			array( $this, 'render_expedition_signups_page' )
+		);
 
-        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $explorers_hook, $participant_hook, $expedition_hook ) {
-            if ( $hook === $explorers_hook ) {
-                $this->enqueue_dashboard_assets();
-            }
-            if ( $hook === $participant_hook || $hook === $expedition_hook ) {
-                $this->enqueue_signups_assets();
-            }
-        } );
-    }
+		add_action(
+			'admin_enqueue_scripts',
+			function ( $hook ) use ( $explorers_hook, $participant_hook, $expedition_hook ) {
+				if ( $hook === $explorers_hook ) {
+					$this->enqueue_dashboard_assets();
+				}
+				if ( $hook === $participant_hook || $hook === $expedition_hook ) {
+					$this->enqueue_signups_assets();
+				}
+			}
+		);
+	}
 
-    private function enqueue_signups_assets(): void {
-        $this->enqueue_admin_script( 'ems-signups-board', 'assets/js/signups-board.js' );
-        $this->enqueue_admin_styles();
-        wp_localize_script( 'ems-signups-board', 'emsSignupsBoard', [
-            'root_url' => get_rest_url( null, 'ems/v1' ),
-            'nonce'    => wp_create_nonce( 'wp_rest' ),
-        ] );
-    }
+	private function enqueue_signups_assets(): void {
+		$this->enqueue_admin_script( 'ems-signups-board', 'assets/js/signups-board.js' );
+		$this->enqueue_admin_styles();
+		wp_localize_script(
+			'ems-signups-board',
+			'emsSignupsBoard',
+			array(
+				'root_url' => get_rest_url( null, 'ems/v1' ),
+				'nonce'    => wp_create_nonce( 'wp_rest' ),
+			)
+		);
+	}
 
-    public function render_explorers_page(): void {
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'Explorer List', 'ems-plugin' ) . '</h1>';
-        echo '<div id="ems-explorers-root"></div>';
-        echo '</div>';
-    }
+	public function render_explorers_page(): void {
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Explorer List', 'ems-plugin' ) . '</h1>';
+		echo '<div id="ems-explorers-root"></div>';
+		echo '</div>';
+	}
 
-    public function render_participant_signups_page(): void {
-        ?>
-        <div class="wrap">
-            <h1><?php esc_html_e( 'Participant Places', 'ems-plugin' ); ?></h1>
-            <div id="ems-participant-signups-root"></div>
-        </div>
-        <?php
-    }
+	public function render_participant_signups_page(): void {
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Participant Places', 'ems-plugin' ); ?></h1>
+			<div id="ems-participant-signups-root"></div>
+		</div>
+		<?php
+	}
 
-    public function render_expedition_signups_page(): void {
-        ?>
-        <div class="wrap">
-            <h1><?php esc_html_e( 'Expedition Signups', 'ems-plugin' ); ?></h1>
-            <div id="ems-expedition-signups-root"></div>
-        </div>
-        <?php
-    }
+	public function render_expedition_signups_page(): void {
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Expedition Signups', 'ems-plugin' ); ?></h1>
+			<div id="ems-expedition-signups-root"></div>
+		</div>
+		<?php
+	}
 
-    public function register_volunteers_menu(): void {
-        $volunteers_hook = add_submenu_page(
-            'ems',
-            __( 'Volunteers', 'ems-plugin' ),
-            __( 'Volunteers', 'ems-plugin' ),
-            'manage_options',
-            'ems-volunteers',
-            [ $this, 'render_volunteers_page' ]
-        );
+	public function register_volunteers_menu(): void {
+		$volunteers_hook = add_submenu_page(
+			'ems',
+			__( 'Volunteers', 'ems-plugin' ),
+			__( 'Volunteers', 'ems-plugin' ),
+			'manage_options',
+			'ems-volunteers',
+			array( $this, 'render_volunteers_page' )
+		);
 
-        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $volunteers_hook ) {
-            if ( $hook === $volunteers_hook ) {
-                $this->enqueue_admin_script( 'ems-volunteers', 'assets/js/volunteers.js' );
-                $this->enqueue_admin_styles();
-                wp_localize_script( 'ems-volunteers', 'emsVolunteers', [
-                    'root_url' => get_rest_url( null, 'ems/v1' ),
-                    'nonce'    => wp_create_nonce( 'wp_rest' ),
-                ] );
-            }
-        } );
-    }
+		add_action(
+			'admin_enqueue_scripts',
+			function ( $hook ) use ( $volunteers_hook ) {
+				if ( $hook === $volunteers_hook ) {
+					$this->enqueue_admin_script( 'ems-volunteers', 'assets/js/volunteers.js' );
+					$this->enqueue_admin_styles();
+					wp_localize_script(
+						'ems-volunteers',
+						'emsVolunteers',
+						array(
+							'root_url' => get_rest_url( null, 'ems/v1' ),
+							'nonce'    => wp_create_nonce( 'wp_rest' ),
+						)
+					);
+				}
+			}
+		);
+	}
 
-    /**
-     * Registers the OSM Reference Data submenu.
-     */
-    public function register_reference_menu(): void {
-        add_submenu_page(
-            'ems',
-            __( 'OSM Sync', 'ems-plugin' ),
-            __( 'OSM Sync', 'ems-plugin' ),
-            'manage_options',
-            'ems-reference',
-            [ $this, 'render_reference_page' ]
-        );
-    }
+	/**
+	 * Registers the OSM Reference Data submenu.
+	 */
+	public function register_reference_menu(): void {
+		add_submenu_page(
+			'ems',
+			__( 'OSM Sync', 'ems-plugin' ),
+			__( 'OSM Sync', 'ems-plugin' ),
+			'manage_options',
+			'ems-reference',
+			array( $this, 'render_reference_page' )
+		);
+	}
 
-    /**
-     * Registers the Column Mapper submenu (called at a later priority for correct ordering).
-     */
-    public function register_mapper_menu(): void {
-        $mapper_hook = add_submenu_page(
-            null,
-            __( 'Column Mapper', 'ems-plugin' ),
-            __( 'Column Mapper', 'ems-plugin' ),
-            'manage_options',
-            'ems-column-mapper',
-            [ $this, 'render_column_mapper' ]
-        );
+	/**
+	 * Registers the Column Mapper submenu (called at a later priority for correct ordering).
+	 */
+	public function register_mapper_menu(): void {
+		$mapper_hook = add_submenu_page(
+			null,
+			__( 'Column Mapper', 'ems-plugin' ),
+			__( 'Column Mapper', 'ems-plugin' ),
+			'manage_options',
+			'ems-column-mapper',
+			array( $this, 'render_column_mapper' )
+		);
 
-        add_action( 'admin_enqueue_scripts', function ( $hook ) use ( $mapper_hook ) {
-            if ( $hook === $mapper_hook ) {
-                $this->enqueue_mapper_assets();
-            }
-        } );
-    }
-
-
-    private function enqueue_dashboard_assets(): void {
-        wp_enqueue_editor();
-        $this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
-        $this->enqueue_admin_styles();
-        wp_localize_script( 'ems-expedition-board', 'emsExpeditionBoard', [
-            'root_url'  => get_rest_url( null, 'ems/v1' ),
-            'nonce'     => wp_create_nonce( 'wp_rest' ),
-            'admin_url' => admin_url( 'post.php' ),
-        ] );
-    }
-
-    private function enqueue_mapper_assets(): void {
-        $this->enqueue_admin_script( 'ems-column-mapper', 'assets/js/column-mapper.js' );
-        $this->enqueue_admin_styles();
-        wp_localize_script( 'ems-column-mapper', 'emsColumnMapper', [
-            'root_url' => get_rest_url( null, 'ems/v1' ),
-            'nonce'    => wp_create_nonce( 'wp_rest' ),
-            'sections' => (array) get_option( 'ems_managed_sections', [] ),
-        ] );
-    }
-
-    /**
-     * Enqueue the shared EMS admin stylesheet (compiled by Vite).
-     * Also ensures @wordpress/components stylesheet is loaded.
-     * Safe to call multiple times — wp_enqueue_style is idempotent.
-     */
-    private function enqueue_admin_styles(): void {
-        wp_enqueue_style( 'wp-components' );
-
-        $css_path    = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
-        $css_url     = plugin_dir_url( EMS_PLUGIN_FILE )  . 'assets/js/ems-admin.css';
-        $css_version = EMS_VERSION . ( file_exists( $css_path ) ? '.' . filemtime( $css_path ) : '' );
-        wp_enqueue_style( 'ems-admin', $css_url, [ 'wp-components' ], $css_version );
-    }
-
-    public function render_dashboard(): void {
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'Expedition Board', 'ems-plugin' ) . '</h1>';
-
-        if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM data synced successfully.', 'ems-plugin' ) . '</p></div>';
-        }
-
-        echo '<div id="ems-expedition-board-root"></div>';
-        echo '</div>';
-    }
+		add_action(
+			'admin_enqueue_scripts',
+			function ( $hook ) use ( $mapper_hook ) {
+				if ( $hook === $mapper_hook ) {
+					$this->enqueue_mapper_assets();
+				}
+			}
+		);
+	}
 
 
+	private function enqueue_dashboard_assets(): void {
+		wp_enqueue_editor();
+		$this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
+		$this->enqueue_admin_styles();
+		wp_localize_script(
+			'ems-expedition-board',
+			'emsExpeditionBoard',
+			array(
+				'root_url'  => get_rest_url( null, 'ems/v1' ),
+				'nonce'     => wp_create_nonce( 'wp_rest' ),
+				'admin_url' => admin_url( 'post.php' ),
+			)
+		);
+	}
+
+	private function enqueue_mapper_assets(): void {
+		$this->enqueue_admin_script( 'ems-column-mapper', 'assets/js/column-mapper.js' );
+		$this->enqueue_admin_styles();
+		wp_localize_script(
+			'ems-column-mapper',
+			'emsColumnMapper',
+			array(
+				'root_url' => get_rest_url( null, 'ems/v1' ),
+				'nonce'    => wp_create_nonce( 'wp_rest' ),
+				'sections' => (array) get_option( 'ems_managed_sections', array() ),
+			)
+		);
+	}
+
+	/**
+	 * Enqueue the shared EMS admin stylesheet (compiled by Vite).
+	 * Also ensures @wordpress/components stylesheet is loaded.
+	 * Safe to call multiple times — wp_enqueue_style is idempotent.
+	 */
+	private function enqueue_admin_styles(): void {
+		wp_enqueue_style( 'wp-components' );
+
+		$css_path    = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+		$css_url     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+		$css_version = EMS_VERSION . ( file_exists( $css_path ) ? '.' . filemtime( $css_path ) : '' );
+		wp_enqueue_style( 'ems-admin', $css_url, array( 'wp-components' ), $css_version );
+	}
+
+	public function render_dashboard(): void {
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Expedition Board', 'ems-plugin' ) . '</h1>';
+
+		if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM data synced successfully.', 'ems-plugin' ) . '</p></div>';
+		}
+
+		echo '<div id="ems-expedition-board-root"></div>';
+		echo '</div>';
+	}
 
 
-    public function render_reference_page(): void {
-        global $wpdb;
 
-        $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'explorers';
-        $valid_tabs = [ 'explorers', 'patrols', 'events', 'diagnostics' ];
-        if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
-            $active_tab = 'explorers';
-        }
 
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'OSM Reference Data', 'ems-plugin' ) . '</h1>';
+	public function render_reference_page(): void {
+		global $wpdb;
 
-        $this->render_error_notices();
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'explorers';
+		$valid_tabs = array( 'explorers', 'patrols', 'events', 'diagnostics' );
+		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
+			$active_tab = 'explorers';
+		}
 
-        $sync_status  = get_transient( 'ems_sync_status' );
-        $sync_state   = $sync_status['state'] ?? '';
-        if ( $sync_state === 'queued' && ! empty( $sync_status['queued_at'] ) ) {
-            $queued_age = time() - (int) $sync_status['queued_at'];
-            if ( $queued_age > 5 * MINUTE_IN_SECONDS ) {
-                delete_transient( 'ems_sync_status' );
-                delete_transient( 'ems_pending_sync_job' );
-                $sync_state = '';
-            }
-        }
-        $sync_running = in_array( $sync_state, [ 'queued', 'running' ], true );
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'OSM Reference Data', 'ems-plugin' ) . '</h1>';
 
-        if ( $sync_running ) {
-            $this->render_sync_progress_banner();
-        } else {
-            $this->render_sync_result_panel();
-        }
+		$this->render_error_notices();
 
-        $base_url  = admin_url( 'admin.php?page=ems-reference' );
+		$sync_status = get_transient( 'ems_sync_status' );
+		$sync_state  = $sync_status['state'] ?? '';
+		if ( $sync_state === 'queued' && ! empty( $sync_status['queued_at'] ) ) {
+			$queued_age = time() - (int) $sync_status['queued_at'];
+			if ( $queued_age > 5 * MINUTE_IN_SECONDS ) {
+				delete_transient( 'ems_sync_status' );
+				delete_transient( 'ems_pending_sync_job' );
+				$sync_state = '';
+			}
+		}
+		$sync_running = in_array( $sync_state, array( 'queued', 'running' ), true );
 
-        $is_blocked    = (bool) get_option( 'ems_api_blocked', false );
-        $last_result   = get_transient( 'ems_last_sync_result' );
-        $last_sync     = $last_result['started_at'] ?? null;
+		if ( $sync_running ) {
+			$this->render_sync_progress_banner();
+		} else {
+			$this->render_sync_result_panel();
+		}
 
-        echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:10px;">';
-        if ( ! $is_blocked && ! $sync_running ) {
-            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-            echo '<input type="hidden" name="action" value="ems_sync_osm" />';
-            wp_nonce_field( 'ems_sync_osm' );
-            echo '<button type="submit" class="button button-primary">' . esc_html__( 'Sync from OSM', 'ems-plugin' ) . '</button>';
-            echo '</form>';
-        }
-        if ( $last_sync ) {
-            echo '<span style="color:#666;">' . esc_html__( 'Last synced:', 'ems-plugin' ) . ' ' . esc_html( $last_sync ) . '</span>';
-        } else {
-            echo '<span style="color:#999;">' . esc_html__( 'Never synced', 'ems-plugin' ) . '</span>';
-        }
-        echo '</div>';
+		$base_url = admin_url( 'admin.php?page=ems-reference' );
 
-        $tab_labels = [
-            'explorers'   => __( 'Explorers', 'ems-plugin' ),
-            'patrols'     => __( 'Patrols', 'ems-plugin' ),
-            'events'      => __( 'Events', 'ems-plugin' ),
-            'diagnostics' => __( 'Diagnostics', 'ems-plugin' ),
-        ];
+		$is_blocked  = (bool) get_option( 'ems_api_blocked', false );
+		$last_result = get_transient( 'ems_last_sync_result' );
+		$last_sync   = $last_result['started_at'] ?? null;
 
-        echo '<nav class="nav-tab-wrapper" style="margin-bottom:0;">';
-        foreach ( $tab_labels as $slug => $label ) {
-            $class = ( $slug === $active_tab ) ? 'nav-tab nav-tab-active' : 'nav-tab';
-            echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
-        }
-        echo '</nav>';
-        echo '<div style="border:1px solid #ccd0d4;border-top:none;background:#fff;padding:20px;margin-bottom:20px;">';
+		echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:10px;">';
+		if ( ! $is_blocked && ! $sync_running ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			echo '<input type="hidden" name="action" value="ems_sync_osm" />';
+			wp_nonce_field( 'ems_sync_osm' );
+			echo '<button type="submit" class="button button-primary">' . esc_html__( 'Sync from OSM', 'ems-plugin' ) . '</button>';
+			echo '</form>';
+		}
+		if ( $last_sync ) {
+			echo '<span style="color:#666;">' . esc_html__( 'Last synced:', 'ems-plugin' ) . ' ' . esc_html( $last_sync ) . '</span>';
+		} else {
+			echo '<span style="color:#999;">' . esc_html__( 'Never synced', 'ems-plugin' ) . '</span>';
+		}
+		echo '</div>';
 
-        if ( $active_tab === 'explorers' ) {
-            $this->render_explorers_tab( $wpdb );
-        } elseif ( $active_tab === 'patrols' ) {
-            $this->render_patrols_tab( $wpdb );
-        } elseif ( $active_tab === 'events' ) {
-            $this->render_events_tab( $wpdb );
-        } elseif ( $active_tab === 'diagnostics' ) {
-            $this->render_diagnostics_tab();
-        }
+		$tab_labels = array(
+			'explorers'   => __( 'Explorers', 'ems-plugin' ),
+			'patrols'     => __( 'Patrols', 'ems-plugin' ),
+			'events'      => __( 'Events', 'ems-plugin' ),
+			'diagnostics' => __( 'Diagnostics', 'ems-plugin' ),
+		);
 
-        echo '</div>';
-        echo '</div>';
-    }
+		echo '<nav class="nav-tab-wrapper" style="margin-bottom:0;">';
+		foreach ( $tab_labels as $slug => $label ) {
+			$class = ( $slug === $active_tab ) ? 'nav-tab nav-tab-active' : 'nav-tab';
+			echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
+		}
+		echo '</nav>';
+		echo '<div style="border:1px solid #ccd0d4;border-top:none;background:#fff;padding:20px;margin-bottom:20px;">';
 
-    private function render_explorers_tab( $wpdb ): void {
-        $table     = $wpdb->prefix . 'ems_osm_explorers';
-        $explorers = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY last_name, first_name", ARRAY_A );
+		if ( $active_tab === 'explorers' ) {
+			$this->render_explorers_tab( $wpdb );
+		} elseif ( $active_tab === 'patrols' ) {
+			$this->render_patrols_tab( $wpdb );
+		} elseif ( $active_tab === 'events' ) {
+			$this->render_events_tab( $wpdb );
+		} elseif ( $active_tab === 'diagnostics' ) {
+			$this->render_diagnostics_tab();
+		}
 
-        if ( $wpdb->last_error ) {
-            echo '<div class="notice notice-error inline"><p><strong>DB error:</strong> ' . esc_html( $wpdb->last_error ) . '</p></div>';
-            return;
-        }
+		echo '</div>';
+		echo '</div>';
+	}
 
-        if ( empty( $explorers ) ) {
-            echo '<p>' . esc_html__( 'No explorer data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
-            return;
-        }
+	private function render_explorers_tab( $wpdb ): void {
+		$table     = $wpdb->prefix . 'ems_osm_explorers';
+		$explorers = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY last_name, first_name", ARRAY_A );
 
-        echo '<p style="color:#666;">' . sprintf( esc_html__( '%d explorers', 'ems-plugin' ), count( $explorers ) ) . '</p>';
-        echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead><tr>';
-        echo '<th>' . esc_html__( 'Scout ID', 'ems-plugin' ) . '</th>';
-        echo '<th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th>';
-        echo '<th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th>';
-        echo '<th>' . esc_html__( 'Email', 'ems-plugin' ) . '</th>';
-        echo '</tr></thead><tbody>';
-        foreach ( $explorers as $row ) {
-            echo '<tr>';
-            echo '<td>' . esc_html( $row['scout_id'] ) . '</td>';
-            echo '<td>' . esc_html( $row['first_name'] . ' ' . $row['last_name'] ) . '</td>';
-            echo '<td>' . esc_html( $row['patrol'] ) . '</td>';
-            echo '<td>' . esc_html( $row['email'] ) . '</td>';
-            echo '</tr>';
-        }
-        echo '</tbody></table>';
-    }
+		if ( $wpdb->last_error ) {
+			echo '<div class="notice notice-error inline"><p><strong>DB error:</strong> ' . esc_html( $wpdb->last_error ) . '</p></div>';
+			return;
+		}
 
-    private function render_patrols_tab( $wpdb ): void {
-        $table  = $wpdb->prefix . 'ems_osm_explorers';
-        $rows   = $wpdb->get_results(
-            "SELECT patrol, COUNT(*) AS member_count FROM {$table} GROUP BY patrol ORDER BY patrol",
-            ARRAY_A
-        );
+		if ( empty( $explorers ) ) {
+			echo '<p>' . esc_html__( 'No explorer data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
+			return;
+		}
 
-        if ( empty( $rows ) ) {
-            echo '<p>' . esc_html__( 'No patrol data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
-            return;
-        }
+		echo '<p style="color:#666;">' . sprintf( esc_html__( '%d explorers', 'ems-plugin' ), count( $explorers ) ) . '</p>';
+		echo '<table class="wp-list-table widefat fixed striped">';
+		echo '<thead><tr>';
+		echo '<th>' . esc_html__( 'Scout ID', 'ems-plugin' ) . '</th>';
+		echo '<th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th>';
+		echo '<th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th>';
+		echo '<th>' . esc_html__( 'Email', 'ems-plugin' ) . '</th>';
+		echo '</tr></thead><tbody>';
+		foreach ( $explorers as $row ) {
+			echo '<tr>';
+			echo '<td>' . esc_html( $row['scout_id'] ) . '</td>';
+			echo '<td>' . esc_html( $row['first_name'] . ' ' . $row['last_name'] ) . '</td>';
+			echo '<td>' . esc_html( $row['patrol'] ) . '</td>';
+			echo '<td>' . esc_html( $row['email'] ) . '</td>';
+			echo '</tr>';
+		}
+		echo '</tbody></table>';
+	}
 
-        echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead><tr>';
-        echo '<th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th>';
-        echo '<th>' . esc_html__( 'Members', 'ems-plugin' ) . '</th>';
-        echo '</tr></thead><tbody>';
-        foreach ( $rows as $row ) {
-            echo '<tr>';
-            echo '<td>' . esc_html( $row['patrol'] ?: __( '(none)', 'ems-plugin' ) ) . '</td>';
-            echo '<td>' . (int) $row['member_count'] . '</td>';
-            echo '</tr>';
-        }
-        echo '</tbody></table>';
-    }
+	private function render_patrols_tab( $wpdb ): void {
+		$table = $wpdb->prefix . 'ems_osm_explorers';
+		$rows  = $wpdb->get_results(
+			"SELECT patrol, COUNT(*) AS member_count FROM {$table} GROUP BY patrol ORDER BY patrol",
+			ARRAY_A
+		);
 
-    private function render_events_tab( $wpdb ): void {
-        $events_table     = $wpdb->prefix . 'ems_osm_events';
-        $attendance_table = $wpdb->prefix . 'ems_osm_event_attendance';
+		if ( empty( $rows ) ) {
+			echo '<p>' . esc_html__( 'No patrol data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
+			return;
+		}
 
-        $rows = $wpdb->get_results(
-            "SELECT e.event_id, e.name, e.start_date, e.end_date, e.location,
+		echo '<table class="wp-list-table widefat fixed striped">';
+		echo '<thead><tr>';
+		echo '<th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th>';
+		echo '<th>' . esc_html__( 'Members', 'ems-plugin' ) . '</th>';
+		echo '</tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			echo '<tr>';
+			echo '<td>' . esc_html( $row['patrol'] ?: __( '(none)', 'ems-plugin' ) ) . '</td>';
+			echo '<td>' . (int) $row['member_count'] . '</td>';
+			echo '</tr>';
+		}
+		echo '</tbody></table>';
+	}
+
+	private function render_events_tab( $wpdb ): void {
+		$events_table     = $wpdb->prefix . 'ems_osm_events';
+		$attendance_table = $wpdb->prefix . 'ems_osm_event_attendance';
+
+		$rows = $wpdb->get_results(
+			"SELECT e.event_id, e.name, e.start_date, e.end_date, e.location,
                     COUNT(a.id) AS attendance_count
              FROM {$events_table} e
              LEFT JOIN {$attendance_table} a ON a.event_id = e.event_id
              GROUP BY e.event_id
              ORDER BY e.start_date DESC",
-            ARRAY_A
-        );
+			ARRAY_A
+		);
 
-        if ( empty( $rows ) ) {
-            echo '<p>' . esc_html__( 'No event data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
-            return;
-        }
+		if ( empty( $rows ) ) {
+			echo '<p>' . esc_html__( 'No event data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
+			return;
+		}
 
-        echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead><tr>';
-        echo '<th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th>';
-        echo '<th>' . esc_html__( 'Start', 'ems-plugin' ) . '</th>';
-        echo '<th>' . esc_html__( 'End', 'ems-plugin' ) . '</th>';
-        echo '<th>' . esc_html__( 'Location', 'ems-plugin' ) . '</th>';
-        echo '<th>' . esc_html__( 'Attendance', 'ems-plugin' ) . '</th>';
-        echo '</tr></thead><tbody>';
-        foreach ( $rows as $row ) {
-            echo '<tr>';
-            echo '<td>' . esc_html( $row['name'] ) . '</td>';
-            echo '<td>' . esc_html( $row['start_date'] ) . '</td>';
-            echo '<td>' . esc_html( $row['end_date'] ) . '</td>';
-            echo '<td>' . esc_html( $row['location'] ) . '</td>';
-            echo '<td>' . (int) $row['attendance_count'] . '</td>';
-            echo '</tr>';
-        }
-        echo '</tbody></table>';
-    }
+		echo '<table class="wp-list-table widefat fixed striped">';
+		echo '<thead><tr>';
+		echo '<th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th>';
+		echo '<th>' . esc_html__( 'Start', 'ems-plugin' ) . '</th>';
+		echo '<th>' . esc_html__( 'End', 'ems-plugin' ) . '</th>';
+		echo '<th>' . esc_html__( 'Location', 'ems-plugin' ) . '</th>';
+		echo '<th>' . esc_html__( 'Attendance', 'ems-plugin' ) . '</th>';
+		echo '</tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			echo '<tr>';
+			echo '<td>' . esc_html( $row['name'] ) . '</td>';
+			echo '<td>' . esc_html( $row['start_date'] ) . '</td>';
+			echo '<td>' . esc_html( $row['end_date'] ) . '</td>';
+			echo '<td>' . esc_html( $row['location'] ) . '</td>';
+			echo '<td>' . (int) $row['attendance_count'] . '</td>';
+			echo '</tr>';
+		}
+		echo '</tbody></table>';
+	}
 
-    private function render_error_notices(): void {
-        $error_map = [
-            'forbidden'          => __( 'You do not have permission to perform that action.', 'ems-plugin' ),
-            'invalid_state'      => __( 'Invalid OAuth state. Please try again.', 'ems-plugin' ),
-            'missing_code'       => __( 'Authorization code was missing from OSM callback.', 'ems-plugin' ),
-            'token_exchange'     => __( 'Failed to exchange authorization code for token.', 'ems-plugin' ),
-            'no_access_token'    => __( 'OSM did not return an access token.', 'ems-plugin' ),
-            'api_blocked'        => __( 'Sync is disabled: this application has been blocked by OSM. Clear the block flag below before retrying.', 'ems-plugin' ),
-            'payload_failed'     => __( 'OSM returned an unexpected response when fetching data.', 'ems-plugin' ),
-            'osm_access_denied'  => __( 'OSM authorization was denied. Did you cancel the login or decline the permissions request?', 'ems-plugin' ),
-            'osm_invalid_client' => __( 'OSM rejected the client credentials. Check Client ID and Secret in Settings.', 'ems-plugin' ),
-        ];
+	private function render_error_notices(): void {
+		$error_map = array(
+			'forbidden'          => __( 'You do not have permission to perform that action.', 'ems-plugin' ),
+			'invalid_state'      => __( 'Invalid OAuth state. Please try again.', 'ems-plugin' ),
+			'missing_code'       => __( 'Authorization code was missing from OSM callback.', 'ems-plugin' ),
+			'token_exchange'     => __( 'Failed to exchange authorization code for token.', 'ems-plugin' ),
+			'no_access_token'    => __( 'OSM did not return an access token.', 'ems-plugin' ),
+			'api_blocked'        => __( 'Sync is disabled: this application has been blocked by OSM. Clear the block flag below before retrying.', 'ems-plugin' ),
+			'payload_failed'     => __( 'OSM returned an unexpected response when fetching data.', 'ems-plugin' ),
+			'osm_access_denied'  => __( 'OSM authorization was denied. Did you cancel the login or decline the permissions request?', 'ems-plugin' ),
+			'osm_invalid_client' => __( 'OSM rejected the client credentials. Check Client ID and Secret in Settings.', 'ems-plugin' ),
+		);
 
-        if ( isset( $_GET['error'] ) ) {
-            $slug = sanitize_key( $_GET['error'] );
-            $msg  = $error_map[ $slug ] ?? sprintf( __( 'OSM authorization error: %s', 'ems-plugin' ), $slug );
-            if ( isset( $_GET['error_msg'] ) ) {
-                $msg .= ' ' . esc_html( sanitize_text_field( urldecode( $_GET['error_msg'] ) ) );
-            }
-            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
-        }
+		if ( isset( $_GET['error'] ) ) {
+			$slug = sanitize_key( $_GET['error'] );
+			$msg  = $error_map[ $slug ] ?? sprintf( __( 'OSM authorization error: %s', 'ems-plugin' ), $slug );
+			if ( isset( $_GET['error_msg'] ) ) {
+				$msg .= ' ' . esc_html( sanitize_text_field( urldecode( $_GET['error_msg'] ) ) );
+			}
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
+		}
 
-        if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM sync complete.', 'ems-plugin' ) . '</p></div>';
-        }
+		if ( isset( $_GET['sync'] ) && $_GET['sync'] === 'success' ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'OSM sync complete.', 'ems-plugin' ) . '</p></div>';
+		}
 
-        if ( isset( $_GET['block_cleared'] ) ) {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'API block flag cleared. You may now attempt a sync.', 'ems-plugin' ) . '</p></div>';
-        }
-    }
+		if ( isset( $_GET['block_cleared'] ) ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'API block flag cleared. You may now attempt a sync.', 'ems-plugin' ) . '</p></div>';
+		}
+	}
 
-    private function render_sync_progress_banner(): void {
-        $status_url  = esc_js( rest_url( 'ems/v1/sync-status' ) );
-        $nonce       = wp_create_nonce( 'wp_rest' );
-        $reload_url  = esc_js( admin_url( 'admin.php?page=ems-reference' ) );
-        $handler     = new \EMS\Admin\OSM_Sync_Auth_Handler();
-        $has_token   = $handler->get_cached_token() !== '';
-        $token_label = $has_token
-            ? '<span style="color:#00a32a;">&#10003; Authenticated with OSM</span>'
-            : '<span style="color:#dba617;">&#9888; No cached OSM session — a new login will be required for the next sync</span>';
-        ?>
-        <div id="ems-sync-progress" style="background:#fff;border:1px solid #2271b1;border-left:4px solid #2271b1;padding:14px 16px;margin-bottom:16px;border-radius:2px;">
-            <p style="margin:0 0 6px;font-weight:600;display:flex;align-items:center;gap:12px;">
-                <span>
-                    <span id="ems-sync-spinner" class="spinner is-active" style="float:none;margin:0 6px 0 0;vertical-align:middle;"></span>
-                    <span id="ems-sync-state-label"><?php esc_html_e( 'Sync queued…', 'ems-plugin' ); ?></span>
-                </span>
-                <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ems_cancel_sync' ), 'ems_cancel_sync' ) ); ?>" style="font-weight:normal;font-size:12px;"><?php esc_html_e( 'Cancel', 'ems-plugin' ); ?></a>
-            </p>
-            <p style="margin:0 0 8px;font-size:13px;font-weight:normal;"><?php echo $token_label; // phpcs:ignore WordPress.Security.EscapeOutput ?></p>
-            <ul style="margin:.3em 0 0 1.5em;" id="ems-sync-counts">
-                <li><?php esc_html_e( 'Members synced: ', 'ems-plugin' ); ?><strong id="ems-count-members">—</strong></li>
-                <li><?php esc_html_e( 'Events synced: ', 'ems-plugin' ); ?><strong id="ems-count-events">—</strong></li>
-            </ul>
-        </div>
-        <script>
-        (function() {
-            var statusUrl  = '<?php echo $status_url; ?>',
-                nonce      = '<?php echo $nonce; ?>',
-                reloadUrl  = '<?php echo $reload_url; ?>',
-                interval;
+	private function render_sync_progress_banner(): void {
+		$status_url  = esc_js( rest_url( 'ems/v1/sync-status' ) );
+		$nonce       = wp_create_nonce( 'wp_rest' );
+		$reload_url  = esc_js( admin_url( 'admin.php?page=ems-reference' ) );
+		$handler     = new \EMS\Admin\OSM_Sync_Auth_Handler();
+		$has_token   = $handler->get_cached_token() !== '';
+		$token_label = $has_token
+			? '<span style="color:#00a32a;">&#10003; Authenticated with OSM</span>'
+			: '<span style="color:#dba617;">&#9888; No cached OSM session — a new login will be required for the next sync</span>';
+		?>
+		<div id="ems-sync-progress" style="background:#fff;border:1px solid #2271b1;border-left:4px solid #2271b1;padding:14px 16px;margin-bottom:16px;border-radius:2px;">
+			<p style="margin:0 0 6px;font-weight:600;display:flex;align-items:center;gap:12px;">
+				<span>
+					<span id="ems-sync-spinner" class="spinner is-active" style="float:none;margin:0 6px 0 0;vertical-align:middle;"></span>
+					<span id="ems-sync-state-label"><?php esc_html_e( 'Sync queued…', 'ems-plugin' ); ?></span>
+				</span>
+				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ems_cancel_sync' ), 'ems_cancel_sync' ) ); ?>" style="font-weight:normal;font-size:12px;"><?php esc_html_e( 'Cancel', 'ems-plugin' ); ?></a>
+			</p>
+			<p style="margin:0 0 8px;font-size:13px;font-weight:normal;"><?php echo $token_label; // phpcs:ignore WordPress.Security.EscapeOutput ?></p>
+			<ul style="margin:.3em 0 0 1.5em;" id="ems-sync-counts">
+				<li><?php esc_html_e( 'Members synced: ', 'ems-plugin' ); ?><strong id="ems-count-members">—</strong></li>
+				<li><?php esc_html_e( 'Events synced: ', 'ems-plugin' ); ?><strong id="ems-count-events">—</strong></li>
+			</ul>
+		</div>
+		<script>
+		(function() {
+			var statusUrl  = '<?php echo $status_url; ?>',
+				nonce      = '<?php echo $nonce; ?>',
+				reloadUrl  = '<?php echo $reload_url; ?>',
+				interval;
 
-            var queuedSince = null;
+			var queuedSince = null;
 
-            function updateLabel( state ) {
-                var labels = {
-                    queued:  'Sync queued — waiting for background process…',
-                    running: 'Sync running…',
-                    done:    'Sync complete — reloading…',
-                    idle:    'Sync complete — reloading…'
-                };
-                document.getElementById('ems-sync-state-label').textContent = labels[state] || state;
-            }
+			function updateLabel( state ) {
+				var labels = {
+					queued:  'Sync queued — waiting for background process…',
+					running: 'Sync running…',
+					done:    'Sync complete — reloading…',
+					idle:    'Sync complete — reloading…'
+				};
+				document.getElementById('ems-sync-state-label').textContent = labels[state] || state;
+			}
 
-            function markStuck() {
-                clearInterval( interval );
-                document.getElementById('ems-sync-spinner').classList.remove('is-active');
-                document.getElementById('ems-sync-state-label').textContent = 'Background process did not start.';
-                var counts = document.getElementById('ems-sync-counts');
-                counts.innerHTML = '<li style="color:#d63638;">WP-Cron may not be running in this environment. '
-                    + '<a href="' + reloadUrl + '">Reload</a> to check again, or run '
-                    + '<code>wp cron event run ems_run_osm_sync</code> manually, then reload.</li>';
-            }
+			function markStuck() {
+				clearInterval( interval );
+				document.getElementById('ems-sync-spinner').classList.remove('is-active');
+				document.getElementById('ems-sync-state-label').textContent = 'Background process did not start.';
+				var counts = document.getElementById('ems-sync-counts');
+				counts.innerHTML = '<li style="color:#d63638;">WP-Cron may not be running in this environment. '
+					+ '<a href="' + reloadUrl + '">Reload</a> to check again, or run '
+					+ '<code>wp cron event run ems_run_osm_sync</code> manually, then reload.</li>';
+			}
 
-            function poll() {
-                fetch( statusUrl, { headers: { 'X-WP-Nonce': nonce } } )
-                    .then( function(r) { return r.json(); } )
-                    .then( function(data) {
-                        if ( data.state === 'queued' ) {
-                            if ( ! queuedSince ) { queuedSince = Date.now(); }
-                            if ( Date.now() - queuedSince > 30000 ) {
-                                markStuck();
-                                return;
-                            }
-                        } else {
-                            queuedSince = null;
-                        }
-                        updateLabel( data.state );
-                        if ( data.state === 'running' || data.state === 'done' ) {
-                            document.getElementById('ems-count-members').textContent = data.members_upserted;
-                            document.getElementById('ems-count-events').textContent  = data.events_upserted;
-                        }
-                        if ( data.state === 'done' || data.state === 'idle' || data.state === '' ) {
-                            clearInterval( interval );
-                            document.getElementById('ems-sync-spinner').classList.remove('is-active');
-                            setTimeout( function() { window.location.href = reloadUrl; }, 1500 );
-                        }
-                    } )
-                    .catch( function() {} );
-            }
+			function poll() {
+				fetch( statusUrl, { headers: { 'X-WP-Nonce': nonce } } )
+					.then( function(r) { return r.json(); } )
+					.then( function(data) {
+						if ( data.state === 'queued' ) {
+							if ( ! queuedSince ) { queuedSince = Date.now(); }
+							if ( Date.now() - queuedSince > 30000 ) {
+								markStuck();
+								return;
+							}
+						} else {
+							queuedSince = null;
+						}
+						updateLabel( data.state );
+						if ( data.state === 'running' || data.state === 'done' ) {
+							document.getElementById('ems-count-members').textContent = data.members_upserted;
+							document.getElementById('ems-count-events').textContent  = data.events_upserted;
+						}
+						if ( data.state === 'done' || data.state === 'idle' || data.state === '' ) {
+							clearInterval( interval );
+							document.getElementById('ems-sync-spinner').classList.remove('is-active');
+							setTimeout( function() { window.location.href = reloadUrl; }, 1500 );
+						}
+					} )
+					.catch( function() {} );
+			}
 
-            poll();
-            interval = setInterval( poll, 3000 );
-        })();
-        </script>
-        <?php
-    }
+			poll();
+			interval = setInterval( poll, 3000 );
+		})();
+		</script>
+		<?php
+	}
 
-    private function render_sync_result_panel(): void {
-        if ( get_option( 'ems_api_blocked', false ) ) {
-            echo '<div class="notice notice-error">';
-            echo '<p><strong>' . esc_html__( 'OSM has permanently blocked this application.', 'ems-plugin' ) . '</strong> ';
-            echo esc_html__( 'No further sync attempts will be made. Contact OSM support to resolve the block, then clear the flag.', 'ems-plugin' ) . '</p>';
-            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
-            echo '<input type="hidden" name="action" value="ems_clear_api_block" />';
-            wp_nonce_field( 'ems_clear_api_block' );
-            echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Clear block flag', 'ems-plugin' ) . '</button>';
-            echo '</form>';
-            echo '</div>';
-            return;
-        }
+	private function render_sync_result_panel(): void {
+		if ( get_option( 'ems_api_blocked', false ) ) {
+			echo '<div class="notice notice-error">';
+			echo '<p><strong>' . esc_html__( 'OSM has permanently blocked this application.', 'ems-plugin' ) . '</strong> ';
+			echo esc_html__( 'No further sync attempts will be made. Contact OSM support to resolve the block, then clear the flag.', 'ems-plugin' ) . '</p>';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+			echo '<input type="hidden" name="action" value="ems_clear_api_block" />';
+			wp_nonce_field( 'ems_clear_api_block' );
+			echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Clear block flag', 'ems-plugin' ) . '</button>';
+			echo '</form>';
+			echo '</div>';
+			return;
+		}
 
-        $result = get_transient( 'ems_last_sync_result' );
-        if ( empty( $result ) ) {
-            return;
-        }
+		$result = get_transient( 'ems_last_sync_result' );
+		if ( empty( $result ) ) {
+			return;
+		}
 
-        if ( ! empty( $result['rate_limited'] ) ) {
-            $retry = (int) ( $result['retry_after_seconds'] ?? 0 );
-            $reset = (int) ( $result['rate_limit_reset_seconds'] ?? 0 );
-            echo '<div class="notice notice-warning is-dismissible"><p>';
-            echo '<strong>' . esc_html__( 'Sync stopped: OSM rate limit reached.', 'ems-plugin' ) . '</strong> ';
-            printf( esc_html__( 'Retry after: %ds (resets in %ds).', 'ems-plugin' ), $retry, $reset );
-            echo '</p></div>';
-        }
+		if ( ! empty( $result['rate_limited'] ) ) {
+			$retry = (int) ( $result['retry_after_seconds'] ?? 0 );
+			$reset = (int) ( $result['rate_limit_reset_seconds'] ?? 0 );
+			echo '<div class="notice notice-warning is-dismissible"><p>';
+			echo '<strong>' . esc_html__( 'Sync stopped: OSM rate limit reached.', 'ems-plugin' ) . '</strong> ';
+			printf( esc_html__( 'Retry after: %1$ds (resets in %2$ds).', 'ems-plugin' ), $retry, $reset );
+			echo '</p></div>';
+		}
 
-        if ( ! empty( $result['deprecated_endpoints'] ) ) {
-            echo '<div class="notice notice-info is-dismissible"><p>';
-            echo esc_html__( 'Deprecated OSM endpoints detected: ', 'ems-plugin' );
-            echo esc_html( implode( ', ', (array) $result['deprecated_endpoints'] ) );
-            echo '</p></div>';
-        }
+		if ( ! empty( $result['deprecated_endpoints'] ) ) {
+			echo '<div class="notice notice-info is-dismissible"><p>';
+			echo esc_html__( 'Deprecated OSM endpoints detected: ', 'ems-plugin' );
+			echo esc_html( implode( ', ', (array) $result['deprecated_endpoints'] ) );
+			echo '</p></div>';
+		}
 
-        $mode      = esc_html( $result['mode'] ?? 'unknown' );
-        $started   = esc_html( $result['started_at'] ?? '' );
-        $m_ok      = (int) ( $result['members_upserted'] ?? 0 );
-        $m_fail    = (int) ( $result['members_failed']   ?? 0 );
-        $e_ok      = (int) ( $result['events_upserted']  ?? 0 );
-        $e_fail    = (int) ( $result['events_failed']    ?? 0 );
-        $err_count = count( (array) ( $result['errors'] ?? [] ) );
+		$mode      = esc_html( $result['mode'] ?? 'unknown' );
+		$started   = esc_html( $result['started_at'] ?? '' );
+		$m_ok      = (int) ( $result['members_upserted'] ?? 0 );
+		$m_fail    = (int) ( $result['members_failed'] ?? 0 );
+		$e_ok      = (int) ( $result['events_upserted'] ?? 0 );
+		$e_fail    = (int) ( $result['events_failed'] ?? 0 );
+		$err_count = count( (array) ( $result['errors'] ?? array() ) );
 
-        echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:12px 16px;margin-bottom:16px;border-radius:2px;">';
-        echo '<strong>' . esc_html__( 'Last Sync Result', 'ems-plugin' ) . '</strong>';
-        echo ' <span style="color:#666;font-size:12px;">(' . $mode . ' — ' . $started . ')</span>';
-        echo '<ul style="margin:.5em 0 0 1.5em;">';
-        echo '<li>' . sprintf( esc_html__( 'Members: %d upserted, %d failed', 'ems-plugin' ), $m_ok, $m_fail ) . '</li>';
-        echo '<li>' . sprintf( esc_html__( 'Events: %d upserted, %d failed', 'ems-plugin' ), $e_ok, $e_fail ) . '</li>';
-        if ( $err_count > 0 ) {
-            echo '<li>';
-            echo '<details><summary>' . sprintf( esc_html__( '%d error(s)', 'ems-plugin' ), $err_count ) . '</summary>';
-            echo '<ul style="margin:.5em 0 0 1.5em;">';
-            foreach ( (array) $result['errors'] as $err ) {
-                echo '<li>' . esc_html( $err ) . '</li>';
-            }
-            echo '</ul></details>';
-            echo '</li>';
-        }
-        echo '</ul>';
-        echo '</div>';
-    }
+		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:12px 16px;margin-bottom:16px;border-radius:2px;">';
+		echo '<strong>' . esc_html__( 'Last Sync Result', 'ems-plugin' ) . '</strong>';
+		echo ' <span style="color:#666;font-size:12px;">(' . $mode . ' — ' . $started . ')</span>';
+		echo '<ul style="margin:.5em 0 0 1.5em;">';
+		echo '<li>' . sprintf( esc_html__( 'Members: %1$d upserted, %2$d failed', 'ems-plugin' ), $m_ok, $m_fail ) . '</li>';
+		echo '<li>' . sprintf( esc_html__( 'Events: %1$d upserted, %2$d failed', 'ems-plugin' ), $e_ok, $e_fail ) . '</li>';
+		if ( $err_count > 0 ) {
+			echo '<li>';
+			echo '<details><summary>' . sprintf( esc_html__( '%d error(s)', 'ems-plugin' ), $err_count ) . '</summary>';
+			echo '<ul style="margin:.5em 0 0 1.5em;">';
+			foreach ( (array) $result['errors'] as $err ) {
+				echo '<li>' . esc_html( $err ) . '</li>';
+			}
+			echo '</ul></details>';
+			echo '</li>';
+		}
+		echo '</ul>';
+		echo '</div>';
+	}
 
-    private function render_diagnostics_tab(): void {
-        $user_id = get_current_user_id();
+	private function render_diagnostics_tab(): void {
+		$user_id = get_current_user_id();
 
-        echo '<h3>' . esc_html__( 'System', 'ems-plugin' ) . '</h3>';
-        echo $this->diagnostic->get_system_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<h3>' . esc_html__( 'System', 'ems-plugin' ) . '</h3>';
+		echo $this->diagnostic->get_system_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
-        $access_type = get_user_meta( $user_id, 'ems_access_type', true );
-        if ( ! empty( $access_type ) && $access_type !== 'local' ) {
-            echo '<h3 style="margin-top:20px;">' . esc_html__( 'Your OSM Account', 'ems-plugin' ) . '</h3>';
-            echo $this->diagnostic->get_user_html( $user_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-        }
+		$access_type = get_user_meta( $user_id, 'ems_access_type', true );
+		if ( ! empty( $access_type ) && $access_type !== 'local' ) {
+			echo '<h3 style="margin-top:20px;">' . esc_html__( 'Your OSM Account', 'ems-plugin' ) . '</h3>';
+			echo $this->diagnostic->get_user_html( $user_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
 
-        $log = get_transient( 'ems_last_sync_log' );
-        if ( ! empty( $log ) ) {
-            echo '<h3 style="margin-top:20px;">' . esc_html__( 'Last Sync Log', 'ems-plugin' ) . '</h3>';
-            $log_json = wp_json_encode( $log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
-            echo '<pre style="background:#f6f7f7;padding:10px;overflow:auto;max-height:300px;font-size:11px;">';
-            echo esc_html( $log_json );
-            echo '</pre>';
-            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
-            echo '<input type="hidden" name="action" value="ems_download_sync_log" />';
-            wp_nonce_field( 'ems_download_sync_log' );
-            echo '<button type="submit" class="button">' . esc_html__( 'Download log (JSON)', 'ems-plugin' ) . '</button>';
-            echo '</form>';
-        }
+		$log = get_transient( 'ems_last_sync_log' );
+		if ( ! empty( $log ) ) {
+			echo '<h3 style="margin-top:20px;">' . esc_html__( 'Last Sync Log', 'ems-plugin' ) . '</h3>';
+			$log_json = wp_json_encode( $log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+			echo '<pre style="background:#f6f7f7;padding:10px;overflow:auto;max-height:300px;font-size:11px;">';
+			echo esc_html( $log_json );
+			echo '</pre>';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+			echo '<input type="hidden" name="action" value="ems_download_sync_log" />';
+			wp_nonce_field( 'ems_download_sync_log' );
+			echo '<button type="submit" class="button">' . esc_html__( 'Download log (JSON)', 'ems-plugin' ) . '</button>';
+			echo '</form>';
+		}
 
-        $dump = get_transient( 'ems_last_payload_dump' );
-        if ( ! empty( $dump ) ) {
-            echo '<h3 style="margin-top:20px;">' . esc_html__( 'Last Payload Dump (get_data_payload)', 'ems-plugin' ) . '</h3>';
-            $roles       = $dump['data']['globals']['roles'] ?? [];
-            $role_labels = array_map( fn( $r ) => ( $r['section'] ?? '?' ) . ' @ ' . ( $r['groupname'] ?? '?' ), $roles );
-            $summary = [
-                'userid'      => $dump['data']['globals']['userid'] ?? null,
-                'email'       => $dump['data']['globals']['email'] ?? null,
-                'roles'       => $role_labels,
-                'section_ids' => array_keys( $dump['data']['globals']['member_access'] ?? [] ),
-                'term_count'  => count( $dump['data']['globals']['terms'] ?? [] ),
-            ];
-            echo '<pre style="background:#f6f7f7;padding:10px;font-size:11px;">';
-            echo esc_html( wp_json_encode( $summary, JSON_PRETTY_PRINT ) );
-            echo '</pre>';
-        }
-    }
+		$dump = get_transient( 'ems_last_payload_dump' );
+		if ( ! empty( $dump ) ) {
+			echo '<h3 style="margin-top:20px;">' . esc_html__( 'Last Payload Dump (get_data_payload)', 'ems-plugin' ) . '</h3>';
+			$roles       = $dump['data']['globals']['roles'] ?? array();
+			$role_labels = array_map( fn( $r ) => ( $r['section'] ?? '?' ) . ' @ ' . ( $r['groupname'] ?? '?' ), $roles );
+			$summary     = array(
+				'userid'      => $dump['data']['globals']['userid'] ?? null,
+				'email'       => $dump['data']['globals']['email'] ?? null,
+				'roles'       => $role_labels,
+				'section_ids' => array_keys( $dump['data']['globals']['member_access'] ?? array() ),
+				'term_count'  => count( $dump['data']['globals']['terms'] ?? array() ),
+			);
+			echo '<pre style="background:#f6f7f7;padding:10px;font-size:11px;">';
+			echo esc_html( wp_json_encode( $summary, JSON_PRETTY_PRINT ) );
+			echo '</pre>';
+		}
+	}
 
-    public function render_volunteers_page(): void {
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'Volunteers', 'ems-plugin' ) . '</h1>';
-        echo '<div id="ems-volunteers-root"></div>';
-        echo '</div>';
-    }
+	public function render_volunteers_page(): void {
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Volunteers', 'ems-plugin' ) . '</h1>';
+		echo '<div id="ems-volunteers-root"></div>';
+		echo '</div>';
+	}
 
-    public function render_column_mapper(): void {
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'Flexi-Record Column Mapper', 'ems-plugin' ) . '</h1>';
-        echo '<div id="ems-column-mapper-root"></div>';
-        echo '</div>';
-    }
+	public function render_column_mapper(): void {
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Flexi-Record Column Mapper', 'ems-plugin' ) . '</h1>';
+		echo '<div id="ems-column-mapper-root"></div>';
+		echo '</div>';
+	}
 
-    /**
-     * Renders a build timestamp footer on EMS admin pages.
-     */
-    public function render_build_timestamp(): void {
-        $screen = get_current_screen();
-        if ( ! $screen || strpos( $screen->id, 'ems' ) === false ) {
-            return;
-        }
+	/**
+	 * Renders a build timestamp footer on EMS admin pages.
+	 */
+	public function render_build_timestamp(): void {
+		$screen = get_current_screen();
+		if ( ! $screen || strpos( $screen->id, 'ems' ) === false ) {
+			return;
+		}
 
-        $manifest_path = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/build-manifest.json';
-        $built_at      = '';
+		$manifest_path = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/build-manifest.json';
+		$built_at      = '';
 
-        if ( file_exists( $manifest_path ) ) {
-            $data     = json_decode( file_get_contents( $manifest_path ), true );
-            $built_at = $data['built_at'] ?? '';
-        }
+		if ( file_exists( $manifest_path ) ) {
+			$data     = json_decode( file_get_contents( $manifest_path ), true );
+			$built_at = $data['built_at'] ?? '';
+		}
 
-        if ( ! $built_at ) {
-            return;
-        }
+		if ( ! $built_at ) {
+			return;
+		}
 
-        $dt      = new \DateTime( $built_at );
-        $display = $dt->format( 'j M Y H:i' ) . ' UTC';
+		$dt      = new \DateTime( $built_at );
+		$display = $dt->format( 'j M Y H:i' ) . ' UTC';
 
-        echo '<div style="position:fixed;bottom:0;right:0;padding:4px 10px;font-size:11px;color:#999;background:rgba(255,255,255,.85);border-top-left-radius:4px;z-index:9999;">';
-        echo 'Build: ' . esc_html( $display );
-        echo '</div>';
-    }
+		echo '<div style="position:fixed;bottom:0;right:0;padding:4px 10px;font-size:11px;color:#999;background:rgba(255,255,255,.85);border-top-left-radius:4px;z-index:9999;">';
+		echo 'Build: ' . esc_html( $display );
+		echo '</div>';
+	}
 
-    /**
-     * Enqueues an admin script as an ES module.
-     */
-    private function enqueue_admin_script( string $handle, string $rel_path ): void {
-        $script_url = plugin_dir_url( EMS_PLUGIN_FILE ) . $rel_path;
+	/**
+	 * Enqueues an admin script as an ES module.
+	 */
+	private function enqueue_admin_script( string $handle, string $rel_path ): void {
+		$script_url = plugin_dir_url( EMS_PLUGIN_FILE ) . $rel_path;
 
-        wp_enqueue_script(
-            $handle,
-            $script_url,
-            [ 'wp-components', 'wp-element', 'wp-i18n' ],
-            EMS_VERSION,
-            true
-        );
-    }
+		wp_enqueue_script(
+			$handle,
+			$script_url,
+			array( 'wp-components', 'wp-element', 'wp-i18n' ),
+			EMS_VERSION,
+			true
+		);
+	}
 }

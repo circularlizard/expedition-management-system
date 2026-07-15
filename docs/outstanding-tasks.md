@@ -4,6 +4,14 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
+## Security Audit Remediation Tasks
+
+*   [ ] **SSRF Mitigation**: Replace raw `wp_remote_post` in [OSM_Sync_Auth_Handler.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Admin/OSM_Sync_Auth_Handler.php#L171) and `wp_remote_get` in [Live_Driver.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Live_Driver.php#L35) with `wp_safe_remote_post` and `wp_safe_remote_get` respectively.
+*   [ ] **Credential & Leak Prevention**: Remove error logging of sensitive Bearer tokens/Authorization headers in [Live_Driver.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Live_Driver.php#L31-L32).
+*   [ ] **Test Suite Isolation**: Stub/mock database calls correctly and execute `Mockery::close()` in test tear-down routines to restore `global $wpdb` context cleanly.
+
+---
+
 ## 1. Milestone 4: System-Wide Audit Logging & Log Viewer (Active / Next)
 
 *   [ ] **Centralized Audit Logger**:

@@ -7,101 +7,101 @@ namespace EMS\Integrations;
  */
 class OSM_Section_Importer {
 
-    private OSM_API_Client $api_client;
+	private OSM_API_Client $api_client;
 
-    public function __construct( OSM_API_Client $api_client ) {
-        $this->api_client = $api_client;
-    }
+	public function __construct( OSM_API_Client $api_client ) {
+		$this->api_client = $api_client;
+	}
 
-    /**
-     * Imports members for all managed sections.
-     */
-    public function import_all(): void {
-        $managed_sections = (array) get_option( 'ems_managed_sections', [] );
-        $section_ids      = array_keys( $managed_sections );
+	/**
+	 * Imports members for all managed sections.
+	 */
+	public function import_all(): void {
+		$managed_sections = (array) get_option( 'ems_managed_sections', array() );
+		$section_ids      = array_keys( $managed_sections );
 
-        foreach ( $section_ids as $section_id ) {
-            $this->import_section( (int) $section_id );
-        }
-    }
+		foreach ( $section_ids as $section_id ) {
+			$this->import_section( (int) $section_id );
+		}
+	}
 
-    /**
-     * Imports members for a list of section IDs.
-     *
-     * @param int[] $section_ids
-     */
-    public function import_sections( array $section_ids ): void {
-        foreach ( $section_ids as $section_id ) {
-            $this->import_section( (int) $section_id );
-        }
-    }
+	/**
+	 * Imports members for a list of section IDs.
+	 *
+	 * @param int[] $section_ids
+	 */
+	public function import_sections( array $section_ids ): void {
+		foreach ( $section_ids as $section_id ) {
+			$this->import_section( (int) $section_id );
+		}
+	}
 
-    /**
-     * Imports members for a specific section into ems_osm_explorers.
-     */
-    public function import_section( int $section_id, int $term_id = 0 ): void {
-        global $wpdb;
+	/**
+	 * Imports members for a specific section into ems_osm_explorers.
+	 */
+	public function import_section( int $section_id, int $term_id = 0 ): void {
+		global $wpdb;
 
-        $members = $this->api_client->get_section_participants( $section_id, $term_id );
-        $table   = $wpdb->prefix . 'ems_osm_explorers';
-        $now     = current_time( 'mysql' );
+		$members = $this->api_client->get_section_participants( $section_id, $term_id );
+		$table   = $wpdb->prefix . 'ems_osm_explorers';
+		$now     = current_time( 'mysql' );
 
-        foreach ( $members as $member ) {
-            $scout_id = (int) ( $member['member_id'] ?? 0 );
-            if ( ! $scout_id ) {
-                continue;
-            }
+		foreach ( $members as $member ) {
+			$scout_id = (int) ( $member['member_id'] ?? 0 );
+			if ( ! $scout_id ) {
+				continue;
+			}
 
-            $exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE scout_id = %d", $scout_id ) );
-            if ( $exists ) {
-                $wpdb->update(
-                    $table,
-                    [
-                        'section_id'   => $section_id,
-                        'first_name'   => $member['first_name'] ?? '',
-                        'last_name'    => $member['last_name'] ?? '',
-                        'email'        => $member['email'] ?? '',
-                        'parent_email' => $member['parent_email'] ?? '',
-                        'patrol'       => $member['patrol'] ?? '',
-                        'synced_at'    => $now,
-                    ],
-                    [ 'scout_id' => $scout_id ],
-                    [ '%d', '%s', '%s', '%s', '%s', '%s', '%s' ],
-                    [ '%d' ]
-                );
-            } else {
-                $wpdb->insert(
-                    $table,
-                    [
-                        'scout_id'     => $scout_id,
-                        'section_id'   => $section_id,
-                        'first_name'   => $member['first_name'] ?? '',
-                        'last_name'    => $member['last_name'] ?? '',
-                        'email'        => $member['email'] ?? '',
-                        'parent_email' => $member['parent_email'] ?? '',
-                        'patrol'       => $member['patrol'] ?? '',
-                        'synced_at'    => $now,
-                    ],
-                    [ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
-                );
-            }
-        }
-    }
+			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE scout_id = %d", $scout_id ) );
+			if ( $exists ) {
+				$wpdb->update(
+					$table,
+					array(
+						'section_id'   => $section_id,
+						'first_name'   => $member['first_name'] ?? '',
+						'last_name'    => $member['last_name'] ?? '',
+						'email'        => $member['email'] ?? '',
+						'parent_email' => $member['parent_email'] ?? '',
+						'patrol'       => $member['patrol'] ?? '',
+						'synced_at'    => $now,
+					),
+					array( 'scout_id' => $scout_id ),
+					array( '%d', '%s', '%s', '%s', '%s', '%s', '%s' ),
+					array( '%d' )
+				);
+			} else {
+				$wpdb->insert(
+					$table,
+					array(
+						'scout_id'     => $scout_id,
+						'section_id'   => $section_id,
+						'first_name'   => $member['first_name'] ?? '',
+						'last_name'    => $member['last_name'] ?? '',
+						'email'        => $member['email'] ?? '',
+						'parent_email' => $member['parent_email'] ?? '',
+						'patrol'       => $member['patrol'] ?? '',
+						'synced_at'    => $now,
+					),
+					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
+				);
+			}
+		}
+	}
 
-    /**
-     * Looks up an explorer record from ems_osm_explorers by scout_id.
-     *
-     * @return array|null Row array or null if not found.
-     */
-    public function find_by_scout_id( int $scout_id ): ?array {
-        global $wpdb;
+	/**
+	 * Looks up an explorer record from ems_osm_explorers by scout_id.
+	 *
+	 * @return array|null Row array or null if not found.
+	 */
+	public function find_by_scout_id( int $scout_id ): ?array {
+		global $wpdb;
 
-        $table = $wpdb->prefix . 'ems_osm_explorers';
-        $row   = $wpdb->get_row(
-            $wpdb->prepare( "SELECT * FROM {$table} WHERE scout_id = %d LIMIT 1", $scout_id ),
-            ARRAY_A
-        );
+		$table = $wpdb->prefix . 'ems_osm_explorers';
+		$row   = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE scout_id = %d LIMIT 1", $scout_id ),
+			ARRAY_A
+		);
 
-        return $row ?: null;
-    }
+		return $row ?: null;
+	}
 }
