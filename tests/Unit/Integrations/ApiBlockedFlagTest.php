@@ -37,10 +37,6 @@ class ApiBlockedFlagTest extends EMSTestCase {
         $GLOBALS['wpdb']        = $this->wpdb;
     }
 
-    protected function tearDown(): void {
-        Mockery::close();
-        parent::tearDown();
-    }
 
     private function make_payload(): array {
         return [

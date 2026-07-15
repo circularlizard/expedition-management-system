@@ -5,6 +5,10 @@ use EMS\Data\Database_Seeder;
 use EMS\Tests\EMSTestCase;
 use Brain\Monkey\Functions;
 
+/**
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
+ */
 class Database_SeederTest extends EMSTestCase {
 
     protected function setUp(): void {

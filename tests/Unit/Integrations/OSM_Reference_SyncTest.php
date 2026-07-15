@@ -38,10 +38,6 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $GLOBALS['wpdb']        = $this->wpdb;
     }
 
-    protected function tearDown(): void {
-        \Mockery::close();
-        parent::tearDown();
-    }
 
     private function make_payload( int $section_id = 43105, int $term_id = 5001, string $start = '2026-01-01', string $end = '2026-12-31' ): array {
         return [
