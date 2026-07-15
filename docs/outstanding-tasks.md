@@ -16,6 +16,9 @@ This document consolidates all outstanding plans, specifications, and steps that
     *   Develop a Log Viewer interface on the EMS admin settings pages.
     *   Support filtering by Action Type, User ID/Name, Target Scout ID, and Date Range.
     *   Ensure proper authorization boundaries (accessible only to global EMS administrators/manage_options).
+*   [ ] **Authentication Auditing & Log Rotation**:
+    *   Log OIDC login successes, OIDC failures, role mapping adjustments, and logouts.
+    *   To protect the database size, design and implement a log retention policy (e.g. automatically purge logs older than 90 days or rotate logs once they exceed a row limit).
 
 ---
 
@@ -31,7 +34,8 @@ This document consolidates all outstanding plans, specifications, and steps that
 *   [ ] **Strict Rate Limit & Error Handling**:
     *   Rate limits and error headers returned by the OSM API **MUST be totally respected** to avoid triggering client bans or API blocks.
 *   [ ] **OSM Write Operations**: Implement write operations in `OSM_API_Client` for events and flexi-records.
-*   [ ] **Failed Write-Back Recovery**: Build a background dispatcher to process and retry failed jobs stored in the `ems_failed_pushback_queue` option.
+*   [ ] **Admin-Driven Write-Back Recovery UI**:
+    *   Build a queue manager interface within the Settings page allowing the administrator, while authenticated with an active OSM OAuth session, to view, review, and manually trigger retries for failed write-back jobs (stored in the `ems_failed_pushback_queue` option). This avoids the need for a background cron job which would violate the "no server-side token storage" security policy.
 *   [ ] **OSM Event Invitations**: Build tools to trigger and dispatch event invitations from EMS back to OSM.
 
 ---
@@ -68,7 +72,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 *   [ ] **Unit Leader Portal**: Build a dashboard showing all explorer allocations and status updates scoped to leaders' managed ESU units.
 *   [ ] **Kit List Supply Tool**: Track and map gear/equipment requests back to specific units. Determine if this content should be in a post or a database table.
 *   [ ] **Tent & Gear Allocations**: Create the database table `ems_team_tent_groups` and build a UI in the Expedition Board to assign members to tents and map the ESU unit responsible for supplying gear.
-*   [ ] **Frontend Leader Landing Page**: Create a frontend website portal page `[ems-leader-portal]` allowing leaders to preview their assigned expeditions, dates, and rosters without WP admin dashboard login.
+*   [ ] **Frontend Leader Landing Page**: Extend the unified frontend portal SPA `[ems-portal]` to support the `ems_leader` role, allowing leaders to authenticate via the OIDC login flow to preview their assigned expeditions, dates, and ESU unit rosters.
 
 ---
 
@@ -77,7 +81,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 *   [ ] **Upload Handling**: Build `[ems-route-submit]` and `[ems-route-status]` frontend forms. Restrict file types to `.gpx` and `.pdf`, enforce naming conventions (`[Team_Code]_[File_Type]_v[Version].[ext]`), and auto-increment version numbers.
 *   [ ] **Secure Storage Proxy**: Block direct access to route files using `.htaccess` (e.g. `/uploads/ems-secure/`) and serve them via a custom REST proxy `/ems/v1/download-route/{id}` gated by participant/leader permissions.
 *   [ ] **LiC Review Panel**: Build an interactive feedback form to request modifications (status `feedback_required`) or approve routes (status `approved`), displaying version history side-by-side.
-*   [ ] **PII & Medical Export**: Provide authorized LiCs and global admins with secure, logged emergency medical contact sheet downloads generated dynamically from current OSM data (never stored statically).
+*   [ ] **PII & Medical Export Design**: Conduct a wider review on how to securely generate and download emergency medical contact sheets for LiCs, determining how to access the required OSM data dynamically without violating server-side token storage constraints.
 
 ---
 
