@@ -6,27 +6,29 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ## Security Audit Remediation Tasks
 
-*   [ ] **SSRF Mitigation**: Replace raw `wp_remote_post` in [OSM_Sync_Auth_Handler.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Admin/OSM_Sync_Auth_Handler.php#L171) and `wp_remote_get` in [Live_Driver.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Live_Driver.php#L35) with `wp_safe_remote_post` and `wp_safe_remote_get` respectively.
-*   [ ] **Credential & Leak Prevention**: Remove error logging of sensitive Bearer tokens/Authorization headers in [Live_Driver.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Live_Driver.php#L31-L32).
-*   [ ] **Test Suite Isolation**: Stub/mock database calls correctly and execute `Mockery::close()` in test tear-down routines to restore `global $wpdb` context cleanly.
+*   [x] **SSRF Mitigation**: Replace raw `wp_remote_post` in [OSM_Sync_Auth_Handler.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Admin/OSM_Sync_Auth_Handler.php#L171) and `wp_remote_get` in [Live_Driver.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Live_Driver.php#L35) with `wp_safe_remote_post` and `wp_safe_remote_get` respectively.
+*   [x] **Credential & Leak Prevention**: Remove error logging of sensitive Bearer tokens/Authorization headers in [Live_Driver.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Live_Driver.php#L31-L32).
+*   [x] **Test Suite Isolation**: Stub/mock database calls correctly and execute `Mockery::close()` in test tear-down routines to restore `global $wpdb` context cleanly.
+
 
 ---
 
-## 1. Milestone 4: System-Wide Audit Logging & Log Viewer (Active / Next)
+## 1. Milestone 4: System-Wide Audit Logging & Log Viewer (Completed)
 
-*   [ ] **Centralized Audit Logger**:
+*   [x] **Centralized Audit Logger**:
     *   Create a reusable logger class (e.g. `EMS\Core\Audit_Logger`) using the existing `ems_audit_logs` schema to write audit rows capturing IP address, user agent, timestamp, action type, user ID, and target scout ID.
-*   [ ] **Instrumentation of Views & Updates**:
+*   [x] **Instrumentation of Views & Updates**:
     *   Instrument all REST controllers, background tasks, and admin post actions to ensure critical actions are logged.
     *   *Updates to Log*: Team creations/deletions, member additions/moves/deletions, event configuration modifications, route status changes, and setting updates.
     *   *Views to Log*: Exporting rosters/participants, downloading GPX route files, and accessing personal/sensitive scout details (e.g. the existing ASN data check).
-*   [ ] **Audit Log Viewer UI**:
+*   [x] **Audit Log Viewer UI**:
     *   Develop a Log Viewer interface on the EMS admin settings pages.
     *   Support filtering by Action Type, User ID/Name, Target Scout ID, and Date Range.
     *   Ensure proper authorization boundaries (accessible only to global EMS administrators/manage_options).
-*   [ ] **Authentication Auditing & Log Rotation**:
+*   [x] **Authentication Auditing & Log Rotation**:
     *   Log OIDC login successes, OIDC failures, role mapping adjustments, and logouts.
     *   To protect the database size, design and implement a log retention policy (e.g. automatically purge logs older than 90 days or rotate logs once they exceed a row limit).
+
 
 ---
 
