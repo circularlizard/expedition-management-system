@@ -378,6 +378,25 @@ class Plugin {
             exit;
         } );
 
+        // Seed test data
+        add_action( 'admin_post_ems_seed_test_data', function() {
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_die( 'Forbidden' );
+            }
+            check_admin_referer( 'ems_seed_test_data' );
+
+            try {
+                $seeder = new \EMS\Data\Database_Seeder();
+                $results = $seeder->seed();
+
+                wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=general&seeded=1&p_count=' . $results['participant_count'] . '&e_count=' . $results['expedition_count'] ) );
+                exit;
+            } catch ( \Exception $e ) {
+                wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=general&seed_error=' . urlencode( $e->getMessage() ) ) );
+                exit;
+            }
+        } );
+
         // Sync log download handler
         add_action( 'admin_post_ems_download_sync_log', function() {
             if ( ! current_user_can( 'manage_options' ) ) {
