@@ -4,7 +4,17 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
-## 1. Milestone 5: Compliance & Training Progress Monitoring (Held / Deferred)
+## 1. Milestone 7: Offline/Online Scout Manager Write-Back (Push-Back Sync) (Active / Next)
+
+*   [ ] **Data Sync Scope Assessment**:
+    *   Assess and specify what data should actually be synced back to OSM. Since EMS now maintains a master list of expedition preferences, participant signups, and team formations within its own database, we must determine which attributes (e.g. event attendance, patrol groups, custom flexi-record columns) actually need to map back to OSM fields vs. remaining local to EMS. This updates the original design assumption of relying purely on OSM-synced reference data.
+*   [ ] **OSM Write Operations**: Implement write operations in `OSM_API_Client` targeting the `updateScout` endpoint.
+*   [ ] **Failed Write-Back Recovery**: Build a background dispatcher to process and retry failed jobs stored in the `ems_failed_pushback_queue` option.
+*   [ ] **OSM Event Invitations**: Build tools to trigger and dispatch event invitations from EMS back to OSM.
+
+---
+
+## 2. Milestone 5: Compliance & Training Progress Monitoring (Held / Deferred)
 
 Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/archive/held-milestone-5-implementation-spec.md):
 
@@ -18,20 +28,12 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 2. Milestone 6: Unit Leader Integration Portal & Kit Supply (Pending)
+## 3. Milestone 6: Unit Leader Integration Portal & Kit Supply (Pending)
 
 *   [ ] **Unit Leader Portal**: Build a dashboard showing all explorer allocations and status updates scoped to leaders' managed ESU units.
-*   [ ] **Kit List Supply Tool**: Track and map gear/equipment requests back to specific units.
+*   [ ] **Kit List Supply Tool**: Track and map gear/equipment requests back to specific units. Determine if this content should be in a post or a database table.
 *   [ ] **Tent & Gear Allocations**: Create the database table `ems_team_tent_groups` and build a UI in the Expedition Board to assign members to tents and map the ESU unit responsible for supplying gear.
 *   [ ] **Frontend Leader Landing Page**: Create a frontend website portal page `[ems-leader-portal]` allowing leaders to preview their assigned expeditions, dates, and rosters without WP admin dashboard login.
-
----
-
-## 3. Milestone 7: Offline/Online Scout Manager Write-Back (Push-Back Sync) (Pending)
-
-*   [ ] **OSM Write Operations**: Implement write operations in `OSM_API_Client` targeting the `updateScout` endpoint.
-*   [ ] **Failed Write-Back Recovery**: Build a background dispatcher to process and retry failed jobs stored in the `ems_failed_pushback_queue` option.
-*   [ ] **OSM Event Invitations**: Build tools to trigger and dispatch event invitations from EMS back to OSM.
 
 ---
 
@@ -86,4 +88,3 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 *   [ ] **Security Policy Review**: Investigate 2FA and DB-level encryption requirements for storing explorer profiles.
 *   [ ] **Expedition Risk Assessment & Docs**: Add options to attach Risk Assessment (RA) or Parent Info documents to expeditions (or determine if this should be delegated to OSM).
 *   [ ] **Volunteers' Front-End View**: Create a public/login frontend view allowing adult volunteers to log in, see which expeditions they are assigned to, check what they volunteered for, and access helper documents.
-
