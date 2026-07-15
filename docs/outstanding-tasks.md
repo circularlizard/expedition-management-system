@@ -58,6 +58,7 @@ This document consolidates all outstanding plans, specifications, and steps that
     *   Verify 2FA configurations and investigate DB-level encryption requirements for sensitive scout data.
     *   Ensure that child metadata enrichment debug logging is properly guarded and can be easily toggled on/off to keep system logs clean.
 *   [ ] **Website Integration**: Review how shortcodes fit and render inside the parent site's templates and stylesheets.
+*   [ ] **Standardise Plugin Headers**: Standardise plugin name, author, and description metadata with the Google login sibling plugin as part of staging preparation.
 *   [ ] **Staging Deployment**: Deploy the hardened plugin to the staging site to allow stakeholders (John / Cheryl / Leaders) to view and test it.
 
 ---
