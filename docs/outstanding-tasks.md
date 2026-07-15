@@ -7,14 +7,21 @@ This document consolidates all outstanding plans, specifications, and steps that
 ## 1. Milestone 7: Offline/Online Scout Manager Write-Back (Push-Back Sync) (Active / Next)
 
 *   [ ] **Data Sync Scope Assessment**:
-    *   Assess and specify what data should actually be synced back to OSM. Since EMS now maintains a master list of expedition preferences, participant signups, and team formations within its own database, we must determine which attributes (e.g. event attendance, patrol groups, custom flexi-record columns) actually need to map back to OSM fields vs. remaining local to EMS. This updates the original design assumption of relying purely on OSM-synced reference data.
-*   [ ] **OSM Write Operations**: Implement write operations in `OSM_API_Client` targeting the `updateScout` endpoint.
+    *   Determine exactly which data fields should be written back to OSM. Since EMS now maintains a master list of expedition preferences, participant signups, and team formations within its own database, we must determine which attributes (e.g. event attendance, patrol groups, custom flexi-record columns) actually need to map back to OSM fields vs. remaining local to EMS.
+    *   Assess updating **OSM Events** (attendance and details) or **Flexi-records** rather than using the generic `updateScout` endpoint.
+*   [ ] **Authentication Context**:
+    *   Explicitly define that all write-backs must take place using the admin OAuth flow (personal client OAuth token triggered via admin screens), rather than within standard frontend user OIDC logins.
+*   [ ] **Write Preview & Safety Checks**:
+    *   Build a UI preview step showing the administrator exactly what updates/syncs will be executed before any data is sent to the OSM API.
+*   [ ] **Strict Rate Limit & Error Handling**:
+    *   Rate limits and error headers returned by the OSM API **MUST be totally respected** to avoid triggering client bans or API blocks.
+*   [ ] **OSM Write Operations**: Implement write operations in `OSM_API_Client` for events and flexi-records.
 *   [ ] **Failed Write-Back Recovery**: Build a background dispatcher to process and retry failed jobs stored in the `ems_failed_pushback_queue` option.
 *   [ ] **OSM Event Invitations**: Build tools to trigger and dispatch event invitations from EMS back to OSM.
 
 ---
 
-## 2. Milestone 5: Compliance & Training Progress Monitoring (Held / Deferred)
+## 2. Milestone 5: Compliance & Training Progress Monitoring (Pending)
 
 Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/archive/held-milestone-5-implementation-spec.md):
 
