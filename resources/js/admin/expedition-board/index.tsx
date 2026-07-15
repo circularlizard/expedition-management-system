@@ -3,6 +3,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import ExpeditionBoard from './ExpeditionBoard';
 import ExplorersPage from './ExplorersPage';
+import PushbackDashboard from './PushbackDashboard';
 
 document.addEventListener( 'DOMContentLoaded', () => {
     const rootElement = document.getElementById( 'ems-expedition-board-root' );
@@ -15,5 +16,11 @@ document.addEventListener( 'DOMContentLoaded', () => {
     if ( explorersRoot ) {
         const root = createRoot( explorersRoot );
         root.render( <ExplorersPage /> );
+    }
+
+    const pushbackRoot = document.getElementById( 'ems-pushback-root' );
+    if ( pushbackRoot ) {
+        const root = createRoot( pushbackRoot );
+        root.render( <PushbackDashboard /> );
     }
 } );
