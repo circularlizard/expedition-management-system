@@ -434,6 +434,7 @@ class Expedition_Admin_Controller {
 
 		try {
 			$id = $this->teams->create( $event_id, $code );
+			\EMS\Core\Audit_Logger::log( 'team_create' );
 			return new \WP_REST_Response( $this->teams->get_by_id( $id ), 201 );
 		} catch ( \RuntimeException $e ) {
 			return $this->error( 'ems_team_creation_failed', $e->getMessage(), 500 );
@@ -455,6 +456,7 @@ class Expedition_Admin_Controller {
 
 		$this->teams->delete( $id );
 		$this->teams->renumber_event( $team['event_id'] );
+		\EMS\Core\Audit_Logger::log( 'team_delete' );
 		return new \WP_REST_Response( array( 'deleted' => true ) );
 	}
 
@@ -557,6 +559,7 @@ class Expedition_Admin_Controller {
 		try {
 			$this->team_members->assign( $team_id, $scout_id, get_current_user_id(), $user_id );
 			$this->explorers->touch_last_local_update( $scout_id );
+			\EMS\Core\Audit_Logger::log( 'team_member_add', $scout_id );
 			return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $team_id ) ), 201 );
 		} catch ( \InvalidArgumentException $e ) {
 			return $this->error( 'ems_member_already_in_team', $e->getMessage(), 409 );
@@ -576,6 +579,7 @@ class Expedition_Admin_Controller {
 
 		$this->team_members->remove( $team_id, $scout_id );
 		$this->explorers->touch_last_local_update( $scout_id );
+		\EMS\Core\Audit_Logger::log( 'team_member_remove', $scout_id );
 
 		// The team may have been auto-deleted if that was its last member.
 		if ( ! $this->teams->get_by_id( $team_id ) ) {
@@ -614,6 +618,7 @@ class Expedition_Admin_Controller {
 
 		$this->team_members->move( $scout_id, $current_team_id, $target_team_id, get_current_user_id(), $user_id );
 		$this->explorers->touch_last_local_update( $scout_id );
+		\EMS\Core\Audit_Logger::log( 'team_member_move', $scout_id );
 		return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $target_team_id ) ) );
 	}
 
@@ -635,6 +640,7 @@ class Expedition_Admin_Controller {
 		if ( ! $updated ) {
 			return $this->error( 'ems_first_aid_update_failed', 'Could not update first aid level. Try deactivating and reactivating the plugin to update the database schema.', 500 );
 		}
+		\EMS\Core\Audit_Logger::log( 'explorer_update', $scout_id );
 		return new \WP_REST_Response(
 			array(
 				'scout_id'        => $scout_id,

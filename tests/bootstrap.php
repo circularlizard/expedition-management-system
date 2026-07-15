@@ -31,6 +31,7 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
     class WP_REST_Response {
         private $data;
         private $status;
+        private array $headers = [];
         public function __construct( $data = null, $status = 200 ) {
             $this->data   = $data;
             $this->status = $status;
@@ -40,6 +41,12 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
         }
         public function get_status() {
             return $this->status;
+        }
+        public function header( string $key, $value ): void {
+            $this->headers[ $key ] = $value;
+        }
+        public function get_headers(): array {
+            return $this->headers;
         }
     }
 }
@@ -68,15 +75,20 @@ if ( ! class_exists( 'WP_Error' ) ) {
     class WP_Error {
         private string $code;
         private string $message;
-        public function __construct( string $code = '', string $message = '' ) {
+        private $data;
+        public function __construct( string $code = '', string $message = '', $data = '' ) {
             $this->code = $code;
             $this->message = $message;
+            $this->data = $data;
         }
         public function get_error_code(): string {
             return $this->code;
         }
         public function get_error_message(): string {
             return $this->message;
+        }
+        public function get_error_data() {
+            return $this->data;
         }
     }
 }

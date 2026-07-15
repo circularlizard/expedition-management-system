@@ -27,6 +27,27 @@ class Plugin {
 	private function init_hooks(): void {
 		add_action( 'init', array( $this->cpt_registry, 'register' ) );
 		add_action( 'init', array( new \EMS\Core\Role_Manager(), 'register_roles' ) );
+		add_action( 'ems_daily_log_cleanup', array( '\\EMS\\Core\\Log_Rotator', 'purge_old_logs' ) );
+
+		add_action( 'wp_login', function( $user_login, $user ) {
+			$u_id = ( $user instanceof \WP_User ) ? $user->ID : null;
+			\EMS\Core\Audit_Logger::log( 'login_success', null, $u_id );
+		}, 10, 2 );
+
+		add_action( 'wp_login_failed', function( $username ) {
+			\EMS\Core\Audit_Logger::log( 'login_failure' );
+		} );
+
+		static $logout_user_id = 0;
+
+		add_action( 'clear_auth_cookie', function() use ( &$logout_user_id ) {
+			$logout_user_id = get_current_user_id();
+		} );
+
+		add_action( 'wp_logout', function() use ( &$logout_user_id ) {
+			\EMS\Core\Audit_Logger::log( 'logout', null, $logout_user_id ?: null );
+			$logout_user_id = 0;
+		} );
 
 		$admin_page = new Admin_Page(
 			new Diagnostic_Panel()
@@ -103,6 +124,9 @@ class Plugin {
 
 				$portal_controller = new \EMS\Admin\Portal_Controller();
 				$portal_controller->register_routes();
+
+				$audit_controller = new \EMS\Admin\Audit_Log_Controller();
+				$audit_controller->register_routes();
 
 				register_rest_route(
 					'ems/v1',
@@ -354,8 +378,16 @@ class Plugin {
 				$osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ), $logger );
 				$osm_client->set_access_token( $job['token'] );
 
+				\EMS\Core\Audit_Logger::log( 'sync_start' );
+
 				$result = ( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
 				->sync( $job['sync_ids'], $job['payload'], $job['api_mode'], $job['member_limit'], $logger );
+
+				if ( ! empty( $result->errors ) ) {
+					\EMS\Core\Audit_Logger::log( 'sync_failure' );
+				} else {
+					\EMS\Core\Audit_Logger::log( 'sync_success' );
+				}
 
 				delete_transient( 'ems_sync_status' );
 			}
@@ -517,6 +549,7 @@ class Plugin {
 	public static function activate(): void {
 		( new Table_Installer() )->install();
 		( new \EMS\Core\Role_Manager() )->register_roles();
+		\EMS\Core\Log_Rotator::register_cron();
 		update_option( 'ems_db_version', EMS_VERSION );
 	}
 
@@ -524,6 +557,7 @@ class Plugin {
 		if ( get_option( 'ems_db_version' ) !== EMS_VERSION ) {
 			( new Table_Installer() )->install();
 			( new \EMS\Core\Role_Manager() )->register_roles();
+			\EMS\Core\Log_Rotator::register_cron();
 			update_option( 'ems_db_version', EMS_VERSION );
 		}
 	}
