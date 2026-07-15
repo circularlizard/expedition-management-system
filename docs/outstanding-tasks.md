@@ -32,19 +32,19 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
-## 2. Milestone 5: Offline/Online Scout Manager Write-Back (Push-Back Sync) (Pending)
+## 2. Milestone 5: Offline/Online Scout Manager Write-Back (Push-Back Sync) (In Progress)
 
-*   [ ] **Data Sync Scope Assessment**:
+*   [x] **Data Sync Scope Assessment**:
     *   Determine exactly which data fields should be written back to OSM. Since EMS now maintains a master list of expedition preferences, participant signups, and team formations within its own database, we must determine which attributes (e.g. event attendance, patrol groups, custom flexi-record columns) actually need to map back to OSM fields vs. remaining local to EMS.
     *   Assess updating **OSM Events** (attendance and details) or **Flexi-records** rather than using the generic `updateScout` endpoint.
-*   [ ] **Authentication Context**:
+*   [x] **Authentication Context**:
     *   Explicitly define that all write-backs must take place using the admin OAuth flow (personal client OAuth token triggered via admin screens), rather than within standard frontend user OIDC logins.
-*   [ ] **Write Preview & Safety Checks**:
+*   [x] **Write Preview & Safety Checks**:
     *   Build a UI preview step showing the administrator exactly what updates/syncs will be executed before any data is sent to the OSM API.
-*   [ ] **Strict Rate Limit & Error Handling**:
+*   [-] **Strict Rate Limit & Error Handling** (Partially complete - rate limiter limits are wired into client and errors caught by preview API):
     *   Rate limits and error headers returned by the OSM API **MUST be totally respected** to avoid triggering client bans or API blocks.
     *   *Rate-Limit Lockout Safety Valve*: Implement a prominent warning banner in the WordPress Admin Dashboard if the `ems_rate_limit_status` or `ems_api_blocked` options are active, warning administrators against manual sync retries during the cooldown period.
-*   [ ] **OSM Write Operations**: Implement write operations in `OSM_API_Client` for events and flexi-records.
+*   [x] **OSM Write Operations**: Implement write operations in `OSM_API_Client` for events and flexi-records.
 *   [ ] **Admin-Driven Write-Back Recovery UI**:
     *   Build a queue manager interface within the Settings page allowing the administrator, while authenticated with an active OSM OAuth session, to view, review, and manually trigger retries for failed write-back jobs (stored in the `ems_failed_pushback_queue` option). This avoids the need for a background cron job which would violate the "no server-side token storage" security policy.
 *   [ ] **OSM Event Invitations**: Build tools to trigger and dispatch event invitations from EMS back to OSM.

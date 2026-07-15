@@ -87,8 +87,8 @@ export const PushbackDashboard: React.FC = () => {
 		: 0;
 
 	return (
-		<div className="wrap">
-			<div className="ems-pushback-dashboard" style={{ marginTop: '20px' }}>
+		<div>
+			<div className="ems-pushback-dashboard">
 				<div className="ems-flex ems-gap-6 ems-align-center" style={{ marginBottom: '20px' }}>
 					<label htmlFor="section-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
 						Select Section:

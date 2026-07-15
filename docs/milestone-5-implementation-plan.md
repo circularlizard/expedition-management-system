@@ -1,5 +1,17 @@
 # Milestone 5: Online Scout Manager Write-Back (Push-Back Sync) — Implementation Plan
 
+> [!NOTE]
+> **Status: Phase 1 Completed** (July 15, 2026)
+>
+> **Completed Steps**:
+> * Implemented the read-only preview engine `Pushback_Sync_Manager` and its corresponding REST API controllers.
+> * Integrated the preview dashboard as a tab ("Pushback Sync") inside the existing "OSM Sync" admin settings page.
+> * Implemented dynamic OIDC oauth token authorization checks (invoking `OSM_Sync_Auth_Handler`) before displaying the pushback sync preview, ensuring consistent permission checks.
+> * Verified correctness with comprehensive Vitest and PHPUnit tests.
+>
+> **Pending Steps**:
+> * Phase 2: Implement the active write methods (executing batch multiUpdate writes and updateMany event invitations back to OSM).
+
 This document outlines the detailed plan to implement **Milestone 5: Offline/Online Scout Manager Write-Back (Push-Back Sync)** based on the clarified specifications.
 
 ---
