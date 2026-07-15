@@ -2,174 +2,185 @@
 namespace EMS\Core;
 
 class Table_Installer {
-    public function install(): void {
-        global $wpdb;
+	public function install(): void {
+		global $wpdb;
 
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-        $sql = $this->generate_sql( $wpdb->prefix, $wpdb->get_charset_collate() );
+		$sql = $this->generate_sql( $wpdb->prefix, $wpdb->get_charset_collate() );
 
-        foreach ( $sql as $statement ) {
-            dbDelta( $statement );
-        }
+		foreach ( $sql as $statement ) {
+			dbDelta( $statement );
+		}
 
-        $this->run_migrations( $wpdb );
-    }
+		$this->run_migrations( $wpdb );
+	}
 
-     /**
-     * Idempotent column/index migrations for tables that already existed before
-     * a schema change. dbDelta is unreliable at ALTERing existing tables, so we
-     * apply additive changes explicitly here.
-     */
-    private function run_migrations( object $wpdb ): void {
-        $table = $wpdb->prefix . 'ems_team_members';
+	/**
+	 * Idempotent column/index migrations for tables that already existed before
+	 * a schema change. dbDelta is unreliable at ALTERing existing tables, so we
+	 * apply additive changes explicitly here.
+	 */
+	private function run_migrations( object $wpdb ): void {
+		$table = $wpdb->prefix . 'ems_team_members';
 
-        if ( ! $this->column_exists( $wpdb, $table, 'scout_id' ) ) {
+		if ( ! $this->column_exists( $wpdb, $table, 'scout_id' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN scout_id BIGINT UNSIGNED NOT NULL DEFAULT 0 AFTER team_post_id" );
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN scout_id BIGINT UNSIGNED NOT NULL DEFAULT 0 AFTER team_post_id" );
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$table} ADD KEY idx_scout_id (scout_id)" );
-        }
+			$wpdb->query( "ALTER TABLE {$table} ADD KEY idx_scout_id (scout_id)" );
+		}
 
-        $explorers_table = $wpdb->prefix . 'ems_osm_explorers';
-        if ( ! $this->column_exists( $wpdb, $explorers_table, 'first_aid_level' ) ) {
+		$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'first_aid_level' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN first_aid_level VARCHAR(30) NOT NULL DEFAULT 'none' AFTER patrol" );
-        }
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN first_aid_level VARCHAR(30) NOT NULL DEFAULT 'none' AFTER patrol" );
+		}
 
-        if ( ! $this->column_exists( $wpdb, $explorers_table, 'last_local_update_at' ) ) {
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'last_local_update_at' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN last_local_update_at DATETIME DEFAULT NULL AFTER first_aid_level" );
-        }
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN last_local_update_at DATETIME DEFAULT NULL AFTER first_aid_level" );
+		}
 
-        if ( ! $this->column_exists( $wpdb, $explorers_table, 'last_ems_push_at' ) ) {
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'last_ems_push_at' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN last_ems_push_at DATETIME DEFAULT NULL AFTER last_local_update_at" );
-        }
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN last_ems_push_at DATETIME DEFAULT NULL AFTER last_local_update_at" );
+		}
 
-        if ( ! $this->column_exists( $wpdb, $explorers_table, 'dofe_number' ) ) {
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'dofe_number' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER first_aid_level" );
-        }
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER first_aid_level" );
+		}
 
-        if ( ! $this->column_exists( $wpdb, $explorers_table, 'additional_support_needs' ) ) {
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'additional_support_needs' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN additional_support_needs TEXT DEFAULT NULL AFTER dofe_number" );
-        }
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN additional_support_needs TEXT DEFAULT NULL AFTER dofe_number" );
+		}
 
-        $participant_table = $wpdb->prefix . 'ems_participant_signups';
-        if ( ! $this->column_exists( $wpdb, $participant_table, 'leader_email' ) ) {
+		$participant_table = $wpdb->prefix . 'ems_participant_signups';
+		if ( ! $this->column_exists( $wpdb, $participant_table, 'leader_email' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
-        }
+			$wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
+		}
 
-        $avail_table = $wpdb->prefix . 'ems_volunteer_availability';
-        if ( ! $this->column_exists( $wpdb, $avail_table, 'volunteer_id' ) ) {
-            // Add column
+		$avail_table = $wpdb->prefix . 'ems_volunteer_availability';
+		if ( ! $this->column_exists( $wpdb, $avail_table, 'volunteer_id' ) ) {
+			// Add column
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN volunteer_id BIGINT UNSIGNED NOT NULL AFTER id" );
-            // Add key
+			$wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN volunteer_id BIGINT UNSIGNED NOT NULL AFTER id" );
+			// Add key
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$avail_table} ADD KEY idx_volunteer_expedition (volunteer_id, expedition_post_id)" );
-            // Allow user_id to be NULL as it is deprecated for guests
+			$wpdb->query( "ALTER TABLE {$avail_table} ADD KEY idx_volunteer_expedition (volunteer_id, expedition_post_id)" );
+			// Allow user_id to be NULL as it is deprecated for guests
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$avail_table} MODIFY COLUMN user_id BIGINT UNSIGNED DEFAULT NULL" );
-        }
+			$wpdb->query( "ALTER TABLE {$avail_table} MODIFY COLUMN user_id BIGINT UNSIGNED DEFAULT NULL" );
+		}
 
-        if ( ! $this->column_exists( $wpdb, $avail_table, 'updated_at' ) ) {
+		if ( ! $this->column_exists( $wpdb, $avail_table, 'updated_at' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN updated_at DATETIME DEFAULT NULL AFTER confirmed_by" );
-        }
+			$wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN updated_at DATETIME DEFAULT NULL AFTER confirmed_by" );
+		}
 
-        if ( ! $this->column_exists( $wpdb, $avail_table, 'signup_type' ) ) {
+		if ( ! $this->column_exists( $wpdb, $avail_table, 'signup_type' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN signup_type VARCHAR(20) NOT NULL DEFAULT 'part' AFTER updated_at" );
-        }
+			$wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN signup_type VARCHAR(20) NOT NULL DEFAULT 'part' AFTER updated_at" );
+		}
 
-        $this->migrate_season_deprecation( $wpdb );
-    }
+		$this->migrate_season_deprecation( $wpdb );
+	}
 
-    private function column_exists( object $wpdb, string $table, string $column ): bool {
-        $found = $wpdb->get_var( $wpdb->prepare(
-            "SELECT COLUMN_NAME FROM information_schema.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
-            $table,
-            $column
-        ) );
+	private function column_exists( object $wpdb, string $table, string $column ): bool {
+		$found = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s',
+				$table,
+				$column
+			)
+		);
 
-        return ! empty( $found );
-    }
+		return ! empty( $found );
+	}
 
-    private function migrate_season_deprecation( object $wpdb ): void {
-        if ( get_option( 'ems_season_migration_done' ) ) {
-            return;
-        }
+	private function migrate_season_deprecation( object $wpdb ): void {
+		if ( get_option( 'ems_season_migration_done' ) ) {
+			return;
+		}
 
-        // Detach all expedition posts from any season parent.
+		// Detach all expedition posts from any season parent.
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $wpdb->query(
-            "UPDATE {$wpdb->posts} SET post_parent = 0 WHERE post_type = 'expedition'"
-        );
+		$wpdb->query(
+			"UPDATE {$wpdb->posts} SET post_parent = 0 WHERE post_type = 'expedition'"
+		);
 
-        // Collect all season post IDs before deleting.
+		// Collect all season post IDs before deleting.
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $season_ids = $wpdb->get_col(
-            "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'season'"
-        );
+		$season_ids = $wpdb->get_col(
+			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'season'"
+		);
 
-        if ( ! empty( $season_ids ) ) {
-            $placeholders = implode( ',', array_fill( 0, count( $season_ids ), '%d' ) );
+		if ( ! empty( $season_ids ) ) {
+			$placeholders = implode( ',', array_fill( 0, count( $season_ids ), '%d' ) );
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( $wpdb->prepare(
-                "DELETE FROM {$wpdb->postmeta} WHERE post_id IN ({$placeholders})",
-                ...$season_ids
-            ) );
+			$wpdb->query(
+				$wpdb->prepare(
+					"DELETE FROM {$wpdb->postmeta} WHERE post_id IN ({$placeholders})",
+					...$season_ids
+				)
+			);
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $wpdb->query( $wpdb->prepare(
-                "DELETE FROM {$wpdb->posts} WHERE ID IN ({$placeholders})",
-                ...$season_ids
-            ) );
-        }
+			$wpdb->query(
+				$wpdb->prepare(
+					"DELETE FROM {$wpdb->posts} WHERE ID IN ({$placeholders})",
+					...$season_ids
+				)
+			);
+		}
 
-        if ( ! get_option( 'ems_unallocated_migration_done' ) ) {
-            $expedition_ids = $wpdb->get_col(
-                "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'expedition' AND post_status = 'publish'"
-            );
-            foreach ( $expedition_ids as $event_id ) {
-                $event_id = (int) $event_id;
-                $has_unallocated = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT p.ID FROM {$wpdb->posts} p
+		if ( ! get_option( 'ems_unallocated_migration_done' ) ) {
+			$expedition_ids = $wpdb->get_col(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'expedition' AND post_status = 'publish'"
+			);
+			foreach ( $expedition_ids as $event_id ) {
+				$event_id        = (int) $event_id;
+				$has_unallocated = $wpdb->get_var(
+					$wpdb->prepare(
+						"SELECT p.ID FROM {$wpdb->posts} p
                      INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
                      WHERE p.post_type = 'team' AND p.post_parent = %d
                      AND pm.meta_key = 'ems_team_code' AND pm.meta_value = 'UNALLOCATED'
                      LIMIT 1",
-                    $event_id
-                ) );
+						$event_id
+					)
+				);
 
-                if ( ! $has_unallocated ) {
-                    $post_id = wp_insert_post( [
-                        'post_type'   => 'team',
-                        'post_title'  => 'Unallocated',
-                        'post_status' => 'publish',
-                        'post_parent' => $event_id,
-                    ], true );
+				if ( ! $has_unallocated ) {
+					$post_id = wp_insert_post(
+						array(
+							'post_type'   => 'team',
+							'post_title'  => 'Unallocated',
+							'post_status' => 'publish',
+							'post_parent' => $event_id,
+						),
+						true
+					);
 
-                    if ( ! is_wp_error( $post_id ) ) {
-                        update_post_meta( $post_id, 'ems_team_code', 'UNALLOCATED' );
-                        update_post_meta( $post_id, 'ems_team_number', 0 );
-                    }
-                }
-            }
-            update_option( 'ems_unallocated_migration_done', 1 );
-        }
+					if ( ! is_wp_error( $post_id ) ) {
+						update_post_meta( $post_id, 'ems_team_code', 'UNALLOCATED' );
+						update_post_meta( $post_id, 'ems_team_number', 0 );
+					}
+				}
+			}
+			update_option( 'ems_unallocated_migration_done', 1 );
+		}
 
-        update_option( 'ems_season_migration_done', 1 );
-    }
+		update_option( 'ems_season_migration_done', 1 );
+	}
 
-    public function generate_sql( string $prefix = '', string $charset = '' ): array {
-        $sql = [];
+	public function generate_sql( string $prefix = '', string $charset = '' ): array {
+		$sql = array();
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_team_members (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_team_members (
             id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             team_post_id BIGINT UNSIGNED NOT NULL,
             scout_id    BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -182,7 +193,7 @@ class Table_Installer {
             KEY idx_user_id (user_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_volunteers (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_volunteers (
             id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             osm_user_id     BIGINT UNSIGNED          DEFAULT NULL,
             user_id         BIGINT UNSIGNED          DEFAULT NULL,
@@ -201,7 +212,7 @@ class Table_Installer {
             KEY idx_user_id (user_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_volunteer_availability (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_volunteer_availability (
             id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             volunteer_id        BIGINT UNSIGNED NOT NULL,
             user_id             BIGINT UNSIGNED          DEFAULT NULL,
@@ -218,7 +229,7 @@ class Table_Installer {
             KEY idx_date (date)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_route_submissions (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_route_submissions (
             id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             team_post_id    BIGINT UNSIGNED NOT NULL,
             version         INT             NOT NULL DEFAULT 1,
@@ -232,7 +243,7 @@ class Table_Installer {
             KEY idx_team_post_id (team_post_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_explorers (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_explorers (
             id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             scout_id             BIGINT UNSIGNED NOT NULL,
             wp_user_id           BIGINT UNSIGNED          DEFAULT NULL,
@@ -254,7 +265,7 @@ class Table_Installer {
             KEY idx_wp_user_id (wp_user_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_audit_logs (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_audit_logs (
             id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id                BIGINT UNSIGNED NOT NULL,
             action                 VARCHAR(100)    NOT NULL,
@@ -267,7 +278,7 @@ class Table_Installer {
             KEY idx_target_scout_id (target_scout_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_events (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_events (
             id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             event_id     BIGINT UNSIGNED NOT NULL,
             section_id   BIGINT UNSIGNED NOT NULL,
@@ -284,7 +295,7 @@ class Table_Installer {
             KEY idx_section_id (section_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_event_attendance (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_osm_event_attendance (
             id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             event_id   BIGINT UNSIGNED NOT NULL,
             scout_id   BIGINT UNSIGNED NOT NULL,
@@ -296,7 +307,7 @@ class Table_Installer {
             KEY idx_scout_id (scout_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_units (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_units (
             id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             patrol_id         BIGINT          NOT NULL,
             section_id        BIGINT UNSIGNED NOT NULL,
@@ -314,7 +325,7 @@ class Table_Installer {
             KEY idx_unit_id (unit_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_participant_signups (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_participant_signups (
             id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             scout_id               BIGINT UNSIGNED NOT NULL,
             parent_user_id         BIGINT UNSIGNED NOT NULL,
@@ -345,7 +356,7 @@ class Table_Installer {
             KEY idx_unit_id (unit_id)
         ) {$charset};";
 
-        $sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_expedition_signups (
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_expedition_signups (
             id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             scout_id               BIGINT UNSIGNED NOT NULL,
             parent_user_id         BIGINT UNSIGNED NOT NULL,
@@ -371,23 +382,23 @@ class Table_Installer {
             KEY idx_unit_id (unit_id)
         ) {$charset};";
 
-        return $sql;
-    }
+		return $sql;
+	}
 
-    public function get_table_names(): array {
-        global $wpdb;
-        return [
-            'volunteers'             => $wpdb->prefix . 'ems_volunteers',
-            'team_members'          => $wpdb->prefix . 'ems_team_members',
-            'volunteer_availability' => $wpdb->prefix . 'ems_volunteer_availability',
-            'route_submissions'     => $wpdb->prefix . 'ems_route_submissions',
-            'osm_explorers'         => $wpdb->prefix . 'ems_osm_explorers',
-            'osm_events'            => $wpdb->prefix . 'ems_osm_events',
-            'osm_event_attendance'  => $wpdb->prefix . 'ems_osm_event_attendance',
-            'units'                 => $wpdb->prefix . 'ems_units',
-            'participant_signups'   => $wpdb->prefix . 'ems_participant_signups',
-            'expedition_signups'    => $wpdb->prefix . 'ems_expedition_signups',
-            'audit_logs'            => $wpdb->prefix . 'ems_audit_logs',
-        ];
-    }
+	public function get_table_names(): array {
+		global $wpdb;
+		return array(
+			'volunteers'             => $wpdb->prefix . 'ems_volunteers',
+			'team_members'           => $wpdb->prefix . 'ems_team_members',
+			'volunteer_availability' => $wpdb->prefix . 'ems_volunteer_availability',
+			'route_submissions'      => $wpdb->prefix . 'ems_route_submissions',
+			'osm_explorers'          => $wpdb->prefix . 'ems_osm_explorers',
+			'osm_events'             => $wpdb->prefix . 'ems_osm_events',
+			'osm_event_attendance'   => $wpdb->prefix . 'ems_osm_event_attendance',
+			'units'                  => $wpdb->prefix . 'ems_units',
+			'participant_signups'    => $wpdb->prefix . 'ems_participant_signups',
+			'expedition_signups'     => $wpdb->prefix . 'ems_expedition_signups',
+			'audit_logs'             => $wpdb->prefix . 'ems_audit_logs',
+		);
+	}
 }
