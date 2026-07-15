@@ -36,7 +36,20 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ---
 
-## 3. Milestone 6: Compliance & Training Progress Monitoring (Pending)
+## 3. Milestone 6: Portability, Hardening & Staging Deployment (Pending)
+
+*   [ ] **Export/Import Engine**: Implement a backup and restore mechanism for EMS-specific database configurations and WP options.
+*   [ ] **ESU Unit Mapping Portability**: Create an export/import utility (JSON/CSV) to migrate ESU unit leader listings, patrol linkages, and active section structures.
+*   [ ] **Environment Replicator CLI/Script**: Setup automated deployment helper scripts to initialize database tables, import default settings, and verify system compliance on a clean WordPress target.
+*   [ ] **Security Hardening Review**:
+    *   Verify 2FA configurations and investigate DB-level encryption requirements for sensitive scout data.
+    *   Ensure that child metadata enrichment debug logging is properly guarded and can be easily toggled on/off to keep system logs clean.
+*   [ ] **Website Integration**: Review how shortcodes fit and render inside the parent site's templates and stylesheets.
+*   [ ] **Staging Deployment**: Deploy the hardened plugin to the staging site to allow stakeholders (John / Cheryl / Leaders) to view and test it.
+
+---
+
+## 4. Milestone 7: Compliance & Training Progress Monitoring (Pending)
 
 Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/Projects/expedition-management-system/docs/archive/held-milestone-5-implementation-spec.md):
 
@@ -50,20 +63,12 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ---
 
-## 4. Milestone 7: Unit Leader Integration Portal & Kit Supply (Pending)
+## 5. Milestone 8: Unit Leader Integration Portal & Kit Supply (Pending)
 
 *   [ ] **Unit Leader Portal**: Build a dashboard showing all explorer allocations and status updates scoped to leaders' managed ESU units.
 *   [ ] **Kit List Supply Tool**: Track and map gear/equipment requests back to specific units. Determine if this content should be in a post or a database table.
 *   [ ] **Tent & Gear Allocations**: Create the database table `ems_team_tent_groups` and build a UI in the Expedition Board to assign members to tents and map the ESU unit responsible for supplying gear.
 *   [ ] **Frontend Leader Landing Page**: Create a frontend website portal page `[ems-leader-portal]` allowing leaders to preview their assigned expeditions, dates, and rosters without WP admin dashboard login.
-
----
-
-## 5. Milestone 8: Environment Replication & Configuration Portability (Pending)
-
-*   [ ] **Export/Import Engine**: Implement a backup and restore mechanism for EMS-specific database configurations and WP options.
-*   [ ] **ESU Unit Mapping Portability**: Create an export/import utility (JSON/CSV) to migrate ESU unit leader listings, patrol linkages, and active section structures between development, staging, and production environments.
-*   [ ] **Environment Replicator CLI/Script**: Setup automated deployment helper scripts to initialize database tables, import default settings, and verify system compliance on a clean WordPress target.
 
 ---
 
@@ -95,9 +100,7 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 
 ## 9. QA, Rollout & Operational Tasks
 
-*   [ ] **Logging Configuration & Guards**: Ensure that child metadata enrichment debug logging is guarded and can be easily toggled on/off to keep system logs clean.
 *   [ ] **Documentation & Screen Review**: Run a detailed review of all active admin screens and portal pages, fixing styling issues and completing any missing inline documentation.
-*   [ ] **Website Integration**: Review how shortcodes fit and render inside the parent site's templates and stylesheets.
 *   [ ] **Rollout & Guides**:
     *   Coordinate alignment/onboarding with John / Cheryl.
     *   Draft processes and manuals for new expedition workflows (e.g. Leader-in-Charge engagement instructions).
@@ -107,6 +110,5 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 ## 10. Future Enhancements & Extensions
 
 *   [ ] **Network Expedition Signups**: Add support and rules handling signups/eligibility for Network members (aged 18–25).
-*   [ ] **Security Policy Review**: Investigate 2FA and DB-level encryption requirements for storing explorer profiles.
 *   [ ] **Expedition Risk Assessment & Docs**: Add options to attach Risk Assessment (RA) or Parent Info documents to expeditions (or determine if this should be delegated to OSM).
 *   [ ] **Volunteers' Front-End View**: Create a public/login frontend view allowing adult volunteers to log in, see which expeditions they are assigned to, check what they volunteered for, and access helper documents.
