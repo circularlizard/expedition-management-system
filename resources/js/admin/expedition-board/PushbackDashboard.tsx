@@ -53,6 +53,7 @@ export const PushbackDashboard: React.FC = () => {
 	const [loading, setLoading] = useState<boolean>(false);
 	const [preview, setPreview] = useState<PreviewData | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [collapsedEvents, setCollapsedEvents] = useState<Record<number, boolean>>({});
 
 	const fetchPreview = async (sectionId: string) => {
 		if (!sectionId) return;
@@ -95,6 +96,13 @@ export const PushbackDashboard: React.FC = () => {
 		? preview.flexi_record.updates.length +
 		  preview.events.reduce((acc, ev) => acc + ev.proposed_invites.filter(inv => inv.action === 'Invite').length, 0)
 		: 0;
+
+	const toggleEventCollapse = (eventId: number) => {
+		setCollapsedEvents(prev => ({
+			...prev,
+			[eventId]: !prev[eventId]
+		}));
+	};
 
 	const formatStatus = (status: string) => {
 		const mapping: Record<string, string> = {
@@ -236,14 +244,20 @@ export const PushbackDashboard: React.FC = () => {
 							{preview.events && preview.events.length > 0 ? (
 								preview.events.map((ev, idx) => (
 									<div key={idx} style={{ marginBottom: '30px', borderBottom: '1px solid #ccd0d4', paddingBottom: '20px' }}>
-										<h3 style={{ margin: '0 0 12px 0', fontSize: '15px' }}>
+										<h3 
+											style={{ margin: '0 0 12px 0', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', userSelect: 'none' }}
+											onClick={() => toggleEventCollapse(ev.event_id)}
+										>
+											<span style={{ marginRight: '8px', fontSize: '10px', display: 'inline-block', transition: 'transform 0.2s', transform: collapsedEvents[ev.event_id] ? 'rotate(-90deg)' : 'none' }}>
+												▼
+											</span>
 											EMS Expedition: <strong style={{ color: '#2271b1' }}>{ev.expedition_name}</strong>
 											<span style={{ color: '#646970', fontWeight: 'normal', fontSize: '13px', marginLeft: '12px' }}>
 												(Linked to OSM Event: <strong>{ev.osm_event_name}</strong> — ID: {ev.event_id})
 											</span>
 										</h3>
 
-										{(() => {
+										{!collapsedEvents[ev.event_id] && (() => {
 											const invites = ev.proposed_invites.filter(inv => inv.action === 'Invite');
 											const alerts = ev.proposed_invites.filter(inv => inv.inconsistency && inv.action !== 'Invite');
 											const consistent = ev.proposed_invites.filter(inv => !inv.inconsistency && inv.action === 'None');
