@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'EMS_PLUGIN_FILE', __FILE__ );
 define( 'EMS_VERSION', '0.1.33' );
+define( 'EMS_DEBUG', true );
 
 // Autoload classes
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
