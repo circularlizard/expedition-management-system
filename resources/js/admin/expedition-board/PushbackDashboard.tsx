@@ -94,6 +94,27 @@ export const PushbackDashboard: React.FC = () => {
 		  preview.events.reduce((acc, ev) => acc + ev.proposed_invites.filter(inv => inv.action === 'Invite').length, 0)
 		: 0;
 
+	const formatStatus = (status: string) => {
+		const mapping: Record<string, string> = {
+			'yes': 'Attending',
+			'no': 'Declined',
+			'invited': 'Invited',
+			'reserved': 'Reserved',
+			'show_in_parent_portal': 'Show in Parent Portal',
+			'not invited': 'Not Invited',
+		};
+		return mapping[status.toLowerCase()] || status;
+	};
+
+	const getStatusBadgeClass = (status: string) => {
+		const s = status.toLowerCase();
+		if (s === 'yes' || s === 'attending') return 'ems-status-badge--success';
+		if (s === 'no' || s === 'not-attending' || s === 'declined') return 'ems-status-badge--danger';
+		if (s === 'invited' || s === 'show_in_parent_portal') return 'ems-status-badge--pending';
+		if (s === 'reserved') return 'ems-status-badge--warning';
+		return 'ems-status-badge--draft';
+	};
+
 	return (
 		<div>
 			<div className="ems-pushback-dashboard">
@@ -220,9 +241,9 @@ export const PushbackDashboard: React.FC = () => {
 													<tr>
 														<th style={{ width: '10%' }}>Scout ID</th>
 														<th style={{ width: '20%' }}>Name</th>
-														<th style={{ width: '15%' }}>EMS Assigned</th>
-														<th style={{ width: '15%' }}>OSM Status</th>
-														<th style={{ width: '15%' }}>Proposed Action</th>
+														<th style={{ width: '15%' }}>EMS Team Assigned</th>
+														<th style={{ width: '18%' }}>OSM Attendance Status</th>
+														<th style={{ width: '12%' }}>Pushback Action</th>
 														<th style={{ width: '25%' }}>Alert / Mismatch</th>
 													</tr>
 												</thead>
@@ -239,12 +260,8 @@ export const PushbackDashboard: React.FC = () => {
 																</span>
 															</td>
 															<td>
-																<span className={`ems-status-badge ems-status-badge--${
-																	inv.status.toLowerCase() === 'yes' || inv.status.toLowerCase() === 'attending' ? 'success' :
-																	inv.status.toLowerCase() === 'no' || inv.status.toLowerCase() === 'declined' ? 'danger' :
-																	inv.status.toLowerCase() === 'invited' ? 'pending' : 'draft'
-																}`}>
-																	{inv.status}
+																<span className={`ems-status-badge ${getStatusBadgeClass(inv.status)}`}>
+																	{formatStatus(inv.status)}
 																</span>
 															</td>
 															<td>

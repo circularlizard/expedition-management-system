@@ -176,26 +176,25 @@ class Pushback_Sync_Manager {
 							continue; // Consistent (not in EMS, not in OSM)
 						}
 
-						$inconsistency = null;
-						if ( $current === 'yes' ) {
-							$inconsistency = 'Attending in OSM but not assigned in EMS';
-						} elseif ( $current === 'no' ) {
-							$inconsistency = 'Declined in OSM but not assigned in EMS';
-						} elseif ( $current === 'invited' ) {
-							$inconsistency = 'Invited in OSM but not assigned in EMS';
-						}
+						$status_labels = array(
+							'yes'                    => 'Attending',
+							'no'                     => 'Declined',
+							'invited'                => 'Invited',
+							'reserved'               => 'Reserved',
+							'show_in_parent_portal'  => 'Show in Parent Portal',
+						);
+						$label = $status_labels[ $current ] ?? ucfirst( str_replace( '_', ' ', $current ) );
+						$inconsistency = "{$label} in OSM but not assigned in EMS";
 
-						if ( $inconsistency ) {
-							$proposed_invites[] = array(
-								'scout_id'      => $scout_id,
-								'first_name'    => $row['first_name'] ?? '',
-								'last_name'     => $row['last_name'] ?? '',
-								'status'        => $current,
-								'action'        => 'None',
-								'in_ems'        => false,
-								'inconsistency' => $inconsistency,
-							);
-						}
+						$proposed_invites[] = array(
+							'scout_id'      => $scout_id,
+							'first_name'    => $row['first_name'] ?? '',
+							'last_name'     => $row['last_name'] ?? '',
+							'status'        => $current,
+							'action'        => 'None',
+							'in_ems'        => false,
+							'inconsistency' => $inconsistency,
+						);
 					}
 
 					$preview['events'][] = array(
