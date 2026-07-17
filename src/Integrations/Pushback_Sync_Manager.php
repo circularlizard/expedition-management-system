@@ -139,7 +139,14 @@ class Pushback_Sync_Manager {
 					foreach ( $assigns as $assign ) {
 						$scout_id = (int) $assign->scout_id;
 						$current  = $att_map[ $scout_id ] ?? null;
-						$action   = ( $current === null || $current === '' ) ? 'Invite' : 'None';
+						
+						if ( $current === null || $current === '' ) {
+							$action = 'Invite';
+						} elseif ( $current === 'no' ) {
+							$action = 'Re-invite (Declined in OSM)';
+						} else {
+							$action = 'None';
+						}
 
 						$proposed_invites[] = array(
 							'scout_id'   => $scout_id,
