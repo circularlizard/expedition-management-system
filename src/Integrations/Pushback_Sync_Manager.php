@@ -136,25 +136,66 @@ class Pushback_Sync_Manager {
 					}
 
 					$proposed_invites = array();
+					$processed_scouts = array();
+
+					// 1. Process local EMS assignments
 					foreach ( $assigns as $assign ) {
 						$scout_id = (int) $assign->scout_id;
 						$current  = $att_map[ $scout_id ] ?? null;
-						
+						$processed_scouts[ $scout_id ] = true;
+
+						$action        = 'None';
+						$inconsistency = null;
+
 						if ( $current === null || $current === '' ) {
 							$action = 'Invite';
 						} elseif ( $current === 'no' ) {
-							$action = 'Re-invite (Declined in OSM)';
-						} else {
-							$action = 'None';
+							$inconsistency = 'Declined in OSM but assigned in EMS';
 						}
 
 						$proposed_invites[] = array(
-							'scout_id'   => $scout_id,
-							'first_name' => $assign->first_name,
-							'last_name'  => $assign->last_name,
-							'status'     => $current ?: 'Not Invited',
-							'action'     => $action,
+							'scout_id'      => $scout_id,
+							'first_name'    => $assign->first_name,
+							'last_name'     => $assign->last_name,
+							'status'        => $current ?: 'Not Invited',
+							'action'        => $action,
+							'in_ems'        => true,
+							'inconsistency' => $inconsistency,
 						);
+					}
+
+					// 2. Process remaining OSM members who are NOT in EMS
+					foreach ( $items as $row ) {
+						$scout_id = (int) ( $row['member_id'] ?? 0 );
+						if ( ! $scout_id || isset( $processed_scouts[ $scout_id ] ) ) {
+							continue;
+						}
+
+						$current = $row['attending'] ?? null;
+						if ( $current === null || $current === '' ) {
+							continue; // Consistent (not in EMS, not in OSM)
+						}
+
+						$inconsistency = null;
+						if ( $current === 'yes' ) {
+							$inconsistency = 'Attending in OSM but not assigned in EMS';
+						} elseif ( $current === 'no' ) {
+							$inconsistency = 'Declined in OSM but not assigned in EMS';
+						} elseif ( $current === 'invited' ) {
+							$inconsistency = 'Invited in OSM but not assigned in EMS';
+						}
+
+						if ( $inconsistency ) {
+							$proposed_invites[] = array(
+								'scout_id'      => $scout_id,
+								'first_name'    => $row['first_name'] ?? '',
+								'last_name'     => $row['last_name'] ?? '',
+								'status'        => $current,
+								'action'        => 'None',
+								'in_ems'        => false,
+								'inconsistency' => $inconsistency,
+							);
+						}
 					}
 
 					$preview['events'][] = array(
