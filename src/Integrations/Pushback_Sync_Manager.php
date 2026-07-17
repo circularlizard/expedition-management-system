@@ -129,8 +129,9 @@ class Pushback_Sync_Manager {
 			foreach ( $event_to_assignments as $eid => $assigns ) {
 				try {
 					$attendance = $this->api_client->get_event_attendance( $eid, $term_id );
+					$items      = $attendance['data'] ?? $attendance;
 					$att_map    = array();
-					foreach ( $attendance as $att ) {
+					foreach ( $items as $att ) {
 						$att_map[ (int) $att['member_id'] ] = $att['attending'] ?? null;
 					}
 
