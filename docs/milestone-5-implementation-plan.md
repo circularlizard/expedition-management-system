@@ -1,12 +1,16 @@
 # Milestone 5: Online Scout Manager Write-Back (Push-Back Sync) — Implementation Plan
 
 > [!NOTE]
-> **Status: Phase 1 Completed** (July 15, 2026)
+> **Status: Phase 1 Completed** (July 17, 2026)
 >
 > **Completed Steps**:
 > * Implemented the read-only preview engine `Pushback_Sync_Manager` and its corresponding REST API controllers.
 > * Integrated the preview dashboard as a tab ("Pushback Sync") inside the existing "OSM Sync" admin settings page.
 > * Implemented dynamic OIDC oauth token authorization checks (invoking `OSM_Sync_Auth_Handler`) before displaying the pushback sync preview, ensuring consistent permission checks.
+> * Grouped sync preview by **Actions**, **Warnings**, and **Synced** members to separate work items from inconsistencies.
+> * Surfaced and labeled OSM status mismatches (e.g. Declined, Attending in OSM but not assigned in EMS, etc.) with color-coded warning callout alerts.
+> * Made expedition section panels collapsible (collapsed by default) with custom rotation arrow indicators.
+> * Displayed both local EMS Expedition name and live OSM Event name inside section toggle headings.
 > * Verified correctness with comprehensive Vitest and PHPUnit tests.
 >
 > **Pending Steps**:
