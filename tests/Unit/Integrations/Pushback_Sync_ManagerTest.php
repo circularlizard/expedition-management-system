@@ -195,7 +195,7 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 		$preview = $manager->get_preview( 101 );
 
 		$this->assertCount( 1, $preview['events'] );
-		$this->assertEmpty( $preview['events'][0]['proposed_invites'] );
+		$this->assertSame( 'None', $preview['events'][0]['proposed_invites'][0]['action'] );
 	}
 
 	public function test_get_preview_proposes_flexi_record_value_changes(): void {
