@@ -139,14 +139,15 @@ class Pushback_Sync_Manager {
 					foreach ( $assigns as $assign ) {
 						$scout_id = (int) $assign->scout_id;
 						$current  = $att_map[ $scout_id ] ?? null;
+						$action   = ( $current === null || $current === '' ) ? 'Invite' : 'None';
 
-						if ( $current === null || $current === '' ) {
-							$proposed_invites[] = array(
-								'scout_id'   => $scout_id,
-								'first_name' => $assign->first_name,
-								'last_name'  => $assign->last_name,
-							);
-						}
+						$proposed_invites[] = array(
+							'scout_id'   => $scout_id,
+							'first_name' => $assign->first_name,
+							'last_name'  => $assign->last_name,
+							'status'     => $current ?: 'Not Invited',
+							'action'     => $action,
+						);
 					}
 
 					$preview['events'][] = array(
