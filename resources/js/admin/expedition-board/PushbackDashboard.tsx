@@ -230,14 +230,20 @@ export const PushbackDashboard: React.FC = () => {
 																{inv.first_name} {inv.last_name}
 															</td>
 															<td>
-																<span className={`ems-status-badge ems-status-badge--${inv.status.toLowerCase()}`}>
+																<span className={`ems-status-badge ems-status-badge--${
+																	inv.status.toLowerCase() === 'yes' || inv.status.toLowerCase() === 'attending' ? 'success' :
+																	inv.status.toLowerCase() === 'no' || inv.status.toLowerCase() === 'declined' ? 'danger' :
+																	inv.status.toLowerCase() === 'invited' ? 'pending' : 'draft'
+																}`}>
 																	{inv.status}
 																</span>
 															</td>
 															<td>
-																{inv.action === 'Invite' ? (
-																	<span className="ems-status-badge ems-status-badge--invited">
-																		Invite
+																{inv.action !== 'None' ? (
+																	<span className={`ems-status-badge ems-status-badge--${
+																		inv.action.toLowerCase().includes('declined') || inv.action.toLowerCase().includes('re-invite') ? 'danger' : 'pending'
+																	}`}>
+																		{inv.action}
 																	</span>
 																) : (
 																	<span className="description" style={{ color: '#666' }}>
