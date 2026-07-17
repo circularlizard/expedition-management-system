@@ -19,6 +19,8 @@ interface EventInvite {
 	scout_id: number;
 	first_name: string;
 	last_name: string;
+	status: string;
+	action: string;
 }
 
 interface ProposedEvent {
@@ -87,7 +89,7 @@ export const PushbackDashboard: React.FC = () => {
 
 	const totalUpdatesCount = preview
 		? preview.flexi_record.updates.length +
-		  preview.events.reduce((acc, ev) => acc + ev.proposed_invites.length, 0)
+		  preview.events.reduce((acc, ev) => acc + ev.proposed_invites.filter(inv => inv.action === 'Invite').length, 0)
 		: 0;
 
 	return (
@@ -216,7 +218,8 @@ export const PushbackDashboard: React.FC = () => {
 													<tr>
 														<th>Scout ID</th>
 														<th>Name</th>
-														<th>Action</th>
+														<th>Current Status</th>
+														<th>Proposed Action</th>
 													</tr>
 												</thead>
 												<tbody>
@@ -227,9 +230,20 @@ export const PushbackDashboard: React.FC = () => {
 																{inv.first_name} {inv.last_name}
 															</td>
 															<td>
-																<span className="ems-status-badge ems-status-badge--invited">
-																	Invite
+																<span className={`ems-status-badge ems-status-badge--${inv.status.toLowerCase()}`}>
+																	{inv.status}
 																</span>
+															</td>
+															<td>
+																{inv.action === 'Invite' ? (
+																	<span className="ems-status-badge ems-status-badge--invited">
+																		Invite
+																	</span>
+																) : (
+																	<span className="description" style={{ color: '#666' }}>
+																		No change (Already synced)
+																	</span>
+																)}
 															</td>
 														</tr>
 													))}
