@@ -250,4 +250,74 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 		$this->assertSame( 'HGP1-1', $update['current_value'] );
 		$this->assertSame( 'HGP1-2', $update['proposed_value'] );
 	}
+
+	public function test_get_preview_flags_attendance_inconsistencies(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_osm_flexi_record_101' ) return 73848;
+			if ( $key === 'ems_managed_sections' ) return [ 101 => [ 'name' => 'Explorers', 'type' => 'explorers' ] ];
+			return $default;
+		} );
+
+		$this->api_client->shouldReceive( 'get_flexi_record_structure' )->andReturn( [ 'config' => '[]' ] );
+		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [] ] );
+
+		$this->wpdb->shouldReceive( 'get_results' )->andReturnUsing( function( $query ) {
+			if ( strpos( $query, 'ems_team_members' ) !== false ) {
+				return [
+					// 30001: Assigned in EMS but declined ('no') in OSM
+					(object) [
+						'scout_id' => 30001,
+						'first_name' => 'Alice',
+						'last_name' => 'Smith',
+						'team_code' => 'HGP1-1',
+						'event_type' => 'practice',
+						'osm_event_id' => 50001,
+						'event_date' => '2026-05-29',
+						'first_aid_level' => ''
+					]
+				];
+			}
+			return [];
+		} );
+
+		$this->api_client->shouldReceive( 'get_event_attendance' )
+			->with( 50001, 5001 )
+			->once()
+			->andReturn( [
+				[
+					'member_id' => 30001,
+					'first_name' => 'Alice',
+					'last_name' => 'Smith',
+					'attending' => 'no'
+				],
+				// 30002: Not in EMS but accepted ('yes') in OSM
+				[
+					'member_id' => 30002,
+					'first_name' => 'Bob',
+					'last_name' => 'Jones',
+					'attending' => 'yes'
+				]
+			] );
+
+		$manager = new Pushback_Sync_Manager( $this->api_client );
+		$preview = $manager->get_preview( 101 );
+
+		$this->assertCount( 1, $preview['events'] );
+		$invites = $preview['events'][0]['proposed_invites'];
+		$this->assertCount( 2, $invites );
+
+		// Check Alice (assigned in EMS, declined in OSM)
+		$alice = $invites[0];
+		$this->assertSame( 30001, $alice['scout_id'] );
+		$this->assertSame( 'no', $alice['status'] );
+		$this->assertSame( 'None', $alice['action'] );
+		$this->assertSame( 'Declined in OSM but assigned in EMS', $alice['inconsistency'] );
+
+		// Check Bob (not in EMS, attending in OSM)
+		$bob = $invites[1];
+		$this->assertSame( 30002, $bob['scout_id'] );
+		$this->assertSame( 'yes', $bob['status'] );
+		$this->assertSame( 'None', $bob['action'] );
+		$this->assertSame( 'Attending in OSM but not assigned in EMS', $bob['inconsistency'] );
+	}
 }
