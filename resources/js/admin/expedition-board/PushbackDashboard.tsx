@@ -53,8 +53,12 @@ export const PushbackDashboard: React.FC = () => {
 		setLoading(true);
 		setError(null);
 		try {
+			const pushbackEl = document.getElementById('ems-pushback-root');
+			const token = pushbackEl?.getAttribute('data-token') || '';
+			const tokenParam = token ? `&access_token=${encodeURIComponent(token)}` : '';
+
 			const response = await fetch(
-				`${config.root_url}/admin/sync-preview?section_id=${sectionId}`,
+				`${config.root_url}/admin/sync-preview?section_id=${sectionId}${tokenParam}`,
 				{
 					headers: {
 						'X-WP-Nonce': config.nonce,
