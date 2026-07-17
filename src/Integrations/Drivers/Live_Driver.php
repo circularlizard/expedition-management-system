@@ -72,6 +72,11 @@ class Live_Driver implements Driver_Interface {
 			throw new Api_Response_Exception( 'Response was not valid JSON. HTTP ' . $http_status . '. Body: ' . $preview, $url );
 		}
 
+		if ( isset( $data['status'] ) && $data['status'] === false ) {
+			$msg = $data['error']['message'] ?? $data['error'] ?? 'OSM API Error';
+			throw new Api_Response_Exception( $msg, $url );
+		}
+
 		return $data;
 	}
 

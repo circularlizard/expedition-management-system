@@ -316,4 +316,19 @@ class Live_DriverTest extends EMSTestCase {
         $this->assertStringContainsString( 'associated_id=99999', $captured_url );
         $this->assertStringContainsString( 'getData', $captured_url );
     }
+
+    public function test_status_false_throws_api_response_exception(): void {
+        $driver = $this->make_driver();
+        $this->stub_request( 200, [], json_encode( [
+            'status' => false,
+            'error'  => [
+                'message' => 'You must be logged in to use this.',
+                'code'    => 'access-error-2'
+            ]
+        ] ) );
+
+        $this->expectException( Api_Response_Exception::class );
+        $this->expectExceptionMessage( 'You must be logged in to use this.' );
+        $driver->get_data_payload();
+    }
 }
