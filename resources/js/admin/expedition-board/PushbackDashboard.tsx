@@ -234,6 +234,7 @@ export const PushbackDashboard: React.FC = () => {
 						<div className="card" style={{ padding: '15px', margin: '20px 0', maxWidth: '100%' }}>
 							<h2>Event Attendance Invitations</h2>
 							{preview.events && preview.events.length > 0 ? (
+								preview.events.map((ev, idx) => (
 									<div key={idx} style={{ marginBottom: '30px', borderBottom: '1px solid #ccd0d4', paddingBottom: '20px' }}>
 										<h3 style={{ margin: '0 0 12px 0', fontSize: '15px' }}>
 											EMS Expedition: <strong style={{ color: '#2271b1' }}>{ev.expedition_name}</strong>
@@ -377,6 +378,7 @@ export const PushbackDashboard: React.FC = () => {
 											);
 										})()}
 									</div>
+								))
 							) : (
 								<p className="description">No event attendance updates proposed.</p>
 							)}
