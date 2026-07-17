@@ -21,6 +21,8 @@ interface EventInvite {
 	last_name: string;
 	status: string;
 	action: string;
+	in_ems: boolean;
+	inconsistency: string | null;
 }
 
 interface ProposedEvent {
@@ -216,18 +218,25 @@ export const PushbackDashboard: React.FC = () => {
 											<table className="wp-list-table widefat fixed striped">
 												<thead>
 													<tr>
-														<th>Scout ID</th>
-														<th>Name</th>
-														<th>Current Status</th>
-														<th>Proposed Action</th>
+														<th style={{ width: '10%' }}>Scout ID</th>
+														<th style={{ width: '20%' }}>Name</th>
+														<th style={{ width: '15%' }}>EMS Assigned</th>
+														<th style={{ width: '15%' }}>OSM Status</th>
+														<th style={{ width: '15%' }}>Proposed Action</th>
+														<th style={{ width: '25%' }}>Alert / Mismatch</th>
 													</tr>
 												</thead>
 												<tbody>
 													{ev.proposed_invites.map((inv, invIdx) => (
-														<tr key={invIdx}>
+														<tr key={invIdx} style={inv.inconsistency ? { backgroundColor: '#fffcf0' } : {}}>
 															<td>{inv.scout_id}</td>
 															<td>
 																{inv.first_name} {inv.last_name}
+															</td>
+															<td>
+																<span className={`ems-status-badge ems-status-badge--${inv.in_ems ? 'success' : 'danger'}`}>
+																	{inv.in_ems ? 'Yes' : 'No'}
+																</span>
 															</td>
 															<td>
 																<span className={`ems-status-badge ems-status-badge--${
@@ -239,15 +248,24 @@ export const PushbackDashboard: React.FC = () => {
 																</span>
 															</td>
 															<td>
-																{inv.action !== 'None' ? (
-																	<span className={`ems-status-badge ems-status-badge--${
-																		inv.action.toLowerCase().includes('declined') || inv.action.toLowerCase().includes('re-invite') ? 'danger' : 'pending'
-																	}`}>
-																		{inv.action}
+																{inv.action === 'Invite' ? (
+																	<span className="ems-status-badge ems-status-badge--pending">
+																		Invite
 																	</span>
 																) : (
 																	<span className="description" style={{ color: '#666' }}>
-																		No change (Already synced)
+																		None
+																	</span>
+																)}
+															</td>
+															<td>
+																{inv.inconsistency ? (
+																	<span className="ems-warning-callout" style={{ display: 'inline-block', margin: 0, padding: '2px 8px', borderRadius: '4px' }}>
+																		⚠ {inv.inconsistency}
+																	</span>
+																) : (
+																	<span className="description" style={{ color: '#999' }}>
+																		—
 																	</span>
 																)}
 															</td>
