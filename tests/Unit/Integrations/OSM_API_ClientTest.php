@@ -287,4 +287,20 @@ class OSM_API_ClientTest extends EMSTestCase {
         $this->assertSame( 12345, $result['scout_id'] );
         $this->assertSame( '2010-01-01', $result['dob'] );
     }
+
+    public function test_get_flexi_records_delegates_to_driver(): void {
+        $raw = [ [ 'id' => 101, 'name' => '2026 Expeditions' ] ];
+        $this->driver->shouldReceive( 'get_flexi_records' )
+            ->once()
+            ->with( 99001 )
+            ->andReturn( $raw );
+        $this->driver->shouldReceive( 'get_last_response_headers' )
+            ->once()
+            ->andReturn( [] );
+
+        $client = new OSM_API_Client( $this->driver, $this->parser );
+        $result = $client->get_flexi_records( 99001 );
+
+        $this->assertSame( $raw, $result );
+    }
 }

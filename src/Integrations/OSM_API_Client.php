@@ -98,6 +98,17 @@ class OSM_API_Client {
 		return $data;
 	}
 
+	public function get_flexi_records( int $section_id ): array {
+		$this->rate_limiter->consume();
+		$start = microtime( true );
+		try {
+			$data = $this->driver->get_flexi_records( $section_id );
+		} finally {
+			$this->after_call( 'get_flexi_records', $start );
+		}
+		return $data;
+	}
+
 	public function get_event_attendance( int $event_id, int $term_id ): array {
 		$this->rate_limiter->consume();
 		$start = microtime( true );
