@@ -27,6 +27,10 @@ class Live_Driver implements Driver_Interface {
 		$args['timeout'] = $args['timeout'] ?? 15;
 		$method          = $args['method'] ?? 'GET';
 
+		if ( ( defined( 'EMS_DEBUG' ) && EMS_DEBUG ) || ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+			error_log( sprintf( '[EMS Debug] OSM Call Request: %s %s - Args: %s', $method, $url, wp_json_encode( $args ) ) );
+		}
+
 		if ( $method === 'POST' ) {
 			$response = wp_safe_remote_post( $url, $args );
 		} else {
@@ -34,12 +38,20 @@ class Live_Driver implements Driver_Interface {
 		}
 
 		if ( is_wp_error( $response ) ) {
+			if ( ( defined( 'EMS_DEBUG' ) && EMS_DEBUG ) || ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+				error_log( sprintf( '[EMS Debug] OSM Call WP_Error: %s %s - Error: %s', $method, $url, $response->get_error_message() ) );
+			}
 			throw new Api_Response_Exception( $response->get_error_message(), $url );
 		}
 
 		$http_status        = (int) wp_remote_retrieve_response_code( $response );
 		$headers            = wp_remote_retrieve_headers( $response );
 		$this->last_headers = $this->parse_all_headers( $headers, $http_status, $url );
+		$body               = wp_remote_retrieve_body( $response );
+
+		if ( ( defined( 'EMS_DEBUG' ) && EMS_DEBUG ) || ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+			error_log( sprintf( '[EMS Debug] OSM Call Response: %s %s - Code: %d - Body: %s', $method, $url, $http_status, $body ) );
+		}
 
 		if ( ! empty( $this->last_headers['x-blocked'] ) ) {
 			throw new Api_Blocked_Exception( (string) $this->last_headers['x-blocked'], $url );
@@ -53,7 +65,6 @@ class Live_Driver implements Driver_Interface {
 			);
 		}
 
-		$body = wp_remote_retrieve_body( $response );
 		$data = json_decode( $body, true );
 
 		if ( ! is_array( $data ) ) {
