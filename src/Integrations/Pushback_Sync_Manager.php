@@ -102,7 +102,8 @@ class Pushback_Sync_Manager {
 						m_code.meta_value as team_code,
 						m_event.meta_value as osm_event_id,
 						m_type.meta_value as event_type,
-						m_date.meta_value as event_date
+						m_date.meta_value as event_date,
+						exp.post_title as expedition_name
 					FROM {$t_members} tm
 					JOIN {$t_explorers} e ON e.scout_id = tm.scout_id
 					JOIN {$posts} t ON t.ID = tm.team_post_id
@@ -197,8 +198,19 @@ class Pushback_Sync_Manager {
 						);
 					}
 
+					$event_row = $wpdb->get_row(
+						$wpdb->prepare(
+							"SELECT name FROM {$wpdb->prefix}ems_osm_events WHERE event_id = %d",
+							$eid
+						)
+					);
+					$osm_event_name  = $event_row ? $event_row->name : 'Unknown OSM Event';
+					$expedition_name = ! empty( $assigns ) ? $assigns[0]->expedition_name : 'Unknown Expedition';
+
 					$preview['events'][] = array(
 						'event_id'         => $eid,
+						'osm_event_name'   => $osm_event_name,
+						'expedition_name'  => $expedition_name,
 						'proposed_invites' => $proposed_invites,
 					);
 				} catch ( \Exception $e ) {

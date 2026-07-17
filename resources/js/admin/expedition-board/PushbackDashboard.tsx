@@ -27,6 +27,8 @@ interface EventInvite {
 
 interface ProposedEvent {
 	event_id: number;
+	osm_event_name: string;
+	expedition_name: string;
 	proposed_invites: EventInvite[];
 }
 
@@ -232,69 +234,149 @@ export const PushbackDashboard: React.FC = () => {
 						<div className="card" style={{ padding: '15px', margin: '20px 0', maxWidth: '100%' }}>
 							<h2>Event Attendance Invitations</h2>
 							{preview.events && preview.events.length > 0 ? (
-								preview.events.map((ev, idx) => (
-									<div key={idx} style={{ marginBottom: '20px' }}>
-										<h3>OSM Event ID: {ev.event_id}</h3>
-										{ev.proposed_invites && ev.proposed_invites.length > 0 ? (
-											<table className="wp-list-table widefat fixed striped">
-												<thead>
-													<tr>
-														<th style={{ width: '10%' }}>Scout ID</th>
-														<th style={{ width: '20%' }}>Name</th>
-														<th style={{ width: '15%' }}>EMS Team Assigned</th>
-														<th style={{ width: '18%' }}>OSM Attendance Status</th>
-														<th style={{ width: '12%' }}>Pushback Action</th>
-														<th style={{ width: '25%' }}>Alert / Mismatch</th>
-													</tr>
-												</thead>
-												<tbody>
-													{ev.proposed_invites.map((inv, invIdx) => (
-														<tr key={invIdx} style={inv.inconsistency ? { backgroundColor: '#fffcf0' } : {}}>
-															<td>{inv.scout_id}</td>
-															<td>
-																{inv.first_name} {inv.last_name}
-															</td>
-															<td>
-																<span className={`ems-status-badge ems-status-badge--${inv.in_ems ? 'success' : 'danger'}`}>
-																	{inv.in_ems ? 'Yes' : 'No'}
-																</span>
-															</td>
-															<td>
-																<span className={`ems-status-badge ${getStatusBadgeClass(inv.status)}`}>
-																	{formatStatus(inv.status)}
-																</span>
-															</td>
-															<td>
-																{inv.action === 'Invite' ? (
-																	<span className="ems-status-badge ems-status-badge--pending">
-																		Invite
-																	</span>
-																) : (
-																	<span className="description" style={{ color: '#666' }}>
-																		None
-																	</span>
-																)}
-															</td>
-															<td>
-																{inv.inconsistency ? (
-																	<span className="ems-warning-callout" style={{ display: 'inline-block', margin: 0, padding: '2px 8px', borderRadius: '4px' }}>
-																		⚠ {inv.inconsistency}
-																	</span>
-																) : (
-																	<span className="description" style={{ color: '#999' }}>
-																		—
-																	</span>
-																)}
-															</td>
-														</tr>
-													))}
-												</tbody>
-											</table>
-										) : (
-											<p className="description">No new invitations to send for this event.</p>
-										)}
+									<div key={idx} style={{ marginBottom: '30px', borderBottom: '1px solid #ccd0d4', paddingBottom: '20px' }}>
+										<h3 style={{ margin: '0 0 12px 0', fontSize: '15px' }}>
+											EMS Expedition: <strong style={{ color: '#2271b1' }}>{ev.expedition_name}</strong>
+											<span style={{ color: '#646970', fontWeight: 'normal', fontSize: '13px', marginLeft: '12px' }}>
+												(Linked to OSM Event: <strong>{ev.osm_event_name}</strong> — ID: {ev.event_id})
+											</span>
+										</h3>
+
+										{(() => {
+											const invites = ev.proposed_invites.filter(inv => inv.action === 'Invite');
+											const alerts = ev.proposed_invites.filter(inv => inv.inconsistency && inv.action !== 'Invite');
+											const consistent = ev.proposed_invites.filter(inv => !inv.inconsistency && inv.action === 'None');
+
+											if (ev.proposed_invites.length === 0) {
+												return <p className="description">No members assigned to this event.</p>;
+											}
+
+											return (
+												<div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingLeft: '15px' }}>
+													{/* 1. Pushback Actions */}
+													{invites.length > 0 && (
+														<div>
+															<h4 style={{ color: '#b25e00', margin: '0 0 8px 0', fontSize: '13px' }}>
+																➜ Pushback Actions to Perform ({invites.length})
+															</h4>
+															<table className="wp-list-table widefat fixed striped">
+																<thead>
+																	<tr>
+																		<th style={{ width: '10%' }}>Scout ID</th>
+																		<th style={{ width: '25%' }}>Name</th>
+																		<th style={{ width: '20%' }}>EMS Team Assigned</th>
+																		<th style={{ width: '25%' }}>OSM Attendance Status</th>
+																		<th style={{ width: '20%' }}>Pushback Action</th>
+																	</tr>
+																</thead>
+																<tbody>
+																	{invites.map((inv, invIdx) => (
+																		<tr key={invIdx}>
+																			<td>{inv.scout_id}</td>
+																			<td>{inv.first_name} {inv.last_name}</td>
+																			<td>
+																				<span className="ems-status-badge ems-status-badge--success">Yes</span>
+																			</td>
+																			<td>
+																				<span className={`ems-status-badge ${getStatusBadgeClass(inv.status)}`}>
+																					{formatStatus(inv.status)}
+																				</span>
+																			</td>
+																			<td>
+																				<span className="ems-status-badge ems-status-badge--pending">Invite</span>
+																			</td>
+																		</tr>
+																	))}
+																</tbody>
+															</table>
+														</div>
+													)}
+
+													{/* 2. Alerts & Mismatches */}
+													{alerts.length > 0 && (
+														<div>
+															<h4 style={{ color: '#d63638', margin: '0 0 8px 0', fontSize: '13px' }}>
+																⚠ Warnings & Mismatches ({alerts.length})
+															</h4>
+															<table className="wp-list-table widefat fixed striped">
+																<thead>
+																	<tr>
+																		<th style={{ width: '10%' }}>Scout ID</th>
+																		<th style={{ width: '20%' }}>Name</th>
+																		<th style={{ width: '15%' }}>EMS Assigned</th>
+																		<th style={{ width: '20%' }}>OSM Status</th>
+																		<th style={{ width: '35%' }}>Alert / Mismatch</th>
+																	</tr>
+																</thead>
+																<tbody>
+																	{alerts.map((inv, invIdx) => (
+																		<tr key={invIdx} style={{ backgroundColor: '#fffcf0' }}>
+																			<td>{inv.scout_id}</td>
+																			<td>{inv.first_name} {inv.last_name}</td>
+																			<td>
+																				<span className={`ems-status-badge ems-status-badge--${inv.in_ems ? 'success' : 'danger'}`}>
+																					{inv.in_ems ? 'Yes' : 'No'}
+																				</span>
+																			</td>
+																			<td>
+																				<span className={`ems-status-badge ${getStatusBadgeClass(inv.status)}`}>
+																					{formatStatus(inv.status)}
+																				</span>
+																			</td>
+																			<td>
+																				<span className="ems-error-callout" style={{ display: 'inline-block', margin: 0, padding: '2px 8px', borderRadius: '4px' }}>
+																					⚠ {inv.inconsistency}
+																				</span>
+																			</td>
+																		</tr>
+																	))}
+																</tbody>
+															</table>
+														</div>
+													)}
+
+													{/* 3. Already Synced */}
+													{consistent.length > 0 && (
+														<div>
+															<h4 style={{ color: '#00a32a', margin: '0 0 8px 0', fontSize: '13px' }}>
+																✓ Already Synced / Consistent ({consistent.length})
+															</h4>
+															<table className="wp-list-table widefat fixed striped">
+																<thead>
+																	<tr>
+																		<th style={{ width: '10%' }}>Scout ID</th>
+																		<th style={{ width: '25%' }}>Name</th>
+																		<th style={{ width: '20%' }}>EMS Assigned</th>
+																		<th style={{ width: '25%' }}>OSM Status</th>
+																		<th style={{ width: '20%' }}>Status</th>
+																	</tr>
+																</thead>
+																<tbody>
+																	{consistent.map((inv, invIdx) => (
+																		<tr key={invIdx}>
+																			<td>{inv.scout_id}</td>
+																			<td>{inv.first_name} {inv.last_name}</td>
+																			<td>
+																				<span className="ems-status-badge ems-status-badge--success">Yes</span>
+																			</td>
+																			<td>
+																				<span className={`ems-status-badge ${getStatusBadgeClass(inv.status)}`}>
+																					{formatStatus(inv.status)}
+																				</span>
+																			</td>
+																			<td>
+																				<span className="description" style={{ color: '#666' }}>In Sync</span>
+																			</td>
+																		</tr>
+																	))}
+																</tbody>
+															</table>
+														</div>
+													)}
+												</div>
+											);
+										})()}
 									</div>
-								))
 							) : (
 								<p className="description">No event attendance updates proposed.</p>
 							)}

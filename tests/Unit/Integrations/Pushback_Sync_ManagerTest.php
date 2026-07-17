@@ -20,6 +20,7 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 		$this->wpdb->prefix = 'wp_';
 		$this->wpdb->last_error = '';
 		$this->wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( fn( $sql, ...$args ) => vsprintf( str_replace( '%d', '%s', $sql ), $args ) );
+		$this->wpdb->shouldReceive( 'get_row' )->byDefault()->andReturn( (object) [ 'name' => 'Mock OSM Event' ] );
 		$GLOBALS['wpdb'] = $this->wpdb;
 
 		// Mock default OIDC / startup calls
