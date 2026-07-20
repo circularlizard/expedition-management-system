@@ -195,10 +195,22 @@ class OIDC_Login_Handler {
 				if ( empty( $email ) ) {
 					try {
 						$detail = $this->api_client->get_member_detail( (int) $section_id, $scout_id, (int) $term['term_id'] );
-						error_log( '[EMS Debug] Raw email payload from get_member_detail: ' . print_r( $detail, true ) );
+						$log_guard = (int) get_option( 'ems_debug_log_guard', 0 );
+						if ( $log_guard ) {
+							$safe_detail = $detail;
+							if ( isset( $safe_detail['email'] ) ) { $safe_detail['email'] = '[REDACTED]'; }
+							if ( isset( $safe_detail['parent_email'] ) ) { $safe_detail['parent_email'] = '[REDACTED]'; }
+							error_log( '[EMS Debug] Raw email payload from get_member_detail: ' . print_r( $safe_detail, true ) );
+						} else {
+							error_log( '[EMS Debug] Raw email payload from get_member_detail: ' . print_r( $detail, true ) );
+						}
 						$email        = $detail['email'] ?? '';
 						$parent_email = $detail['parent_email'] ?? '';
-						error_log( '[EMS Debug] get_member_detail successful for ' . $scout_id . '. Email: ' . $email . ', Parent Email: ' . $parent_email );
+						if ( $log_guard ) {
+							error_log( '[EMS Debug] get_member_detail successful for ' . $scout_id . '. Email: [REDACTED], Parent Email: [REDACTED]' );
+						} else {
+							error_log( '[EMS Debug] get_member_detail successful for ' . $scout_id . '. Email: ' . $email . ', Parent Email: ' . $parent_email );
+						}
 					} catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception | \EMS\Integrations\Exceptions\Rate_Limit_Exception $e ) {
 						error_log( '[EMS] Critical API error fetching email: ' . $e->getMessage() . '. Aborting child metadata enrichment.' );
 						break 2;
@@ -211,9 +223,21 @@ class OIDC_Login_Handler {
 				if ( empty( $dob ) ) {
 					try {
 						$contact = $this->api_client->get_individual( (int) $section_id, $scout_id, (int) $term['term_id'] );
-						error_log( '[EMS Debug] Raw contact payload from get_individual: ' . print_r( $contact, true ) );
+						$log_guard = (int) get_option( 'ems_debug_log_guard', 0 );
+						if ( $log_guard ) {
+							$safe_contact = $contact;
+							if ( isset( $safe_contact['dob'] ) ) { $safe_contact['dob'] = '[REDACTED]'; }
+							if ( isset( $safe_contact['birthdate'] ) ) { $safe_contact['birthdate'] = '[REDACTED]'; }
+							error_log( '[EMS Debug] Raw contact payload from get_individual: ' . print_r( $safe_contact, true ) );
+						} else {
+							error_log( '[EMS Debug] Raw contact payload from get_individual: ' . print_r( $contact, true ) );
+						}
 						$dob = $contact['dob'] ?? '';
-						error_log( '[EMS Debug] get_individual successful for ' . $scout_id . '. DOB: ' . $dob );
+						if ( $log_guard ) {
+							error_log( '[EMS Debug] get_individual successful for ' . $scout_id . '. DOB: [REDACTED]' );
+						} else {
+							error_log( '[EMS Debug] get_individual successful for ' . $scout_id . '. DOB: ' . $dob );
+						}
 					} catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception | \EMS\Integrations\Exceptions\Rate_Limit_Exception $e ) {
 						error_log( '[EMS] Critical API error fetching DOB: ' . $e->getMessage() . '. Aborting child metadata enrichment.' );
 						break 2;

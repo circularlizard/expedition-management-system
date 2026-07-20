@@ -30,6 +30,9 @@ class Settings_Page {
 
 		$limit = max( 1, (int) ( $post_data['ems_sync_limit'] ?? 5 ) );
 		update_option( 'ems_sync_limit', $limit );
+
+		$log_guard = isset( $post_data['ems_debug_log_guard'] ) ? 1 : 0;
+		update_option( 'ems_debug_log_guard', $log_guard );
 	}
 
 	public function save_connection( array $post_data ): void {
@@ -113,6 +116,10 @@ class Settings_Page {
 			$this->save_unit_leaders( $_POST );
 		} elseif ( isset( $_POST['ems_save_form_mappings'] ) && check_admin_referer( 'ems_settings_form_mappings' ) ) {
 			$this->save_form_mappings( $_POST );
+		} elseif ( isset( $_POST['ems_import_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
+			$this->handle_import();
+		} elseif ( isset( $_POST['ems_export_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
+			$this->handle_export();
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'sections';
@@ -141,6 +148,10 @@ class Settings_Page {
 					class="nav-tab<?php echo $active_tab === 'form_mappings' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Form Mappings', 'ems-plugin' ); ?>
 				</a>
+				<a href="<?php echo esc_url( $page_url . '&tab=backups' ); ?>"
+					class="nav-tab<?php echo $active_tab === 'backups' ? ' nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Backups', 'ems-plugin' ); ?>
+				</a>
 				<a href="<?php echo esc_url( $page_url . '&tab=audit_logs' ); ?>"
 					class="nav-tab<?php echo $active_tab === 'audit_logs' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Audit Logs', 'ems-plugin' ); ?>
@@ -155,6 +166,8 @@ class Settings_Page {
 				$this->render_unit_leaders_tab();
 			} elseif ( $active_tab === 'form_mappings' ) {
 				$this->render_form_mappings_tab();
+			} elseif ( $active_tab === 'backups' ) {
+				$this->render_backups_tab();
 			} elseif ( $active_tab === 'audit_logs' ) {
 				$this->render_audit_logs_tab();
 			} else {
@@ -200,6 +213,15 @@ class Settings_Page {
 					<td>
 						<input type="number" name="ems_sync_limit" value="<?php echo esc_attr( $limit ); ?>" min="1" max="100" class="small-text" />
 						<p class="description"><?php esc_html_e( 'Maximum members to sync per section in live-limited mode.', 'ems-plugin' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Sensitive Log Guarding', 'ems-plugin' ); ?></th>
+					<td>
+						<label>
+							<input type="checkbox" name="ems_debug_log_guard" value="1" <?php checked( get_option( 'ems_debug_log_guard', 0 ), 1 ); ?> />
+							<?php esc_html_e( 'Guard metadata enrichment logs (redact child emails & DOBs in system logs).', 'ems-plugin' ); ?>
+						</label>
 					</td>
 				</tr>
 			</table>
@@ -949,6 +971,81 @@ class Settings_Page {
 					<a href="<?php echo esc_url( $page_url . '&paged=' . ( $paged + 1 ) . $link_params ); ?>" class="button"><?php esc_html_e( 'Next »', 'ems-plugin' ); ?></a>
 				<?php endif; ?>
 			</div>
+		</div>
+		<?php
+	}
+
+	private function handle_export(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$engine = new \EMS\Core\Portability_Engine();
+		$json   = $engine->export_data();
+		$filename = 'ems-backup-' . current_time( 'Y-md-His' ) . '.json';
+
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Pragma: no-cache' );
+		header( 'Expires: 0' );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $json;
+		exit;
+	}
+
+	private function handle_import(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		if ( empty( $_FILES['ems_backup_file']['tmp_name'] ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Please upload a backup file.', 'ems-plugin' ) . '</p></div>';
+			return;
+		}
+
+		try {
+			$file_path = sanitize_text_field( wp_unslash( $_FILES['ems_backup_file']['tmp_name'] ) );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			$content = file_get_contents( $file_path );
+			if ( ! $content ) {
+				throw new \Exception( 'Failed to read uploaded file.' );
+			}
+
+			$engine = new \EMS\Core\Portability_Engine();
+			$engine->import_data( $content );
+
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'EMS backup restored and replicated successfully.', 'ems-plugin' ) . '</p></div>';
+		} catch ( \Exception $e ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sprintf( __( 'Restore failed: %s', 'ems-plugin' ), $e->getMessage() ) ) . '</p></div>';
+		}
+	}
+
+	private function render_backups_tab(): void {
+		?>
+		<div class="card" style="max-width: 600px; padding: 20px; margin-top: 20px;">
+			<h2><?php esc_html_e( 'Export EMS Configuration & Data', 'ems-plugin' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Download a single unified JSON backup file containing all custom database tables (units, signups, events, explorers) and plugin options.', 'ems-plugin' ); ?>
+			</p>
+			<form method="post">
+				<?php wp_nonce_field( 'ems_settings_backups' ); ?>
+				<input type="submit" name="ems_export_backup" class="button button-primary" value="<?php esc_attr_e( 'Download Backup (.json)', 'ems-plugin' ); ?>" />
+			</form>
+		</div>
+
+		<div class="card" style="max-width: 600px; padding: 20px; margin-top: 20px;">
+			<h2><?php esc_html_e( 'Import & Replicate Environment', 'ems-plugin' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Upload an EMS JSON backup file. Warning: This will truncate current tables and restore the settings and data from the backup file.', 'ems-plugin' ); ?>
+			</p>
+			<form method="post" enctype="multipart/form-data">
+				<?php wp_nonce_field( 'ems_settings_backups' ); ?>
+				<p>
+					<input type="file" name="ems_backup_file" accept=".json" required />
+				</p>
+				<input type="submit" name="ems_import_backup" class="button button-secondary" value="<?php esc_attr_e( 'Upload & Restore', 'ems-plugin' ); ?>" onclick="return confirm('<?php esc_attr_e( 'Are you sure? This will overwrite all current EMS data.', 'ems-plugin' ); ?>');" />
+			</form>
 		</div>
 		<?php
 	}
