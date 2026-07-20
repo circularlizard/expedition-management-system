@@ -422,4 +422,77 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 
 		$this->assertSame( 73848, $flexi_id );
 	}
+
+	public function test_execute_sync_calls_update_endpoints_for_updates_and_invitations(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_writeback_section_id' ) return 101;
+			if ( $key === 'ems_osm_writeback_flexi_record_id' ) return 73848;
+			if ( $key === 'ems_managed_sections' ) return [ 101 => [ 'name' => 'Explorers', 'type' => 'explorers' ] ];
+			return $default;
+		} );
+
+		$this->api_client->shouldReceive( 'get_flexi_records' )
+			->with( 101 )
+			->andReturn( [ [ 'id' => 73848, 'name' => '2026 Expeditions' ] ] );
+
+		$this->api_client->shouldReceive( 'get_flexi_record_structure' )
+			->with( 101, 73848 )
+			->andReturn( [
+				'config' => json_encode( [
+					[ 'id' => 'f_9', 'name' => 'PRACTICE GROUPS' ],
+					[ 'id' => 'f_10', 'name' => 'PRACTICE ACCEPTED' ],
+					[ 'id' => 'f_11', 'name' => 'QUALIFIER GROUPS' ],
+					[ 'id' => 'f_12', 'name' => 'QUALIFIER ACCEPTED' ],
+					[ 'id' => 'f_18', 'name' => 'TRAINING DAY' ],
+					[ 'id' => 'f_13', 'name' => 'FIRST AID' ]
+				] )
+			] );
+
+		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [] ] );
+
+		$this->wpdb->shouldReceive( 'get_results' )->andReturnUsing( function( $query ) {
+			if ( strpos( $query, 'ems_team_members' ) !== false ) {
+				return [
+					(object) [
+						'scout_id' => 30001,
+						'first_name' => 'Alice',
+						'last_name' => 'Smith',
+						'team_code' => 'HGP1-1',
+						'event_type' => 'practice',
+						'osm_event_id' => 50001,
+						'event_date' => '2026-05-29',
+						'first_aid_level' => '',
+						'section_id' => 101,
+						'event_code' => 'HGP1'
+					]
+				];
+			}
+			return [];
+		} );
+
+		$this->api_client->shouldReceive( 'get_event_attendance' )
+			->with( 50001, 5001 )
+			->andReturn( [ [ 'member_id' => 30001, 'attending' => null ] ] );
+
+		$this->api_client->shouldReceive( 'update_flexi_record_data' )
+			->with( 101, 73848, [ 'scouts' => [ 30001 ], 'col' => 'f_9', 'value' => 'HGP1-1' ] )
+			->once()
+			->andReturn( [ 'error' => false ] );
+
+		$this->api_client->shouldReceive( 'update_flexi_record_data' )
+			->with( 101, 73848, [ 'scouts' => [ 30001 ], 'col' => 'f_10', 'value' => 'HGP1 29/5' ] )
+			->once()
+			->andReturn( [ 'error' => false ] );
+
+		$this->api_client->shouldReceive( 'update_event_attendance' )
+			->with( 101, 50001, [ 30001 ] )
+			->once()
+			->andReturn( [ 'error' => false ] );
+
+		$manager = new Pushback_Sync_Manager( $this->api_client );
+		$result = $manager->execute_sync( 101 );
+
+		$this->assertSame( 2, $result['flexi_updates_count'] );
+		$this->assertSame( 1, $result['event_invites_count'] );
+	}
 }
