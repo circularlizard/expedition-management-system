@@ -92,11 +92,15 @@ class Sync_Preview_Controller {
 		}
 
 		try {
-			$this->sync_manager->ensure_flexi_record( $section_id );
+			$result = $this->sync_manager->execute_sync( $section_id );
 			return new \WP_REST_Response(
 				array(
 					'success' => true,
-					'message' => 'Flexi-record created/verified successfully.',
+					'message' => sprintf(
+						'Push-back sync completed. Updated %d flexi-record fields and invited %d members.',
+						$result['flexi_updates_count'],
+						$result['event_invites_count']
+					),
 				),
 				200
 			);

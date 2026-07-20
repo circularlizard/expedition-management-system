@@ -436,4 +436,75 @@ class Pushback_Sync_Manager {
 
 		return $flexi_id;
 	}
+
+	/**
+	 * Executes the sync push by pushing all computed flexi-record updates and event invitations to OSM.
+	 *
+	 * @param int $section_id
+	 * @return array
+	 * @throws \Exception
+	 */
+	public function execute_sync( int $section_id ): array {
+		$flexi_id = $this->ensure_flexi_record( $section_id );
+		$preview  = $this->get_preview( $section_id );
+
+		$flexi_updates_count = 0;
+		$event_invites_count = 0;
+
+		// 1. Process flexi-record updates
+		$updates = $preview['flexi_record']['updates'] ?? array();
+		if ( ! empty( $updates ) ) {
+			// Group updates by column and value
+			$grouped_updates = array();
+			foreach ( $updates as $up ) {
+				$col      = $up['column'];
+				$val      = $up['proposed_value'];
+				$scout_id = (int) $up['scout_id'];
+				$grouped_updates[ $col ][ $val ][] = $scout_id;
+			}
+
+			// Perform batch update for each col/val combo
+			foreach ( $grouped_updates as $col => $values_map ) {
+				foreach ( $values_map as $val => $scout_ids ) {
+					$this->api_client->update_flexi_record_data(
+						$section_id,
+						$flexi_id,
+						array(
+							'scouts' => $scout_ids,
+							'col'    => $col,
+							'value'  => $val,
+						)
+					);
+					$flexi_updates_count += count( $scout_ids );
+				}
+			}
+		}
+
+		// 2. Process event invitations
+		$events = $preview['events'] ?? array();
+		foreach ( $events as $ev ) {
+			$event_id   = (int) $ev['event_id'];
+			$invite_ids = array();
+			foreach ( $ev['proposed_invites'] as $invite ) {
+				if ( $invite['action'] === 'Invite' ) {
+					$invite_ids[] = (int) $invite['scout_id'];
+				}
+			}
+
+			if ( ! empty( $invite_ids ) ) {
+				$this->api_client->update_event_attendance(
+					$section_id,
+					$event_id,
+					$invite_ids
+				);
+				$event_invites_count += count( $invite_ids );
+			}
+		}
+
+		return array(
+			'success'             => true,
+			'flexi_updates_count' => $flexi_updates_count,
+			'event_invites_count' => $event_invites_count,
+		);
+	}
 }
