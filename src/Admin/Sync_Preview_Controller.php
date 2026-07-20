@@ -24,6 +24,16 @@ class Sync_Preview_Controller {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+
+		register_rest_route(
+			'ems/v1/admin',
+			'/sync-push',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'execute_sync_push' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 
 	public function check_permission(): bool {
@@ -56,5 +66,46 @@ class Sync_Preview_Controller {
 		$preview = $this->sync_manager->get_preview( $section_id );
 
 		return new \WP_REST_Response( $preview, 200 );
+	}
+
+	public function execute_sync_push( \WP_REST_Request $request ) {
+		if ( ! $this->check_permission() ) {
+			return new \WP_Error(
+				'ems_forbidden',
+				'You do not have permission to execute sync push.',
+				array( 'status' => 403 )
+			);
+		}
+
+		$section_id = (int) $request->get_param( 'section_id' );
+		if ( ! $section_id ) {
+			return new \WP_Error(
+				'ems_missing_parameter',
+				'Missing required parameter: section_id',
+				array( 'status' => 400 )
+			);
+		}
+
+		$token = $request->get_param( 'access_token' );
+		if ( $token ) {
+			$this->api_client->set_access_token( $token );
+		}
+
+		try {
+			$this->sync_manager->ensure_flexi_record( $section_id );
+			return new \WP_REST_Response(
+				array(
+					'success' => true,
+					'message' => 'Flexi-record created/verified successfully.',
+				),
+				200
+			);
+		} catch ( \Exception $e ) {
+			return new \WP_Error(
+				'ems_sync_failed',
+				$e->getMessage(),
+				array( 'status' => 500 )
+			);
+		}
 	}
 }

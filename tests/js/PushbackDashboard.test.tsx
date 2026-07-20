@@ -68,7 +68,7 @@ describe('PushbackDashboard', () => {
 			expect(screen.getByText(/Flexi-Record: 2026 Expeditions/)).toBeInTheDocument();
 			expect(screen.getAllByText(/Alice Smith/)[0]).toBeInTheDocument();
 			expect(screen.getByText('HGP1-2')).toBeInTheDocument();
-			expect(screen.getByText(/OSM Event ID: 50001/)).toBeInTheDocument();
+			expect(screen.getByText(/ID: 50001/)).toBeInTheDocument();
 			expect(screen.getByText('Testing diagnostic log warning.')).toBeInTheDocument();
 		});
 	});
@@ -108,6 +108,35 @@ describe('PushbackDashboard', () => {
 
 		await waitFor(() => {
 			expect(screen.getByText('Refreshed log error')).toBeInTheDocument();
+		});
+	});
+
+	it('executes push-back sync and refreshes preview', async () => {
+		(global.fetch as any)
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockPreviewData
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ success: true, message: 'Sync successful!' })
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ ...mockPreviewData, errors: [] })
+			});
+
+		render(<PushbackDashboard />);
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: /Execute Push-back Sync/ })).toBeInTheDocument();
+		});
+
+		const syncButton = screen.getByRole('button', { name: /Execute Push-back Sync/ });
+		fireEvent.click(syncButton);
+
+		await waitFor(() => {
+			expect(screen.getByText('Sync successful!')).toBeInTheDocument();
 		});
 	});
 });

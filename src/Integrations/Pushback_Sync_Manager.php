@@ -314,4 +314,99 @@ class Pushback_Sync_Manager {
 
 		return $preview;
 	}
+
+	public function get_flexi_record_id( int $section_id ): ?int {
+		$writeback_section = (int) get_option( 'ems_writeback_section_id', 0 );
+		if ( $section_id === $writeback_section ) {
+			$flexi_id = get_option( 'ems_osm_writeback_flexi_record_id', false );
+		} else {
+			$flexi_id = get_option( 'ems_osm_flexi_record_' . $section_id, false );
+		}
+		return $flexi_id ? (int) $flexi_id : null;
+	}
+
+	public function update_flexi_record_id( int $section_id, int $flexi_id ): void {
+		$writeback_section = (int) get_option( 'ems_writeback_section_id', 0 );
+		if ( $section_id === $writeback_section ) {
+			update_option( 'ems_osm_writeback_flexi_record_id', $flexi_id );
+		}
+		update_option( 'ems_osm_flexi_record_' . $section_id, $flexi_id );
+	}
+
+	/**
+	 * Ensures the flexi-record exists on OSM for the given section and has all required columns.
+	 *
+	 * @param int $section_id
+	 * @return int The flexi-record ID
+	 */
+	public function ensure_flexi_record( int $section_id ): int {
+		$flexi_id = $this->get_flexi_record_id( $section_id );
+
+		// Verify existence on OSM if ID is stored
+		$exists_on_osm = false;
+		if ( $flexi_id ) {
+			try {
+				$records = $this->api_client->get_flexi_records( $section_id );
+				foreach ( $records as $rec ) {
+					if ( (int) ( $rec['id'] ?? 0 ) === $flexi_id ) {
+						$exists_on_osm = true;
+						break;
+					}
+				}
+			} catch ( \Exception $e ) {
+				$exists_on_osm = false;
+			}
+		}
+
+		// If it doesn't exist, check by name "2026 Expeditions" or create it
+		if ( ! $exists_on_osm ) {
+			$records = $this->api_client->get_flexi_records( $section_id );
+			$found_id = null;
+			foreach ( $records as $rec ) {
+				if ( ( $rec['name'] ?? '' ) === '2026 Expeditions' ) {
+					$found_id = (int) $rec['id'];
+					break;
+				}
+			}
+
+			if ( $found_id ) {
+				$flexi_id = $found_id;
+				$this->update_flexi_record_id( $section_id, $flexi_id );
+			} else {
+				// Create a new flexi record
+				$response = $this->api_client->create_flexi_record( $section_id, '2026 Expeditions' );
+				$flexi_id = (int) ( $response['id'] ?? 0 );
+				if ( ! $flexi_id ) {
+					throw new \Exception( 'Failed to create flexi-record on OSM.' );
+				}
+				$this->update_flexi_record_id( $section_id, $flexi_id );
+			}
+		}
+
+		// Now ensure columns exist
+		$struct = $this->api_client->get_flexi_record_structure( $section_id, $flexi_id );
+		$config = json_decode( $struct['config'] ?? '[]', true ) ?: array();
+
+		$mapped_cols = array();
+		foreach ( $config as $col ) {
+			$mapped_cols[ strtoupper( $col['name'] ?? '' ) ] = $col['id'] ?? '';
+		}
+
+		$required_cols = array(
+			'PRACTICE GROUPS',
+			'PRACTICE ACCEPTED',
+			'QUALIFIER GROUPS',
+			'QUALIFIER ACCEPTED',
+			'TRAINING DAY',
+			'FIRST AID',
+		);
+
+		foreach ( $required_cols as $req ) {
+			if ( ! isset( $mapped_cols[ $req ] ) ) {
+				$this->api_client->add_flexi_record_column( $section_id, $flexi_id, $req );
+			}
+		}
+
+		return $flexi_id;
+	}
 }

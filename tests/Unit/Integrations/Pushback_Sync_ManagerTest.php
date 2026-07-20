@@ -321,4 +321,89 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 		$this->assertSame( 'None', $bob['action'] );
 		$this->assertSame( 'Attending in OSM but not assigned in EMS', $bob['inconsistency'] );
 	}
+
+	public function test_ensure_flexi_record_creates_if_not_exists(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_writeback_section_id' ) return 101;
+			if ( $key === 'ems_osm_writeback_flexi_record_id' ) return false;
+			return $default;
+		} );
+
+		$stored = [];
+		Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+
+		// get_flexi_records returns no records with 2026 Expeditions name initially
+		$this->api_client->shouldReceive( 'get_flexi_records' )
+			->with( 101 )
+			->once()
+			->andReturn( [] );
+
+		// create_flexi_record is called
+		$this->api_client->shouldReceive( 'create_flexi_record' )
+			->with( 101, '2026 Expeditions' )
+			->once()
+			->andReturn( [ 'id' => 75534 ] );
+
+		// get_flexi_record_structure returns config with f_9 and f_10 columns, missing others
+		$this->api_client->shouldReceive( 'get_flexi_record_structure' )
+			->with( 101, 75534 )
+			->once()
+			->andReturn( [
+				'config' => json_encode( [
+					[ 'id' => 'f_9', 'name' => 'PRACTICE GROUPS' ],
+					[ 'id' => 'f_10', 'name' => 'PRACTICE ACCEPTED' ],
+					[ 'id' => 'f_11', 'name' => 'QUALIFIER GROUPS' ],
+					[ 'id' => 'f_12', 'name' => 'QUALIFIER ACCEPTED' ],
+					[ 'id' => 'f_18', 'name' => 'TRAINING DAY' ],
+					[ 'id' => 'f_13', 'name' => 'FIRST AID' ]
+				] )
+			] );
+
+		$manager = new Pushback_Sync_Manager( $this->api_client );
+		$flexi_id = $manager->ensure_flexi_record( 101 );
+
+		$this->assertSame( 75534, $flexi_id );
+		$this->assertSame( 75534, $stored['ems_osm_writeback_flexi_record_id'] );
+		$this->assertSame( 75534, $stored['ems_osm_flexi_record_101'] );
+	}
+
+	public function test_ensure_flexi_record_adds_missing_columns(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_writeback_section_id' ) return 101;
+			if ( $key === 'ems_osm_writeback_flexi_record_id' ) return 73848;
+			return $default;
+		} );
+
+		$this->api_client->shouldReceive( 'get_flexi_records' )
+			->with( 101 )
+			->once()
+			->andReturn( [ [ 'id' => 73848, 'name' => '2026 Expeditions' ] ] );
+
+		// missing QUALIFIER GROUPS and FIRST AID
+		$this->api_client->shouldReceive( 'get_flexi_record_structure' )
+			->with( 101, 73848 )
+			->once()
+			->andReturn( [
+				'config' => json_encode( [
+					[ 'id' => 'f_9', 'name' => 'PRACTICE GROUPS' ],
+					[ 'id' => 'f_10', 'name' => 'PRACTICE ACCEPTED' ],
+					[ 'id' => 'f_12', 'name' => 'QUALIFIER ACCEPTED' ],
+					[ 'id' => 'f_18', 'name' => 'TRAINING DAY' ]
+				] )
+			] );
+
+		// Expectations to create the missing columns
+		$this->api_client->shouldReceive( 'add_flexi_record_column' )
+			->with( 101, 73848, 'QUALIFIER GROUPS' )
+			->once();
+
+		$this->api_client->shouldReceive( 'add_flexi_record_column' )
+			->with( 101, 73848, 'FIRST AID' )
+			->once();
+
+		$manager = new Pushback_Sync_Manager( $this->api_client );
+		$flexi_id = $manager->ensure_flexi_record( 101 );
+
+		$this->assertSame( 73848, $flexi_id );
+	}
 }

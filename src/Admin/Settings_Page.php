@@ -80,6 +80,8 @@ class Settings_Page {
 			}
 		}
 		update_option( 'ems_managed_sections', $sections );
+		$writeback_id = isset( $post_data['ems_writeback_section_id'] ) ? (int) $post_data['ems_writeback_section_id'] : 0;
+		update_option( 'ems_writeback_section_id', $writeback_id );
 	}
 
 	/**
@@ -257,7 +259,7 @@ class Settings_Page {
 		$token_url    = get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
 		$resource_url = get_option( 'ems_osm_resource_url', 'https://www.onlinescoutmanager.co.uk/oauth/resource' );
 		$client_id    = get_option( 'ems_osm_client_id', '' );
-		$scope        = get_option( 'ems_osm_scope', 'section:member:read section:event:read section:flexirecord:read' );
+		$scope        = get_option( 'ems_osm_scope', 'section:member:read section:event:write section:flexirecord:write' );
 		$has_secret   = ! empty( get_option( 'ems_osm_client_secret' ) );
 		$redirect_uri = admin_url( 'admin-post.php?action=ems_osm_callback' );
 		?>
@@ -339,13 +341,16 @@ class Settings_Page {
 			<div class="notice notice-info inline"><p>
 				<?php esc_html_e( 'No section list cached yet. Click "Fetch sections from OSM" above to populate this list.', 'ems-plugin' ); ?>
 			</p></div>
-		<?php else : ?>
+		<?php else :
+			$writeback_id = (int) get_option( 'ems_writeback_section_id', 0 );
+			?>
 		<form method="post">
 			<?php wp_nonce_field( 'ems_settings_sections' ); ?>
 			<table class="wp-list-table widefat fixed striped">
 				<thead>
 					<tr>
-						<th style="width:40px"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
+						<th style="width:70px"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
+						<th style="width:120px"><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
 						<th><?php esc_html_e( 'Section Name', 'ems-plugin' ); ?></th>
 						<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
 						<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
@@ -354,13 +359,15 @@ class Settings_Page {
 				<tbody>
 					<?php
 					foreach ( $available as $id => $data ) :
-						$id      = (int) $id;
-						$checked = isset( $managed[ $id ] );
-						$name    = esc_html( $data['name'] ?? '' );
-						$type    = esc_html( $data['type'] ?? '' );
+						$id            = (int) $id;
+						$checked       = isset( $managed[ $id ] );
+						$radio_checked = ( $writeback_id === $id );
+						$name          = esc_html( $data['name'] ?? '' );
+						$type          = esc_html( $data['type'] ?? '' );
 						?>
 					<tr>
 						<td><input type="checkbox" name="ems_managed_section_ids[]" value="<?php echo $id; ?>" <?php checked( $checked ); ?> /></td>
+						<td><input type="radio" name="ems_writeback_section_id" value="<?php echo $id; ?>" <?php checked( $radio_checked ); ?> /></td>
 						<td><?php echo $name; ?></td>
 						<td><?php echo $type; ?></td>
 						<td><code><?php echo $id; ?></code></td>
@@ -374,20 +381,26 @@ class Settings_Page {
 		</form>
 		<?php endif; ?>
 		<hr />
-		<?php if ( ! empty( $managed ) ) : ?>
+		<?php if ( ! empty( $managed ) ) :
+			$writeback_id = (int) get_option( 'ems_writeback_section_id', 0 );
+			?>
 		<h3><?php esc_html_e( 'Currently Managed', 'ems-plugin' ); ?></h3>
 		<table class="wp-list-table widefat fixed striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
 				<th><?php esc_html_e( 'Name', 'ems-plugin' ); ?></th>
 				<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
+				<th><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
 			</tr></thead>
 			<tbody>
-				<?php foreach ( $managed as $id => $data ) : ?>
+				<?php foreach ( $managed as $id => $data ) :
+					$is_target = ( (int) $id === $writeback_id );
+					?>
 				<tr>
 					<td><code><?php echo (int) $id; ?></code></td>
 					<td><?php echo esc_html( $data['name'] ?? '' ); ?></td>
 					<td><?php echo esc_html( $data['type'] ?? '' ); ?></td>
+					<td><?php echo $is_target ? '<strong>' . esc_html__( 'Yes', 'ems-plugin' ) . '</strong>' : 'No'; ?></td>
 				</tr>
 				<?php endforeach; ?>
 			</tbody>
