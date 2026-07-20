@@ -1,6 +1,6 @@
 # EMS Automated E2E Testing & Reviewer Guide Generation Plan
 
-This document outlines the strategy for implementing automated end-to-end (E2E) testing for the Expedition Management System (EMS) and generating an illustrated Reviewer's Guide for human testers.
+This document outlines the strategy for implementing automated end-to-end (E2E) testing for the Expedition Management System (EMS), executing an automated UI design audit, and generating an illustrated Reviewer's Guide for human testers.
 
 ---
 
@@ -54,7 +54,27 @@ To achieve deterministic test runs and completely avoid external rate limits, AP
 
 ---
 
-## 4. Automated Reviewer Guide Asset Generation
+## 4. Automated UI Design Audit (Custom AI Auditor)
+
+To ensure all screens (WordPress admin dashboard and the public website frontend portal) meet premium design aesthetics, we will implement an automated UI audit using a custom **Multimodal UI Design Auditor Subagent**.
+
+### 4.1 Stage 1: Define Design Audit Rules
+Before starting the audit, we must document the exact rules the agent should follow. These will be stored in `.agents/rules/ui-design-rules.md`:
+*   **Typography Hierarchy**: Font family choices, readable scaling, and line heights.
+*   **Color Palette Limits**: Verification that elements only use approved EMS branding colors (no generic browser-default reds or blues).
+*   **Spacing and Grid alignment**: Elements must align cleanly on a standard grid (e.g. consistent paddings, uniform margins, centered flex containers).
+*   **Interactive Contrast**: Buttons, hover states, and focus outlines must satisfy readability and accessibility guidelines.
+*   **Responsive Adaptation**: Mobile layouts must wrap text and stack grid columns without causing horizontal page overflow or clipping button texts.
+
+### 4.2 Stage 2: Capture Screenshots
+Playwright will execute the test suites and capture screenshots of all settings, dashboard views, portal layouts, and mobile viewport views, outputting them to a structured directory: `tests/ui-audit/screenshots/`.
+
+### 4.3 Stage 3: Agent Auditing & Reporting
+We will define and invoke a custom multimodal subagent (`UI_Design_Auditor`) that reads the screenshots, evaluates them against the defined UI rules, and generates a structured audit report (`docs/ui-design-audit-report.md`) detailing alignment issues, responsive layout breaks, or styling suggestions.
+
+---
+
+## 5. Automated Reviewer Guide Asset Generation
 
 To generate an illustrated Reviewer's Guide without manually taking screenshots:
 
@@ -64,7 +84,7 @@ To generate an illustrated Reviewer's Guide without manually taking screenshots:
 
 ---
 
-## 5. Implementation Steps
+## 6. Implementation Steps
 
 1.  **Setup Playwright**:
     *   Install `@playwright/test` and `playwright-bdd`.
@@ -72,8 +92,12 @@ To generate an illustrated Reviewer's Guide without manually taking screenshots:
 2.  **Align the Mock API Layer**:
     *   Extend `Mock_Driver` to ensure complete coverage for all new write operations.
     *   Seed the static mock JSON files with odd name and format cases.
-3.  **Develop Test Suite**:
+3.  **Define UI Design Audit Rules**:
+    *   Write the design checklist rules to `.agents/rules/ui-design-rules.md`.
+4.  **Develop Test Suite & Capturing**:
     *   Write spec `.feature` files in `tests/features/e2e/` focusing on edge cases and odd data.
-    *   Write TypeScript step definition files in `tests/e2e/steps/`.
-4.  **Write the Reviewer's Guide**:
+    *   Write TypeScript step definition files in `tests/e2e/steps/` capturing E2E screenshots.
+5.  **Run UI Audit Subagent**:
+    *   Invoke the custom `UI_Design_Auditor` subagent on the captured image directory to output the audit report.
+6.  **Write the Reviewer's Guide**:
     *   Create `docs/reviewer-guide.md` linking to generated images.
