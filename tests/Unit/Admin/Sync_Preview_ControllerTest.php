@@ -101,10 +101,14 @@ class Sync_Preview_ControllerTest extends EMSTestCase {
 			->with( 'test-oauth-token' )
 			->once();
 
-		$this->sync_manager->shouldReceive( 'ensure_flexi_record' )
+		$this->sync_manager->shouldReceive( 'execute_sync' )
 			->with( 101 )
 			->once()
-			->andReturn( 73848 );
+			->andReturn( [
+				'success' => true,
+				'flexi_updates_count' => 3,
+				'event_invites_count' => 2
+			] );
 
 		$request = new \WP_REST_Request( 'POST', '/ems/v1/admin/sync-push' );
 		$request->set_param( 'section_id', 101 );
@@ -114,5 +118,6 @@ class Sync_Preview_ControllerTest extends EMSTestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertTrue( $response->get_data()['success'] );
+		$this->assertStringContainsString( 'Updated 3 flexi-record fields and invited 2 members', $response->get_data()['message'] );
 	}
 }
