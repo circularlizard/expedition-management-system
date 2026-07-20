@@ -93,16 +93,29 @@ class Pushback_Sync_Manager {
 			$posts = $wpdb->posts;
 			$postmeta = $wpdb->postmeta;
 
-			$local_assignments = $wpdb->get_results(
+			$team_ids = $wpdb->get_col(
 				$wpdb->prepare(
+					"SELECT DISTINCT tm.team_post_id 
+					FROM {$t_members} tm
+					JOIN {$t_explorers} e ON e.scout_id = tm.scout_id
+					WHERE e.section_id = %d",
+					$section_id
+				)
+			) ?: array();
+
+			$local_assignments = array();
+			if ( ! empty( $team_ids ) ) {
+				$in_clause = implode( ',', array_map( 'intval', $team_ids ) );
+				$local_assignments = $wpdb->get_results(
 					"SELECT 
-						e.scout_id, e.first_name, e.last_name, e.first_aid_level,
+						e.scout_id, e.first_name, e.last_name, e.first_aid_level, e.section_id,
 						tm.team_post_id,
 						t.post_title as team_name,
 						m_code.meta_value as team_code,
 						m_event.meta_value as osm_event_id,
 						m_type.meta_value as event_type,
 						m_date.meta_value as event_date,
+						m_event_code.meta_value as event_code,
 						exp.post_title as expedition_name
 					FROM {$t_members} tm
 					JOIN {$t_explorers} e ON e.scout_id = tm.scout_id
@@ -112,10 +125,27 @@ class Pushback_Sync_Manager {
 					LEFT JOIN {$postmeta} m_event ON m_event.post_id = exp.ID AND m_event.meta_key = 'ems_osm_event_id'
 					LEFT JOIN {$postmeta} m_type ON m_type.post_id = exp.ID AND m_type.meta_key = 'ems_type'
 					LEFT JOIN {$postmeta} m_date ON m_date.post_id = exp.ID AND m_date.meta_key = 'ems_start_date'
-					WHERE e.section_id = %d AND t.post_type = 'team' AND t.post_status = 'publish'",
-					$section_id
-				)
-			) ?: array();
+					LEFT JOIN {$postmeta} m_event_code ON m_event_code.post_id = exp.ID AND m_event_code.meta_key = 'ems_event_code'
+					WHERE tm.team_post_id IN ({$in_clause}) AND t.post_type = 'team' AND t.post_status = 'publish'"
+				) ?: array();
+			}
+
+			$eligible_assignments = array();
+			foreach ( $local_assignments as $assign ) {
+				if ( (int) $assign->section_id !== $section_id ) {
+					$preview['errors'][] = sprintf(
+						'Explorer %s %s (Scout ID: %d) belongs to a different section (ID: %d). They must be added to the target section (ID: %d) to be synced.',
+						$assign->first_name,
+						$assign->last_name,
+						$assign->scout_id,
+						$assign->section_id,
+						$section_id
+					);
+					continue;
+				}
+				$eligible_assignments[] = $assign;
+			}
+			$local_assignments = $eligible_assignments;
 
 			// Group by Event ID to fetch event attendance
 			$event_to_assignments = array();
@@ -246,6 +276,7 @@ class Pushback_Sync_Manager {
 					foreach ( $assigns as $assign ) {
 						$type = $assign->event_type;
 						$code = $assign->team_code ?: $assign->team_name;
+						$event_code = $assign->event_code ?: '';
 						$date_str = $assign->event_date ? date( 'j/n', strtotime( $assign->event_date ) ) : '';
 
 						if ( $assign->first_aid_level ) {
@@ -254,10 +285,10 @@ class Pushback_Sync_Manager {
 
 						if ( $type === 'practice' ) {
 							$practice_team = $code;
-							$practice_accepted = trim( "{$code} {$date_str} N" ); // Default invitation status
+							$practice_accepted = trim( "{$event_code} {$date_str}" );
 						} elseif ( $type === 'qualifying' ) {
 							$qualifier_team = $code;
-							$qualifier_accepted = trim( "{$code} {$date_str} N" );
+							$qualifier_accepted = trim( "{$event_code} {$date_str}" );
 						} elseif ( $type === 'training' ) {
 							$training_day = $code;
 						}
@@ -280,15 +311,6 @@ class Pushback_Sync_Manager {
 						$col_key = $columns[ $col_name ];
 						$current = $osm_row[ $col_key ] ?? '';
 
-						// For accepted fields: if OSM already has a value ending in Y/N/Invited, check if the base team/date matches
-						if ( strpos( $col_name, 'ACCEPTED' ) !== false && $current !== '' ) {
-							// If the team and date matches but OSM has 'Y' or something else, do not override
-							$base_proposed = substr( $proposed_val, 0, -1 ); // strip the 'N'
-							if ( strpos( $current, trim( $base_proposed ) ) === 0 ) {
-								continue;
-							}
-						}
-
 						if ( $current !== $proposed_val ) {
 							$preview['flexi_record']['updates'][] = array(
 								'scout_id'       => $scout_id,
@@ -298,6 +320,7 @@ class Pushback_Sync_Manager {
 								'column_name'    => $col_name,
 								'current_value'  => $current,
 								'proposed_value' => $proposed_val,
+								'overwrite'      => ( $current !== '' ),
 							);
 						}
 					}

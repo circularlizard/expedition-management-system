@@ -21,6 +21,7 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 		$this->wpdb->last_error = '';
 		$this->wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( fn( $sql, ...$args ) => vsprintf( str_replace( '%d', '%s', $sql ), $args ) );
 		$this->wpdb->shouldReceive( 'get_row' )->byDefault()->andReturn( (object) [ 'name' => 'Mock OSM Event' ] );
+		$this->wpdb->shouldReceive( 'get_col' )->byDefault()->andReturn( [ 42 ] );
 		$GLOBALS['wpdb'] = $this->wpdb;
 
 		// Mock default OIDC / startup calls
@@ -128,7 +129,9 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 						'event_type' => 'practice',
 						'osm_event_id' => 50001,
 						'event_date' => '2026-05-29',
-						'first_aid_level' => 'first_response'
+						'first_aid_level' => 'first_response',
+						'section_id' => 101,
+						'event_code' => 'HGP1'
 					]
 				];
 			}
@@ -175,7 +178,9 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 						'event_type' => 'practice',
 						'osm_event_id' => 50001,
 						'event_date' => '2026-05-29',
-						'first_aid_level' => ''
+						'first_aid_level' => '',
+						'section_id' => 101,
+						'event_code' => 'HGP1'
 					]
 				];
 			}
@@ -234,7 +239,9 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 						'event_type' => 'practice',
 						'osm_event_id' => null,
 						'event_date' => '2026-05-29',
-						'first_aid_level' => ''
+						'first_aid_level' => '',
+						'section_id' => 101,
+						'event_code' => 'HGP1'
 					]
 				];
 			}
@@ -250,6 +257,13 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 		$this->assertSame( 'f_9', $update['column'] );
 		$this->assertSame( 'HGP1-1', $update['current_value'] );
 		$this->assertSame( 'HGP1-2', $update['proposed_value'] );
+		$this->assertTrue( $update['overwrite'] );
+
+		$update_accepted = $preview['flexi_record']['updates'][1];
+		$this->assertSame( 'f_10', $update_accepted['column'] );
+		$this->assertSame( 'HGP1-1 29/5 Y', $update_accepted['current_value'] );
+		$this->assertSame( 'HGP1 29/5', $update_accepted['proposed_value'] );
+		$this->assertTrue( $update_accepted['overwrite'] );
 	}
 
 	public function test_get_preview_flags_attendance_inconsistencies(): void {
@@ -274,7 +288,9 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 						'event_type' => 'practice',
 						'osm_event_id' => 50001,
 						'event_date' => '2026-05-29',
-						'first_aid_level' => ''
+						'first_aid_level' => '',
+						'section_id' => 101,
+						'event_code' => 'HGP1'
 					]
 				];
 			}
