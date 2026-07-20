@@ -50,15 +50,21 @@ const mockPreviewData = {
 describe('PushbackDashboard', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
-		global.fetch = vi.fn();
+		global.fetch = vi.fn((url: string) => {
+			if (url.includes('/admin/sync-status')) {
+				return Promise.resolve({
+					ok: true,
+					json: async () => ({ failed_queue: null, locked: false })
+				});
+			}
+			return Promise.resolve({
+				ok: true,
+				json: async () => mockPreviewData
+			});
+		});
 	});
 
 	it('renders section selector and fetches preview automatically', async () => {
-		(global.fetch as any).mockResolvedValueOnce({
-			ok: true,
-			json: async () => mockPreviewData
-		});
-
 		render(<PushbackDashboard />);
 
 		expect(screen.getByLabelText('Select Section:')).toBeInTheDocument();
@@ -74,9 +80,17 @@ describe('PushbackDashboard', () => {
 	});
 
 	it('shows error notice when preview fetch fails', async () => {
-		(global.fetch as any).mockResolvedValueOnce({
-			ok: false,
-			json: async () => ({ message: 'Preview fetch rejected.' })
+		global.fetch = vi.fn((url: string) => {
+			if (url.includes('/admin/sync-status')) {
+				return Promise.resolve({
+					ok: true,
+					json: async () => ({ failed_queue: null, locked: false })
+				});
+			}
+			return Promise.resolve({
+				ok: false,
+				json: async () => ({ message: 'Preview fetch rejected.' })
+			});
 		});
 
 		render(<PushbackDashboard />);
@@ -87,15 +101,21 @@ describe('PushbackDashboard', () => {
 	});
 
 	it('triggers refresh fetch when refresh button is clicked', async () => {
-		(global.fetch as any)
-			.mockResolvedValueOnce({
+		let previewCallCount = 0;
+		global.fetch = vi.fn((url: string) => {
+			if (url.includes('/admin/sync-status')) {
+				return Promise.resolve({
+					ok: true,
+					json: async () => ({ failed_queue: null, locked: false })
+				});
+			}
+			previewCallCount++;
+			const errors = previewCallCount > 1 ? ['Refreshed log error'] : ['Testing diagnostic log warning.'];
+			return Promise.resolve({
 				ok: true,
-				json: async () => mockPreviewData
-			})
-			.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ ...mockPreviewData, errors: ['Refreshed log error'] })
+				json: async () => ({ ...mockPreviewData, errors })
 			});
+		});
 
 		render(<PushbackDashboard />);
 
@@ -112,19 +132,24 @@ describe('PushbackDashboard', () => {
 	});
 
 	it('executes push-back sync and refreshes preview', async () => {
-		(global.fetch as any)
-			.mockResolvedValueOnce({
+		global.fetch = vi.fn((url: string) => {
+			if (url.includes('/admin/sync-status')) {
+				return Promise.resolve({
+					ok: true,
+					json: async () => ({ failed_queue: null, locked: false })
+				});
+			}
+			if (url.includes('/admin/sync-push')) {
+				return Promise.resolve({
+					ok: true,
+					json: async () => ({ success: true, message: 'Sync successful!' })
+				});
+			}
+			return Promise.resolve({
 				ok: true,
 				json: async () => mockPreviewData
-			})
-			.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ success: true, message: 'Sync successful!' })
-			})
-			.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ ...mockPreviewData, errors: [] })
 			});
+		});
 
 		render(<PushbackDashboard />);
 

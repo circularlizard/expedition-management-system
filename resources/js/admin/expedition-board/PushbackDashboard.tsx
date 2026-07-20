@@ -50,6 +50,12 @@ export const PushbackDashboard: React.FC = () => {
 	const sections: Record<string, SectionInfo> = config.sections || {};
 	const sectionIds = Object.keys(sections);
 
+	interface FailedQueueInfo {
+		last_failed_at: string;
+		error_message: string;
+		unsynced_items: number;
+	}
+
 	const [selectedSection, setSelectedSection] = useState<string>(sectionIds[0] || '');
 	const [loading, setLoading] = useState<boolean>(false);
 	const [syncing, setSyncing] = useState<boolean>(false);
@@ -57,12 +63,52 @@ export const PushbackDashboard: React.FC = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [expandedEvents, setExpandedEvents] = useState<Record<number, boolean>>({});
+	const [failedQueue, setFailedQueue] = useState<FailedQueueInfo | null>(null);
+
+	const fetchSyncStatus = async () => {
+		try {
+			const response = await fetch(
+				`${config.root_url}/admin/sync-status`,
+				{
+					headers: {
+						'X-WP-Nonce': config.nonce,
+					},
+				}
+			);
+			if (response.ok) {
+				const data = await response.json();
+				setFailedQueue(data.failed_queue);
+			}
+		} catch (e) {
+			// ignore
+		}
+	};
+
+	const handleClearErrorLog = async () => {
+		try {
+			const response = await fetch(
+				`${config.root_url}/admin/sync-status`,
+				{
+					method: 'DELETE',
+					headers: {
+						'X-WP-Nonce': config.nonce,
+					},
+				}
+			);
+			if (response.ok) {
+				setFailedQueue(null);
+			}
+		} catch (e) {
+			// ignore
+		}
+	};
 
 	const fetchPreview = async (sectionId: string) => {
 		if (!sectionId) return;
 		setLoading(true);
 		setError(null);
 		try {
+			fetchSyncStatus();
 			const pushbackEl = document.getElementById('ems-pushback-root');
 			const token = pushbackEl?.getAttribute('data-token') || '';
 			const tokenParam = token ? `&access_token=${encodeURIComponent(token)}` : '';
@@ -117,6 +163,7 @@ export const PushbackDashboard: React.FC = () => {
 			fetchPreview(selectedSection);
 		} catch (err: any) {
 			setError(err.message || 'An error occurred during sync.');
+			fetchSyncStatus();
 		} finally {
 			setSyncing(false);
 		}
@@ -191,6 +238,27 @@ export const PushbackDashboard: React.FC = () => {
 						Refresh Preview
 					</button>
 				</div>
+
+				{failedQueue && (
+					<div className="notice notice-error inline" style={{ margin: '15px 0', padding: '12px 15px', display: 'block' }}>
+						<p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>
+							⚠ Last Sync Attempt Failed (at {failedQueue.last_failed_at})
+						</p>
+						<p style={{ margin: '0 0 12px 0' }}>
+							Error: <code>{failedQueue.error_message}</code>
+						</p>
+						<p style={{ margin: '0 0 12px 0', fontSize: '13px' }}>
+							There are <strong>{failedQueue.unsynced_items}</strong> unsynced changes. You can click <strong>"Retry Sync"</strong> below to calculate current differences and push again.
+						</p>
+						<button
+							type="button"
+							className="button button-secondary"
+							onClick={handleClearErrorLog}
+						>
+							Clear Error Log
+						</button>
+					</div>
+				)}
 
 				{loading && <p className="description">Generating OSM push-back sync preview...</p>}
 
@@ -453,7 +521,11 @@ export const PushbackDashboard: React.FC = () => {
 								onClick={handleExecuteSync}
 								disabled={syncing || loading || !selectedSection}
 							>
-								{syncing ? 'Executing Sync...' : `Execute Push-back Sync (${totalUpdatesCount} changes)`}
+								{syncing
+									? 'Executing Sync...'
+									: failedQueue
+										? `Retry Sync (${totalUpdatesCount} changes)`
+										: `Execute Push-back Sync (${totalUpdatesCount} changes)`}
 							</button>
 							{syncing && <span className="description">Executing sync changes back to OSM...</span>}
 						</div>
