@@ -189,7 +189,8 @@ class Plugin {
 							$payload = $osm_client->get_data_payload();
 							set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
 							wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&fetched=1' ) );
-						}
+						},
+						'fetch_sections'
 					);
 				} else {
 					$driver     = new Mock_Driver();
@@ -301,6 +302,19 @@ class Plugin {
 				$handler->handle_callback(
 					function ( string $token, string $mode = 'sync' ) {
 						if ( $mode === 'pushback' ) {
+							return;
+						}
+						if ( $mode === 'fetch_sections' ) {
+							$parser     = new OSM_Parser();
+							$driver     = new Live_Driver();
+							$osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 500, 0.1 ) );
+							$osm_client->set_access_token( $token );
+							try {
+								$payload = $osm_client->get_data_payload();
+								set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
+							} catch ( \Exception $e ) {
+								error_log( '[EMS] Fetch sections callback failed: ' . $e->getMessage() );
+							}
 							return;
 						}
 						$api_mode   = get_option( 'ems_api_mode', 'mock' );

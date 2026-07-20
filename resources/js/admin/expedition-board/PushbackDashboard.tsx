@@ -51,8 +51,10 @@ export const PushbackDashboard: React.FC = () => {
 
 	const [selectedSection, setSelectedSection] = useState<string>(sectionIds[0] || '');
 	const [loading, setLoading] = useState<boolean>(false);
+	const [syncing, setSyncing] = useState<boolean>(false);
 	const [preview, setPreview] = useState<PreviewData | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [expandedEvents, setExpandedEvents] = useState<Record<number, boolean>>({});
 
 	const fetchPreview = async (sectionId: string) => {
@@ -86,8 +88,42 @@ export const PushbackDashboard: React.FC = () => {
 		}
 	};
 
+	const handleExecuteSync = async () => {
+		if (!selectedSection) return;
+		setSyncing(true);
+		setError(null);
+		setSuccessMessage(null);
+		try {
+			const pushbackEl = document.getElementById('ems-pushback-root');
+			const token = pushbackEl?.getAttribute('data-token') || '';
+			const tokenParam = token ? `&access_token=${encodeURIComponent(token)}` : '';
+
+			const response = await fetch(
+				`${config.root_url}/admin/sync-push?section_id=${selectedSection}${tokenParam}`,
+				{
+					method: 'POST',
+					headers: {
+						'X-WP-Nonce': config.nonce,
+					},
+				}
+			);
+			if (!response.ok) {
+				const errData = await response.json();
+				throw new Error(errData.message || 'Failed to execute push-back sync.');
+			}
+			const data = await response.json();
+			setSuccessMessage(data.message || 'Sync executed successfully.');
+			fetchPreview(selectedSection);
+		} catch (err: any) {
+			setError(err.message || 'An error occurred during sync.');
+		} finally {
+			setSyncing(false);
+		}
+	};
+
 	useEffect(() => {
 		if (selectedSection) {
+			setSuccessMessage(null);
 			fetchPreview(selectedSection);
 		}
 	}, [selectedSection]);
@@ -165,6 +201,11 @@ export const PushbackDashboard: React.FC = () => {
 
 				{preview && (
 					<div className="ems-preview-container">
+						{successMessage && (
+							<div className="notice notice-success inline" style={{ margin: '15px 0' }}>
+								<p>{successMessage}</p>
+							</div>
+						)}
 						{preview.errors && preview.errors.length > 0 && (
 							<div className="notice notice-warning inline" style={{ margin: '15px 0' }}>
 								<ul>
@@ -400,12 +441,15 @@ export const PushbackDashboard: React.FC = () => {
 
 						{/* Actions */}
 						<div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-							<button type="button" className="button button-primary" disabled>
-								Execute Push-back Sync ({totalUpdatesCount} changes)
+							<button
+								type="button"
+								className="button button-primary"
+								onClick={handleExecuteSync}
+								disabled={syncing || loading || !selectedSection}
+							>
+								{syncing ? 'Executing Sync...' : `Execute Push-back Sync (${totalUpdatesCount} changes)`}
 							</button>
-							<span className="description" style={{ color: '#b92c28' }}>
-								⚠ Push-back writes are disabled in Read-Only Preview Mode
-							</span>
+							{syncing && <span className="description">Executing sync changes back to OSM...</span>}
 						</div>
 					</div>
 				)}
