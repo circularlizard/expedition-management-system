@@ -114,6 +114,8 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 ## 9. QA, Rollout & Operational Tasks
 
 *   [ ] **Documentation & Screen Review**: Run a detailed review of all active admin screens and portal pages, fixing styling issues and completing any missing inline documentation.
+*   [ ] **Automated E2E Testing**: Set up Playwright to test admin settings, expedition board, and public portal viewports on desktop and mobile.
+*   [ ] **Reviewer Guide & Screenshot Seeder**: Implement the automated screenshot generation script and draft the illustrated `docs/reviewer-guide.md` for human testers.
 *   [ ] **Rollout & Guides**:
     *   Coordinate alignment/onboarding with John / Cheryl.
     *   Draft processes and manuals for new expedition workflows (e.g. Leader-in-Charge engagement instructions).
