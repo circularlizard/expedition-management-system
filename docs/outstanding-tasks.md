@@ -53,12 +53,9 @@ This document consolidates all outstanding plans, specifications, and steps that
 
 ## 3. Milestone 6: Portability, Hardening & Staging Deployment (Pending)
 
-*   [ ] **Export/Import Engine**: Implement a backup and restore mechanism for EMS-specific database configurations and WP options.
-*   [ ] **ESU Unit Mapping Portability**: Create an export/import utility (JSON/CSV) to migrate ESU unit leader listings, patrol linkages, and active section structures.
-*   [ ] **Environment Replicator CLI/Script**: Setup automated deployment helper scripts to initialize database tables, import default settings, and verify system compliance on a clean WordPress target.
+*   [ ] **Unified Backups Engine**: Develop settings tab to export and import all EMS custom tables and options as a single JSON backup.
 *   [ ] **Security Hardening Review**:
-    *   Verify 2FA configurations and investigate DB-level encryption requirements for sensitive scout data.
-    *   Ensure that child metadata enrichment debug logging is properly guarded and can be easily toggled on/off to keep system logs clean.
+    *   Ensure that child metadata enrichment debug logging is properly guarded via settings toggle and can be easily toggled on/off to keep system logs clean.
 *   [ ] **Website Integration**: Review how shortcodes fit and render inside the parent site's templates and stylesheets.
 *   [ ] **Standardise Plugin Headers**: Standardise plugin name, author, and description metadata with the Google login sibling plugin as part of staging preparation.
 *   [ ] **Staging Deployment**: Deploy the hardened plugin to the staging site to allow stakeholders (John / Cheryl / Leaders) to view and test it.
@@ -128,3 +125,4 @@ Based on [held-milestone-5-implementation-spec.md](file:///Users/davidstrachan/P
 *   [ ] **Network Expedition Signups**: Add support and rules handling signups/eligibility for Network members (aged 18–25).
 *   [ ] **Expedition Risk Assessment & Docs**: Add options to attach Risk Assessment (RA) or Parent Info documents to expeditions (or determine if this should be delegated to OSM).
 *   [ ] **Volunteers' Front-End View**: Create a public/login frontend view allowing adult volunteers to log in, see which expeditions they are assigned to, check what they volunteered for, and access helper documents.
+*   [ ] **Two-Factor Authentication (2FA)**: Review site configuration and verify 2FA settings for administration profiles.
