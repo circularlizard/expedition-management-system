@@ -13,6 +13,7 @@ interface FlexiUpdate {
 	column_name: string;
 	current_value: string;
 	proposed_value: string;
+	overwrite?: boolean;
 }
 
 interface EventInvite {
@@ -264,6 +265,11 @@ export const PushbackDashboard: React.FC = () => {
 													<span style={{ color: '#c00', textDecoration: 'line-through' }}>
 														{up.current_value || '—'}
 													</span>
+													{up.overwrite && (
+														<span className="ems-status-badge ems-status-badge--danger" style={{ marginLeft: '10px', fontSize: '10px' }}>
+															⚠ Overwrite
+														</span>
+													)}
 												</td>
 												<td>
 													<span style={{ color: '#090', fontWeight: 'bold' }}>
