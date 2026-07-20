@@ -4,29 +4,35 @@ This document outlines the strategy for implementing automated end-to-end (E2E) 
 
 ---
 
-## 1. Tool Selection: Playwright
-We will use **Playwright** as the automated browser testing framework. Playwright provides:
+## 1. Tool Selection: Playwright + `playwright-bdd`
+To align with the codebase's strict Gherkin requirement, we will use **Playwright** paired with **`playwright-bdd`**.
+*   **Direct Execution**: Playwright will compile and run `.feature` files directly via TypeScript step definitions.
 *   **Multi-Browser Coverage**: Native execution in Chromium (Chrome/Edge), Firefox, and WebKit (Safari).
 *   **Mobile Emulation**: Mobile browser viewport and user-agent emulation (e.g., iPhone Safari, Pixel Chrome).
-*   **Rich Error Diagnostics**: Auto-generated HTML reports, screen capture video recordings, and full tracing logs on failure.
-*   **Visual Asset Generation**: Ability to programmatically capture high-resolution screenshots during test runs to use directly in documentation.
+*   **Visual Asset Generation**: Capture high-resolution screenshots programmatically during test execution to build documentation.
 
 ---
 
-## 2. Testing Scope & Scenarios
+## 2. Testing Scope: Edge Cases Focus
 
-The E2E test suite will reside in `tests/e2e/` and cover:
+Rather than testing simple happy paths, the E2E Gherkin suite will focus heavily on boundary, conflict, and error conditions.
 
-### 2.1 WordPress Admin Console
-*   **Authentication & Access Control**: Verify admin login redirects to dashboard, and non-admins are blocked from settings and the sync page.
-*   **Settings Management**: Verify saving API Modes, Connection endpoints, Managed Sections, and Form Mappings.
-*   **Portability & Backups**: Trigger the backup export JSON download and test uploading a restore file.
-*   **Expedition Planning Board**: Validate drag-and-drop actions, loading state indicators, and previewing Online Scout Manager push-back differences.
+### 2.1 Access Boundaries (Auth Edge Cases)
+*   **Unauthorized Admin Access**: Attempting to view the settings page or sync preview boards as a parent (`ems_parent` role) or explorer (`ems_explorer` role). Verify they are rejected or redirected.
+*   **Expired OSM OAuth Token**: Simulating a cached OSM token that has expired or lacks write scopes (`section:event:write`, `section:flexirecord:write`). Verify the admin is prompted to re-authorize.
 
-### 2.2 Public Parent/Explorer Portal (`[ems-portal]`)
-*   **OIDC Mock Login**: Simulate parent/explorer login via OIDC handler redirection.
-*   **Desktop Portal View**: Verify checklist status rendering, read-only maps loading, and event detail expanders.
-*   **Mobile Viewport Emulation**: Validate responsive CSS navigation tabs and mobile column styling under iPhone/Android screen dimensions.
+### 2.2 Sync Pushback & Conflict Edge Cases
+*   **OSM Rate Limit Lockout**: Accessing the Push-back Sync preview while `ems_rate_limit_status` is active. Verify the dashboard displays the lockout notice and disables sync triggers.
+*   **OSM API Blocked state**: Simulating the block option state. Verify correct status notice shows.
+*   **Overwrite Alerts**: Loading the sync preview when a proposed EMS update conflicts with an existing, non-empty value in Online Scout Manager. Verify the "Overwrite" danger warning badge displays for that row.
+*   **Zero proposed updates**: Loading a preview when EMS and OSM are completely in sync. Verify the sync action button is deactivated and displays `(0 changes)`.
+
+### 2.3 Portability & Backup Edge Cases
+*   **Invalid JSON upload**: Restoring a corrupted or empty file. Verify the transaction fails cleanly, database tables are untouched, and an error notice displays.
+*   **Version mismatch warning**: Restoring a backup exported from a different version of the plugin.
+
+### 2.4 Public Portal Responsive Layouts
+*   **Viewport constraints**: Emulating small viewports (e.g. mobile Safari). Verify tabs wrap cleanly and no parent theme CSS breaks font scale or layout columns.
 
 ---
 
@@ -43,10 +49,10 @@ To generate an illustrated Reviewer's Guide without manually taking screenshots:
 ## 4. Implementation Steps
 
 1.  **Setup Playwright**:
-    *   Install `@playwright/test` and dependency packages.
+    *   Install `@playwright/test` and `playwright-bdd`.
     *   Create `playwright.config.ts` targeting local Docker environment (`http://localhost:8080`).
-2.  **Develop Test Suite & Seeder**:
-    *   Write spec files under `tests/e2e/`.
-    *   Write the screenshot generator script.
+2.  **Develop Test Suite**:
+    *   Write spec `.feature` files in `tests/features/e2e/` focusing on edge cases.
+    *   Write TypeScript step definition files in `tests/e2e/steps/`.
 3.  **Write the Reviewer's Guide**:
     *   Create `docs/reviewer-guide.md` linking to generated images.
