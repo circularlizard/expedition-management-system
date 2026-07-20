@@ -37,13 +37,14 @@ class Pushback_Sync_Manager {
 			$term_id = $term ? (int) $term['term_id'] : 0;
 
 			// 2. Fetch flexi-record structure
-			$flexi_id = get_option( 'ems_osm_flexi_record_' . $section_id, false );
+			$flexi_id = $this->get_flexi_record_id( $section_id );
 			if ( ! $flexi_id ) {
 				$records = $this->api_client->get_flexi_records( $section_id );
-				foreach ( $records as $rec ) {
+				$items   = $records['items'] ?? $records;
+				foreach ( $items as $rec ) {
 					if ( ( $rec['name'] ?? '' ) === '2026 Expeditions' ) {
-						$flexi_id = (int) $rec['id'];
-						update_option( 'ems_osm_flexi_record_' . $section_id, $flexi_id );
+						$flexi_id = (int) ( $rec['extraid'] ?? $rec['id'] ?? 0 );
+						$this->update_flexi_record_id( $section_id, $flexi_id );
 						break;
 					}
 				}
@@ -370,8 +371,10 @@ class Pushback_Sync_Manager {
 		if ( $flexi_id ) {
 			try {
 				$records = $this->api_client->get_flexi_records( $section_id );
-				foreach ( $records as $rec ) {
-					if ( (int) ( $rec['id'] ?? 0 ) === $flexi_id ) {
+				$items   = $records['items'] ?? $records;
+				foreach ( $items as $rec ) {
+					$rec_id = (int) ( $rec['extraid'] ?? $rec['id'] ?? 0 );
+					if ( $rec_id === $flexi_id ) {
 						$exists_on_osm = true;
 						break;
 					}
@@ -384,10 +387,11 @@ class Pushback_Sync_Manager {
 		// If it doesn't exist, check by name "2026 Expeditions" or create it
 		if ( ! $exists_on_osm ) {
 			$records = $this->api_client->get_flexi_records( $section_id );
+			$items   = $records['items'] ?? $records;
 			$found_id = null;
-			foreach ( $records as $rec ) {
+			foreach ( $items as $rec ) {
 				if ( ( $rec['name'] ?? '' ) === '2026 Expeditions' ) {
-					$found_id = (int) $rec['id'];
+					$found_id = (int) ( $rec['extraid'] ?? $rec['id'] ?? 0 );
 					break;
 				}
 			}
@@ -398,7 +402,7 @@ class Pushback_Sync_Manager {
 			} else {
 				// Create a new flexi record
 				$response = $this->api_client->create_flexi_record( $section_id, '2026 Expeditions' );
-				$flexi_id = (int) ( $response['id'] ?? 0 );
+				$flexi_id = (int) ( $response['id'] ?? $response['extraid'] ?? 0 );
 				if ( ! $flexi_id ) {
 					throw new \Exception( 'Failed to create flexi-record on OSM.' );
 				}
