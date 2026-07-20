@@ -519,7 +519,7 @@ export const PushbackDashboard: React.FC = () => {
 								type="button"
 								className="button button-primary"
 								onClick={handleExecuteSync}
-								disabled={syncing || loading || !selectedSection}
+								disabled={syncing || loading || !selectedSection || totalUpdatesCount === 0}
 							>
 								{syncing
 									? 'Executing Sync...'
