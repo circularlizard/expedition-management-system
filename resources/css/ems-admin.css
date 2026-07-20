@@ -3080,6 +3080,52 @@
     background-color: #f4f8fa !important;
 }
 
+/* ─── Frontend Portal Theme Reset Rules ───────────────────────────────────── */
+.ems-portal-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    color: #3c434a;
+    line-height: 1.4;
+}
+
+.ems-portal-container *,
+.ems-portal-container *::before,
+.ems-portal-container *::after {
+    box-sizing: border-box;
+}
+
+.ems-portal-container button,
+.ems-portal-container .button,
+.ems-portal-container input[type="submit"] {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 2.15384615;
+    min-height: 30px;
+    margin: 0;
+    padding: 0 10px;
+    cursor: pointer;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.ems-portal-container select,
+.ems-portal-container input[type="text"],
+.ems-portal-container input[type="email"],
+.ems-portal-container input[type="number"],
+.ems-portal-container textarea {
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 6px 10px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #2c3338;
+    max-width: 100%;
+}
+
 
 
 
