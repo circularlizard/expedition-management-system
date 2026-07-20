@@ -38,7 +38,23 @@ Rather than focusing on happy paths or low-probability backup failures, the E2E 
 
 ---
 
-## 3. Automated Reviewer Guide Asset Generation
+## 3. Mock API Layer Completeness
+
+To achieve deterministic test runs and completely avoid external rate limits, API cooldown blocks, or unintended edits to production Online Scout Manager data, **all E2E tests will run in `mock` API mode**.
+
+### 3.1 Verifying the Mock API Driver
+*   We must audit the `Mock_Driver` class (used when `ems_api_mode === 'mock'`) to verify it implements all API write-back responses.
+*   Ensure mock endpoints (e.g., writing flexi-record updates, dispatching event invitations) simulate realistic API success payloads or raise realistic exception types (e.g. Rate Limit timeouts) when requested by test parameters.
+
+### 3.2 Injecting Odd Data into Mock Payloads
+*   We will modify the mock data fixtures (e.g. inside `tests/mocks/` or dynamically generated mock states) to include:
+    *   Explorer rows containing name edge cases (`François-Marie`, `O'Connor`).
+    *   Event payloads with blank dates, missing event codes, or empty location coordinates.
+    *   Null fields for contacts to verify frontend layout stability.
+
+---
+
+## 4. Automated Reviewer Guide Asset Generation
 
 To generate an illustrated Reviewer's Guide without manually taking screenshots:
 
@@ -48,13 +64,16 @@ To generate an illustrated Reviewer's Guide without manually taking screenshots:
 
 ---
 
-## 4. Implementation Steps
+## 5. Implementation Steps
 
 1.  **Setup Playwright**:
     *   Install `@playwright/test` and `playwright-bdd`.
     *   Create `playwright.config.ts` targeting local Docker environment (`http://localhost:8080`).
-2.  **Develop Test Suite**:
+2.  **Align the Mock API Layer**:
+    *   Extend `Mock_Driver` to ensure complete coverage for all new write operations.
+    *   Seed the static mock JSON files with odd name and format cases.
+3.  **Develop Test Suite**:
     *   Write spec `.feature` files in `tests/features/e2e/` focusing on edge cases and odd data.
     *   Write TypeScript step definition files in `tests/e2e/steps/`.
-3.  **Write the Reviewer's Guide**:
+4.  **Write the Reviewer's Guide**:
     *   Create `docs/reviewer-guide.md` linking to generated images.
