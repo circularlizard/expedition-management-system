@@ -17,6 +17,9 @@ class Sync_Preview_ControllerTest extends EMSTestCase {
 		parent::setUp();
 		$this->api_client   = Mockery::mock( OSM_API_Client::class );
 		$this->sync_manager = Mockery::mock( Pushback_Sync_Manager::class );
+		Functions\when( 'get_transient' )->justReturn( false );
+		Functions\stubs( [ 'delete_option' ] );
+		Functions\when( 'get_option' )->alias( fn( $option, $default = false ) => $default );
 	}
 
 	public function test_get_sync_preview_requires_manage_options_permission(): void {
@@ -119,5 +122,49 @@ class Sync_Preview_ControllerTest extends EMSTestCase {
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertTrue( $response->get_data()['success'] );
 		$this->assertStringContainsString( 'Updated 3 flexi-record fields and invited 2 members', $response->get_data()['message'] );
+	}
+
+	public function test_execute_sync_push_returns_409_when_locked(): void {
+		$controller = new Sync_Preview_Controller( $this->api_client, $this->sync_manager );
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'get_transient' )->alias( function( $key ) {
+			if ( $key === 'ems_pushback_sync_lock' ) return true;
+			return false;
+		} );
+
+		$request = new \WP_REST_Request( 'POST', '/ems/v1/admin/sync-push' );
+		$request->set_param( 'section_id', 101 );
+
+		$response = $controller->execute_sync_push( $request );
+
+		$this->assertTrue( is_wp_error( $response ) );
+		$this->assertSame( 409, $response->get_error_data()['status'] );
+	}
+
+	public function test_get_sync_status_returns_state(): void {
+		$controller = new Sync_Preview_Controller( $this->api_client, $this->sync_manager );
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'get_transient' )->alias( function( $key ) {
+			if ( $key === 'ems_pushback_sync_lock' ) return true;
+			return false;
+		} );
+		Functions\when( 'get_option' )->alias( function( $key ) {
+			if ( $key === 'ems_failed_pushback_queue' ) {
+				return [
+					'last_failed_at' => '2026-07-20 22:00:00',
+					'error_message' => 'API Timeout',
+					'unsynced_items' => 5
+				];
+			}
+			return null;
+		} );
+
+		$request = new \WP_REST_Request( 'GET', '/ems/v1/admin/sync-status' );
+		$response = $controller->get_sync_status( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$data = $response->get_data();
+		$this->assertTrue( $data['locked'] );
+		$this->assertSame( 'API Timeout', $data['failed_queue']['error_message'] );
 	}
 }
