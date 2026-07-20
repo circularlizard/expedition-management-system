@@ -18,6 +18,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         parent::setUp();
         $this->api_client = Mockery::mock( OSM_API_Client::class );
         $this->parser     = Mockery::mock( OSM_Parser::class );
+        Functions\when( 'get_option' )->alias( fn( $option, $default = false ) => $default );
 
         $this->user     = Mockery::mock( \WP_User::class );
         $this->user->ID = 42;

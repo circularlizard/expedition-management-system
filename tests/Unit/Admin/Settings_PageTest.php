@@ -99,6 +99,24 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertSame( 1, $stored['ems_sync_limit'] );
     }
 
+    public function test_save_general_stores_log_guard_enabled(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+
+        ( new Settings_Page() )->save_general( [ 'ems_api_mode' => 'mock', 'ems_debug_log_guard' => '1' ] );
+
+        $this->assertSame( 1, $stored['ems_debug_log_guard'] );
+    }
+
+    public function test_save_general_stores_log_guard_disabled(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+
+        ( new Settings_Page() )->save_general( [ 'ems_api_mode' => 'mock' ] ); // absent checkbox
+
+        $this->assertSame( 0, $stored['ems_debug_log_guard'] );
+    }
+
     // -------------------------------------------------------------------------
     // save_connection()
     // -------------------------------------------------------------------------
