@@ -218,6 +218,25 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertArrayNotHasKey( 'extraid', $stored['ems_managed_sections'][10001] );
     }
 
+    public function test_save_sections_stores_writeback_section_id(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+        Functions\when( 'get_transient' )->alias( static function ( $key ) {
+            if ( $key === 'ems_available_sections' ) {
+                return [ 10001 => [ 'name' => 'Silver ESU' ] ];
+            }
+            return false;
+        } );
+        Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
+
+        ( new Settings_Page() )->save_sections( [
+            'ems_managed_section_ids' => [ '10001' ],
+            'ems_writeback_section_id' => '10001',
+        ] );
+
+        $this->assertSame( 10001, $stored['ems_writeback_section_id'] );
+    }
+
     // -------------------------------------------------------------------------
     // save_settings() legacy routing
     // -------------------------------------------------------------------------

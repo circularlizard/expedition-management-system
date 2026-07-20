@@ -289,6 +289,8 @@ class Live_Driver implements Driver_Interface {
 			'method' => 'POST',
 			'body'   => array(
 				'name'   => $name,
+				'dob'    => 1,
+				'age'    => 1,
 				'patrol' => 1,
 				'type'   => 'none',
 			),

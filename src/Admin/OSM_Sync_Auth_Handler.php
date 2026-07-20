@@ -49,7 +49,7 @@ class OSM_Sync_Auth_Handler {
 			return;
 		}
 
-		$scope = get_option( 'ems_osm_scope', 'section:member:read section:event:read section:flexirecord:read' );
+		$scope = get_option( 'ems_osm_scope', 'section:member:read section:event:write section:flexirecord:write' );
 		$state = wp_create_nonce( 'ems_osm_sync' ) . ':' . $mode;
 		$query = http_build_query(
 			array(
@@ -128,8 +128,39 @@ class OSM_Sync_Auth_Handler {
 
 		$on_success( $access_token, $mode );
 
-		$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&auth=success' : 'admin.php?page=ems-reference&sync=success';
+		if ( $mode === 'fetch_sections' ) {
+			$redirect_page = 'admin.php?page=ems-settings&tab=sections&fetched=1';
+		} elseif ( $mode === 'pushback' ) {
+			$redirect_page = 'admin.php?page=ems-reference&tab=pushback&auth=success';
+		} else {
+			$redirect_page = 'admin.php?page=ems-reference&sync=success';
+		}
 		wp_safe_redirect( admin_url( $redirect_page ) );
+	}
+
+	/**
+	 * Checks if the decrypted token contains the required write scopes.
+	 *
+	 * @param string $token
+	 * @return bool
+	 */
+	public function token_has_required_scopes( string $token ): bool {
+		$parts = explode( '.', $token );
+		if ( count( $parts ) < 2 ) {
+			return false;
+		}
+		$payload_b64 = $parts[1];
+		$payload_json = base64_decode( str_replace( array( '-', '_' ), array( '+', '/' ), $payload_b64 ) );
+		if ( ! $payload_json ) {
+			return false;
+		}
+		$payload = json_decode( $payload_json, true );
+		if ( ! is_array( $payload ) || empty( $payload['scopes'] ) ) {
+			return false;
+		}
+		$scopes = (array) $payload['scopes'];
+
+		return in_array( 'section:event:write', $scopes, true ) && in_array( 'section:flexirecord:write', $scopes, true );
 	}
 
 	/**
@@ -146,7 +177,18 @@ class OSM_Sync_Auth_Handler {
 			return '';
 		}
 		$encrypted = (string) get_user_meta( $user_id, '_ems_osm_token', true );
-		return Encryption::decrypt( $encrypted ) ?: '';
+		$token     = Encryption::decrypt( $encrypted ) ?: '';
+		if ( $token === '' ) {
+			return '';
+		}
+
+		if ( ! $this->token_has_required_scopes( $token ) ) {
+			delete_user_meta( $user_id, '_ems_osm_token' );
+			delete_user_meta( $user_id, '_ems_osm_token_expires' );
+			return '';
+		}
+
+		return $token;
 	}
 
 	/**
