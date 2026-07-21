@@ -353,8 +353,6 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
     return (
         <div className="ems-signups-container">
             <div className="ems-signups-main ems-osm-reference ems-osm-ref-container">
-                <h2 className="ems-osm-ref-title">Explorer List</h2>
-
                 {(data.explorers ?? []).length === 0 ? (
                     <p>No explorers have been synced yet.</p>
                 ) : (
@@ -366,6 +364,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                 aria-label="Filter by event"
                                 value={filterEvent}
                                 onChange={(e) => setFilterEvent(e.target.value)}
+                                className="ems-select"
                             >
                                 <option value="">All explorers</option>
                                 <option value="__any__">In any event</option>
@@ -381,6 +380,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                 aria-label="Filter by first aid"
                                 value={filterFa}
                                 onChange={(e) => setFilterFa(e.target.value)}
+                                className="ems-select"
                             >
                                 <option value="">All first aid levels</option>
                                 <option value="none">None</option>
