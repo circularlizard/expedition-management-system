@@ -3486,5 +3486,11 @@
     user-select: none;
 }
 
+.ems-planning-select {
+    width: 320px;
+    margin: 0;
+}
+
+
 
 

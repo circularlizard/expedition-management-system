@@ -73,10 +73,10 @@ describe('EventPlanningBoard', () => {
     });
   });
 
-  it('renders level toggles and fetches planning board events', async () => {
+  it('renders event selector and fetches planning board events', async () => {
     render(<EventPlanningBoard />);
 
-    expect(screen.getByText(/Level/i)).toBeInTheDocument();
+    expect(screen.getByText(/Select Event/i)).toBeInTheDocument();
     
     await waitFor(() => {
       expect(screen.getByText(/Hill Practice 1/)).toBeInTheDocument();
