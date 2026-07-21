@@ -249,9 +249,7 @@ export default function EventPlanningBoard() {
               className="ems-remove-member-btn"
               onClick={e => {
                 e.stopPropagation();
-                if (confirm(`Remove ${m.first_name} ${m.last_name} from this event?`)) {
-                  void allocateExplorers([m.scout_id], 'remove');
-                }
+                void allocateExplorers([m.scout_id], 'remove');
               }}
               title="Remove from event entirely"
             >
@@ -286,9 +284,7 @@ export default function EventPlanningBoard() {
               className="ems-remove-member-btn"
               onClick={e => {
                 e.stopPropagation();
-                if (confirm(`Remove ${m.first_name} ${m.last_name} from this event?`)) {
-                  void allocateExplorers([m.scout_id], 'remove');
-                }
+                void allocateExplorers([m.scout_id], 'remove');
               }}
               title="Remove from event entirely"
             >
@@ -456,7 +452,7 @@ export default function EventPlanningBoard() {
               
               {/* Event Pool Zone */}
               <div
-                className={`ems-planning-card ems-planning-card--pool ${dragOverZone === 'unallocated' ? 'ems-planning-card--active-drag' : ''}`}
+                className={`ems-planning-card ems-planning-card--pool ${collapsedTeams['pool'] ? 'ems-planning-card--collapsed' : ''} ${dragOverZone === 'unallocated' ? 'ems-planning-card--active-drag' : ''}`}
                 onDragOver={e => handleDragOver(e, 'unallocated')}
                 onDragLeave={handleDragLeave}
                 onDrop={e => handleDrop(e, 'unallocated')}
@@ -479,7 +475,7 @@ export default function EventPlanningBoard() {
                 return (
                   <div
                     key={team.ID}
-                    className={`ems-planning-card ${dragOverZone === zoneId ? 'ems-planning-card--active-drag' : ''}`}
+                    className={`ems-planning-card ${isCollapsed ? 'ems-planning-card--collapsed' : ''} ${dragOverZone === zoneId ? 'ems-planning-card--active-drag' : ''}`}
                     onDragOver={e => handleDragOver(e, zoneId)}
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, 'existing_team', team.ID)}
