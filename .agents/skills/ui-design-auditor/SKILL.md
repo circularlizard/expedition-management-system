@@ -1,67 +1,100 @@
 ---
 name: ui-auditor
-description: Audits WordPress admin and public portal interfaces for visual UI design and structural UX workflow efficiency by dynamically reading workflow specs from project documentation.
+description: Audits WordPress admin and public portal interfaces for visual UI design and structural UX workflow efficiency. Dynamically reads user workflow files, uses Antigravity's built-in browser to traverse the plugin, and evaluates screens against visual taste profiles and objective heuristics.
 ---
 
 # UI & UX Design Auditor Skill
 
-When invoked, the agent acts as an expert **UX Architect** and **UI Designer**. It executes browser automation on local target URLs (e.g., `http://localhost:8080`), dynamically reads workflow specifications from project documentation, captures visual state screenshots, and evaluates the interface across two distinct layers: **Macro Structural UX** and **Micro Visual UI**.
+When invoked, the agent acts as a **Principal UX Architect** and **UI Systems Designer**. It dynamically reads specified workflow files, uses Antigravity's built-in browser to log into local WordPress and navigate the plugin interface (e.g., `http://localhost:8888`), captures visual states, and evaluates the interface across two distinct layers: **Macro Structural UX** and **Micro Visual UI**.
 
 ---
 
-## 1. Flow & Spec Discovery
+## 1. Dynamic Workflow Ingestion & Setup
 
-Before executing browser interaction or evaluations, the agent MUST establish ground truth for the target user journey:
+Before launching the browser navigation sequence, the agent MUST ingest the required workflow context:
 
-1. **Locate Workflow Specs:** Read the user flow definition from the specified path provided in the user prompt, or scan `docs/workflows/*.md` (e.g., `team-formation.md`, `readiness-tracking.md`, `parent-portal.md`).
-2. **Extract Expected Journey:** Identify the target user role (e.g., Admin, Volunteer Lead, Parent), key user goal, expected inputs, and sequence of steps outlined in the workflow document.
-3. **Map Browser Traversal:** Plan the browser interactions needed to navigate through each step in the documented workflow.
-
----
-
-## 2. Macro Structural UX Rules (Workflow Efficiency)
-
-Evaluate the executed browser sequence against the discovered workflow spec and these usability heuristics:
-
-* **Context & Information Availability:** All decision-making data required at a given step (e.g., participant availability, requested teammates, capacity) must be visible *on screen* without forcing multi-tab navigation or context switching.
-* **Low Click-Friction:** Tasks must be completable with minimal clicks/transitions (e.g., inline controls, modal selectors, or drag-and-drop). Flag flows that require navigating into separate sub-pages for individual items when batch actions are appropriate.
-* **Immediate Validation:** Performing an action with a constraint violation (e.g., assigning an explorer to an unavailable weekend) must trigger immediate, non-blocking visual feedback (e.g., a warning badge).
-* **Management by Exception:** Overview/dashboard views must prioritize incomplete requirements, pending route submissions, or missing consent over fully satisfied items.
-* **Role Scoping:** Non-admin portals (e.g., Parent/Explorer views) must present a clean, read-only projection of admin data without exposing WP-Admin navigation or administrative controls.
+1. **Read Workflow Input File:** Locate and read the target workflow file provided in the user prompt (e.g., `docs/workflows/team-formation.md`) or scan the `docs/ui-review/` directory.
+2. **Extract Key Journey Steps:** Parse the document to extract:
+   * **Target User Role:** (e.g., Admin, Volunteer Lead, Parent/Explorer)
+   * **Step-by-Step Sequence:** The exact sequence of screens, clicks, inputs, and form submissions required to complete the task.
+   * **Success Criteria:** The expected final state or confirmation message.
+3. **Identify Target URLs:** Map the workflow steps to specific WP-Admin sub-pages (e.g., `wp-admin/admin.php?page=expeditions`) or shortcode pages.
 
 ---
 
-## 3. Micro Visual UI Rules (Tactical & Aesthetics)
+## 2. Taste Profile & Visual Direction (Interactive Challenge)
 
-Evaluate rendered DOM elements and CSS properties against these explicit visual criteria:
+> **CRITICAL RULE:** The agent MUST NOT assume the user's preferred visual aesthetic, color palette, or visual density. Design critiques must never depend on memory or vague "vibes."
 
-### Typography & Hierarchy
-* **Scale:** Heading tags (`H1`, `H2`, `H3`) must follow a strict, linear font scale.
-* **Readability:** Body text must maintain a line-height between $1.4$ and $1.6$.
+If no `DESIGN_RULES.md` or visual reference folder (`docs/ui-review/`) is supplied in the prompt context, **stop and challenge the user to select or define a Taste Profile** before executing browser audits.
 
-### Color & Accessibility (WCAG AA)
-* **Contrast:** Text-to-background contrast ratio must satisfy $\ge 4.5:1$ for standard text and $\ge 3:1$ for large headings.
-* **Status Indicators:** Color must *never* be the sole indicator of state. Badges/alerts must include distinct textual labels alongside color cues.
+### Presets Available (User Choice Required):
+* **Preset A: High-Density Utility (Linear / Vercel style)**
+  * Compact padding ($6\text{px}\text{--}10\text{px}$ table cells), dark/light muted borders (`#E5E7EB`), high contrast, subtle focus rings, strict mono/sans typography hierarchy. Minimal card elevation.
+* **Preset B: Modern B2B SaaS (Stripe / Tailwind UI style)**
+  * Spacious padding ($16\text{px}\text{--}24\text{px}$ containers), soft card drop-shadows, prominent primary CTA buttons, rounded corners (`8px` radius), warm background neutrals (`#F9FAFB`).
+* **Preset C: WordPress Native Blend (`@wordpress/components`)**
+  * Seamless integration with core WP-Admin CSS variables (`--wp-admin-theme-color`), standard WP buttons, classic meta-box layout grids, flat borders.
 
-### Spacing & Layout
-* **Design System Tokens:** Padding and margins must adhere to $8\text{px}$ grid increments ($8\text{px} / 16\text{px} / 24\text{px} / 32\text{px}$).
-* **Container Whitespace:** Tables, cards, and admin meta-boxes must maintain balanced internal whitespace without cramped text.
-
-### Interactive Elements & Responsiveness
-* **Touch Targets:** Buttons, form inputs, and clickable icons must measure at least $44 \times 44\text{px}$.
-* **Viewport Adaptability:** Layouts must wrap cleanly at mobile sizes ($375\text{px}$) with zero horizontal page scrolling or clipped text.
+*Or ask the user to provide 2–3 reference images in `docs/ui-references/` to act as visual ground truth.*
 
 ---
 
-## 4. Execution & Reporting Requirements
+## 3. Built-In Browser Execution Strategy
 
-When executing an audit run, the agent must:
+The agent MUST use Antigravity's built-in browser tools (`BrowserMCP`) to dynamically interact with the live WordPress site:
 
-1. **Capture Visual Artifacts:** Save screenshots of each step in the workflow across both Desktop and Mobile viewports into `tests/ui-audit/screenshots/`.
-2. **Quantify Workflow Friction:** Calculate the total clicks, screen transitions, and cognitive friction points required to complete the workflow.
-3. **Generate Audit Report:** Write a structured Markdown report to `docs/ui-design-audit-report.md` containing:
-   * **Target Workflow:** Link/reference to the specific `docs/workflows/*.md` document evaluated.
-   * **Executive Summary:** Overall assessment of workflow usability and design compliance.
-   * **Structural UX Findings:** Analysis of click depth, context availability, and friction points encountered during the journey.
-   * **Visual UI Audit Table:** Itemized pass/fail status for typography, contrast, spacing, touch targets, and mobile responsiveness.
-   * **Actionable Recommendations:** Ranked list of recommended layout, navigation, or visual adjustments.
+1. **Session & Auth Check:** 
+   * Navigate to the local WP-Admin login or dashboard URL.
+   * If unauthenticated, pause or use saved session cookies to establish an active admin session.
+2. **Step-by-Step Workflow Traversal:**
+   * Execute the step-by-step journey defined in the ingested workflow file using native click, type, and navigate browser tools.
+   * At *each* step in the workflow, capture full-page screenshots (Desktop at $1280\text{px}$, Mobile at $375\text{px}$) and inspect the rendered DOM state.
+3. **Data Mutation Safety:**
+   * Perform actions on local development data only. If destructive actions are required, warn the user before proceeding.
+
+---
+
+## 4. Macro Structural UX Evaluation (Workflow Efficiency)
+
+While traversing the workflow via the browser, evaluate the interface against these structural heuristics:
+
+* **Context & Information Availability:** Is all decision-making data required at a given step (e.g., participant availability, requested teammates) visible *on screen* without forcing multi-tab navigation or context switching?
+* **Low Click-Friction:** Can tasks be completed with minimal transitions (e.g., inline controls, modals, or drag-and-drop)? Flag flows that force navigating into separate sub-pages for individual items when batch operations are appropriate.
+* **Immediate Validation:** Does performing an action with a constraint violation (e.g., date conflicts) trigger immediate visual feedback (e.g., a warning badge)?
+* **Management by Exception:** Do dashboard and overview screens prioritize incomplete requirements, pending route approvals, or missing consent over fully satisfied items?
+* **Role Scoping:** Does the embedded shortcode/front-end portal present a clean, read-only projection without exposing WP-Admin navigation or controls?
+
+---
+
+## 5. Micro Visual UI Evaluation (Tactical & Aesthetics)
+
+Evaluate rendered DOM elements, captured screenshots, and computed CSS properties against the chosen **Taste Profile** and these visual checks:
+
+### Objective Visual Anti-Patterns (Fail Immediately)
+* **Visual Noise:** Mixed border-radius values (e.g., combining `2px`, `8px`, and `16px` on the same screen).
+* **Typography Disconnect:** More than 2 distinct font families or arbitrary font sizes outside a modular scale.
+* **Orphan Elements:** Floating action buttons or misaligned form labels that break the layout grid.
+* **Unscoped Styles:** Embedded shortcode components leaking CSS into host WordPress themes or inheriting unwanted theme styles.
+
+### Systemic Quality Checks
+* **Typography & Hierarchy:** Heading tags (`H1`, `H2`, `H3`) follow a strict font scale. Body text line-height is $1.4\text{--}1.6$.
+* **Color & Accessibility (WCAG AA):** Text contrast satisfies $\ge 4.5:1$ (or $\ge 3:1$ for large headings). Color is never the sole state indicator; badges must include explicit textual labels.
+* **Spacing & Layout Grid:** Padding and margins strictly adhere to $8\text{px}$ base grid increments ($8\text{px} / 16\text{px} / 24\text{px} / 32\text{px}$). Tables and cards maintain balanced whitespace.
+* **Interactive Elements & Responsiveness:** Buttons and form inputs maintain minimum target dimensions ($\ge 44 \times 44\text{px}$ touch, $\ge 32\times 32\text{px}$ desktop). Layouts wrap cleanly at $375\text{px}$ width with zero horizontal scrolling.
+
+---
+
+## 6. Execution Output & Reporting Requirements
+
+After completing the browser traversal, the agent must generate the following artifacts:
+
+1. **Save Visual Artifacts:** Save captured screenshots into `tests/ui-audit/screenshots/` (labeled by step name and viewport size).
+2. **Visual Comparison:** If reference images exist in `docs/ui-references/`, compare current screenshots against references and note layout discrepancies.
+3. **Quantify Workflow Metrics:** Record total clicks, screen transitions, and cognitive friction points encountered during the workflow run.
+4. **Generate Audit Report:** Write a structured Markdown report to `docs/ui-design-audit-report.md` containing:
+   * **Evaluated Workflow & Taste Profile:** Reference to the input workflow file used and the active visual profile baseline.
+   * **Executive Summary:** Overall usability score and visual design consistency score.
+   * **Structural UX Findings:** Step-by-step breakdown of click depth, context availability, and friction points.
+   * **Visual UI Audit Table:** Pass/fail breakdown for typography, contrast, spacing tokens, touch targets, and mobile responsiveness.
+   * **Actionable Refactoring Plan:** Step-by-step component editing instructions ready for direct execution in `agy`.
