@@ -29,8 +29,6 @@ interface EventTeam {
   ems_team_code: string;
 }
 
-type LevelFilter    = 'silver' | 'gold';
-type TypeFilter     = 'practice' | 'qualifier';
 type AllocationMode = 'unallocated' | 'new_team' | 'existing_team';
 
 function Spinner() {
@@ -42,8 +40,6 @@ export default function EventPlanningBoard() {
   const rootUrl = config.root_url;
   const nonce   = config.nonce;
 
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>('silver');
-  const [typeFilter,  setTypeFilter]  = useState<TypeFilter>('practice');
   const [events,      setEvents]      = useState<PlanningEvent[]>([]);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
@@ -70,14 +66,14 @@ export default function EventPlanningBoard() {
     setExplorers([]);
     setSelectedScoutIds([]);
 
-    fetch(`${rootUrl}/planning-board?level=${levelFilter}&type=${typeFilter}`, {
+    fetch(`${rootUrl}/planning-board`, {
       headers: { 'X-WP-Nonce': nonce },
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
       .then(data => setEvents(Array.isArray(data) ? data : []))
       .catch(e => setError(`Failed to load planning board: ${e}`))
       .finally(() => setLoading(false));
-  }, [levelFilter, typeFilter, rootUrl, nonce]);
+  }, [rootUrl, nonce]);
 
   // ── Load explorers for a selected event ────────────────────────────────────
   const handleSelectEvent = useCallback((ev: PlanningEvent) => {
@@ -327,37 +323,27 @@ export default function EventPlanningBoard() {
         </div>
       )}
 
-      {/* ── Toolbar ── */}
+      {/* ── Toolbar / Event Selector at the Top ── */}
       <div className="ems-toolbar">
         <div className="ems-toolbar__group">
-          <label className="ems-toolbar__label" htmlFor="epb-level">Level</label>
+          <label className="ems-toolbar__label ems-planning-select-label" htmlFor="epb-event-select">Select Event</label>
           <select
-            id="epb-level"
-            className="ems-select-sm"
-            value={levelFilter}
-            onChange={e => setLevelFilter(e.target.value as LevelFilter)}
+            id="epb-event-select"
+            className="ems-select ems-planning-select"
+            aria-label="Select Event"
+            value={selectedEvent?.event_code || ''}
+            onChange={e => {
+              const ev = events.find(x => x.event_code === e.target.value);
+              if (ev) handleSelectEvent(ev);
+            }}
           >
-            <option value="silver">Silver</option>
-            <option value="gold">Gold</option>
+            <option value="">-- Choose an Event --</option>
+            {events.map(ev => (
+              <option key={ev.id} value={ev.event_code}>
+                {ev.title} ({ev.event_code}) - {ev.available_count} Available
+              </option>
+            ))}
           </select>
-        </div>
-
-        <div className="ems-toolbar__group">
-          <span className="ems-toolbar__label">Type</span>
-          <button
-            type="button"
-            className={`button${typeFilter === 'practice' ? ' button-primary' : ''}`}
-            onClick={() => setTypeFilter('practice')}
-          >
-            Practice
-          </button>
-          <button
-            type="button"
-            className={`button${typeFilter === 'qualifier' ? ' button-primary' : ''}`}
-            onClick={() => setTypeFilter('qualifier')}
-          >
-            Qualifier
-          </button>
         </div>
 
         {loading && <Spinner />}
@@ -366,30 +352,9 @@ export default function EventPlanningBoard() {
       {/* ── Two-column split ── */}
       <div className="ems-split ems-planning-split">
 
-        {/* Left Column — Selector & Roster */}
+        {/* Left Column — Availability Roster */}
         <div className="ems-split__left ems-planning-split__left">
-          <div className="ems-mb-16">
-            <label className="ems-toolbar__label ems-planning-select-label" htmlFor="epb-event-select">Select Event</label>
-            <select
-              id="epb-event-select"
-              className="ems-select"
-              aria-label="Select Event"
-              value={selectedEvent?.event_code || ''}
-              onChange={e => {
-                const ev = events.find(x => x.event_code === e.target.value);
-                if (ev) handleSelectEvent(ev);
-              }}
-            >
-              <option value="">-- Choose an Event --</option>
-              {events.map(ev => (
-                <option key={ev.id} value={ev.event_code}>
-                  {ev.title} ({ev.event_code}) - {ev.available_count} Available
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedEvent && (
+          {selectedEvent ? (
             <>
               <div className="ems-toolbar ems-planning-toolbar ems-mb-12">
                 <div className="ems-toolbar__group">
@@ -475,9 +440,7 @@ export default function EventPlanningBoard() {
                 </div>
               )}
             </>
-          )}
-
-          {!selectedEvent && (
+          ) : (
             <div className="ems-empty">
               Select an event from the dropdown to view availability roster.
             </div>
