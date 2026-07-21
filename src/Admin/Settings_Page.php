@@ -237,8 +237,8 @@ class Settings_Page {
 		});
 		</script>
 
-		<hr style="margin:2em 0" />
-		<h3 style="color:#b32d2e"><?php esc_html_e( 'Danger Zone / Test Seeding', 'ems-plugin' ); ?></h3>
+		<hr class="ems-divider ems-divider--settings" />
+		<h3 class="ems-text-danger"><?php esc_html_e( 'Danger Zone / Test Seeding', 'ems-plugin' ); ?></h3>
 		<table class="form-table">
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Purge Database', 'ems-plugin' ); ?></th>
