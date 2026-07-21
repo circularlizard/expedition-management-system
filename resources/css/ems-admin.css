@@ -3336,3 +3336,96 @@
     border-radius: 3px;
     margin-bottom: 10px;
 }
+
+/* ─── Event Planning Board Redesign ────────────────────────────────────────── */
+.ems-planning-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    align-content: start;
+}
+
+.ems-planning-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    padding: 16px;
+    transition: border-color 0.2s, background-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+}
+
+.ems-planning-card--dashed {
+    border: 2px dashed #ccd0d4;
+    background: #fafafa;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    min-height: 150px;
+}
+
+.ems-planning-card--active-drag {
+    border-color: var(--ems-theme-color);
+    background-color: var(--ems-theme-color-lighter);
+}
+
+.ems-planning-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #f0f0f1;
+    padding-bottom: 8px;
+}
+
+.ems-planning-card__title {
+    font-weight: 600;
+    font-size: 14px;
+    margin: 0;
+}
+
+.ems-planning-member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ems-planning-member-item {
+    font-size: 12px;
+    padding: 6px 10px;
+    background: #f6f7f7;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ems-table-wrap--unrestricted {
+    overflow-y: visible !important;
+    max-height: none !important;
+    flex: none !important;
+}
+
+.ems-draggable-row {
+    cursor: grab;
+}
+
+.ems-draggable-row:active {
+    cursor: grabbing;
+}
+
+.ems-planning-select-label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.ems-planning-card--dashed .ems-planning-new-team-inner {
+    text-align: center;
+}
+
+.ems-planning-new-team-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
