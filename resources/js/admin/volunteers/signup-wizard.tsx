@@ -199,7 +199,7 @@ function VolunteerSignupWizard() {
 
     if (submitted) {
         return (
-            <div style={{ padding: '20px', background: '#e5f5fa', borderRadius: '4px', border: '1px solid #00a0d2' }}>
+            <div className="ems-wizard-banner--info">
                 <h2>Availability Submitted!</h2>
                 <p>Thank you for volunteering. An email verification link has been sent (or your OSM sync completed).</p>
             </div>
@@ -207,7 +207,7 @@ function VolunteerSignupWizard() {
     }
 
     return (
-        <div style={{ maxWidth: '600px', margin: '0 auto', background: '#fff', border: '1px solid #ccd0d4', padding: '20px', borderRadius: '4px' }}>
+        <div className="ems-wizard-card">
             <h2>Volunteer Availability Wizard</h2>
 
             {errors.length > 0 && (
