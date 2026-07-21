@@ -26,6 +26,7 @@ class Plugin {
 
 	private function init_hooks(): void {
 		add_action( 'init', array( $this->cpt_registry, 'register' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'register_and_enqueue_frontend_assets' ) );
 		add_action( 'init', array( new \EMS\Core\Role_Manager(), 'register_roles' ) );
 		add_action( 'ems_daily_log_cleanup', array( '\\EMS\\Core\\Log_Rotator', 'purge_old_logs' ) );
 
@@ -596,20 +597,46 @@ class Plugin {
 		}
 	}
 
-	public function render_volunteer_signup_shortcode(): string {
-		$js_path  = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/volunteer-signup.js';
-		$css_path = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+	public function register_and_enqueue_frontend_assets(): void {
+		$css_path     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+		$volunteer_js = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/volunteer-signup.js';
+		$portal_js    = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.js';
 
-		wp_enqueue_style( 'wp-components' );
-		wp_enqueue_style( 'ems-admin', $css_path, array( 'wp-components' ), EMS_VERSION );
-
-		wp_enqueue_script(
+		wp_register_style( 'ems-admin', $css_path, array( 'wp-components' ), EMS_VERSION );
+		wp_register_script(
 			'ems-volunteer-signup',
-			$js_path,
+			$volunteer_js,
 			array( 'wp-element', 'wp-i18n' ),
 			EMS_VERSION,
 			true
 		);
+		wp_register_script(
+			'ems-portal',
+			$portal_js,
+			array( 'wp-element', 'wp-i18n' ),
+			EMS_VERSION,
+			true
+		);
+
+		global $post;
+		if ( is_a( $post, 'WP_Post' ) ) {
+			if ( has_shortcode( $post->post_content, 'ems-volunteer-signup' ) ) {
+				wp_enqueue_style( 'wp-components' );
+				wp_enqueue_style( 'ems-admin' );
+				wp_enqueue_script( 'ems-volunteer-signup' );
+			}
+			if ( has_shortcode( $post->post_content, 'ems-portal' ) ) {
+				wp_enqueue_style( 'wp-components' );
+				wp_enqueue_style( 'ems-admin' );
+				wp_enqueue_script( 'ems-portal' );
+			}
+		}
+	}
+
+	public function render_volunteer_signup_shortcode(): string {
+		wp_enqueue_style( 'wp-components' );
+		wp_enqueue_style( 'ems-admin' );
+		wp_enqueue_script( 'ems-volunteer-signup' );
 
 		$current_user = wp_get_current_user();
 		$user_data    = array(
@@ -638,19 +665,9 @@ class Plugin {
 	}
 
 	public function render_portal_shortcode(): string {
-		$js_path  = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.js';
-		$css_path = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
-
 		wp_enqueue_style( 'wp-components' );
-		wp_enqueue_style( 'ems-admin', $css_path, array( 'wp-components' ), EMS_VERSION );
-
-		wp_enqueue_script(
-			'ems-portal',
-			$js_path,
-			array( 'wp-element', 'wp-i18n' ),
-			EMS_VERSION,
-			true
-		);
+		wp_enqueue_style( 'ems-admin' );
+		wp_enqueue_script( 'ems-portal' );
 
 		$current_user = wp_get_current_user();
 		$user_data    = array(
@@ -677,3 +694,4 @@ class Plugin {
 		return '<div id="ems-portal-root"></div>';
 	}
 }
+
