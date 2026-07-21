@@ -3447,12 +3447,15 @@
 
 .ems-planning-split__left {
     overflow-y: visible !important;
+    height: auto !important;
+    min-height: auto !important;
 }
 
 .ems-planning-split__right {
     overflow: visible !important;
     min-height: auto !important;
     height: auto !important;
+    display: block !important;
 }
 
 .ems-planning-member-item {
