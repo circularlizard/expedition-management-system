@@ -155,147 +155,149 @@ function VolunteersDashboard() {
             </div>
 
             <div className="ems-volunteers-split">
-                <div className="ems-volunteers-table-wrap">
-                    <table className="wp-list-table widefat fixed striped table-view-list">
-                        <thead>
-                            <tr>
-                                <th className="ems-volunteers-col-name">Volunteer</th>
-                                {events.map(e => (
-                                    <th key={e.ID} className="ems-volunteers-col-event" title={`${e.post_title} (${e.ems_event_code})`}>
-                                        <div className="ems-ellipsis">{e.post_title}</div>
-                                        <span className="ems-volunteers-event-code">({e.ems_event_code})</span>
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedVolunteers.map(v => (
-                                <tr key={v.id} onClick={() => setSelectedVolunteer(v)} className="ems-row-hoverable ems-cursor-pointer">
-                                    <td>
-                                        <strong>{v.first_name} {v.last_name}</strong><br/>
-                                        <span className="ems-table-cell--meta">{v.email}</span>
-                                    </td>
-                                    {events.map(e => {
-                                        const eventShifts = v.availability.filter(s => s.expedition_post_id === e.ID);
-                                        if (eventShifts.length === 0) {
-                                            return <td key={e.ID} className="ems-volunteers-cell-empty">—</td>;
-                                        }
-
-                                        const hasConfirmed = eventShifts.some(s => s.confirmed === 1);
-                                        const hasConflicted = eventShifts.some(s => s.confirmed === -1);
-                                        const isWhole = eventShifts[0]?.signup_type === 'whole';
-                                        const isOvernightSignup = eventShifts.some(s => s.overnight === 1);
-
-                                        let badgeColor = '#f0b818';
-                                        let symbol = '?';
-                                        let titleText = 'Pending';
-                                        if (hasConfirmed) {
-                                            badgeColor = '#46b450';
-                                            symbol = '✓';
-                                            titleText = 'Confirmed';
-                                        } else if (hasConflicted) {
-                                            badgeColor = '#dc3232';
-                                            symbol = '✖';
-                                            titleText = 'Conflicted';
-                                        }
-
-                                        let finalBadgeColor = badgeColor;
-                                        if (!isWhole) {
-                                            if (hasConfirmed) {
-                                                finalBadgeColor = '#9ccc9c'; 
-                                            } else if (hasConflicted) {
-                                                finalBadgeColor = '#e59393'; 
-                                            } else {
-                                                finalBadgeColor = '#e3c878'; 
-                                            }
-                                        }
-
-                                        const commitmentLabel = isWhole ? 'Whole Event' : 'Partial Availability';
-                                        const fullTooltip = `${titleText} (${commitmentLabel}) on ${e.post_title}`;
-
-                                        return (
-                                            <td key={e.ID} className="ems-volunteers-cell-value">
-                                                <div
-                                                    title={fullTooltip}
-                                                    className="ems-volunteers-cell-indicator"
-                                                    style={{
-                                                        background: finalBadgeColor,
-                                                        border: isWhole ? '2px solid transparent' : '2px dashed #666'
-                                                    }}
-                                                >
-                                                    {symbol}
-                                                </div>
-                                            </td>
-                                        );
-                                    })}
+                <div className="ems-panel">
+                    <div className="ems-volunteers-table-wrap">
+                        <table className="wp-list-table widefat fixed striped table-view-list">
+                            <thead>
+                                <tr>
+                                    <th className="ems-volunteers-col-name">Volunteer</th>
+                                    {events.map(e => (
+                                        <th key={e.ID} className="ems-volunteers-col-event" title={`${e.post_title} (${e.ems_event_code})`}>
+                                            <div className="ems-ellipsis">{e.post_title}</div>
+                                            <span className="ems-volunteers-event-code">({e.ems_event_code})</span>
+                                        </th>
+                                    ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {paginatedVolunteers.map(v => (
+                                    <tr key={v.id} onClick={() => setSelectedVolunteer(v)} className="ems-row-hoverable ems-cursor-pointer">
+                                        <td>
+                                            <strong>{v.first_name} {v.last_name}</strong><br/>
+                                            <span className="ems-table-cell--meta">{v.email}</span>
+                                        </td>
+                                        {events.map(e => {
+                                            const eventShifts = v.availability.filter(s => s.expedition_post_id === e.ID);
+                                            if (eventShifts.length === 0) {
+                                                return <td key={e.ID} className="ems-volunteers-cell-empty">—</td>;
+                                            }
 
-                    {/* Pagination Bar */}
-                    {volunteers.length > 0 && (
-                        <div className="ems-table-pagination">
-                            <div className="ems-meta-text">
-                                Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, volunteers.length)} of {volunteers.length} records
-                            </div>
-                            <div className="ems-flex-center ems-gap-8">
-                                <label htmlFor="vol-items-per-page" className="ems-toolbar__label">Items per page:</label>
-                                <select
-                                    id="vol-items-per-page"
-                                    className="ems-select-sm"
-                                    value={itemsPerPage}
-                                    onChange={(e) => {
-                                        setItemsPerPage(parseInt(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                >
-                                    <option value={10}>10</option>
-                                    <option value={25}>25</option>
-                                    <option value={50}>50</option>
-                                    <option value={100}>100</option>
-                                </select>
+                                            const hasConfirmed = eventShifts.some(s => s.confirmed === 1);
+                                            const hasConflicted = eventShifts.some(s => s.confirmed === -1);
+                                            const isWhole = eventShifts[0]?.signup_type === 'whole';
+                                            const isOvernightSignup = eventShifts.some(s => s.overnight === 1);
 
-                                <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(1)}
-                                        disabled={currentPage === 1}
+                                            let badgeColor = '#f0b818';
+                                            let symbol = '?';
+                                            let titleText = 'Pending';
+                                            if (hasConfirmed) {
+                                                badgeColor = '#46b450';
+                                                symbol = '✓';
+                                                titleText = 'Confirmed';
+                                            } else if (hasConflicted) {
+                                                badgeColor = '#dc3232';
+                                                symbol = '✖';
+                                                titleText = 'Conflicted';
+                                            }
+
+                                            let finalBadgeColor = badgeColor;
+                                            if (!isWhole) {
+                                                if (hasConfirmed) {
+                                                    finalBadgeColor = '#9ccc9c'; 
+                                                } else if (hasConflicted) {
+                                                    finalBadgeColor = '#e59393'; 
+                                                } else {
+                                                    finalBadgeColor = '#e3c878'; 
+                                                }
+                                            }
+
+                                            const commitmentLabel = isWhole ? 'Whole Event' : 'Partial Availability';
+                                            const fullTooltip = `${titleText} (${commitmentLabel}) on ${e.post_title}`;
+
+                                            return (
+                                                <td key={e.ID} className="ems-volunteers-cell-value">
+                                                    <div
+                                                        title={fullTooltip}
+                                                        className="ems-volunteers-cell-indicator"
+                                                        style={{
+                                                            background: finalBadgeColor,
+                                                            border: isWhole ? '2px solid transparent' : '2px dashed #666'
+                                                        }}
+                                                    >
+                                                        {symbol}
+                                                    </div>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        {/* Pagination Bar */}
+                        {volunteers.length > 0 && (
+                            <div className="ems-table-pagination">
+                                <div className="ems-meta-text">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, volunteers.length)} of {volunteers.length} records
+                                </div>
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="vol-items-per-page" className="ems-toolbar__label">Items per page:</label>
+                                    <select
+                                        id="vol-items-per-page"
+                                        className="ems-select-sm"
+                                        value={itemsPerPage}
+                                        onChange={(e) => {
+                                            setItemsPerPage(parseInt(e.target.value));
+                                            setCurrentPage(1);
+                                        }}
                                     >
-                                        «
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                    >
-                                        ‹ Prev
-                                    </button>
-                                    <span className="ems-meta-text ems-mx-8">
-                                        Page {currentPage} of {totalPages}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        Next ›
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(totalPages)}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        »
-                                    </button>
+                                        <option value={10}>10</option>
+                                        <option value={25}>25</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </select>
+
+                                    <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setCurrentPage(1)}
+                                            disabled={currentPage === 1}
+                                        >
+                                            «
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                        >
+                                            ‹ Prev
+                                        </button>
+                                        <span className="ems-meta-text ems-mx-8">
+                                            Page {currentPage} of {totalPages}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            Next ›
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            »
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 {selectedVolunteer && (
