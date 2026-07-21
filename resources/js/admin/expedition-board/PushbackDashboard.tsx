@@ -212,7 +212,7 @@ export const PushbackDashboard: React.FC = () => {
 	return (
 		<div>
 			<div className="ems-pushback-dashboard">
-				<div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+				<div className="ems-pushback-filter-bar">
 					<label htmlFor="section-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
 						Select Section:
 					</label>
@@ -240,7 +240,7 @@ export const PushbackDashboard: React.FC = () => {
 				</div>
 
 				{failedQueue && (
-					<div className="notice notice-error inline" style={{ margin: '15px 0', padding: '12px 15px', display: 'block' }}>
+					<div className="notice notice-error inline ems-notice-container">
 						<p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>
 							⚠ Last Sync Attempt Failed (at {failedQueue.last_failed_at})
 						</p>
@@ -330,11 +330,11 @@ export const PushbackDashboard: React.FC = () => {
 													<strong>{up.column_name}</strong> ({up.column})
 												</td>
 												<td>
-													<span style={{ color: '#c00', textDecoration: 'line-through' }}>
+													<span className="ems-deleted-item">
 														{up.current_value || '—'}
 													</span>
 													{up.overwrite && (
-														<span className="ems-status-badge ems-status-badge--danger" style={{ marginLeft: '10px', fontSize: '10px' }}>
+														<span className="ems-status-badge ems-status-badge--danger ems-status-badge--mini">
 															⚠ Overwrite
 														</span>
 													)}
@@ -358,7 +358,7 @@ export const PushbackDashboard: React.FC = () => {
 							<h2>Event Attendance Invitations</h2>
 							{preview.events && preview.events.length > 0 ? (
 								preview.events.map((ev, idx) => (
-									<div key={idx} style={{ marginBottom: '30px', borderBottom: '1px solid #ccd0d4', paddingBottom: '20px' }}>
+									<div key={idx} className="ems-pushback-event-section">
 										<h3 
 											style={{ margin: '0 0 12px 0', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', userSelect: 'none' }}
 											onClick={() => toggleEventCollapse(ev.event_id)}
@@ -382,7 +382,7 @@ export const PushbackDashboard: React.FC = () => {
 											}
 
 											return (
-												<div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingLeft: '15px' }}>
+												<div className="ems-pushback-tables-group">
 													{/* 1. Pushback Actions */}
 													{invites.length > 0 && (
 														<div>

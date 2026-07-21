@@ -294,7 +294,7 @@ export function PortalApp() {
 
     if (!config.user_data?.logged_in || (me && !me.logged_in)) {
         return (
-            <div className="ems-portal-container portal-login-prompt" style={{ padding: '40px', textAlign: 'center', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #ddd' }}>
+            <div className="ems-portal-container portal-login-prompt ems-portal-welcome-card">
                 <h2>Expedition Management System</h2>
                 <p>Welcome to the expedition portal. Please log in using your Online Scout Manager account to access training, team information, and expedition details.</p>
                 <a href={config.login_url} className="button button-primary button-large" style={{ marginTop: '20px', display: 'inline-block' }}>
@@ -353,7 +353,7 @@ export function PortalApp() {
                 )}
 
                 {/* Top-Level Portal Page Navigation */}
-                <div className="portal-nav-tabs" style={{ display: 'flex', gap: '5px', marginTop: '20px', borderBottom: '1px solid #ccc', flexWrap: 'wrap' }}>
+                <div className="portal-nav-tabs ems-portal-tabs-nav">
                     <button
                         onClick={() => setCurrentPage('expeditions')}
                         className={`portal-tab ${currentPage === 'expeditions' ? 'active' : ''}`}
