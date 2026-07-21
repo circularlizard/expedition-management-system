@@ -241,70 +241,71 @@ function VolunteersDashboard() {
                             </tbody>
                         </table>
 
-                        {/* Pagination Bar */}
-                        {volunteers.length > 0 && (
-                            <div className="ems-table-pagination">
-                                <div className="ems-meta-text">
-                                    Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, volunteers.length)} of {volunteers.length} records
-                                </div>
-                                <div className="ems-flex-center ems-gap-8">
-                                    <label htmlFor="vol-items-per-page" className="ems-toolbar__label">Items per page:</label>
-                                    <select
-                                        id="vol-items-per-page"
-                                        className="ems-select-sm"
-                                        value={itemsPerPage}
-                                        onChange={(e) => {
-                                            setItemsPerPage(parseInt(e.target.value));
-                                            setCurrentPage(1);
-                                        }}
-                                    >
-                                        <option value={10}>10</option>
-                                        <option value={25}>25</option>
-                                        <option value={50}>50</option>
-                                        <option value={100}>100</option>
-                                    </select>
+                    </div>
 
-                                    <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
-                                        <button
-                                            type="button"
-                                            className="button button-small"
-                                            onClick={() => setCurrentPage(1)}
-                                            disabled={currentPage === 1}
-                                        >
-                                            «
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="button button-small"
-                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPage === 1}
-                                        >
-                                            ‹ Prev
-                                        </button>
-                                        <span className="ems-meta-text ems-mx-8">
-                                            Page {currentPage} of {totalPages}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            className="button button-small"
-                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            disabled={currentPage === totalPages}
-                                        >
-                                            Next ›
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="button button-small"
-                                            onClick={() => setCurrentPage(totalPages)}
-                                            disabled={currentPage === totalPages}
-                                        >
-                                            »
-                                        </button>
-                                    </div>
+                    {/* Pagination Bar */}
+                    {volunteers.length > 0 && (
+                        <div className="ems-table-pagination">
+                            <div className="ems-meta-text">
+                                Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, volunteers.length)} of {volunteers.length} records
+                            </div>
+                            <div className="ems-flex-center ems-gap-8">
+                                <label htmlFor="vol-items-per-page" className="ems-toolbar__label">Items per page:</label>
+                                <select
+                                    id="vol-items-per-page"
+                                    className="ems-select-sm"
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(parseInt(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+
+                                <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        «
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        ‹ Prev
+                                    </button>
+                                    <span className="ems-meta-text ems-mx-8">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next ›
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        »
+                                    </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 {selectedVolunteer && (
