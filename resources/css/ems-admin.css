@@ -3354,6 +3354,7 @@
     display: flex;
     flex-direction: column;
     min-height: 120px;
+    align-self: start;
 }
 
 .ems-planning-card--dashed {
@@ -3490,6 +3491,11 @@
     width: 320px;
     margin: 0;
 }
+
+.ems-planning-card--collapsed {
+    min-height: 0 !important;
+}
+
 
 
 
