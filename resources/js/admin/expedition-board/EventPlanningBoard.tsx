@@ -84,6 +84,7 @@ export default function EventPlanningBoard() {
     setAllocationMode('unallocated');
     setFilterUnit('all');
     setFeedback(null);
+    setError(null);
     setExplorersLoading(true);
 
     fetch(`${rootUrl}/planning-board/availability/${ev.event_code}`, {
@@ -91,8 +92,8 @@ export default function EventPlanningBoard() {
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
       .then(data => {
-        setExplorers(data.explorers || []);
-        setEventTeams(data.teams    || []);
+        setExplorers((data && data.explorers) || []);
+        setEventTeams((data && data.teams) || []);
       })
       .catch(e => setError(`Failed to load availability: ${e}`))
       .finally(() => setExplorersLoading(false));
