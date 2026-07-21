@@ -423,6 +423,7 @@
 .ems-ml-4  { margin-left: 4px; }
 .ems-ml-6  { margin-left: 6px; }
 .ems-ml-8  { margin-left: 8px; }
+.ems-ml-10 { margin-left: 10px; }
 
 /* Margin right */
 .ems-mr-4  { margin-right: 4px; }
@@ -3284,4 +3285,25 @@
 
 .ems-col-width-120 {
     width: 120px;
+}
+
+.ems-text-success {
+    color: #00a32a;
+    font-weight: bold;
+}
+
+.ems-collapsible-header {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    user-select: none;
+}
+
+.ems-notice-box {
+    background: #f0f0f0;
+    padding: 10px;
+    border-radius: 3px;
+    margin-bottom: 10px;
 }

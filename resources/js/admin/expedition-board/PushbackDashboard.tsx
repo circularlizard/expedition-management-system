@@ -340,7 +340,7 @@ export const PushbackDashboard: React.FC = () => {
 													)}
 												</td>
 												<td>
-													<span style={{ color: '#090', fontWeight: 'bold' }}>
+													<span className="ems-text-success">
 														{up.proposed_value}
 													</span>
 												</td>
@@ -360,7 +360,7 @@ export const PushbackDashboard: React.FC = () => {
 								preview.events.map((ev, idx) => (
 									<div key={idx} className="ems-pushback-event-section">
 										<h3 
-											style={{ margin: '0 0 12px 0', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', userSelect: 'none' }}
+											className="ems-collapsible-header"
 											onClick={() => toggleEventCollapse(ev.event_id)}
 										>
 											<span style={{ marginRight: '8px', fontSize: '10px', display: 'inline-block', transition: 'transform 0.2s', transform: expandedEvents[ev.event_id] ? 'none' : 'rotate(-90deg)' }}>
