@@ -3429,3 +3429,34 @@
     margin-bottom: 8px;
 }
 
+.ems-planning-panel {
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+.ems-planning-split {
+    overflow: visible !important;
+    min-height: auto !important;
+    height: auto !important;
+}
+
+.ems-planning-split__left {
+    overflow-y: visible !important;
+}
+
+.ems-planning-split__right {
+    overflow: visible !important;
+    min-height: auto !important;
+    height: auto !important;
+}
+
+.ems-planning-member-item {
+    cursor: grab;
+}
+
+.ems-planning-member-item:active {
+    cursor: grabbing;
+}
+
+

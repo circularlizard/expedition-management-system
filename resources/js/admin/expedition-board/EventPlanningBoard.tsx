@@ -219,7 +219,12 @@ export default function EventPlanningBoard() {
     return (
       <div className="ems-planning-member-list">
         {list.map(m => (
-          <div key={m.scout_id} className="ems-planning-member-item">
+          <div
+            key={m.scout_id}
+            className="ems-planning-member-item"
+            draggable={true}
+            onDragStart={e => handleDragStart(e, m.scout_id)}
+          >
             <span>{m.first_name} {m.last_name}</span>
             <span className="ems-meta-text">({m.unit_name})</span>
           </div>
@@ -236,7 +241,12 @@ export default function EventPlanningBoard() {
     return (
       <div className="ems-planning-member-list">
         {list.map(m => (
-          <div key={m.scout_id} className="ems-planning-member-item">
+          <div
+            key={m.scout_id}
+            className="ems-planning-member-item"
+            draggable={true}
+            onDragStart={e => handleDragStart(e, m.scout_id)}
+          >
             <span>{m.first_name} {m.last_name}</span>
             <span className="ems-meta-text">({m.unit_name})</span>
           </div>
@@ -246,7 +256,7 @@ export default function EventPlanningBoard() {
   };
 
   return (
-    <div className="ems-panel ems-panel--full-height">
+    <div className="ems-panel ems-planning-panel">
 
       {/* ── Error banner ── */}
       {error && (
@@ -304,11 +314,10 @@ export default function EventPlanningBoard() {
         {loading && <Spinner />}
       </div>
 
-      {/* ── Two-column split ── */}
-      <div className="ems-split">
+      <div className="ems-split ems-planning-split">
 
         {/* Left Column — Selector & Roster */}
-        <div className="ems-split__left">
+        <div className="ems-split__left ems-planning-split__left">
           <div className="ems-mb-16">
             <label className="ems-toolbar__label ems-planning-select-label" htmlFor="epb-event-select">Select Event</label>
             <select
@@ -443,7 +452,7 @@ export default function EventPlanningBoard() {
         </div>
 
         {/* Right Column — Drop Zones for Teams */}
-        <div className="ems-split__right">
+        <div className="ems-split__right ems-planning-split__right">
           <h3 className="ems-section-heading ems-mb-16">Teams Drop Zones</h3>
 
           {selectedEvent ? (
