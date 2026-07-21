@@ -304,7 +304,14 @@ function VolunteersDashboard() {
                     <div ref={inspectorRef} className="ems-signups-inspector ems-p-16">
                         <div className="ems-flex-between ems-mb-12">
                             <h3 className="ems-m-0 ems-font-semibold">Volunteer Details</h3>
-                            <button className="button" onClick={() => setSelectedVolunteer(null)}>Close</button>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedVolunteer(null)}
+                                className="ems-inspector__close"
+                                aria-label="&times;"
+                            >
+                                &times;
+                            </button>
                         </div>
                         <p><strong>Name:</strong> {selectedVolunteer.first_name} {selectedVolunteer.last_name}</p>
                         <p><strong>Email:</strong> {selectedVolunteer.email}</p>
