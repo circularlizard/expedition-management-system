@@ -200,6 +200,7 @@ export default function EventPlanningBoard() {
 
   const filteredExplorers = explorers.filter(exp => {
     if (filterUnit !== 'all' && exp.unit_name !== filterUnit) return false;
+    if (exp.allocated_team_code && exp.allocated_team_code !== '') return false;
     return true;
   });
 

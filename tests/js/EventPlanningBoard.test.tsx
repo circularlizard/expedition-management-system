@@ -46,7 +46,10 @@ describe('EventPlanningBoard', () => {
       if (urlStr.includes('/planning-board/availability')) {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ explorers: mockAvailability, teams: [] })
+          json: async () => ({
+            explorers: mockAvailability,
+            teams: [{ ID: 201, ems_team_code: 'H-SP2-1' }]
+          })
         });
       }
       if (urlStr.includes('/planning-board/allocate')) {
