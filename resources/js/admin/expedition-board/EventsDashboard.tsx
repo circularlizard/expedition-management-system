@@ -7,6 +7,7 @@ interface EventsDashboardProps {
     onEditEvent?: (event: Expedition) => void;
     osmEvents?: OSMEvent[];
     osmEventsLoading?: boolean;
+    onCreateEvent?: () => void;
 }
 
 type DashboardTab = 'upcoming' | 'past';
@@ -66,6 +67,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
     onEditEvent,
     osmEvents = [],
     osmEventsLoading = false,
+    onCreateEvent,
 }) => {
     const config = window.emsExpeditionBoard;
     const [activeTab, setActiveTab] = useState<DashboardTab>('upcoming');
@@ -73,7 +75,6 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
     const [events, setEvents] = useState<Expedition[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [showCreateForm, setShowCreateForm] = useState(false);
 
     const load = useCallback(async (tab: DashboardTab, archived: boolean) => {
         setLoading(true);
@@ -94,13 +95,6 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
 
     const switchTab = (tab: DashboardTab) => {
         setActiveTab(tab);
-        setShowCreateForm(false);
-    };
-
-    const onEventCreated = (savedEvent: Expedition) => {
-        setShowCreateForm(false);
-        load(activeTab, includeArchived);
-        void savedEvent;
     };
 
     const tabClass = (tab: DashboardTab): string =>
@@ -115,24 +109,11 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                     id="ems-create-event-btn"
                     type="button"
                     className="button button-primary"
-                    onClick={() => setShowCreateForm((v) => !v)}
+                    onClick={onCreateEvent}
                 >
-                    {showCreateForm ? '✕ Close' : '+ Create Event'}
+                    + Create Event
                 </button>
             </div>
-
-            {/* Inline create form */}
-            {showCreateForm && (
-                <div className="ems-new-event-card">
-                    <h3>New Event</h3>
-                    <EventForm
-                        seasonId={0}
-                        osmEvents={osmEvents}
-                        onSaved={onEventCreated}
-                        onCancel={() => setShowCreateForm(false)}
-                    />
-                </div>
-            )}
 
             {/* Tab bar */}
             <div className="ems-tab-nav">
