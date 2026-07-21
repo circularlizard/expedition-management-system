@@ -762,7 +762,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         )}
 
                         {/* Emails Block (rendered just above Submission Info) */}
-                        <div className="ems-flex-col ems-gap-12 ems-mt-12" style={{ borderTop: '1px dashed #ccd0d4', paddingTop: '16px' }}>
+                        <div className="ems-flex-col ems-gap-12 ems-mt-12 ems-border-divider">
                             <div>
                                 <span className="ems-signups-inspector__label">Explorer Email</span>
                                 <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.explorer_email || '—'}</div>
