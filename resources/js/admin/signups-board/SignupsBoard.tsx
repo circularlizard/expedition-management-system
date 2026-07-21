@@ -411,170 +411,172 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                 </div>
 
                 {/* Table Grid */}
-                <div className="ems-signups-table-wrap">
-                    <table className="ems-table">
-                        <thead>
-                            <tr>
-                                <th className="ems-table-cell--center ems-m-0"></th>
-                                {renderHeader('Submission Date', 'created_at')}
-                                {renderHeader('Explorer Name', 'explorer_first_name')}
-                                {renderHeader('Level', 'dofe_level')}
-                                {type === 'expedition' && renderHeader('Expedition', 'expedition')}
-                                {renderHeader('ESU', 'unit_name')}
-                                {renderHeader('Email', 'explorer_email')}
-                                {type === 'participant' ? (
-                                    <>
-                                        {renderHeader('Prior Level Completed', 'prior_completions')}
-                                        {renderHeader('DofE Number', 'dofe_number')}
-                                        {renderHeader('Status', 'signup_status')}
-                                    </>
-                                ) : (
-                                    <>
-                                        {renderHeader('First Aid', 'first_aid_status')}
-                                        {renderHeader('DofE Number', 'dofe_number')}
-                                    </>
-                                )}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedSignups.length === 0 ? (
+                <div className="ems-panel">
+                    <div className="ems-signups-table-wrap">
+                        <table className="ems-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan={type === 'participant' ? 10 : 9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
-                                        No signup records found for this filter state.
-                                    </td>
+                                    <th className="ems-table-cell--center ems-m-0"></th>
+                                    {renderHeader('Submission Date', 'created_at')}
+                                    {renderHeader('Explorer Name', 'explorer_first_name')}
+                                    {renderHeader('Level', 'dofe_level')}
+                                    {type === 'expedition' && renderHeader('Expedition', 'expedition')}
+                                    {renderHeader('ESU', 'unit_name')}
+                                    {renderHeader('Email', 'explorer_email')}
+                                    {type === 'participant' ? (
+                                        <>
+                                            {renderHeader('Prior Level Completed', 'prior_completions')}
+                                            {renderHeader('DofE Number', 'dofe_number')}
+                                            {renderHeader('Status', 'signup_status')}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {renderHeader('First Aid', 'first_aid_status')}
+                                            {renderHeader('DofE Number', 'dofe_number')}
+                                        </>
+                                    )}
                                 </tr>
-                            ) : (
-                                paginatedSignups.map((s) => (
-                                    <tr 
-                                        key={s.id} 
-                                        onClick={() => setSelectedSignup(s)}
-                                        className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id ? 'ems-table-row--selected' : ''}`}
-                                    >
-                                        <td className="ems-table-cell--center">
-                                            {s.is_synced_osm ? (
-                                                <span title="Synced with OSM" className="ems-fa-full">✓</span>
-                                            ) : null}
+                            </thead>
+                            <tbody>
+                                {paginatedSignups.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={type === 'participant' ? 10 : 9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
+                                            No signup records found for this filter state.
                                         </td>
-                                        <td>
-                                            {s.created_at ? s.created_at.substring(0, 16) : '—'}
-                                        </td>
-                                        <td>
-                                            <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
-                                        </td>
-                                        <td>
-                                            <span className={`ems-pill ems-pill--${s.dofe_level}`}>
-                                                {s.dofe_level}
-                                            </span>
-                                        </td>
-                                        {type === 'expedition' && (
-                                            <td className="ems-table-cell--small">
-                                                {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
-                                            </td>
-                                        )}
-                                        <td>
-                                            {s.unit_name}
-                                        </td>
-                                        <td>
-                                            {s.explorer_email || '—'}
-                                        </td>
-                                        {type === 'participant' ? (
-                                            <>
-                                                 <td>
-                                                     {renderPriorCompletions(s)}
-                                                 </td>
-                                                 <td className="ems-monospace">
-                                                     {s.dofe_number || '—'}
-                                                     {s.dofe_registered === 'y-other' && (
-                                                         <div className="ems-signups-transfer-warning">
-                                                             ⚠️ Transfer Req.
-                                                         </div>
-                                                     )}
-                                                 </td>
-                                                <td>
-                                                    <span className={`ems-status-badge ems-status-badge--${s.signup_status}`}>
-                                                        {s.signup_status}
-                                                    </span>
-                                                </td>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <td>
-                                                    {s.first_aid_status}
-                                                </td>
-                                                <td className="ems-monospace">
-                                                    {s.dofe_number || '—'}
-                                                </td>
-                                            </>
-                                        )}
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    paginatedSignups.map((s) => (
+                                        <tr 
+                                            key={s.id} 
+                                            onClick={() => setSelectedSignup(s)}
+                                            className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id ? 'ems-table-row--selected' : ''}`}
+                                        >
+                                            <td className="ems-table-cell--center">
+                                                {s.is_synced_osm ? (
+                                                    <span title="Synced with OSM" className="ems-fa-full">✓</span>
+                                                ) : null}
+                                            </td>
+                                            <td>
+                                                {s.created_at ? s.created_at.substring(0, 16) : '—'}
+                                            </td>
+                                            <td>
+                                                <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
+                                            </td>
+                                            <td>
+                                                <span className={`ems-pill ems-pill--${s.dofe_level}`}>
+                                                    {s.dofe_level}
+                                                </span>
+                                            </td>
+                                            {type === 'expedition' && (
+                                                <td className="ems-table-cell--small">
+                                                    {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
+                                                </td>
+                                            )}
+                                            <td>
+                                                {s.unit_name}
+                                            </td>
+                                            <td>
+                                                {s.explorer_email || '—'}
+                                            </td>
+                                            {type === 'participant' ? (
+                                                <>
+                                                     <td>
+                                                         {renderPriorCompletions(s)}
+                                                     </td>
+                                                     <td className="ems-monospace">
+                                                         {s.dofe_number || '—'}
+                                                         {s.dofe_registered === 'y-other' && (
+                                                             <div className="ems-signups-transfer-warning">
+                                                                 ⚠️ Transfer Req.
+                                                             </div>
+                                                         )}
+                                                     </td>
+                                                    <td>
+                                                        <span className={`ems-status-badge ems-status-badge--${s.signup_status}`}>
+                                                            {s.signup_status}
+                                                        </span>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td>
+                                                        {s.first_aid_status}
+                                                    </td>
+                                                    <td className="ems-monospace">
+                                                        {s.dofe_number || '—'}
+                                                    </td>
+                                                </>
+                                            )}
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
 
-                    {/* Pagination Bar */}
-                    {filteredSignups.length > 0 && (
-                        <div className="ems-table-pagination">
-                            <div className="ems-meta-text">
-                                Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredSignups.length)} of {filteredSignups.length} records
-                            </div>
-                            <div className="ems-flex-center ems-gap-8">
-                                <label htmlFor="items-per-page" className="ems-toolbar__label">Items per page:</label>
-                                <select
-                                    id="items-per-page"
-                                    className="ems-select-sm"
-                                    value={itemsPerPage}
-                                    onChange={(e) => {
-                                        setItemsPerPage(parseInt(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                >
-                                    <option value={10}>10</option>
-                                    <option value={25}>25</option>
-                                    <option value={50}>50</option>
-                                    <option value={100}>100</option>
-                                </select>
+                        {/* Pagination Bar */}
+                        {filteredSignups.length > 0 && (
+                            <div className="ems-table-pagination">
+                                <div className="ems-meta-text">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredSignups.length)} of {filteredSignups.length} records
+                                </div>
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="items-per-page" className="ems-toolbar__label">Items per page:</label>
+                                    <select
+                                        id="items-per-page"
+                                        className="ems-select-sm"
+                                        value={itemsPerPage}
+                                        onChange={(e) => {
+                                            setItemsPerPage(parseInt(e.target.value));
+                                            setCurrentPage(1);
+                                        }}
+                                    >
+                                        <option value={10}>10</option>
+                                        <option value={25}>25</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </select>
 
-                                <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(1)}
-                                        disabled={currentPage === 1}
-                                    >
-                                        «
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                    >
-                                        ‹ Prev
-                                    </button>
-                                    <span className="ems-meta-text ems-mx-8">
-                                        Page {currentPage} of {totalPages}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        Next ›
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(totalPages)}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        »
-                                    </button>
+                                    <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setCurrentPage(1)}
+                                            disabled={currentPage === 1}
+                                        >
+                                            «
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                        >
+                                            ‹ Prev
+                                        </button>
+                                        <span className="ems-meta-text ems-mx-8">
+                                            Page {currentPage} of {totalPages}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            Next ›
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            »
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
 
