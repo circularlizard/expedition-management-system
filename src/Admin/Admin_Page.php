@@ -304,9 +304,9 @@ class Admin_Page {
 			echo '</form>';
 		}
 		if ( $last_sync ) {
-			echo '<span style="color:#666;">' . esc_html__( 'Last synced:', 'ems-plugin' ) . ' ' . esc_html( $last_sync ) . '</span>';
+			echo '<span class="ems-text-muted">' . esc_html__( 'Last synced:', 'ems-plugin' ) . ' ' . esc_html( $last_sync ) . '</span>';
 		} else {
-			echo '<span style="color:#999;">' . esc_html__( 'Never synced', 'ems-plugin' ) . '</span>';
+			echo '<span class="ems-text-muted">' . esc_html__( 'Never synced', 'ems-plugin' ) . '</span>';
 		}
 		echo '</div>';
 
@@ -318,7 +318,7 @@ class Admin_Page {
 			'diagnostics' => __( 'Diagnostics', 'ems-plugin' ),
 		);
 
-		echo '<nav class="nav-tab-wrapper" style="margin-bottom:0;">';
+		echo '<nav class="nav-tab-wrapper ems-nav-tab-wrapper--no-margin">';
 		foreach ( $tab_labels as $slug => $label ) {
 			$class = ( $slug === $active_tab ) ? 'nav-tab nav-tab-active' : 'nav-tab';
 			echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
@@ -655,7 +655,7 @@ class Admin_Page {
 		if ( ! empty( $log ) ) {
 			echo '<h3 style="margin-top:20px;">' . esc_html__( 'Last Sync Log', 'ems-plugin' ) . '</h3>';
 			$log_json = wp_json_encode( $log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
-			echo '<pre style="background:#f6f7f7;padding:10px;overflow:auto;max-height:300px;font-size:11px;">';
+			echo '<pre class="ems-log-output-box">';
 			echo esc_html( $log_json );
 			echo '</pre>';
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
