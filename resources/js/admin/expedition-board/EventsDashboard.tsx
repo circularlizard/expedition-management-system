@@ -76,6 +76,53 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [sortKey, setSortKey] = useState<string>('ems_start_date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+    const toggleSort = (key: string) => {
+        if (sortKey === key) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortOrder('asc');
+        }
+    };
+
+    const getSortValue = (item: Expedition, key: string) => {
+        if (key === 'teams') return (item.teams ?? []).length;
+        if (key === 'name') return (item.post_title || item.ems_event_code || '').toLowerCase();
+        const val = (item as any)[key];
+        if (typeof val === 'string') {
+            return val.toLowerCase();
+        }
+        return val ?? '';
+    };
+
+    const sortedEvents = [...events].sort((a, b) => {
+        const valA = getSortValue(a, sortKey);
+        const valB = getSortValue(b, sortKey);
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    const renderSortHeader = (label: string, key: string, alignmentClass: string = '') => {
+        const isCurrent = sortKey === key;
+        return (
+            <th 
+                onClick={() => toggleSort(key)} 
+                className={`ems-cursor-pointer ${alignmentClass}`}
+            >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    {label}
+                    <span className={`ems-osm-ref-col-sort ${isCurrent ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
+                        {isCurrent ? (sortOrder === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                </div>
+            </th>
+        );
+    };
+
     const load = useCallback(async (tab: DashboardTab, archived: boolean) => {
         setLoading(true);
         setError(null);
@@ -165,20 +212,20 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                     <table className="ems-table ems-mt-0">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Code</th>
-                                <th>Type</th>
-                                <th>Transport</th>
-                                <th>Level</th>
-                                <th>Dates</th>
-                                <th className="ems-table-cell--center">Teams</th>
-                                <th className="ems-table-cell--center">Members</th>
-                                <th>Route Status</th>
+                                {renderSortHeader('Name', 'name')}
+                                {renderSortHeader('Code', 'ems_event_code')}
+                                {renderSortHeader('Type', 'ems_type')}
+                                {renderSortHeader('Transport', 'ems_transport')}
+                                {renderSortHeader('Level', 'ems_level')}
+                                {renderSortHeader('Dates', 'ems_start_date')}
+                                {renderSortHeader('Teams', 'teams', 'ems-table-cell--center')}
+                                {renderSortHeader('Members', 'member_count', 'ems-table-cell--center')}
+                                {renderSortHeader('Route Status', 'ems_route_status')}
                                 <th className="ems-table-cell--right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {events.map((event) => (
+                            {sortedEvents.map((event) => (
                                 <tr
                                     key={event.ID}
                                     className={`ems-row-hoverable${event.ems_status === 'archived' ? ' ems-table-row--archived' : ''}`}
