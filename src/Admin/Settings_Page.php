@@ -371,8 +371,8 @@ class Settings_Page {
 			<table class="wp-list-table widefat fixed striped">
 				<thead>
 					<tr>
-						<th style="width:70px"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
-						<th style="width:120px"><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
+						<th class="ems-col-width-70"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
+						<th class="ems-col-width-120"><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
 						<th><?php esc_html_e( 'Section Name', 'ems-plugin' ); ?></th>
 						<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
 						<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
