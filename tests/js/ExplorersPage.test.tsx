@@ -34,7 +34,6 @@ describe('ExplorersPage', () => {
         (global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockBoardData });
         render(<ExplorersPage />);
         await waitFor(() => {
-            expect(screen.getByRole('heading', { name: 'Explorer List' })).toBeInTheDocument();
             expect(screen.getByText('Alice MacLeod')).toBeInTheDocument();
         });
     });

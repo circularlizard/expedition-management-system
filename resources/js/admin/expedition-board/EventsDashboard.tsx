@@ -123,7 +123,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                 <button id="ems-tab-past" className={tabClass('past')} onClick={() => switchTab('past')}>
                     Past Events
                 </button>
-                <label className="ems-tab-nav__checkbox-label">
+                <label className={`ems-tab-nav__checkbox-label ems-filter-pill ${includeArchived ? 'ems-filter-pill--active' : ''}`}>
                     <input
                         id="ems-show-archived"
                         type="checkbox"
