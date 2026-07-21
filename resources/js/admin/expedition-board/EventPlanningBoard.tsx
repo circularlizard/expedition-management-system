@@ -200,7 +200,7 @@ export default function EventPlanningBoard() {
 
   const filteredExplorers = explorers.filter(exp => {
     if (filterUnit !== 'all' && exp.unit_name !== filterUnit) return false;
-    if (exp.allocated_team_code && exp.allocated_team_code !== '') return false;
+    if (exp.allocated_event_code === selectedEvent.event_code) return false;
     return true;
   });
 
@@ -228,7 +228,9 @@ export default function EventPlanningBoard() {
 
   // ── Render members lists in drop zones ──
   const renderTeamMembersList = (teamCode: string) => {
-    const list = explorers.filter(exp => exp.allocated_team_code === teamCode);
+    const list = explorers
+      .filter(exp => exp.allocated_team_code === teamCode)
+      .sort((a, b) => a.first_name.localeCompare(b.first_name));
     if (list.length === 0) {
       return <div className="ems-meta-text ems-italic">No members allocated yet</div>;
     }
@@ -263,7 +265,9 @@ export default function EventPlanningBoard() {
   };
 
   const renderPoolMembersList = () => {
-    const list = explorers.filter(exp => !exp.allocated_team_code || exp.allocated_team_code === 'UNALLOCATED');
+    const list = explorers
+      .filter(exp => exp.allocated_team_code === 'UNALLOCATED')
+      .sort((a, b) => a.first_name.localeCompare(b.first_name));
     if (list.length === 0) {
       return <div className="ems-meta-text ems-italic">No pool members</div>;
     }
