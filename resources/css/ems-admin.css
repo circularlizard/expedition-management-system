@@ -3459,4 +3459,32 @@
     cursor: grabbing;
 }
 
+.ems-planning-card--pool {
+    background: #f4f6f8;
+    border: 2px solid #ccd6e0;
+}
+
+.ems-remove-member-btn {
+    background: none !important;
+    border: none !important;
+    color: #dc3232;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 4px !important;
+    line-height: 1;
+    margin-left: 8px;
+    box-shadow: none !important;
+}
+
+.ems-remove-member-btn:hover {
+    color: #a00;
+}
+
+.ems-planning-card__header {
+    cursor: pointer;
+    user-select: none;
+}
+
+
 

@@ -32,7 +32,6 @@ interface EventTeam {
 type LevelFilter    = 'silver' | 'gold';
 type TypeFilter     = 'practice' | 'qualifier';
 type AllocationMode = 'unallocated' | 'new_team' | 'existing_team';
-type SortBy         = 'name' | 'unit' | 'allocation';
 
 function Spinner() {
   return <span className="ems-spinner" aria-label="Loading…" />;
@@ -53,14 +52,15 @@ export default function EventPlanningBoard() {
   const [explorers,        setExplorers]        = useState<PlanningExplorer[]>([]);
   const [explorersLoading, setExplorersLoading] = useState(false);
   const [selectedScoutIds, setSelectedScoutIds] = useState<number[]>([]);
-  const [sortBy,           setSortBy]           = useState<SortBy>('name');
+  const [sortKey,          setSortKey]          = useState<'name' | 'unit'>('name');
+  const [sortOrder,        setSortOrder]        = useState<'asc' | 'desc'>('asc');
   const [filterUnit,       setFilterUnit]       = useState<string>('all');
-  const [filterAllocated,  setFilterAllocated]  = useState<'all' | 'allocated' | 'unallocated'>('all');
   const [allocationMode,   setAllocationMode]   = useState<AllocationMode>('unallocated');
   const [targetTeamId,     setTargetTeamId]     = useState<number>(0);
   const [eventTeams,       setEventTeams]       = useState<EventTeam[]>([]);
   const [feedback,         setFeedback]         = useState<{ ok: boolean; msg: string } | null>(null);
   const [dragOverZone,     setDragOverZone]     = useState<string | null>(null);
+  const [collapsedTeams,   setCollapsedTeams]   = useState<Record<string, boolean>>({});
 
   // ── Load planning board events ─────────────────────────────────────────────
   useEffect(() => {
@@ -87,7 +87,6 @@ export default function EventPlanningBoard() {
     setEventTeams([]);
     setAllocationMode('unallocated');
     setFilterUnit('all');
-    setFilterAllocated('all');
     setFeedback(null);
     setExplorersLoading(true);
 
@@ -120,7 +119,7 @@ export default function EventPlanningBoard() {
   };
 
   // ── Apply allocation action (reusable for drag-drop and manual select) ───
-  const allocateExplorers = async (scoutIds: number[], mode: AllocationMode, teamId?: number) => {
+  const allocateExplorers = async (scoutIds: number[], mode: AllocationMode | 'remove', teamId?: number) => {
     if (!selectedEvent || scoutIds.length === 0) return;
     setLoading(true);
     setFeedback(null);
@@ -140,7 +139,8 @@ export default function EventPlanningBoard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || res.statusText);
-      setFeedback({ ok: true, msg: `${data.allocated ?? scoutIds.length} explorer(s) allocated.` });
+      const actionMsg = mode === 'remove' ? 'removed from this event.' : 'allocated.';
+      setFeedback({ ok: true, msg: `${data.allocated ?? scoutIds.length} explorer(s) ${actionMsg}` });
       setSelectedScoutIds([]);
       handleSelectEvent(selectedEvent);
     } catch (e: unknown) {
@@ -156,7 +156,6 @@ export default function EventPlanningBoard() {
 
   // ── Drag & Drop Event Handlers ───────────────────────────────────────────
   const handleDragStart = (e: React.DragEvent, scoutId: number) => {
-    // If the dragged row is checked, drag all checked items, otherwise drag just this item
     const dragIds = selectedScoutIds.includes(scoutId) ? selectedScoutIds : [scoutId];
     e.dataTransfer.setData('application/json', JSON.stringify({ scoutIds: dragIds }));
     e.dataTransfer.effectAllowed = 'move';
@@ -186,29 +185,49 @@ export default function EventPlanningBoard() {
     }
   };
 
-  // ── Sort & Filter explorers ────────────────────────────────────────────────
+  // ── Sorting & Filtering ───────────────────────────────────────────────────
   const availableUnits = Array.from(new Set(explorers.map(e => e.unit_name).filter(Boolean))).sort();
+
+  const handleHeaderSort = (key: 'name' | 'unit') => {
+    if (sortKey === key) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
+
+  const renderSortIndicator = (key: 'name' | 'unit') => {
+    if (sortKey !== key) return <span className="ems-sort-indicator">⇅</span>;
+    return sortOrder === 'asc' ? <span className="ems-sort-indicator">▲</span> : <span className="ems-sort-indicator">▼</span>;
+  };
 
   const filteredExplorers = explorers.filter(exp => {
     if (filterUnit !== 'all' && exp.unit_name !== filterUnit) return false;
-    if (filterAllocated === 'allocated' && !exp.allocated_event_code) return false;
-    if (filterAllocated === 'unallocated' && exp.allocated_event_code) return false;
     return true;
   });
 
   const sortedExplorers = [...filteredExplorers].sort((a, b) => {
-    if (sortBy === 'unit') return a.unit_name.localeCompare(b.unit_name);
-    if (sortBy === 'allocation') {
-      const aAlloc = !!a.allocated_event_code;
-      const bAlloc = !!b.allocated_event_code;
-      if (aAlloc !== bAlloc) return aAlloc ? 1 : -1; // Unallocated first
-      return `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`);
+    let valA = '';
+    let valB = '';
+    if (sortKey === 'unit') {
+      valA = a.unit_name || '';
+      valB = b.unit_name || '';
+    } else {
+      valA = `${a.last_name} ${a.first_name}`;
+      valB = `${b.last_name} ${b.first_name}`;
     }
-    return `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`);
+    const cmp = valA.localeCompare(valB);
+    return sortOrder === 'asc' ? cmp : -cmp;
   });
 
   const allSelected  = sortedExplorers.length > 0 && sortedExplorers.every(e => selectedScoutIds.includes(e.scout_id));
   const someSelected = sortedExplorers.length > 0 && sortedExplorers.some(e => selectedScoutIds.includes(e.scout_id)) && !allSelected;
+
+  // ── Collapse helpers ──
+  const toggleCollapse = (teamKey: string) => {
+    setCollapsedTeams(prev => ({ ...prev, [teamKey]: !prev[teamKey] }));
+  };
 
   // ── Render members lists in drop zones ──
   const renderTeamMembersList = (teamCode: string) => {
@@ -225,18 +244,33 @@ export default function EventPlanningBoard() {
             draggable={true}
             onDragStart={e => handleDragStart(e, m.scout_id)}
           >
-            <span>{m.first_name} {m.last_name}</span>
-            <span className="ems-meta-text">({m.unit_name})</span>
+            <span className="ems-flex-center ems-gap-4">
+              <span>{m.first_name} {m.last_name}</span>
+              <span className="ems-meta-text">({m.unit_name})</span>
+            </span>
+            <button
+              type="button"
+              className="ems-remove-member-btn"
+              onClick={e => {
+                e.stopPropagation();
+                if (confirm(`Remove ${m.first_name} ${m.last_name} from this event?`)) {
+                  void allocateExplorers([m.scout_id], 'remove');
+                }
+              }}
+              title="Remove from event entirely"
+            >
+              &times;
+            </button>
           </div>
         ))}
       </div>
     );
   };
 
-  const renderUnallocatedMembersList = () => {
+  const renderPoolMembersList = () => {
     const list = explorers.filter(exp => !exp.allocated_team_code || exp.allocated_team_code === 'UNALLOCATED');
     if (list.length === 0) {
-      return <div className="ems-meta-text ems-italic">No unallocated members</div>;
+      return <div className="ems-meta-text ems-italic">No pool members</div>;
     }
     return (
       <div className="ems-planning-member-list">
@@ -247,8 +281,23 @@ export default function EventPlanningBoard() {
             draggable={true}
             onDragStart={e => handleDragStart(e, m.scout_id)}
           >
-            <span>{m.first_name} {m.last_name}</span>
-            <span className="ems-meta-text">({m.unit_name})</span>
+            <span className="ems-flex-center ems-gap-4">
+              <span>{m.first_name} {m.last_name}</span>
+              <span className="ems-meta-text">({m.unit_name})</span>
+            </span>
+            <button
+              type="button"
+              className="ems-remove-member-btn"
+              onClick={e => {
+                e.stopPropagation();
+                if (confirm(`Remove ${m.first_name} ${m.last_name} from this event?`)) {
+                  void allocateExplorers([m.scout_id], 'remove');
+                }
+              }}
+              title="Remove from event entirely"
+            >
+              &times;
+            </button>
           </div>
         ))}
       </div>
@@ -314,6 +363,7 @@ export default function EventPlanningBoard() {
         {loading && <Spinner />}
       </div>
 
+      {/* ── Two-column split ── */}
       <div className="ems-split ems-planning-split">
 
         {/* Left Column — Selector & Roster */}
@@ -344,21 +394,7 @@ export default function EventPlanningBoard() {
               <div className="ems-toolbar ems-planning-toolbar ems-mb-12">
                 <div className="ems-toolbar__group">
                   <div className="ems-flex-center ems-gap-4">
-                    <label className="ems-toolbar__label" htmlFor="epb-sort">Sort</label>
-                    <select
-                      id="epb-sort"
-                      className="ems-select-sm"
-                      value={sortBy}
-                      onChange={e => setSortBy(e.target.value as SortBy)}
-                    >
-                      <option value="name">Name</option>
-                      <option value="unit">Unit</option>
-                      <option value="allocation">Allocation Status</option>
-                    </select>
-                  </div>
-
-                  <div className="ems-flex-center ems-gap-4">
-                    <label className="ems-toolbar__label" htmlFor="epb-filter-unit">Unit</label>
+                    <label className="ems-toolbar__label" htmlFor="epb-filter-unit">Unit Filter</label>
                     <select
                       id="epb-filter-unit"
                       className="ems-select-sm"
@@ -393,9 +429,13 @@ export default function EventPlanningBoard() {
                             aria-label="Select all explorers"
                           />
                         </th>
-                        <th>Name &amp; Unit</th>
+                        <th className="ems-sortable-header" onClick={() => handleHeaderSort('name')}>
+                          Name {renderSortIndicator('name')}
+                        </th>
+                        <th className="ems-sortable-header" onClick={() => handleHeaderSort('unit')}>
+                          Unit {renderSortIndicator('unit')}
+                        </th>
                         <th>Team Preferences</th>
-                        <th>Allocation Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -420,19 +460,12 @@ export default function EventPlanningBoard() {
                             </td>
                             <td>
                               <div className="ems-table__name">{exp.first_name} {exp.last_name}</div>
-                              <div className="ems-table__meta">Unit: {exp.unit_name}</div>
+                            </td>
+                            <td>
+                              {exp.unit_name}
                             </td>
                             <td className="ems-table-cell--meta">
                               {exp.team_preferences || '—'}
-                            </td>
-                            <td>
-                              {exp.allocated_event_code ? (
-                                <span className="ems-badge ems-badge--allocated">
-                                  {exp.allocated_team_code}
-                                </span>
-                              ) : (
-                                <span className="ems-badge ems-badge--unallocated">Unallocated</span>
-                              )}
                             </td>
                           </tr>
                         );
@@ -458,25 +491,28 @@ export default function EventPlanningBoard() {
           {selectedEvent ? (
             <div className="ems-planning-grid">
               
-              {/* Unallocated Zone */}
+              {/* Event Pool Zone */}
               <div
-                className={`ems-planning-card ${dragOverZone === 'unallocated' ? 'ems-planning-card--active-drag' : ''}`}
+                className={`ems-planning-card ems-planning-card--pool ${dragOverZone === 'unallocated' ? 'ems-planning-card--active-drag' : ''}`}
                 onDragOver={e => handleDragOver(e, 'unallocated')}
                 onDragLeave={handleDragLeave}
                 onDrop={e => handleDrop(e, 'unallocated')}
               >
-                <div className="ems-planning-card__header">
-                  <h4 className="ems-planning-card__title">Unallocated</h4>
+                <div className="ems-planning-card__header" onClick={() => toggleCollapse('pool')}>
+                  <h4 className="ems-planning-card__title">
+                    {collapsedTeams['pool'] ? '▶' : '▼'} Event Pool (No Team)
+                  </h4>
                   <span className="ems-badge">
                     {explorers.filter(exp => !exp.allocated_team_code || exp.allocated_team_code === 'UNALLOCATED').length}
                   </span>
                 </div>
-                {renderUnallocatedMembersList()}
+                {!collapsedTeams['pool'] && renderPoolMembersList()}
               </div>
 
               {/* Existing Teams Zones */}
               {eventTeams.map(team => {
                 const zoneId = `team-${team.ID}`;
+                const isCollapsed = !!collapsedTeams[zoneId];
                 return (
                   <div
                     key={team.ID}
@@ -485,13 +521,15 @@ export default function EventPlanningBoard() {
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, 'existing_team', team.ID)}
                   >
-                    <div className="ems-planning-card__header">
-                      <h4 className="ems-planning-card__title">Team {team.ems_team_code}</h4>
+                    <div className="ems-planning-card__header" onClick={() => toggleCollapse(zoneId)}>
+                      <h4 className="ems-planning-card__title">
+                        {isCollapsed ? '▶' : '▼'} Team {team.ems_team_code}
+                      </h4>
                       <span className="ems-badge">
                         {explorers.filter(exp => exp.allocated_team_code === team.ems_team_code).length}
                       </span>
                     </div>
-                    {renderTeamMembersList(team.ems_team_code)}
+                    {!isCollapsed && renderTeamMembersList(team.ems_team_code)}
                   </div>
                 );
               })}
@@ -531,7 +569,7 @@ export default function EventPlanningBoard() {
               onChange={e => setAllocationMode(e.target.value as AllocationMode)}
               aria-label="Allocation action"
             >
-              <option value="unallocated">Add to Unallocated</option>
+              <option value="unallocated">Add to Event Pool</option>
               <option value="new_team">Add to New Team</option>
               {eventTeams.length > 0 && (
                 <option value="existing_team">Add to Existing Team…</option>

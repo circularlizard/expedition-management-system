@@ -960,7 +960,7 @@ class Expedition_Admin_Controller {
 						'type'     => 'string',
 						'required' => false,
 						'default'  => 'unallocated',
-						'enum'     => array( 'unallocated', 'new_team', 'existing_team' ),
+						'enum'     => array( 'unallocated', 'new_team', 'existing_team', 'remove' ),
 					),
 					'team_id'    => array(
 						'type'     => 'integer',
@@ -1676,6 +1676,8 @@ class Expedition_Admin_Controller {
 			$dest_team_id = $target_team_id;
 		} elseif ( $mode === 'new_team' ) {
 			$dest_team_id = $this->teams->create( $event_id, $event['ems_event_code'] );
+		} elseif ( $mode === 'remove' ) {
+			$dest_team_id = 0;
 		} else {
 			return $this->error( 'ems_invalid_mode', 'Invalid allocation_mode.', 400 );
 		}
@@ -1708,10 +1710,12 @@ class Expedition_Admin_Controller {
 				}
 			}
 
-			try {
-				$this->team_members->assign( $dest_team_id, $scout_id, $added_by, 0 );
-			} catch ( \InvalidArgumentException $e ) {
-				// Already assigned, ignore
+			if ( $dest_team_id > 0 ) {
+				try {
+					$this->team_members->assign( $dest_team_id, $scout_id, $added_by, 0 );
+				} catch ( \InvalidArgumentException $e ) {
+					// Already assigned, ignore
+				}
 			}
 		}
 
