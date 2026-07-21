@@ -379,7 +379,9 @@ export default function EventPlanningBoard() {
               {explorersLoading ? (
                 <div className="ems-planning-spinner"><Spinner /></div>
               ) : explorers.length === 0 ? (
-                <p className="ems-planning-empty">No explorers declared interest in this event.</p>
+                <div className="notice notice-warning ems-m-0">
+                  <p>No explorers declared interest in this event.</p>
+                </div>
               ) : (
                 <div className="ems-table-wrap ems-table-wrap--unrestricted">
                   <table className="ems-table">
