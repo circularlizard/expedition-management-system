@@ -180,106 +180,108 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
             )}
 
             {!loading && !error && events.length > 0 && (
-                <table className="widefat striped ems-mt-0">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Code</th>
-                            <th>Type</th>
-                            <th>Transport</th>
-                            <th>Level</th>
-                            <th>Dates</th>
-                            <th className="ems-table-cell--center">Teams</th>
-                            <th className="ems-table-cell--center">Members</th>
-                            <th>Route Status</th>
-                            <th className="ems-table-cell--right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {events.map((event) => (
-                            <tr
-                                key={event.ID}
-                                className={`ems-row-hoverable${event.ems_status === 'archived' ? ' ems-table-row--archived' : ''}`}
-                                onClick={() => onSelectEvent(event)}
-                            >
-                                <td>
-                      <a
-                                         href="#"
-                                         className="ems-table__link"
-                                         onClick={(e) => { e.preventDefault(); onSelectEvent(event); }}
-                                     >
-                                        {event.post_title || event.ems_event_code}
-                                        {event.ems_status === 'archived' && (
-                                            <span className="ems-meta-text ems-ml-6">(Archived)</span>
+                <div className="ems-panel">
+                    <table className="widefat striped ems-mt-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Code</th>
+                                <th>Type</th>
+                                <th>Transport</th>
+                                <th>Level</th>
+                                <th>Dates</th>
+                                <th className="ems-table-cell--center">Teams</th>
+                                <th className="ems-table-cell--center">Members</th>
+                                <th>Route Status</th>
+                                <th className="ems-table-cell--right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {events.map((event) => (
+                                <tr
+                                    key={event.ID}
+                                    className={`ems-row-hoverable${event.ems_status === 'archived' ? ' ems-table-row--archived' : ''}`}
+                                    onClick={() => onSelectEvent(event)}
+                                >
+                                    <td>
+                          <a
+                                             href="#"
+                                             className="ems-table__link"
+                                             onClick={(e) => { e.preventDefault(); onSelectEvent(event); }}
+                                         >
+                                            {event.post_title || event.ems_event_code}
+                                            {event.ems_status === 'archived' && (
+                                                <span className="ems-meta-text ems-ml-6">(Archived)</span>
+                                            )}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <code className="ems-code-badge">
+                                            {event.ems_event_code}
+                                        </code>
+                                    </td>
+                                    <td>{typePill(event.ems_type)}</td>
+                                    <td className="ems-table-cell--small">{transportLabel(event.ems_transport)}</td>
+                                    <td>{levelPill(event.ems_level)}</td>
+                                    <td className="ems-table-cell--small">
+                                        {formatDate(event.ems_start_date)}
+                                        {event.ems_end_date !== event.ems_start_date && (
+                                            <> – {formatDate(event.ems_end_date)}</>
                                         )}
-                                    </a>
-                                </td>
-                                <td>
-                                    <code className="ems-code-badge">
-                                        {event.ems_event_code}
-                                    </code>
-                                </td>
-                                <td>{typePill(event.ems_type)}</td>
-                                <td className="ems-table-cell--small">{transportLabel(event.ems_transport)}</td>
-                                <td>{levelPill(event.ems_level)}</td>
-                                <td className="ems-table-cell--small">
-                                    {formatDate(event.ems_start_date)}
-                                    {event.ems_end_date !== event.ems_start_date && (
-                                        <> – {formatDate(event.ems_end_date)}</>
-                                    )}
-                                </td>
-                                <td className="ems-table-cell--center">
-                                    <strong>{(event.teams ?? []).length}</strong>
-                                </td>
-                                <td className="ems-table-cell--center">
-                                    {event.member_count ?? 0}
-                                </td>
-                                <td>{statusBadge(event.ems_route_status || 'draft')}</td>
-                                <td className="ems-table-cell--right">
-                                    {onEditEvent && (
+                                    </td>
+                                    <td className="ems-table-cell--center">
+                                        <strong>{(event.teams ?? []).length}</strong>
+                                    </td>
+                                    <td className="ems-table-cell--center">
+                                        {event.member_count ?? 0}
+                                    </td>
+                                    <td>{statusBadge(event.ems_route_status || 'draft')}</td>
+                                    <td className="ems-table-cell--right">
+                                        {onEditEvent && (
+                                            <button
+                                                type="button"
+                                                className="button button-small ems-mr-8"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onEditEvent(event);
+                                                }}
+                                            >
+                                                Edit
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
-                                            className="button button-small ems-mr-8"
-                                            onClick={(e) => {
+                                            className={`button button-small ${event.ems_status === 'archived' ? '' : 'ems-btn-archive-red'}`}
+                                            onClick={async (e) => {
                                                 e.stopPropagation();
-                                                onEditEvent(event);
+                                                const isArchive = event.ems_status !== 'archived';
+                                                if (window.confirm(isArchive ? `Are you sure you want to archive this event?` : `Are you sure you want to restore this event?`)) {
+                                                    try {
+                                                        const res = await fetch(`${config.root_url}/events/${event.ID}`, {
+                                                            method: 'PATCH',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'X-WP-Nonce': config.nonce,
+                                                            },
+                                                            body: JSON.stringify({ ems_status: isArchive ? 'archived' : 'active' }),
+                                                        });
+                                                        if (res.ok) {
+                                                            load(activeTab, includeArchived);
+                                                        }
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                    }
+                                                }
                                             }}
                                         >
-                                            Edit
+                                            {event.ems_status === 'archived' ? 'Restore' : 'Archive'}
                                         </button>
-                                    )}
-                                    <button
-                                        type="button"
-                                        className={`button button-small ${event.ems_status === 'archived' ? '' : 'ems-btn-archive-red'}`}
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            const isArchive = event.ems_status !== 'archived';
-                                            if (window.confirm(isArchive ? `Are you sure you want to archive this event?` : `Are you sure you want to restore this event?`)) {
-                                                try {
-                                                    const res = await fetch(`${config.root_url}/events/${event.ID}`, {
-                                                        method: 'PATCH',
-                                                        headers: {
-                                                            'Content-Type': 'application/json',
-                                                            'X-WP-Nonce': config.nonce,
-                                                        },
-                                                        body: JSON.stringify({ ems_status: isArchive ? 'archived' : 'active' }),
-                                                    });
-                                                    if (res.ok) {
-                                                        load(activeTab, includeArchived);
-                                                    }
-                                                } catch (err) {
-                                                    console.error(err);
-                                                }
-                                            }
-                                        }}
-                                    >
-                                        {event.ems_status === 'archived' ? 'Restore' : 'Archive'}
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             {osmEventsLoading && <p className="ems-osm-loading">Loading OSM events…</p>}
