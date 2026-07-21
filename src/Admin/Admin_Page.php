@@ -347,7 +347,7 @@ class Admin_Page {
 		$cached_token = $auth_handler->get_cached_token();
 
 		if ( empty( $cached_token ) ) {
-			echo '<div class="notice notice-info inline" style="margin: 20px 0; padding: 15px; display: block;">';
+			echo '<div class="notice notice-info inline ems-notice-container">';
 			echo '<p>' . esc_html__( 'To preview or execute push-back synchronization, you must first authenticate with Online Scout Manager.', 'ems-plugin' ) . '</p>';
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			echo '<input type="hidden" name="action" value="ems_pushback_auth" />';
@@ -374,7 +374,7 @@ class Admin_Page {
 			return;
 		}
 
-		echo '<p style="color:#666;">' . sprintf( esc_html__( '%d explorers', 'ems-plugin' ), count( $explorers ) ) . '</p>';
+		echo '<p class="ems-text-muted">' . sprintf( esc_html__( '%d explorers', 'ems-plugin' ), count( $explorers ) ) . '</p>';
 		echo '<table class="wp-list-table widefat fixed striped">';
 		echo '<thead><tr>';
 		echo '<th>' . esc_html__( 'Scout ID', 'ems-plugin' ) . '</th>';

@@ -224,9 +224,9 @@ function VolunteerSignupWizard() {
                         <button className="button" onClick={() => setStep(2)}>Sign Up as Guest</button>
                     </div>
                     {isOSM && (
-                        <div style={{ background: '#f0f0f0', padding: '10px', borderRadius: '3px', marginBottom: '10px' }}>
+                        <div className="ems-notice-box">
                             Authenticated as <strong>{firstName} {lastName}</strong> ({email})
-                            <button className="button button-link" style={{ marginLeft: '10px' }} onClick={() => setStep(2)}>Proceed to wizard</button>
+                            <button className="button button-link ems-ml-10" onClick={() => setStep(2)}>Proceed to wizard</button>
                         </div>
                     )}
                 </div>
