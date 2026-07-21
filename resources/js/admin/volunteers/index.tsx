@@ -139,19 +139,26 @@ function VolunteersDashboard() {
             {/* Status Legend Key */}
             <div className="ems-volunteers-legend-bar">
                 <span className="ems-inline-flex-center ems-gap-8">
-                    <span className="ems-volunteers-status-icon ems-volunteers-status-icon--confirmed">✓</span>
-                    Confirmed shift(s) on event
+                    <span className="ems-volunteers-cell-indicator" style={{ background: '#46b450', border: '2px solid transparent' }}>✓</span>
+                    Confirmed shift(s)
                 </span>
                 <span className="ems-inline-flex-center ems-gap-8">
-                    <span className="ems-volunteers-status-icon ems-volunteers-status-icon--pending">?</span>
-                    Overnight requested but not confirmed
+                    <span className="ems-volunteers-cell-indicator" style={{ background: '#f0b818', border: '2px solid transparent' }}>?</span>
+                    Overnight requested (Pending)
                 </span>
                 <span className="ems-inline-flex-center ems-gap-8">
-                    <span className="ems-volunteers-status-icon ems-volunteers-status-icon--rejected">✖</span>
-                    Shift requested on different event (Conflict)
+                    <span className="ems-volunteers-cell-indicator" style={{ background: '#dc3232', border: '2px solid transparent' }}>✖</span>
+                    Different event (Conflict)
                 </span>
                 <span className="ems-volunteers-v-divider" />
-                <span><strong>Border Style:</strong> Solid Circle = Whole Event, Dotted Circle = Partial Commitment</span>
+                <span className="ems-inline-flex-center ems-gap-8">
+                    <span className="ems-volunteers-cell-indicator" style={{ background: '#ccd0d4', border: '2px solid #666', color: '#1d2327' }}>—</span>
+                    Whole Event (Solid Border)
+                </span>
+                <span className="ems-inline-flex-center ems-gap-8">
+                    <span className="ems-volunteers-cell-indicator" style={{ background: '#ccd0d4', border: '2px dashed #666', color: '#1d2327' }}>—</span>
+                    Partial Commitment (Dotted Border)
+                </span>
             </div>
 
             <div className="ems-volunteers-split">
