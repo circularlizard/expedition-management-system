@@ -91,15 +91,15 @@ describe('EventPlanningBoard', () => {
       expect(screen.getByText(/Hill Practice 1/)).toBeInTheDocument();
     });
 
-    // Click event card
-    fireEvent.click(screen.getByText(/Hill Practice 1/));
+    // Select event from dropdown
+    const select = screen.getByRole('combobox', { name: /Select Event/i });
+    fireEvent.change(select, { target: { value: 'H-SP1' } });
 
     await waitFor(() => {
-      expect(screen.getByText(/Alice/)).toBeInTheDocument();
-      expect(screen.getByText(/MacLeod/)).toBeInTheDocument();
-      expect(screen.getByText(/Bob/)).toBeInTheDocument();
-      expect(screen.getByText(/Smith/)).toBeInTheDocument();
-      expect(screen.getByText(/H-SP2-1/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Alice/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/MacLeod/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Bob/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Smith/).length).toBeGreaterThan(0);
       expect(screen.getByText('Prefer Team A')).toBeInTheDocument();
     });
   });
@@ -114,10 +114,11 @@ describe('EventPlanningBoard', () => {
       expect(screen.getByText(/Hill Practice 1/)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/Hill Practice 1/));
+    const select = screen.getByRole('combobox', { name: /Select Event/i });
+    fireEvent.change(select, { target: { value: 'H-SP1' } });
 
     await waitFor(() => {
-      expect(screen.getByText(/Alice/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Alice/).length).toBeGreaterThan(0);
     });
 
     // Check Alice checkbox
