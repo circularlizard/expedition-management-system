@@ -6,7 +6,7 @@ class Database_Seeder {
 	 * Run the seeder logic.
 	 *
 	 * @param callable|null $log_callback Callback for logging progress messages.
-	 * @return array{participant_count: int, expedition_count: int}
+	 * @return array{participant_count: int, expedition_count: int, volunteer_count?: int}
 	 * @throws \Exception If no explorers are found in the database.
 	 */
 	public function seed( ?callable $log_callback = null ): array {
@@ -16,14 +16,18 @@ class Database_Seeder {
 		$expedition_table  = $wpdb->prefix . 'ems_expedition_signups';
 		$explorers_table   = $wpdb->prefix . 'ems_osm_explorers';
 		$submissions_table = $wpdb->prefix . 'fluentform_submissions';
+		$volunteers_table  = $wpdb->prefix . 'ems_volunteers';
+		$avail_table       = $wpdb->prefix . 'ems_volunteer_availability';
 
 		if ( $log_callback ) {
 			call_user_func( $log_callback, 'Cleaning up old seeder data...' );
 		}
 
-		// 1. Truncate custom EMS signup tables
+		// 1. Truncate custom EMS signup and volunteer tables
 		$wpdb->query( "TRUNCATE TABLE {$participant_table}" );
 		$wpdb->query( "TRUNCATE TABLE {$expedition_table}" );
+		$wpdb->query( "TRUNCATE TABLE {$volunteers_table}" );
+		$wpdb->query( "TRUNCATE TABLE {$avail_table}" );
 
 		// 2. Delete CPT expeditions and teams
 		$posts = get_posts(
@@ -53,23 +57,24 @@ class Database_Seeder {
 			call_user_func( $log_callback, 'Creating expeditions...' );
 		}
 
-		// Create expeditions
-		$this->create_test_expedition( 'Combined 1-day Training (Hill)', 'H-T1', 'training', 'hillwalking', 'silver', '2026-08-15', '2026-08-15', '09:00', '17:00' );
-		$this->create_test_expedition( 'Combined 2-day Training (Hill)', 'H-T2', 'training', 'hillwalking', 'silver', '2026-08-15', '2026-08-16', '09:00', '17:00' );
-		$this->create_test_expedition( 'Combined 1-day Training (Bike)', 'B-T1', 'training', 'biking', 'silver', '2026-08-22', '2026-08-22', '09:00', '17:00' );
-		$this->create_test_expedition( 'Combined 2-day Training (Bike)', 'B-T2', 'training', 'biking', 'silver', '2026-08-22', '2026-08-23', '09:00', '17:00' );
+		// Create expeditions and capture IDs
+		$expedition_ids = array();
+		$expedition_ids['H-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Hill)', 'H-T1', 'training', 'hillwalking', 'silver', '2026-08-15', '2026-08-15', '09:00', '17:00' );
+		$expedition_ids['H-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Hill)', 'H-T2', 'training', 'hillwalking', 'silver', '2026-08-15', '2026-08-16', '09:00', '17:00' );
+		$expedition_ids['B-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Bike)', 'B-T1', 'training', 'biking', 'silver', '2026-08-22', '2026-08-22', '09:00', '17:00' );
+		$expedition_ids['B-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Bike)', 'B-T2', 'training', 'biking', 'silver', '2026-08-22', '2026-08-23', '09:00', '17:00' );
 
-		$this->create_test_expedition( 'Silver Practice 1', 'H-SP1', 'practice', 'hillwalking', 'silver', '2026-09-04', '2026-09-06', '16:00', '16:00' );
-		$this->create_test_expedition( 'Silver Practice 2', 'H-SP2', 'practice', 'hillwalking', 'silver', '2026-09-11', '2026-09-13', '16:00', '16:00' );
-		$this->create_test_expedition( 'Gold Practice 1', 'H-GP1', 'practice', 'hillwalking', 'gold', '2026-09-04', '2026-09-06', '16:00', '16:00' );
-		$this->create_test_expedition( 'Gold Practice 2', 'H-GP2', 'practice', 'hillwalking', 'gold', '2026-09-11', '2026-09-13', '16:00', '16:00' );
-		$this->create_test_expedition( 'Gold Practice Biking 1', 'B-GP1', 'practice', 'biking', 'gold', '2026-09-04', '2026-09-06', '16:00', '16:00' );
+		$expedition_ids['H-SP1'] = $this->create_test_expedition( 'Silver Practice 1', 'H-SP1', 'practice', 'hillwalking', 'silver', '2026-09-04', '2026-09-06', '16:00', '16:00' );
+		$expedition_ids['H-SP2'] = $this->create_test_expedition( 'Silver Practice 2', 'H-SP2', 'practice', 'hillwalking', 'silver', '2026-09-11', '2026-09-13', '16:00', '16:00' );
+		$expedition_ids['H-GP1'] = $this->create_test_expedition( 'Gold Practice 1', 'H-GP1', 'practice', 'hillwalking', 'gold', '2026-09-04', '2026-09-06', '16:00', '16:00' );
+		$expedition_ids['H-GP2'] = $this->create_test_expedition( 'Gold Practice 2', 'H-GP2', 'practice', 'hillwalking', 'gold', '2026-09-11', '2026-09-13', '16:00', '16:00' );
+		$expedition_ids['B-GP1'] = $this->create_test_expedition( 'Gold Practice Biking 1', 'B-GP1', 'practice', 'biking', 'gold', '2026-09-04', '2026-09-06', '16:00', '16:00' );
 
-		$this->create_test_expedition( 'Silver Qualifier 1', 'H-SQ1', 'qualifying', 'hillwalking', 'silver', '2026-09-25', '2026-09-27', '09:00', '16:00' );
-		$this->create_test_expedition( 'Silver Qualifier 2', 'H-SQ2', 'qualifying', 'hillwalking', 'silver', '2026-10-02', '2026-10-04', '09:00', '16:00' );
-		$this->create_test_expedition( 'Gold Qualifier 1', 'H-GQ1', 'qualifying', 'hillwalking', 'gold', '2026-09-23', '2026-09-27', '19:00', '16:00' );
-		$this->create_test_expedition( 'Gold Qualifier 2', 'H-GQ2', 'qualifying', 'hillwalking', 'gold', '2026-09-30', '2026-10-04', '19:00', '16:00' );
-		$this->create_test_expedition( 'Gold Qualifier Biking 1', 'B-GQ1', 'qualifying', 'biking', 'gold', '2026-09-23', '2026-09-27', '19:00', '16:00' );
+		$expedition_ids['H-SQ1'] = $this->create_test_expedition( 'Silver Qualifier 1', 'H-SQ1', 'qualifying', 'hillwalking', 'silver', '2026-09-25', '2026-09-27', '09:00', '16:00' );
+		$expedition_ids['H-SQ2'] = $this->create_test_expedition( 'Silver Qualifier 2', 'H-SQ2', 'qualifying', 'hillwalking', 'silver', '2026-10-02', '2026-10-04', '09:00', '16:00' );
+		$expedition_ids['H-GQ1'] = $this->create_test_expedition( 'Gold Qualifier 1', 'H-GQ1', 'qualifying', 'hillwalking', 'gold', '2026-09-23', '2026-09-27', '19:00', '16:00' );
+		$expedition_ids['H-GQ2'] = $this->create_test_expedition( 'Gold Qualifier 2', 'H-GQ2', 'qualifying', 'hillwalking', 'gold', '2026-09-30', '2026-10-04', '19:00', '16:00' );
+		$expedition_ids['B-GQ1'] = $this->create_test_expedition( 'Gold Qualifier Biking 1', 'B-GQ1', 'qualifying', 'biking', 'gold', '2026-09-23', '2026-09-27', '19:00', '16:00' );
 
 		if ( $log_callback ) {
 			call_user_func( $log_callback, 'Querying synced explorers from DB...' );
@@ -78,6 +83,102 @@ class Database_Seeder {
 		$explorers = $wpdb->get_results( "SELECT scout_id, first_name, last_name, email, parent_email, patrol FROM {$explorers_table}", ARRAY_A );
 		if ( empty( $explorers ) ) {
 			throw new \Exception( 'No explorers found in database! Please sync or seed explorers table first.' );
+		}
+
+		if ( $log_callback ) {
+			call_user_func( $log_callback, 'Seeding adult volunteers and availability...' );
+		}
+
+		$volunteers = array(
+			array(
+				'first_name'      => 'Dave',
+				'last_name'       => 'Smith',
+				'email'           => 'dave.smith@volunteers.ems',
+				'phone'           => '07700900077',
+				'dbs_number'      => '1234567890',
+				'qualifications'  => array( 'First Aid', 'Mountain Leader' ),
+				'preferred_roles' => array( 'Supervisor' ),
+				'availability'    => array(
+					array( 'code' => 'H-SP1', 'dates' => array( '2026-09-04', '2026-09-05', '2026-09-06' ), 'overnight' => 1, 'confirmed' => 1 ),
+					array( 'code' => 'H-SQ1', 'dates' => array( '2026-09-25', '2026-09-26', '2026-09-27' ), 'overnight' => 1, 'confirmed' => 0 ),
+				),
+			),
+			array(
+				'first_name'      => 'Sarah',
+				'last_name'       => 'Jones',
+				'email'           => 'sarah.jones@volunteers.ems',
+				'phone'           => '07700900088',
+				'dbs_number'      => '2345678901',
+				'qualifications'  => array( 'First Aid', 'Hillwalking Assessor' ),
+				'preferred_roles' => array( 'Assessor' ),
+				'availability'    => array(
+					array( 'code' => 'H-SP1', 'dates' => array( '2026-09-04' ), 'overnight' => 0, 'confirmed' => 1 ),
+					array( 'code' => 'H-GP1', 'dates' => array( '2026-09-04' ), 'overnight' => 0, 'confirmed' => -1 ),
+					array( 'code' => 'H-SP1', 'dates' => array( '2026-09-05', '2026-09-06' ), 'overnight' => 1, 'confirmed' => 0 ),
+				),
+			),
+			array(
+				'first_name'      => 'John',
+				'last_name'       => 'Miller',
+				'email'           => 'john.miller@volunteers.ems',
+				'phone'           => '07700900099',
+				'dbs_number'      => '3456789012',
+				'qualifications'  => array( 'First Aid' ),
+				'preferred_roles' => array( 'Supervisor' ),
+				'availability'    => array(
+					array( 'code' => 'H-T1', 'dates' => array( '2026-08-15' ), 'overnight' => 0, 'confirmed' => 1 ),
+					array( 'code' => 'H-T2', 'dates' => array( '2026-08-15', '2026-08-16' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'H-SP2', 'dates' => array( '2026-09-11', '2026-09-12', '2026-09-13' ), 'overnight' => 1, 'confirmed' => 1 ),
+				),
+			),
+			array(
+				'first_name'      => 'Emily',
+				'last_name'       => 'Watson',
+				'email'           => 'emily.watson@volunteers.ems',
+				'phone'           => '07700900100',
+				'dbs_number'      => '4567890123',
+				'qualifications'  => array( 'Hillwalking Assessor' ),
+				'preferred_roles' => array( 'Assessor' ),
+				'availability'    => array(
+					array( 'code' => 'B-GP1', 'dates' => array( '2026-09-04', '2026-09-05', '2026-09-06' ), 'overnight' => 1, 'confirmed' => 0 ),
+				),
+			),
+		);
+
+		$vol_repo = new \EMS\Data\Volunteer_Repository();
+		foreach ( $volunteers as $v_data ) {
+			$saved = $vol_repo->save_volunteer( array(
+				'first_name'      => $v_data['first_name'],
+				'last_name'       => $v_data['last_name'],
+				'email'           => $v_data['email'],
+				'phone'           => $v_data['phone'],
+				'dbs_number'      => $v_data['dbs_number'],
+				'qualifications'  => $v_data['qualifications'],
+				'preferred_roles' => $v_data['preferred_roles'],
+			) );
+
+			foreach ( $v_data['availability'] as $avail_data ) {
+				$exped_id = $expedition_ids[ $avail_data['code'] ] ?? null;
+				if ( ! $exped_id ) {
+					continue;
+				}
+
+				foreach ( $avail_data['dates'] as $date ) {
+					$wpdb->insert(
+						$wpdb->prefix . 'ems_volunteer_availability',
+						array(
+							'volunteer_id'       => $saved['id'],
+							'expedition_post_id' => $exped_id,
+							'date'               => $date,
+							'overnight'          => $avail_data['overnight'],
+							'confirmed'          => $avail_data['confirmed'],
+							'confirmed_by'       => $avail_data['confirmed'] === 1 ? 1 : null,
+							'updated_at'         => current_time( 'mysql' ),
+							'signup_type'        => 'part',
+						)
+					);
+				}
+			}
 		}
 
 		if ( $log_callback ) {
@@ -204,6 +305,7 @@ class Database_Seeder {
 		return array(
 			'participant_count' => $participant_count,
 			'expedition_count'  => $expedition_count,
+			'volunteer_count'   => 4,
 		);
 	}
 

@@ -29,6 +29,7 @@ class Database_SeederTest extends EMSTestCase {
         $wpdb->shouldReceive( 'query' )->andReturn( true );
         $wpdb->shouldReceive( 'prepare' )->andReturn( 'mock_query' );
         $wpdb->shouldReceive( 'get_results' )->with( \Mockery::pattern('/SELECT scout_id/'), ARRAY_A )->andReturn( [] );
+        $wpdb->shouldReceive( 'get_row' )->andReturn( null );
 
         Functions\when( 'get_posts' )->justReturn( [] );
         Functions\when( 'get_option' )->justReturn( 6 );
@@ -50,6 +51,7 @@ class Database_SeederTest extends EMSTestCase {
         
         $wpdb->shouldReceive( 'query' )->andReturn( true );
         $wpdb->shouldReceive( 'prepare' )->andReturn( 'mock_query' );
+        $wpdb->shouldReceive( 'get_row' )->andReturn( null );
         
         $mock_explorers = [
             [
@@ -84,5 +86,6 @@ class Database_SeederTest extends EMSTestCase {
 
         $this->assertSame( 1, $results['participant_count'] );
         $this->assertSame( 1, $results['expedition_count'] );
+        $this->assertSame( 4, $results['volunteer_count'] );
     }
 }
