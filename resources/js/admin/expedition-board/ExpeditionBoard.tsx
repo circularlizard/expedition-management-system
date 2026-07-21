@@ -5,8 +5,9 @@ import { EventsDashboard } from './EventsDashboard';
 import { EventDetailPage } from './EventDetailPage';
 import { Expedition } from './types';
 import EventPlanningBoard from './EventPlanningBoard';
+import { EventForm } from './EventForm';
 
-type BoardTab = 'dashboard' | 'detail' | 'planning';
+type BoardTab = 'dashboard' | 'detail' | 'planning' | 'create';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
@@ -58,7 +59,7 @@ const ExpeditionBoard: React.FC = () => {
                 </span>
             </div>
 
-            {activeTab !== 'detail' && (
+            {activeTab !== 'detail' && activeTab !== 'create' && (
                 <nav className="nav-tab-wrapper">
                     <button
                         className={`nav-tab ${activeTab === 'dashboard' ? 'nav-tab-active' : ''}`}
@@ -75,13 +76,14 @@ const ExpeditionBoard: React.FC = () => {
                 </nav>
             )}
 
-            <div className={`tab-content ${activeTab === 'detail' ? '' : 'ems-mt-20'}`}>
+            <div className={`tab-content ${(activeTab === 'detail' || activeTab === 'create') ? '' : 'ems-mt-20'}`}>
                 {activeTab === 'dashboard' && (
                     <EventsDashboard
                         onSelectEvent={handleSelectEvent}
                         onEditEvent={handleEditEvent}
                         osmEvents={osmEvents}
                         osmEventsLoading={osmEventsLoading}
+                        onCreateEvent={() => setActiveTab('create')}
                     />
                 )}
                 {activeTab === 'detail' && selectedEvent && (
@@ -94,6 +96,31 @@ const ExpeditionBoard: React.FC = () => {
                         onEventUpdated={handleEventUpdated}
                         initialEdit={initialEdit}
                     />
+                )}
+                {activeTab === 'create' && (
+                    <div className="ems-event-detail">
+                        <div className="ems-event-detail__toolbar">
+                            <button id="ems-back-to-events" type="button" className="button-link ems-event-detail__back" onClick={handleBack}>← Back to Events</button>
+                        </div>
+                        <div className="ems-event-detail__header">
+                            <div>
+                                <h1 className="ems-event-detail__title">Create Event</h1>
+                            </div>
+                        </div>
+                        <div className="ems-event-detail__content">
+                            <div className="ems-panel">
+                                <EventForm
+                                    seasonId={0}
+                                    osmEvents={osmEvents}
+                                    onSaved={(savedEvent) => {
+                                        handleBack();
+                                        refetch();
+                                    }}
+                                    onCancel={handleBack}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 )}
                 {activeTab === 'planning' && (
                     <EventPlanningBoard />

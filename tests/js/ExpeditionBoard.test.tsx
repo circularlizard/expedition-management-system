@@ -52,19 +52,27 @@ const mockEventsData = { events: mockBoardData.seasons[0].events };
 describe('ExpeditionBoard', () => {
     beforeEach(() => {
         vi.resetAllMocks();
-        global.fetch = vi.fn();
+        global.fetch = vi.fn((url: string) => {
+            if (url.includes('/expedition-board')) {
+                return Promise.resolve({ ok: true, json: async () => mockBoardData });
+            }
+            if (url.includes('/osm-events')) {
+                return Promise.resolve({ ok: true, json: async () => [] });
+            }
+            if (url.includes('/events')) {
+                return Promise.resolve({ ok: true, json: async () => mockEventsData });
+            }
+            return Promise.reject(new Error('Unknown request: ' + url));
+        });
     });
 
     it('shows loading state initially', () => {
-        (global.fetch as any).mockReturnValueOnce(new Promise(() => {}));
+        (global.fetch as any).mockImplementationOnce(() => new Promise(() => {}));
         render(<ExpeditionBoard />);
         expect(screen.getByText('Loading board…')).toBeInTheDocument();
     });
 
     it('renders the events dashboard by default', async () => {
-        (global.fetch as any)
-            .mockResolvedValueOnce({ ok: true, json: async () => mockBoardData })
-            .mockResolvedValueOnce({ ok: true, json: async () => mockEventsData });
         render(<ExpeditionBoard />);
         await waitFor(() => {
             expect(screen.getByText('Events Dashboard')).toBeInTheDocument();
@@ -72,7 +80,7 @@ describe('ExpeditionBoard', () => {
     });
 
     it('shows error state on fetch failure', async () => {
-        (global.fetch as any).mockRejectedValueOnce(new Error('network error'));
+        (global.fetch as any).mockImplementationOnce(() => Promise.reject(new Error('network error')));
         render(<ExpeditionBoard />);
         await waitFor(() => {
             expect(screen.getByText('network error')).toBeInTheDocument();
@@ -80,12 +88,29 @@ describe('ExpeditionBoard', () => {
     });
 
     it('shows never synced when last_sync is null', async () => {
-        (global.fetch as any)
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ ...mockBoardData, last_sync: null }) })
-            .mockResolvedValueOnce({ ok: true, json: async () => mockEventsData });
+        (global.fetch as any).mockImplementationOnce((url: string) => {
+            if (url.includes('/expedition-board')) {
+                return Promise.resolve({ ok: true, json: async () => ({ ...mockBoardData, last_sync: null }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => [] });
+        });
         render(<ExpeditionBoard />);
         await waitFor(() => {
             expect(screen.getByText(/Never/)).toBeInTheDocument();
         });
+    });
+
+    it('switches to create view when Create Event is clicked', async () => {
+        render(<ExpeditionBoard />);
+        
+        await waitFor(() => {
+            expect(screen.getByText('Events Dashboard')).toBeInTheDocument();
+        });
+
+        const createBtn = screen.getByRole('button', { name: '+ Create Event' });
+        fireEvent.click(createBtn);
+
+        expect(screen.getByRole('heading', { name: 'Create Event' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     });
 });
