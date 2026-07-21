@@ -34,6 +34,23 @@ interface Expedition {
     ems_end_date: string;
 }
 
+function formatHeaderDate(startStr: string, endStr: string): string {
+    if (!startStr) return '';
+    try {
+        const start = new Date(startStr);
+        const end = endStr ? new Date(endStr) : null;
+        const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+        const startFormatted = start.toLocaleDateString('en-GB', options);
+        if (end && startStr !== endStr) {
+            const endFormatted = end.toLocaleDateString('en-GB', options);
+            return `${startFormatted} – ${endFormatted}`;
+        }
+        return startFormatted;
+    } catch {
+        return startStr;
+    }
+}
+
 function VolunteersDashboard() {
     const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
     const [events, setEvents] = useState<Expedition[]>([]);
@@ -134,8 +151,7 @@ function VolunteersDashboard() {
     }
 
     return (
-        <div className="wrap">
-            <h2>Volunteers Grid</h2>
+        <div className="ems-volunteers-dashboard-wrapper">
             {/* Status Legend Key */}
             <div className="ems-volunteers-legend-bar">
                 <span className="ems-inline-flex-center ems-gap-8">
@@ -144,7 +160,7 @@ function VolunteersDashboard() {
                 </span>
                 <span className="ems-inline-flex-center ems-gap-8">
                     <span className="ems-volunteers-cell-indicator" style={{ background: '#f0b818', border: '2px solid transparent' }}>?</span>
-                    Overnight requested (Pending)
+                    Availability Indicated (Pending)
                 </span>
                 <span className="ems-inline-flex-center ems-gap-8">
                     <span className="ems-volunteers-cell-indicator" style={{ background: '#dc3232', border: '2px solid transparent' }}>✖</span>
@@ -171,7 +187,10 @@ function VolunteersDashboard() {
                                     {events.map(e => (
                                         <th key={e.ID} className="ems-volunteers-col-event" title={`${e.post_title} (${e.ems_event_code})`}>
                                             <div className="ems-ellipsis">{e.post_title}</div>
-                                            <span className="ems-volunteers-event-code">({e.ems_event_code})</span>
+                                            <span className="ems-volunteers-event-code">({e.ems_event_code})</span><br/>
+                                            <span className="ems-volunteers-event-date" style={{ fontSize: '9px', color: '#646970', fontWeight: 'normal' }}>
+                                                {formatHeaderDate(e.ems_start_date, e.ems_end_date)}
+                                            </span>
                                         </th>
                                     ))}
                                 </tr>
@@ -207,16 +226,7 @@ function VolunteersDashboard() {
                                                 titleText = 'Conflicted';
                                             }
 
-                                            let finalBadgeColor = badgeColor;
-                                            if (!isWhole) {
-                                                if (hasConfirmed) {
-                                                    finalBadgeColor = '#9ccc9c'; 
-                                                } else if (hasConflicted) {
-                                                    finalBadgeColor = '#e59393'; 
-                                                } else {
-                                                    finalBadgeColor = '#e3c878'; 
-                                                }
-                                            }
+                                            const finalBadgeColor = badgeColor;
 
                                             const commitmentLabel = isWhole ? 'Whole Event' : 'Partial Availability';
                                             const fullTooltip = `${titleText} (${commitmentLabel}) on ${e.post_title}`;
