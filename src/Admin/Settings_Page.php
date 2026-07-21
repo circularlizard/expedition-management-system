@@ -368,7 +368,7 @@ class Settings_Page {
 			?>
 		<form method="post">
 			<?php wp_nonce_field( 'ems_settings_sections' ); ?>
-			<table class="wp-list-table widefat fixed striped">
+			<table class="ems-table">
 				<thead>
 					<tr>
 						<th class="ems-col-width-70"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
@@ -407,7 +407,7 @@ class Settings_Page {
 			$writeback_id = (int) get_option( 'ems_writeback_section_id', 0 );
 			?>
 		<h3><?php esc_html_e( 'Currently Managed', 'ems-plugin' ); ?></h3>
-		<table class="wp-list-table widefat fixed striped">
+		<table class="ems-table">
 			<thead><tr>
 				<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
 				<th><?php esc_html_e( 'Name', 'ems-plugin' ); ?></th>
@@ -490,7 +490,7 @@ class Settings_Page {
 		<form method="post">
 			<?php wp_nonce_field( 'ems_settings_unit_leaders' ); ?>
 			<div class="ems-unit-leaders-table-container">
-				<table class="wp-list-table widefat fixed striped">
+				<table class="ems-table">
 					<thead>
 						<tr>
 							<th style="width: 15%;"><?php esc_html_e( 'OSM Section', 'ems-plugin' ); ?></th>
@@ -907,7 +907,7 @@ class Settings_Page {
 			</div>
 		</form>
 
-		<table class="wp-list-table widefat striped ems-audit-table">
+		<table class="ems-table ems-audit-table">
 			<thead>
 				<tr>
 					<th style="width: 60px;"><?php esc_html_e( 'ID', 'ems-plugin' ); ?></th>

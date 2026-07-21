@@ -157,7 +157,7 @@ function VolunteersDashboard() {
             <div className="ems-volunteers-split">
                 <div className="ems-panel">
                     <div className="ems-volunteers-table-wrap">
-                        <table className="wp-list-table widefat fixed striped table-view-list">
+                        <table className="ems-table">
                             <thead>
                                 <tr>
                                     <th className="ems-volunteers-col-name">Volunteer</th>

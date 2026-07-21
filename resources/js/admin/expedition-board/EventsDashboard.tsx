@@ -181,7 +181,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
 
             {!loading && !error && events.length > 0 && (
                 <div className="ems-panel">
-                    <table className="widefat striped ems-mt-0">
+                    <table className="ems-table ems-mt-0">
                         <thead>
                             <tr>
                                 <th>Name</th>
