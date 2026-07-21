@@ -3337,12 +3337,10 @@
     margin-bottom: 10px;
 }
 
-/* ─── Event Planning Board Redesign ────────────────────────────────────────── */
 .ems-planning-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 16px;
-    align-content: start;
+    column-width: 260px;
+    column-gap: 16px;
+    width: 100%;
 }
 
 .ems-planning-card {
@@ -3354,7 +3352,9 @@
     display: flex;
     flex-direction: column;
     min-height: 120px;
-    align-self: start;
+    margin-bottom: 16px;
+    break-inside: avoid;
+    box-sizing: border-box;
 }
 
 .ems-planning-card--dashed {
@@ -3364,6 +3364,9 @@
     align-items: center;
     cursor: pointer;
     min-height: 150px;
+    margin-bottom: 16px;
+    break-inside: avoid;
+    box-sizing: border-box;
 }
 
 .ems-planning-card--active-drag {
