@@ -16,6 +16,20 @@
     --ems-theme-color: var(--wp-admin-theme-color, #2271b1);
     --ems-theme-color-darker: var(--wp-admin-theme-color-darker, #135e96);
     --ems-theme-color-lighter: var(--wp-admin-theme-color-lighter, #f0f6fc);
+
+    /* Bespoke Expedition B2B SaaS Theme Variables */
+    --ems-bg-main: #FAFAF9;         /* Stone 50 */
+    --ems-card-bg: #FFFFFF;
+    --ems-border: #E7E5E4;          /* Stone 200 */
+    --ems-primary: #15803D;         /* Green 700 */
+    --ems-primary-hover: #166534;
+    --ems-primary-light: #DCFCE7;
+    --ems-accent: #C2410C;          /* Orange 700 */
+    --ems-accent-hover: #9A3412;
+    --ems-radius: 8px;
+    --ems-radius-badge: 9999px;
+    --ems-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --ems-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* ─── Resets ──────────────────────────────────────────────────────────────── */
@@ -48,11 +62,11 @@
 /* ─── Panel ───────────────────────────────────────────────────────────────── */
 
 .ems-panel {
-    background: #fff;
-    border: 1px solid #ccd0d4;
-    border-radius: 8px;
+    background: var(--ems-card-bg);
+    border: 1px solid var(--ems-border);
+    border-radius: var(--ems-radius);
     padding: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--ems-shadow-md);
 }
 
 .ems-panel--full-height {
@@ -291,29 +305,26 @@
 
 .ems-badge {
     display: inline-block;
-    padding: 2px 8px;
-    border-radius: 3px;
+    padding: 4px 10px;
+    border-radius: var(--ems-radius-badge);
     font-size: 11px;
     font-weight: 600;
-    line-height: 1.6;
+    line-height: 1.2;
 }
 
 .ems-badge--allocated {
-    background: #fcf9e8;
-    color: #9a6700;
-    border: 1px solid #f0c33c;
+    background: #FEF3C7; /* Amber 100 */
+    color: #92400E;       /* Amber 800 */
 }
 
 .ems-badge--unallocated {
-    background: #f6f7f7;
-    color: #646970;
-    border: 1px solid #dcdcde;
+    background: #F3F4F6; /* Gray 100 */
+    color: #374151;       /* Gray 700 */
 }
 
 .ems-badge--warning {
-    background: #fcf0f1;
-    color: #d63638;
-    border: 1px solid #f86368;
+    background: #FEE2E2; /* Red 100 */
+    color: #991B1B;       /* Red 800 */
 }
 
 /* ─── Error notice ────────────────────────────────────────────────────────── */
