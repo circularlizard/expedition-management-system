@@ -36,7 +36,7 @@ If no `DESIGN_RULES.md` or visual reference folder (`docs/ui-review/`) is suppli
 * **Preset C: WordPress Native Blend (`@wordpress/components`)**
   * Seamless integration with core WP-Admin CSS variables (`--wp-admin-theme-color`), standard WP buttons, classic meta-box layout grids, flat borders.
 
-*Or ask the user to provide 2–3 reference images in `docs/ui-references/` to act as visual ground truth.*
+*Or ask the user to provide 2–3 reference images in `docs/ui-review/` to act as visual ground truth.*
 
 ---
 
