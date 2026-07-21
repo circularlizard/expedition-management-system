@@ -211,15 +211,15 @@ function VolunteerSignupWizard() {
             <h2>Volunteer Availability Wizard</h2>
 
             {errors.length > 0 && (
-                <div style={{ background: '#fbeaea', border: '1px solid #dc3232', padding: '10px', borderRadius: '3px', marginBottom: '16px' }}>
-                    {errors.map((e, idx) => <div key={idx} style={{ color: '#dc3232' }}>{e}</div>)}
+                <div className="ems-notice-danger-box">
+                    {errors.map((e, idx) => <div key={idx} className="ems-text-danger-bright">{e}</div>)}
                 </div>
             )}
 
             {step === 1 && (
                 <div>
                     <h3>Enrollment Option</h3>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                    <div className="ems-flex-gap-10-mb-20">
                         <button className="button button-primary" onClick={handleOSMAuth}>Sign in via OSM</button>
                         <button className="button" onClick={() => setStep(2)}>Sign Up as Guest</button>
                     </div>

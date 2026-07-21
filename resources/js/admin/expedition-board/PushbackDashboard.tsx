@@ -213,7 +213,7 @@ export const PushbackDashboard: React.FC = () => {
 		<div>
 			<div className="ems-pushback-dashboard">
 				<div className="ems-pushback-filter-bar">
-					<label htmlFor="section-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
+					<label htmlFor="section-select">
 						Select Section:
 					</label>
 					<select
@@ -286,7 +286,7 @@ export const PushbackDashboard: React.FC = () => {
 						)}
 
 						{/* Flexi-record Preview */}
-						<div className="card" style={{ padding: '15px', margin: '20px 0', maxWidth: '100%' }}>
+						<div className="card ems-card-panel">
 							<h2>Flexi-Record: {preview.flexi_record.proposed_name}</h2>
 							<p className="description">
 								Status:{' '}
@@ -354,7 +354,7 @@ export const PushbackDashboard: React.FC = () => {
 						</div>
 
 						{/* Event Attendance Preview */}
-						<div className="card" style={{ padding: '15px', margin: '20px 0', maxWidth: '100%' }}>
+						<div className="card ems-card-panel">
 							<h2>Event Attendance Invitations</h2>
 							{preview.events && preview.events.length > 0 ? (
 								preview.events.map((ev, idx) => (

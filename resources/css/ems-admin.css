@@ -3232,3 +3232,56 @@
 .ems-divider--settings {
     margin: 2em 0;
 }
+
+.ems-pushback-filter-bar label {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.ems-card-panel {
+    padding: 15px;
+    margin: 20px 0;
+    max-width: 100%;
+}
+
+.ems-notice-danger-box {
+    background: #fbeaea;
+    border: 1px solid #dc3232;
+    padding: 10px;
+    border-radius: 3px;
+    margin-bottom: 16px;
+}
+
+.ems-text-danger-bright {
+    color: #dc3232;
+}
+
+.ems-flex-gap-10-mb-20 {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.ems-text-muted {
+    color: #666;
+}
+
+.ems-nav-tab-wrapper--no-margin {
+    margin-bottom: 0 !important;
+}
+
+.ems-log-output-box {
+    background: #f6f7f7;
+    padding: 10px;
+    overflow: auto;
+    max-height: 300px;
+    font-size: 11px;
+}
+
+.ems-col-width-70 {
+    width: 70px;
+}
+
+.ems-col-width-120 {
+    width: 120px;
+}
