@@ -646,7 +646,8 @@
     color: #1d2327;
 }
 
-.ems-filter-pill input[type="radio"] {
+.ems-filter-pill input[type="radio"],
+.ems-filter-pill input[type="checkbox"] {
     display: none;
 }
 
