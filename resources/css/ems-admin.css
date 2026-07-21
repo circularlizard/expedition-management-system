@@ -2931,8 +2931,12 @@
     position: relative;
 }
 
-.ems-volunteers-table-wrap {
+.ems-volunteers-split > .ems-panel {
     flex: 1;
+    min-width: 0;
+}
+
+.ems-volunteers-table-wrap {
     overflow-x: auto;
 }
 
