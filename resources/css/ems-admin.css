@@ -3228,3 +3228,7 @@
 .ems-text-danger {
     color: #b32d2e;
 }
+
+.ems-divider--settings {
+    margin: 2em 0;
+}

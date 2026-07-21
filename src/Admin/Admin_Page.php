@@ -295,7 +295,7 @@ class Admin_Page {
 		$last_result = get_transient( 'ems_last_sync_result' );
 		$last_sync   = $last_result['started_at'] ?? null;
 
-		echo '<div style="display:flex;align-items:center;gap:20px;margin-bottom:10px;">';
+		echo '<div class="ems-admin-header-row">';
 		if ( ! $is_blocked && ! $sync_running ) {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			echo '<input type="hidden" name="action" value="ems_sync_osm" />';
@@ -324,7 +324,7 @@ class Admin_Page {
 			echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
 		}
 		echo '</nav>';
-		echo '<div style="border:1px solid #ccd0d4;border-top:none;background:#fff;padding:20px;margin-bottom:20px;">';
+		echo '<div class="ems-admin-tab-content-panel">';
 
 		if ( $active_tab === 'explorers' ) {
 			$this->render_explorers_tab( $wpdb );
@@ -499,7 +499,7 @@ class Admin_Page {
 			? '<span style="color:#00a32a;">&#10003; Authenticated with OSM</span>'
 			: '<span style="color:#dba617;">&#9888; No cached OSM session — a new login will be required for the next sync</span>';
 		?>
-		<div id="ems-sync-progress" style="background:#fff;border:1px solid #2271b1;border-left:4px solid #2271b1;padding:14px 16px;margin-bottom:16px;border-radius:2px;">
+		<div id="ems-sync-progress" class="ems-sync-progress-box">
 			<p style="margin:0 0 6px;font-weight:600;display:flex;align-items:center;gap:12px;">
 				<span>
 					<span id="ems-sync-spinner" class="spinner is-active" style="float:none;margin:0 6px 0 0;vertical-align:middle;"></span>
