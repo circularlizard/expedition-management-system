@@ -67,6 +67,29 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
   const [rosterCollapsed,  setRosterCollapsed]  = useState(!!event);
   const [showWarnings,     setShowWarnings]     = useState(true);
 
+  const [syncedExplorers, setSyncedExplorers] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [addingExplorer, setAddingExplorer] = useState(false);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handler = () => setShowSearchResults(false);
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
+  }, []);
+
+  // Fetch all synced explorers when the event selection changes
+  useEffect(() => {
+    if (!selectedEvent) return;
+    fetch(`${rootUrl}/planning-board/synced-explorers`, {
+      headers: { 'X-WP-Nonce': nonce },
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+      .then(data => setSyncedExplorers(Array.isArray(data) ? data : []))
+      .catch(e => console.error('Failed to load synced explorers:', e));
+  }, [rootUrl, nonce, selectedEvent]);
+
   // ── Load planning board events list ─────────────────────────────────────────────
   useEffect(() => {
     if (event) {
@@ -131,6 +154,38 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
       console.error('Failed to refetch availability', e);
     }
   }, [selectedEvent, rootUrl, nonce, onTeamChanged]);
+
+  const handleAddUnlistedExplorer = async (explorer: any) => {
+    if (!selectedEvent) return;
+    setAddingExplorer(true);
+    setSearchQuery('');
+    setShowSearchResults(false);
+    try {
+      const resp = await fetch(`${rootUrl}/planning-board/add-explorer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce
+        },
+        body: JSON.stringify({
+          scout_id: explorer.scout_id,
+          event_code: selectedEvent.event_code
+        })
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        setFeedback({ ok: true, msg: `Successfully added ${explorer.first_name} ${explorer.last_name} to the Event Pool.` });
+        refetchAvailability();
+      } else {
+        const errorMsg = data.message || 'Failed to add explorer.';
+        setFeedback({ ok: false, msg: errorMsg });
+      }
+    } catch (e) {
+      setFeedback({ ok: false, msg: `Error: ${e}` });
+    } finally {
+      setAddingExplorer(false);
+    }
+  };
 
   const handleSelectEvent = useCallback((ev: PlanningEvent) => {
     setSelectedEvent(ev);
@@ -433,6 +488,88 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
           <h3 className="ems-section-heading ems-mb-16">Available Explorers</h3>
           {selectedEvent ? (
             <>
+              {/* Unlisted Explorer Search & Add */}
+              <div className="ems-unlisted-search ems-mb-12" style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="ems-form-input"
+                    placeholder="🔍 Add unlisted synced explorer..."
+                    value={searchQuery}
+                    onChange={e => {
+                      setSearchQuery(e.target.value);
+                      setShowSearchResults(true);
+                    }}
+                    onFocus={() => setShowSearchResults(true)}
+                    style={{ margin: 0, flex: 1 }}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setShowSearchResults(false);
+                      }}
+                      style={{ padding: '0 8px' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {showSearchResults && searchQuery.trim().length >= 2 && (
+                  <div
+                    className="ems-autocomplete-dropdown"
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 1000,
+                      background: '#fff',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      marginTop: '4px'
+                    }}
+                  >
+                    {(() => {
+                      const query = searchQuery.toLowerCase();
+                      const matches = syncedExplorers.filter(e => {
+                        const fullName = `${e.first_name} ${e.last_name}`.toLowerCase();
+                        const alreadyOnBoard = explorers.some(boardExp => boardExp.scout_id === e.scout_id);
+                        return fullName.includes(query) && !alreadyOnBoard;
+                      });
+
+                      if (matches.length === 0) {
+                        return <div style={{ padding: '8px', color: '#666', fontSize: '12px' }}>No matching unassigned explorers found.</div>;
+                      }
+
+                      return matches.map(match => (
+                        <div
+                          key={match.scout_id}
+                          className="ems-autocomplete-item"
+                          onClick={() => handleAddUnlistedExplorer(match)}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid #eee',
+                            fontSize: '13px',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f0f4f8'}
+                          onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                        >
+                          <strong>{match.first_name} {match.last_name}</strong> <span style={{ color: '#888', fontSize: '11px' }}>({match.patrol || 'No Unit'})</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
+
               <div className="ems-toolbar ems-planning-toolbar ems-mb-12">
                 <div className="ems-toolbar__group">
                   <div className="ems-flex-center ems-gap-4">

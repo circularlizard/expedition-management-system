@@ -43,6 +43,20 @@ describe('EventPlanningBoard', () => {
     vi.resetAllMocks();
     global.fetch = vi.fn().mockImplementation((url) => {
       const urlStr = String(url);
+      if (urlStr.includes('/planning-board/synced-explorers')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            { scout_id: 4003, first_name: 'Charlie', last_name: 'Brown', patrol: 'Peanuts' }
+          ]
+        });
+      }
+      if (urlStr.includes('/planning-board/add-explorer')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true })
+        });
+      }
       if (urlStr.includes('/planning-board/availability')) {
         return Promise.resolve({
           ok: true,
@@ -163,6 +177,47 @@ describe('EventPlanningBoard', () => {
       const forbiddenStyles = ['display', 'margin', 'padding', 'flex', 'grid', 'position', 'left', 'top', 'right', 'bottom', 'gap', 'border-radius', 'border:'];
       forbiddenStyles.forEach((prop) => {
         expect(styleAttr).not.toContain(prop);
+      });
+    });
+  });
+
+  it('allows searching and adding an unlisted synced explorer', async () => {
+    render(<EventPlanningBoard />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Hill Practice 1/)).toBeInTheDocument();
+    });
+
+    const select = screen.getByRole('combobox', { name: /Select Event/i });
+    fireEvent.change(select, { target: { value: 'H-SP1' } });
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Alice/).length).toBeGreaterThan(0);
+    });
+
+    // Let the async fetch of synced-explorers resolve
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Enter name to search
+    const input = screen.getByPlaceholderText(/Add unlisted synced explorer/);
+    fireEvent.change(input, { target: { value: 'Charlie' } });
+
+    // Expect Charlie Brown to appear in dropdown
+    await waitFor(() => {
+      expect(screen.getByText(/Charlie Brown/)).toBeInTheDocument();
+    });
+
+    // Click Charlie Brown
+    fireEvent.click(screen.getByText(/Charlie Brown/));
+
+    await waitFor(() => {
+      const addCall = (global.fetch as any).mock.calls.find((call: any) => 
+        call[0].includes('/planning-board/add-explorer')
+      );
+      expect(addCall).toBeDefined();
+      expect(JSON.parse(addCall[1].body)).toEqual({
+        scout_id: 4003,
+        event_code: 'H-SP1'
       });
     });
   });
