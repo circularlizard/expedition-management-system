@@ -90,4 +90,52 @@ class Volunteer_ControllerTest extends EMSTestCase {
         $this->assertEquals( 200, $response->get_status() );
         $this->assertTrue( $response->get_data()['success'] );
     }
+
+    public function test_save_volunteer_admin(): void {
+        $this->repo->shouldReceive('save_volunteer')->once()->andReturn([
+            'id' => 10,
+            'email' => 'test@example.com',
+            'constraints' => ['max_practices' => 2]
+        ]);
+
+        $controller = new Volunteer_Controller( $this->repo );
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'first_name' => 'Jane',
+            'email' => 'test@example.com',
+            'constraints' => ['max_practices' => 2]
+        ]);
+
+        $response = $controller->save_volunteer_admin( $request );
+
+        $this->assertEquals( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['success'] );
+        $this->assertEquals( ['max_practices' => 2], $response->get_data()['volunteer']['constraints'] );
+    }
+
+    public function test_save_availability_admin(): void {
+        $this->repo->shouldReceive('save_availability')->once()->with(10, 5, [
+            ['date' => '2026-08-14', 'overnight' => 0]
+        ], 'part');
+
+        $controller = new Volunteer_Controller( $this->repo );
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'volunteer_id' => 10,
+            'expedition_post_id' => 5,
+            'shifts' => [
+                ['date' => '2026-08-14', 'overnight' => 0]
+            ],
+            'signup_type' => 'part'
+        ]);
+
+        $response = $controller->save_availability_admin( $request );
+
+        $this->assertEquals( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['success'] );
+    }
 }

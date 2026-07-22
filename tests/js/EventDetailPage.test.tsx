@@ -203,4 +203,45 @@ describe('EventDetailPage Tab Functions', () => {
             });
         });
     });
+
+    it('verifies Route tab view and edit modes', async () => {
+        render(<EventDetailPage event={mockEvent} onBack={() => {}} />);
+
+        // Switch to Route tab
+        fireEvent.click(screen.getByText('Route'));
+
+        // View mode: shows deadline
+        expect(screen.getByText('Route Deadline')).toBeInTheDocument();
+        const editBtn = screen.getByRole('button', { name: 'Edit Route' });
+        expect(editBtn).toBeInTheDocument();
+
+        // Switch to Edit Mode
+        fireEvent.click(editBtn);
+
+        // Verify edit mode inputs are present
+        expect(screen.getByText('Edit Route Details')).toBeInTheDocument();
+        const statusSelect = screen.getByRole('combobox', { name: 'Route Planning Status' }) as HTMLSelectElement;
+        expect(statusSelect).toBeInTheDocument();
+        
+        const options = Array.from(statusSelect.options).map(o => o.textContent);
+        expect(options).toContain('Draft');
+        expect(options).toContain('Confirmed');
+
+        expect(screen.getByRole('textbox', { name: 'Notes' })).toBeInTheDocument();
+
+        // Click Save
+        (global.fetch as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ ...mockEvent, ems_route_status: 'confirmed' })
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Route Details' }));
+
+        await waitFor(() => {
+            const patchCall = (global.fetch as any).mock.calls.find((c: any) => c[0].includes('/events/10') && c[1]?.method === 'PATCH');
+            expect(patchCall).toBeDefined();
+            expect(JSON.parse(patchCall[1].body)).toEqual(expect.objectContaining({
+                ems_route_status: 'draft'
+            }));
+        });
+    });
 });

@@ -86,6 +86,12 @@ class Table_Installer {
 			$wpdb->query( "ALTER TABLE {$avail_table} ADD COLUMN signup_type VARCHAR(20) NOT NULL DEFAULT 'part' AFTER updated_at" );
 		}
 
+		$vol_table = $wpdb->prefix . 'ems_volunteers';
+		if ( ! $this->column_exists( $wpdb, $vol_table, 'constraints' ) ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$vol_table} ADD COLUMN constraints TEXT DEFAULT NULL AFTER preferred_roles" );
+		}
+
 		$this->migrate_season_deprecation( $wpdb );
 	}
 
@@ -204,6 +210,7 @@ class Table_Installer {
             dbs_number      VARCHAR(100)             DEFAULT NULL,
             qualifications  LONGTEXT                 DEFAULT NULL,
             preferred_roles LONGTEXT                 DEFAULT NULL,
+            constraints     TEXT                     DEFAULT NULL,
             created_at      DATETIME        NOT NULL,
             updated_at      DATETIME        NOT NULL,
             PRIMARY KEY (id),

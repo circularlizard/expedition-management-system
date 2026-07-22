@@ -93,6 +93,7 @@ To make the various Duke of Edinburgh levels instantly recognizable across the a
 | **Gold Award** | `#B4975A` | Pantone 872 | `#F6F3EC` (Warm cream/gold tint) |
 | **Silver Award** | `#A7A9AC` | Pantone 877 | `#F0F1F2` (Cool grey/silver tint) |
 | **Bronze Award** | `#BA8748` | Pantone 876 | `#F8F3EC` (Warm peach/bronze tint) |
+| **Multiple** | `#4F46E5` | Pantone 2386 C | `#EEF2FF` (Cool blue/indigo tint) |
 
 ### Usage Rules:
 * Apply these colors to level badges, headers, and iconography specific to Bronze, Silver, and Gold expeditions.

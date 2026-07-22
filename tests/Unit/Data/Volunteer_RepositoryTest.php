@@ -161,4 +161,52 @@ class Volunteer_RepositoryTest extends EMSTestCase {
         $repo->confirm_availability(100, 0);
         $this->assertTrue(true);
     }
+
+    public function test_save_volunteer_includes_constraints(): void {
+        $this->wpdb->shouldReceive('get_row')->once()->andReturn(null);
+        $this->wpdb->shouldReceive('insert')->once()->andReturnUsing(function($table, $data) {
+            $this->assertEquals('wp_ems_volunteers', $table);
+            $this->assertEquals(json_encode(['max_practices' => 2]), $data['constraints']);
+            return 1;
+        });
+        $this->wpdb->insert_id = 42;
+
+        $repo = new Volunteer_Repository($this->wpdb);
+        $result = $repo->save_volunteer([
+            'first_name' => 'John',
+            'email' => 'john@example.com',
+            'constraints' => ['max_practices' => 2]
+        ]);
+
+        $this->assertEquals(42, $result['id']);
+    }
+
+    public function test_get_volunteers_decodes_constraints(): void {
+        $vol_row = [
+            'id' => 1,
+            'osm_user_id' => null,
+            'user_id' => null,
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'email' => 'john@example.com',
+            'qualifications' => null,
+            'preferred_roles' => null,
+            'constraints' => json_encode(['max_practices' => 2]),
+        ];
+        $this->wpdb->shouldReceive('get_results')
+            ->once()
+            ->with('SELECT * FROM wp_ems_volunteers', 'ARRAY_A')
+            ->andReturn([$vol_row]);
+
+        $this->wpdb->shouldReceive('get_results')
+            ->once()
+            ->with(\Mockery::pattern('/SELECT \* FROM wp_ems_volunteer_availability/'), 'ARRAY_A')
+            ->andReturn([]);
+
+        $repo = new Volunteer_Repository($this->wpdb);
+        $volunteers = $repo->get_volunteers();
+
+        $this->assertCount(1, $volunteers);
+        $this->assertEquals(['max_practices' => 2], $volunteers[0]['constraints']);
+    }
 }
