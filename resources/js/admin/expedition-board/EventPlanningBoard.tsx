@@ -548,7 +548,7 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
                               )}
                               {exp.team_preferences && (
                                 <div className="ems-table__other-choices" style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
-                                  Pref: {exp.team_preferences}
+                                  {exp.team_preferences}
                                 </div>
                               )}
                               {!exp.team_preferences && (!exp.other_events || exp.other_events.length === 0) && '—'}
