@@ -57,6 +57,7 @@ export default function EventPlanningBoard() {
   const [feedback,         setFeedback]         = useState<{ ok: boolean; msg: string } | null>(null);
   const [dragOverZone,     setDragOverZone]     = useState<string | null>(null);
   const [collapsedTeams,   setCollapsedTeams]   = useState<Record<string, boolean>>({});
+  const [hideAssigned,     setHideAssigned]     = useState(false);
 
   // ── Load planning board events ─────────────────────────────────────────────
   useEffect(() => {
@@ -85,6 +86,7 @@ export default function EventPlanningBoard() {
     setFilterUnit('all');
     setFeedback(null);
     setError(null);
+    setHideAssigned(false);
     setExplorersLoading(true);
 
     fetch(`${rootUrl}/planning-board/availability/${ev.event_code}`, {
@@ -201,6 +203,7 @@ export default function EventPlanningBoard() {
 
   const filteredExplorers = explorers.filter(exp => {
     if (filterUnit !== 'all' && exp.unit_name !== filterUnit) return false;
+    if (hideAssigned && exp.allocated_event_code) return false;
     return true;
   });
 
@@ -356,6 +359,7 @@ export default function EventPlanningBoard() {
 
         {/* Left Column — Availability Roster */}
         <div className="ems-split__left ems-planning-split__left">
+          <h3 className="ems-section-heading ems-mb-16">Available Explorers</h3>
           {selectedEvent ? (
             <>
               <div className="ems-toolbar ems-planning-toolbar ems-mb-12">
@@ -375,11 +379,19 @@ export default function EventPlanningBoard() {
                     </select>
                   </div>
                 </div>
+                <div className="ems-toolbar__group">
+                  <label className="ems-flex-center ems-gap-8 ems-pointer">
+                    <input
+                      type="checkbox"
+                      className="ems-checkbox"
+                      checked={hideAssigned}
+                      onChange={e => setHideAssigned(e.target.checked)}
+                    />
+                    <span className="ems-toolbar__label">Hide Assigned</span>
+                  </label>
+                </div>
               </div>
 
-              {selectedEvent && (
-                <h3 className="ems-section-heading ems-mb-16">Available Explorers</h3>
-              )}
               {explorersLoading ? (
                 <div className="ems-planning-spinner"><Spinner /></div>
               ) : explorers.length === 0 ? (
