@@ -1592,6 +1592,16 @@ class Expedition_Admin_Controller {
 					}
 				}
 
+				$all_interested = array_unique( array_merge( $practice, $qualifier ) );
+				$other_events   = array_values(
+					array_filter(
+						$all_interested,
+						function ( $code ) use ( $event_code ) {
+							return $code !== $event_code;
+						}
+					)
+				);
+
 				$available[] = array(
 					'scout_id'             => $scout_id,
 					'first_name'           => $signup['explorer_first_name'] ?? '',
@@ -1600,6 +1610,7 @@ class Expedition_Admin_Controller {
 					'allocated_event_code' => $allocated_event_code,
 					'allocated_team_code'  => $allocated_team_code,
 					'team_preferences'     => $prefs['exped_team_names'] ?? '',
+					'other_events'         => $other_events,
 				);
 			}
 		}

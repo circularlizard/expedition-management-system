@@ -3344,8 +3344,8 @@
 }
 
 .ems-planning-card {
-    background: #fff;
-    border: 1px solid #ccd0d4;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 16px;
     transition: border-color 0.2s, background-color 0.2s;
@@ -3355,6 +3355,7 @@
     margin-bottom: 16px;
     break-inside: avoid;
     box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .ems-planning-card--dashed {
@@ -3467,8 +3468,9 @@
 }
 
 .ems-planning-card--pool {
-    background: #f4f6f8;
-    border: 2px solid #ccd6e0;
+    background: #eff6ff !important;
+    border: 1px solid #bfdbfe !important;
+    box-shadow: 0 1px 3px rgba(30, 58, 138, 0.05) !important;
 }
 
 .ems-remove-member-btn {
@@ -3501,6 +3503,44 @@
 .ems-planning-card--collapsed {
     min-height: 0 !important;
 }
+
+.ems-roster-row--assigned {
+    background-color: #fafafa !important;
+    opacity: 0.6;
+    color: #8c8f94;
+}
+
+.ems-badge--assigned-this {
+    background-color: var(--ems-primary-light);
+    color: var(--ems-primary);
+    border: 1px solid #86efac;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.ems-badge--assigned-other {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.ems-table__other-choices {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+    font-style: italic;
+}
+
 
 
 
