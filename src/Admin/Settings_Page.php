@@ -434,7 +434,7 @@ class Settings_Page {
 			</div>
 		<?php endif; ?>
 
-		<?php if ( ! empty( $available ) && ! empty( $managed ) ) :
+		<?php if ( ! empty( $managed ) ) :
 			$writeback_id = (int) get_option( 'ems_writeback_section_id', 0 );
 			?>
 			<div class="ems-panel">
