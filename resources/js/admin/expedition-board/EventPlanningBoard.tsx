@@ -86,7 +86,6 @@ export default function EventPlanningBoard() {
     setFilterUnit('all');
     setFeedback(null);
     setError(null);
-    setHideAssigned(false);
     setExplorersLoading(true);
 
     fetch(`${rootUrl}/planning-board/availability/${ev.event_code}`, {
