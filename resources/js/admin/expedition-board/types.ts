@@ -46,6 +46,8 @@ export interface Expedition {
     ems_lic_name?: string;
     ems_lic_email?: string;
     ems_lic_phone?: string;
+    ems_lic_private_email?: string;
+    ems_lic_private_phone?: string;
     ems_lic_id?: string;
     ems_start_location?: string;
     ems_end_location?: string;

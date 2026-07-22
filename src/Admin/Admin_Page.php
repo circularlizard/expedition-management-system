@@ -206,10 +206,11 @@ class Admin_Page {
 			'ems-expedition-board',
 			'emsExpeditionBoard',
 			array(
-				'root_url'  => get_rest_url( null, 'ems/v1' ),
-				'nonce'     => wp_create_nonce( 'wp_rest' ),
-				'admin_url' => admin_url( 'post.php' ),
-				'sections'  => (array) get_option( 'ems_managed_sections', array() ),
+				'root_url'   => get_rest_url( null, 'ems/v1' ),
+				'nonce'      => wp_create_nonce( 'wp_rest' ),
+				'admin_url'  => admin_url( 'post.php' ),
+				'sections'   => (array) get_option( 'ems_managed_sections', array() ),
+				'plugin_url' => plugin_dir_url( EMS_PLUGIN_FILE ),
 			)
 		);
 	}

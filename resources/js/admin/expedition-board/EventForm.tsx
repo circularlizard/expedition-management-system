@@ -41,6 +41,8 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         ems_lic_name: '',
         ems_lic_email: '',
         ems_lic_phone: '',
+        ems_lic_private_email: '',
+        ems_lic_private_phone: '',
         ems_lic_id: '',
         ems_start_location: '',
         ems_end_location: '',
@@ -71,6 +73,8 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 ems_lic_name: initialEvent.ems_lic_name || '',
                 ems_lic_email: initialEvent.ems_lic_email || '',
                 ems_lic_phone: initialEvent.ems_lic_phone || '',
+                ems_lic_private_email: initialEvent.ems_lic_private_email || '',
+                ems_lic_private_phone: initialEvent.ems_lic_private_phone || '',
                 ems_lic_id: initialEvent.ems_lic_id || '',
                 ems_start_location: initialEvent.ems_start_location || '',
                 ems_end_location: initialEvent.ems_end_location || '',
@@ -109,6 +113,9 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         if (!formData.ems_end_date) next.ems_end_date = 'End date is required';
         if (formData.ems_lic_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.ems_lic_email)) {
             next.ems_lic_email = 'Enter a valid email address';
+        }
+        if (formData.ems_lic_private_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.ems_lic_private_email)) {
+            next.ems_lic_private_email = 'Enter a valid email address';
         }
         setErrors(next);
         return Object.keys(next).length === 0;
@@ -255,28 +262,36 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
             </div>
 
             <div className="ems-form-section">
-                <div className="ems-form-section-label">Locations</div>
+                <div className="ems-form-section-label">Leader in Charge</div>
 
                 <label className="ems-form-group">
-                    Leader in Charge Name
+                    <div>Leader in Charge Name</div>
                     <input name="ems_lic_name" value={formData.ems_lic_name} onChange={handleChange} className="ems-form-input" />
                 </label>
 
-                <div className="ems-form-grid-3">
+                <div className="ems-form-grid-2">
                     <label className="ems-form-group">
-                        Leader Email
+                        <div>Leader Public Email</div>
                         <input type="email" name="ems_lic_email" value={formData.ems_lic_email} onChange={handleChange} className="ems-form-input" />
                         {errors.ems_lic_email && <span className="ems-field-error">{errors.ems_lic_email}</span>}
                     </label>
 
                     <label className="ems-form-group">
-                        Leader Phone
+                        <div>Leader Public Phone</div>
                         <input type="tel" name="ems_lic_phone" value={formData.ems_lic_phone} onChange={handleChange} className="ems-form-input" />
+                    </label>
+                </div>
+
+                <div className="ems-form-grid-2">
+                    <label className="ems-form-group">
+                        <div>Leader Private Email</div>
+                        <input type="email" name="ems_lic_private_email" value={formData.ems_lic_private_email} onChange={handleChange} className="ems-form-input" />
+                        {errors.ems_lic_private_email && <span className="ems-field-error">{errors.ems_lic_private_email}</span>}
                     </label>
 
                     <label className="ems-form-group">
-                        Leader ID
-                        <input name="ems_lic_id" value={formData.ems_lic_id} onChange={handleChange} className="ems-form-input" />
+                        <div>Leader Private Phone</div>
+                        <input type="tel" name="ems_lic_private_phone" value={formData.ems_lic_private_phone} onChange={handleChange} className="ems-form-input" />
                     </label>
                 </div>
             </div>

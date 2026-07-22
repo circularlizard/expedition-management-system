@@ -692,6 +692,9 @@ class Expedition_Admin_Controller {
 			case 'past':
 				$raw_events = $this->expeditions->list_past();
 				break;
+			case 'archived':
+				$raw_events = $this->expeditions->list_all_chronological();
+				break;
 			case 'all':
 				$raw_events = $this->expeditions->list_all_chronological();
 				break;
@@ -700,7 +703,16 @@ class Expedition_Admin_Controller {
 				break;
 		}
 
-		if ( ! $include_archived ) {
+		if ( $tab === 'archived' ) {
+			$raw_events = array_values(
+				array_filter(
+					$raw_events,
+					static function ( $e ) {
+						return ( $e['ems_status'] ?? '' ) === 'archived';
+					}
+				)
+			);
+		} elseif ( ! $include_archived ) {
 			$raw_events = array_values(
 				array_filter(
 					$raw_events,

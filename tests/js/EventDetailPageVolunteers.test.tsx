@@ -53,11 +53,11 @@ describe('EventDetailPage Volunteers Tab', () => {
 
         await waitFor(() => {
             expect(screen.getAllByText(/Jane Doe/)[0]).toBeInTheDocument();
-            expect(screen.getByText('Supervisors: 0 / 2')).toBeInTheDocument();
+            expect(screen.getByText('Supervisors Check')).toBeInTheDocument();
         });
 
         // Trigger confirmation
-        const assignBtn = screen.getByRole('button', { name: 'Assign / Confirm' });
+        const assignBtn = screen.getByRole('button', { name: 'Assign' });
         expect(assignBtn).toBeInTheDocument();
 
         (global.fetch as any).mockResolvedValueOnce({

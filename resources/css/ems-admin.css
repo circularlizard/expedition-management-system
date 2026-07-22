@@ -925,6 +925,13 @@
 
 /* ─── Phase 1: EventForm grids ──────────────────────────────────────────────── */
 
+.ems-form-grid-5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
 .ems-form-grid-4 {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
