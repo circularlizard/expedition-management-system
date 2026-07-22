@@ -566,14 +566,14 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
         {/* Right Column — Drop Zones for Teams */}
         <div className="ems-split__right ems-planning-split__right">
           <div className="ems-flex-between ems-mb-16" style={{ alignItems: 'center' }}>
-            <h3 className="ems-section-heading ems-m-0">Teams Drop Zones</h3>
+            <h3 className="ems-section-heading ems-m-0">Expedition Teams</h3>
             {selectedEvent && (
               <button
                 type="button"
                 className="button button-secondary"
                 onClick={() => setRosterCollapsed(prev => !prev)}
               >
-                {rosterCollapsed ? 'Show Available Roster' : 'Hide Available Roster'}
+                {rosterCollapsed ? 'Show Availability Roster' : 'Hide Availability Roster'}
               </button>
             )}
           </div>
