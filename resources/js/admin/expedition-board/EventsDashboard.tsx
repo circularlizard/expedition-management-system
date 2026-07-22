@@ -10,7 +10,7 @@ interface EventsDashboardProps {
     onCreateEvent?: () => void;
 }
 
-type DashboardTab = 'upcoming' | 'past';
+type DashboardTab = 'upcoming' | 'past' | 'archived';
 
 function statusBadge(status?: string): React.ReactNode {
     const s = status || 'active';
@@ -71,7 +71,6 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
 }) => {
     const config = window.emsExpeditionBoard;
     const [activeTab, setActiveTab] = useState<DashboardTab>('upcoming');
-    const [includeArchived, setIncludeArchived] = useState(false);
     const [events, setEvents] = useState<Expedition[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -123,11 +122,11 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
         );
     };
 
-    const load = useCallback(async (tab: DashboardTab, archived: boolean) => {
+    const load = useCallback(async (tab: DashboardTab) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await fetchEvents(tab, archived, config.nonce, config.root_url);
+            const data = await fetchEvents(tab, false, config.nonce, config.root_url);
             setEvents(data);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Failed to load events');
@@ -137,8 +136,8 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
     }, [config.nonce, config.root_url]);
 
     useEffect(() => {
-        load(activeTab, includeArchived);
-    }, [activeTab, includeArchived, load]);
+        load(activeTab);
+    }, [activeTab, load]);
 
     const switchTab = (tab: DashboardTab) => {
         setActiveTab(tab);
@@ -170,15 +169,9 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                 <button id="ems-tab-past" className={tabClass('past')} onClick={() => switchTab('past')}>
                     Past Events
                 </button>
-                <label className={`ems-tab-nav__checkbox-label ems-filter-pill ${includeArchived ? 'ems-filter-pill--active' : ''}`}>
-                    <input
-                        id="ems-show-archived"
-                        type="checkbox"
-                        checked={includeArchived}
-                        onChange={(e) => setIncludeArchived(e.target.checked)}
-                    />
-                    Show Archived Events
-                </label>
+                <button id="ems-tab-archived" className={tabClass('archived')} onClick={() => switchTab('archived')}>
+                    Archived Events
+                </button>
             </div>
 
             {/* Content */}
@@ -268,7 +261,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                         {onEditEvent && (
                                             <button
                                                 type="button"
-                                                className="button button-small ems-mr-8"
+                                                className="button button-small"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     onEditEvent(event);
@@ -277,33 +270,6 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                                 Edit
                                             </button>
                                         )}
-                                        <button
-                                            type="button"
-                                            className={`button button-small ${event.ems_status === 'archived' ? '' : 'ems-btn-archive-red'}`}
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                const isArchive = event.ems_status !== 'archived';
-                                                if (window.confirm(isArchive ? `Are you sure you want to archive this event?` : `Are you sure you want to restore this event?`)) {
-                                                    try {
-                                                        const res = await fetch(`${config.root_url}/events/${event.ID}`, {
-                                                            method: 'PATCH',
-                                                            headers: {
-                                                                'Content-Type': 'application/json',
-                                                                'X-WP-Nonce': config.nonce,
-                                                            },
-                                                            body: JSON.stringify({ ems_status: isArchive ? 'archived' : 'active' }),
-                                                        });
-                                                        if (res.ok) {
-                                                            load(activeTab, includeArchived);
-                                                        }
-                                                    } catch (err) {
-                                                        console.error(err);
-                                                    }
-                                                }
-                                            }}
-                                        >
-                                            {event.ems_status === 'archived' ? 'Restore' : 'Archive'}
-                                        </button>
                                     </td>
                                 </tr>
                             ))}

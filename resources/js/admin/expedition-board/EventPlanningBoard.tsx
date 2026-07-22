@@ -65,6 +65,7 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
   const [collapsedTeams,   setCollapsedTeams]   = useState<Record<string, boolean>>({});
   const [hideAssigned,     setHideAssigned]     = useState(false);
   const [rosterCollapsed,  setRosterCollapsed]  = useState(!!event);
+  const [showWarnings,     setShowWarnings]     = useState(true);
 
   // ── Load planning board events list ─────────────────────────────────────────────
   useEffect(() => {
@@ -568,13 +569,24 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
           <div className="ems-flex-between ems-mb-16" style={{ alignItems: 'center' }}>
             <h3 className="ems-section-heading ems-m-0">Expedition Teams</h3>
             {selectedEvent && (
-              <button
-                type="button"
-                className="button button-secondary"
-                onClick={() => setRosterCollapsed(prev => !prev)}
-              >
-                {rosterCollapsed ? 'Show Availability Roster' : 'Hide Availability Roster'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <label className="ems-flex-center ems-gap-8" style={{ fontSize: '13px', cursor: 'pointer', margin: 0, fontWeight: 500 }}>
+                  <input
+                    type="checkbox"
+                    checked={showWarnings}
+                    onChange={e => setShowWarnings(e.target.checked)}
+                    style={{ margin: 0 }}
+                  />
+                  Show Warnings
+                </label>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setRosterCollapsed(prev => !prev)}
+                >
+                  {rosterCollapsed ? 'Show Availability Roster' : 'Hide Availability Roster'}
+                </button>
+              </div>
             )}
           </div>
 
@@ -629,7 +641,7 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
                 return (
                   <div
                     key={team.ID}
-                    className={`ems-planning-card ${levelClass} ${isCollapsed ? 'ems-planning-card--collapsed' : ''} ${sizeWarning || faWarning ? 'ems-team-card--warning' : ''} ${dragOverZone === zoneId ? 'ems-planning-card--active-drag' : ''}`}
+                    className={`ems-planning-card ${levelClass} ${isCollapsed ? 'ems-planning-card--collapsed' : ''} ${showWarnings && (sizeWarning || faWarning) ? 'ems-team-card--warning' : ''} ${dragOverZone === zoneId ? 'ems-planning-card--active-drag' : ''}`}
                     onDragOver={e => handleDragOver(e, zoneId)}
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, 'existing_team', team.ID)}
@@ -645,12 +657,12 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
 
                     {!isCollapsed && (
                       <>
-                        {sizeWarning && (
+                        {showWarnings && sizeWarning && (
                           <div className="ems-alert ems-alert--warning" style={{ fontSize: '11px', padding: '6px 8px', marginBottom: '8px' }}>
                             ⚠️ Team size must be 4–7 members (currently {size})
                           </div>
                         )}
-                        {faWarning && (
+                        {showWarnings && faWarning && (
                           <div className="ems-alert ems-alert--danger" style={{ fontSize: '11px', padding: '6px 8px', marginBottom: '8px' }}>
                             ⚕️ Requires at least 2 qualified First Aiders
                           </div>
