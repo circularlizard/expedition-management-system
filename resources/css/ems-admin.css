@@ -3547,6 +3547,32 @@
     font-style: italic;
 }
 
+.ems-planning-split--collapsed-roster .ems-planning-split__left {
+    display: none !important;
+}
+
+.ems-planning-split--collapsed-roster .ems-planning-split__right {
+    flex: 1 !important;
+    width: 100% !important;
+}
+
+.ems-team-card--gold {
+    border-top: 4px solid #B4975A !important;
+}
+
+.ems-team-card--silver {
+    border-top: 4px solid #A7A9AC !important;
+}
+
+.ems-team-card--bronze {
+    border-top: 4px solid #BA8748 !important;
+}
+
+.ems-team-card--warning {
+    border-color: #ffb900 !important;
+}
+
+
 
 
 

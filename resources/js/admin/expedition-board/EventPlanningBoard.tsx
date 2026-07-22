@@ -35,7 +35,13 @@ function Spinner() {
   return <span className="ems-spinner" aria-label="Loading…" />;
 }
 
-export default function EventPlanningBoard() {
+interface EventPlanningBoardProps {
+  event?: PlanningEvent | null;
+  onTeamChanged?: () => void;
+  onViewAsn?: (scoutId: number) => void;
+}
+
+export default function EventPlanningBoard({ event = null, onTeamChanged, onViewAsn }: EventPlanningBoardProps = {}) {
   const config  = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
   const rootUrl = config.root_url;
   const nonce   = config.nonce;
@@ -44,7 +50,7 @@ export default function EventPlanningBoard() {
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
 
-  const [selectedEvent,    setSelectedEvent]    = useState<PlanningEvent | null>(null);
+  const [selectedEvent,    setSelectedEvent]    = useState<PlanningEvent | null>(event);
   const [explorers,        setExplorers]        = useState<PlanningExplorer[]>([]);
   const [explorersLoading, setExplorersLoading] = useState(false);
   const [selectedScoutIds, setSelectedScoutIds] = useState<number[]>([]);
@@ -58,9 +64,14 @@ export default function EventPlanningBoard() {
   const [dragOverZone,     setDragOverZone]     = useState<string | null>(null);
   const [collapsedTeams,   setCollapsedTeams]   = useState<Record<string, boolean>>({});
   const [hideAssigned,     setHideAssigned]     = useState(false);
+  const [rosterCollapsed,  setRosterCollapsed]  = useState(!!event);
 
-  // ── Load planning board events ─────────────────────────────────────────────
+  // ── Load planning board events list ─────────────────────────────────────────────
   useEffect(() => {
+    if (event) {
+      setSelectedEvent(event);
+      return;
+    }
     setLoading(true);
     setError(null);
     setSelectedEvent(null);
@@ -74,11 +85,12 @@ export default function EventPlanningBoard() {
       .then(data => setEvents(Array.isArray(data) ? data : []))
       .catch(e => setError(`Failed to load planning board: ${e}`))
       .finally(() => setLoading(false));
-  }, [rootUrl, nonce]);
+  }, [rootUrl, nonce, event]);
 
-  // ── Load explorers for a selected event ────────────────────────────────────
-  const handleSelectEvent = useCallback((ev: PlanningEvent) => {
-    setSelectedEvent(ev);
+  // ── Load explorers availability reactively ─────────────────────────────────
+  useEffect(() => {
+    if (!selectedEvent) return;
+
     setExplorers([]);
     setSelectedScoutIds([]);
     setEventTeams([]);
@@ -88,7 +100,7 @@ export default function EventPlanningBoard() {
     setError(null);
     setExplorersLoading(true);
 
-    fetch(`${rootUrl}/planning-board/availability/${ev.event_code}`, {
+    fetch(`${rootUrl}/planning-board/availability/${selectedEvent.event_code}`, {
       headers: { 'X-WP-Nonce': nonce },
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
@@ -98,7 +110,30 @@ export default function EventPlanningBoard() {
       })
       .catch(e => setError(`Failed to load availability: ${e}`))
       .finally(() => setExplorersLoading(false));
-  }, [rootUrl, nonce]);
+  }, [selectedEvent, rootUrl, nonce]);
+
+  // ── Refetch helper ─────────────────────────────────────────────────────────
+  const refetchAvailability = useCallback(async () => {
+    if (!selectedEvent) return;
+    try {
+      const resp = await fetch(`${rootUrl}/planning-board/availability/${selectedEvent.event_code}`, {
+        headers: { 'X-WP-Nonce': nonce },
+      });
+      if (resp.ok) {
+        const resData = await resp.json();
+        setExplorers(resData.explorers || []);
+        setEventTeams(resData.teams || []);
+        setSelectedScoutIds([]);
+        if (onTeamChanged) onTeamChanged();
+      }
+    } catch (e) {
+      console.error('Failed to refetch availability', e);
+    }
+  }, [selectedEvent, rootUrl, nonce, onTeamChanged]);
+
+  const handleSelectEvent = useCallback((ev: PlanningEvent) => {
+    setSelectedEvent(ev);
+  }, []);
 
   // ── Checkbox helpers ───────────────────────────────────────────────────────
   const handleSelectExplorer = (scout_id: number) =>
@@ -140,7 +175,7 @@ export default function EventPlanningBoard() {
       const actionMsg = mode === 'remove' ? 'removed from this event.' : 'allocated.';
       setFeedback({ ok: true, msg: `${data.allocated ?? scoutIds.length} explorer(s) ${actionMsg}` });
       setSelectedScoutIds([]);
-      handleSelectEvent(selectedEvent);
+       await refetchAvailability();
     } catch (e: unknown) {
       setFeedback({ ok: false, msg: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -247,6 +282,23 @@ export default function EventPlanningBoard() {
             onDragStart={e => handleDragStart(e, m.scout_id)}
           >
             <span className="ems-flex-center ems-gap-4">
+              {m.has_asn && (
+                <span
+                  className="ems-member-asn"
+                  title="Additional Support Needs (ASN) - Click to view"
+                  style={{ cursor: onViewAsn ? 'pointer' : 'default' }}
+                  onClick={e => {
+                    if (onViewAsn) {
+                      e.stopPropagation();
+                      onViewAsn(m.scout_id);
+                    }
+                  }}
+                >
+                  ⚠️
+                </span>
+              )}
+              {m.first_aid_level === 'full_first_aid' && <span className="ems-fa-full" title="Full First Aid">⊕</span>}
+              {m.first_aid_level === 'first_response' && <span className="ems-fa-response" title="First Response">✚</span>}
               <span>{m.first_name} {m.last_name}</span>
               <span className="ems-meta-text">({m.unit_name})</span>
             </span>
@@ -284,6 +336,23 @@ export default function EventPlanningBoard() {
             onDragStart={e => handleDragStart(e, m.scout_id)}
           >
             <span className="ems-flex-center ems-gap-4">
+              {m.has_asn && (
+                <span
+                  className="ems-member-asn"
+                  title="Additional Support Needs (ASN) - Click to view"
+                  style={{ cursor: onViewAsn ? 'pointer' : 'default' }}
+                  onClick={e => {
+                    if (onViewAsn) {
+                      e.stopPropagation();
+                      onViewAsn(m.scout_id);
+                    }
+                  }}
+                >
+                  ⚠️
+                </span>
+              )}
+              {m.first_aid_level === 'full_first_aid' && <span className="ems-fa-full" title="Full First Aid">⊕</span>}
+              {m.first_aid_level === 'first_response' && <span className="ems-fa-response" title="First Response">✚</span>}
               <span>{m.first_name} {m.last_name}</span>
               <span className="ems-meta-text">({m.unit_name})</span>
             </span>
@@ -328,33 +397,35 @@ export default function EventPlanningBoard() {
       )}
 
       {/* ── Toolbar / Event Selector at the Top ── */}
-      <div className="ems-toolbar">
-        <div className="ems-toolbar__group">
-          <label className="ems-toolbar__label ems-planning-select-label" htmlFor="epb-event-select">Select Event</label>
-          <select
-            id="epb-event-select"
-            className="ems-select ems-planning-select"
-            aria-label="Select Event"
-            value={selectedEvent?.event_code || ''}
-            onChange={e => {
-              const ev = events.find(x => x.event_code === e.target.value);
-              if (ev) handleSelectEvent(ev);
-            }}
-          >
-            <option value="">-- Choose an Event --</option>
-            {events.map(ev => (
-              <option key={ev.id} value={ev.event_code}>
-                {ev.title} ({ev.event_code}) - {ev.available_count} Available
-              </option>
-            ))}
-          </select>
-        </div>
+      {!event && (
+        <div className="ems-toolbar">
+          <div className="ems-toolbar__group">
+            <label className="ems-toolbar__label ems-planning-select-label" htmlFor="epb-event-select">Select Event</label>
+            <select
+              id="epb-event-select"
+              className="ems-select ems-planning-select"
+              aria-label="Select Event"
+              value={selectedEvent?.event_code || ''}
+              onChange={e => {
+                const ev = events.find(x => x.event_code === e.target.value);
+                if (ev) handleSelectEvent(ev);
+              }}
+            >
+              <option value="">-- Choose an Event --</option>
+              {events.map(ev => (
+                <option key={ev.id} value={ev.event_code}>
+                  {ev.title} ({ev.event_code}) - {ev.available_count} Available
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {loading && <Spinner />}
-      </div>
+          {loading && <Spinner />}
+        </div>
+      )}
 
       {/* ── Two-column split ── */}
-      <div className="ems-split ems-planning-split">
+      <div className={`ems-split ems-planning-split ${rosterCollapsed ? 'ems-planning-split--collapsed-roster' : ''}`}>
 
         {/* Left Column — Availability Roster */}
         <div className="ems-split__left ems-planning-split__left">
@@ -494,7 +565,18 @@ export default function EventPlanningBoard() {
 
         {/* Right Column — Drop Zones for Teams */}
         <div className="ems-split__right ems-planning-split__right">
-          <h3 className="ems-section-heading ems-mb-16">Teams Drop Zones</h3>
+          <div className="ems-flex-between ems-mb-16" style={{ alignItems: 'center' }}>
+            <h3 className="ems-section-heading ems-m-0">Teams Drop Zones</h3>
+            {selectedEvent && (
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setRosterCollapsed(prev => !prev)}
+              >
+                {rosterCollapsed ? 'Show Available Roster' : 'Hide Available Roster'}
+              </button>
+            )}
+          </div>
 
           {selectedEvent ? (
             <div className="ems-planning-grid">
@@ -521,10 +603,33 @@ export default function EventPlanningBoard() {
               {eventTeams.map(team => {
                 const zoneId = `team-${team.ID}`;
                 const isCollapsed = !!collapsedTeams[zoneId];
+                const members = explorers.filter(exp => exp.allocated_team_code === team.ems_team_code);
+                const size = members.length;
+
+                // Warnings
+                const sizeWarning = size < 4 || size > 7;
+
+                // First Aid Warning:
+                const faReq = selectedEvent?.first_aid_level;
+                const faCount = members.filter(m => {
+                    const lvl = m.first_aid_level ?? 'none';
+                    if (faReq === 'full_first_aid') return lvl === 'full_first_aid';
+                    return lvl === 'first_response' || lvl === 'full_first_aid';
+                }).length;
+                const hasFaCover = !faReq || faReq === 'none' || faCount >= 2;
+                const faWarning = !hasFaCover;
+
+                // Branded Border colors (Gold, Silver, Bronze):
+                const eventLevel = selectedEvent?.level?.toLowerCase() || '';
+                let levelClass = '';
+                if (eventLevel === 'gold') levelClass = 'ems-team-card--gold';
+                if (eventLevel === 'silver') levelClass = 'ems-team-card--silver';
+                if (eventLevel === 'bronze') levelClass = 'ems-team-card--bronze';
+
                 return (
                   <div
                     key={team.ID}
-                    className={`ems-planning-card ${isCollapsed ? 'ems-planning-card--collapsed' : ''} ${dragOverZone === zoneId ? 'ems-planning-card--active-drag' : ''}`}
+                    className={`ems-planning-card ${levelClass} ${isCollapsed ? 'ems-planning-card--collapsed' : ''} ${sizeWarning || faWarning ? 'ems-team-card--warning' : ''} ${dragOverZone === zoneId ? 'ems-planning-card--active-drag' : ''}`}
                     onDragOver={e => handleDragOver(e, zoneId)}
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, 'existing_team', team.ID)}
@@ -534,10 +639,25 @@ export default function EventPlanningBoard() {
                         {isCollapsed ? '▶' : '▼'} Team {team.ems_team_code}
                       </h4>
                       <span className="ems-badge">
-                        {explorers.filter(exp => exp.allocated_team_code === team.ems_team_code).length}
+                        {size}
                       </span>
                     </div>
-                    {!isCollapsed && renderTeamMembersList(team.ems_team_code)}
+
+                    {!isCollapsed && (
+                      <>
+                        {sizeWarning && (
+                          <div className="ems-alert ems-alert--warning" style={{ fontSize: '11px', padding: '6px 8px', marginBottom: '8px' }}>
+                            ⚠️ Team size must be 4–7 members (currently {size})
+                          </div>
+                        )}
+                        {faWarning && (
+                          <div className="ems-alert ems-alert--danger" style={{ fontSize: '11px', padding: '6px 8px', marginBottom: '8px' }}>
+                            ⚕️ Requires at least 2 qualified First Aiders
+                          </div>
+                        )}
+                        {renderTeamMembersList(team.ems_team_code)}
+                      </>
+                    )}
                   </div>
                 );
               })}

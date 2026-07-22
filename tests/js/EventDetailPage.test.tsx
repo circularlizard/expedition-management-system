@@ -123,19 +123,43 @@ describe('EventDetailPage Tab Functions', () => {
     });
 
     it('verifies bulk action member selection and re-allocation on the Teams tab', async () => {
-        (global.fetch as any).mockResolvedValue({ ok: true, json: async () => mockEvent.teams }); // default TeamsTab loader
+        const mockAvailability = {
+            explorers: [
+                { scout_id: 30001, first_name: 'Alice', last_name: 'Brown', unit_name: 'SMESU', first_aid_level: 'full_first_aid', allocated_event_code: null, allocated_team_code: null },
+                { scout_id: 30002, first_name: 'Charlie', last_name: 'Green', unit_name: 'Selkirk', first_aid_level: 'none', allocated_event_code: null, allocated_team_code: null }
+            ],
+            teams: [
+                { ID: 100, ems_team_code: 'H-SP1-1', ems_team_number: 1, event_id: 10 }
+            ]
+        };
+
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/planning-board/availability/')) {
+                return Promise.resolve({ ok: true, json: async () => mockAvailability });
+            }
+            if (url.includes('/teams')) {
+                return Promise.resolve({ ok: true, json: async () => mockAvailability.teams });
+            }
+            return Promise.resolve({ ok: true, json: async () => [] });
+        });
 
         render(<EventDetailPage event={mockEvent} onBack={() => {}} />);
 
         // Switch to Teams tab
         fireEvent.click(screen.getByText('Teams'));
 
+        // Toggle roster open
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Show Available Roster' })).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Show Available Roster' }));
+
         await waitFor(() => {
             expect(screen.getByText('Alice Brown')).toBeInTheDocument();
         });
 
         // Bulk action bar should not be visible initially
-        expect(screen.queryByText(/Reassign Selected/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/With Selected/)).not.toBeInTheDocument();
 
         // Check Alice checkbox
         const aliceCheckbox = screen.getByLabelText('Select Alice Brown');
@@ -148,26 +172,35 @@ describe('EventDetailPage Tab Functions', () => {
 
         // Setup mock responses on the EXISTING mock
         (global.fetch as any).mockReset();
-        (global.fetch as any)
-            .mockResolvedValue({ ok: true, json: async () => mockEvent.teams }) // default reload fallback
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) }) // delete
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) }); // add
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/planning-board/allocate')) {
+                return Promise.resolve({ ok: true, json: async () => ({ success: true, allocated: 1 }) });
+            }
+            if (url.includes('/planning-board/availability/')) {
+                return Promise.resolve({ ok: true, json: async () => mockAvailability });
+            }
+            if (url.includes('/teams')) {
+                return Promise.resolve({ ok: true, json: async () => mockAvailability.teams });
+            }
+            return Promise.resolve({ ok: true, json: async () => [] });
+        });
 
-        // Choose "Unallocated" and click Move
-        const select = screen.getByRole('combobox', { name: 'Bulk target team' });
-        fireEvent.change(select, { target: { value: 'UNALLOCATED' } });
+        // Select action
+        const select = screen.getByRole('combobox', { name: 'Allocation action' });
+        fireEvent.change(select, { target: { value: 'unallocated' } });
 
-        const moveBtn = screen.getByRole('button', { name: 'Move' });
-        fireEvent.click(moveBtn);
+        const applyBtn = screen.getByRole('button', { name: 'Apply Action' });
+        fireEvent.click(applyBtn);
 
         await waitFor(() => {
-            const deleteCall = (global.fetch as any).mock.calls.find((c: any) => c[0].includes('/teams/100/members/30001'));
-            expect(deleteCall).toBeDefined();
-            expect(deleteCall[1].method).toBe('DELETE');
-
-            const addCall = (global.fetch as any).mock.calls.find((c: any) => c[0].includes('/teams/0/members'));
-            expect(addCall).toBeDefined();
-            expect(JSON.parse(addCall[1].body)).toEqual({ scout_id: 30001 });
+            const allocateCall = (global.fetch as any).mock.calls.find((c: any) => c[0].includes('/planning-board/allocate'));
+            expect(allocateCall).toBeDefined();
+            expect(allocateCall[1].method).toBe('POST');
+            expect(JSON.parse(allocateCall[1].body)).toEqual({
+                scout_ids: [30001],
+                event_code: 'H-SP1',
+                mode: 'unallocated'
+            });
         });
     });
 });
