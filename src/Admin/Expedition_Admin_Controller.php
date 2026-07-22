@@ -797,7 +797,7 @@ class Expedition_Admin_Controller {
 		$valid_enums = array(
 			'ems_type'            => array( 'training', 'practice', 'qualifying' ),
 			'ems_transport'       => array( 'hillwalking', 'biking', 'paddling' ),
-			'ems_level'           => array( 'bronze', 'silver', 'gold' ),
+			'ems_level'           => array( 'bronze', 'silver', 'gold', 'multiple' ),
 			'ems_first_aid_level' => array( 'none', 'first_response', 'full_first_aid' ),
 			'ems_status'          => array( 'active', 'archived' ),
 			'ems_route_status'    => array( 'draft', 'confirmed' ),

@@ -46,6 +46,17 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'ems_participant_signups', $all_sql );
         $this->assertStringContainsString( 'ems_expedition_signups', $all_sql );
         $this->assertStringContainsString( 'ems_audit_logs', $all_sql );
+
+        // Verify ems_volunteers statement contains constraints column
+        $vol_sql = null;
+        foreach ( $sql as $statement ) {
+            if ( strpos( $statement, 'ems_volunteers' ) !== false ) {
+                $vol_sql = $statement;
+                break;
+            }
+        }
+        $this->assertNotNull( $vol_sql );
+        $this->assertStringContainsString( 'constraints', $vol_sql );
     }
 
     public function test_generate_sql_with_charset(): void {
