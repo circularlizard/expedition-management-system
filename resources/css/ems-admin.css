@@ -972,10 +972,9 @@
     margin-top: 4px;
     width: 100%;
     box-sizing: border-box;
-    padding: 6px 10px !important;
+    padding: 6px 8px;
     font-size: 14px;
-    height: 35px !important;
-    min-height: 35px !important;
+    height: 35px;
     line-height: 1.4;
 }
 
