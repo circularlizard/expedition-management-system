@@ -103,7 +103,7 @@ describe('EventPlanningBoard', () => {
       expect(screen.getAllByText(/MacLeod/).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Bob/).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Smith/).length).toBeGreaterThan(0);
-      expect(screen.getByText('Prefer Team A')).toBeInTheDocument();
+      expect(screen.getByText(/Prefer Team A/)).toBeInTheDocument();
     });
   });
 
