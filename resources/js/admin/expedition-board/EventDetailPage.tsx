@@ -864,7 +864,7 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
                                                 {d}<br/><span className="ems-schedule-sub">(Day)</span>
                                             </th>
                                             {idx < datesList.length - 1 && (
-                                                <th className="ems-schedule-th" style={{ fontSize: '10px' }}>
+                                                <th className="ems-schedule-th ems-schedule--night" style={{ fontSize: '10px' }}>
                                                     {d}<br/><span className="ems-schedule-sub">(Night)</span>
                                                 </th>
                                             )}
@@ -916,7 +916,7 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
                                                     <React.Fragment key={d}>
                                                         <td className="ems-schedule-td">{renderCell(dayShift)}</td>
                                                         {idx < datesList.length - 1 && (
-                                                            <td className="ems-schedule-td">{renderCell(nightShift)}</td>
+                                                            <td className="ems-schedule-td ems-schedule--night">{renderCell(nightShift)}</td>
                                                         )}
                                                     </React.Fragment>
                                                 );
