@@ -1522,6 +1522,7 @@ class Expedition_Admin_Controller {
 				'end_date'        => $event['ems_end_date'] ?? '',
 				'available_count' => $available_count,
 				'allocated_count' => $allocated_count,
+				'first_aid_level' => get_post_meta( $event['ID'], 'ems_first_aid_level', true ) ?: 'none',
 			);
 		}
 
@@ -1617,6 +1618,8 @@ class Expedition_Admin_Controller {
 					'allocated_team_code'  => $allocated_team_code,
 					'team_preferences'     => $prefs['exped_team_names'] ?? '',
 					'other_events'         => $other_events,
+					'first_aid_level'      => $signup['first_aid_status'] ?? 'none',
+					'has_asn'              => ! empty( $signup['additional_support_needs'] ),
 				);
 			}
 		}
