@@ -978,6 +978,13 @@
     line-height: 1.4;
 }
 
+input.ems-form-input {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 8px !important;
+    line-height: 28px !important;
+}
+
 /* ─── Responsive Stacking Breakpoint ────────────────────────────────────────── */
 @media screen and (max-width: 960px) {
     .ems-split {
