@@ -541,10 +541,14 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
                               {exp.unit_name}
                             </td>
                             <td className="ems-table-cell--meta">
-                              {exp.team_preferences && <div>{exp.team_preferences}</div>}
                               {exp.other_events && exp.other_events.length > 0 && (
-                                <div className="ems-table__other-choices">
+                                <div style={{ fontWeight: 600, color: '#333' }}>
                                   {exp.other_events.join(', ')}
+                                </div>
+                              )}
+                              {exp.team_preferences && (
+                                <div className="ems-table__other-choices" style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+                                  Pref: {exp.team_preferences}
                                 </div>
                               )}
                               {!exp.team_preferences && (!exp.other_events || exp.other_events.length === 0) && '—'}
