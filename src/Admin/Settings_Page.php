@@ -353,12 +353,19 @@ class Settings_Page {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Section list refreshed from OSM.', 'ems-plugin' ) . '</p></div>';
 		}
 		?>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:1em 0">
-			<?php wp_nonce_field( 'ems_fetch_sections' ); ?>
-			<input type="hidden" name="action" value="ems_fetch_sections" />
-			<button type="submit" class="button"><?php esc_html_e( 'Fetch sections from OSM', 'ems-plugin' ); ?></button>
-			<span class="description" style="margin-left:.5em"><?php esc_html_e( 'Retrieves the section list from OSM (or mock data) and caches it for 1 hour.', 'ems-plugin' ); ?></span>
-		</form>
+		<div class="ems-panel ems-mb-24">
+			<h3 class="ems-panel-title"><?php esc_html_e( 'Fetch OSM Sections', 'ems-plugin' ); ?></h3>
+			<div class="ems-panel-content">
+				<p><?php esc_html_e( 'Before you can manage sections, you need to fetch the available sections list from Online Scout Manager (OSM).', 'ems-plugin' ); ?></p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+					<?php wp_nonce_field( 'ems_fetch_sections' ); ?>
+					<input type="hidden" name="action" value="ems_fetch_sections" />
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Fetch sections from OSM', 'ems-plugin' ); ?></button>
+					<span class="description"><?php esc_html_e( 'Retrieves the section list from OSM (or mock data) and caches it for 1 hour.', 'ems-plugin' ); ?></span>
+				</form>
+			</div>
+		</div>
+
 		<?php if ( empty( $available ) ) : ?>
 			<div class="notice notice-info inline"><p>
 				<?php esc_html_e( 'No section list cached yet. Click "Fetch sections from OSM" above to populate this list.', 'ems-plugin' ); ?>
@@ -366,67 +373,76 @@ class Settings_Page {
 		<?php else :
 			$writeback_id = (int) get_option( 'ems_writeback_section_id', 0 );
 			?>
-		<form method="post">
-			<?php wp_nonce_field( 'ems_settings_sections' ); ?>
-			<table class="ems-table">
-				<thead>
-					<tr>
-						<th class="ems-col-width-70"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
-						<th class="ems-col-width-120"><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
-						<th><?php esc_html_e( 'Section Name', 'ems-plugin' ); ?></th>
-						<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
-						<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php
-					foreach ( $available as $id => $data ) :
-						$id            = (int) $id;
-						$checked       = isset( $managed[ $id ] );
-						$radio_checked = ( $writeback_id === $id );
-						$name          = esc_html( $data['name'] ?? '' );
-						$type          = esc_html( $data['type'] ?? '' );
-						?>
-					<tr>
-						<td><input type="checkbox" name="ems_managed_section_ids[]" value="<?php echo $id; ?>" <?php checked( $checked ); ?> /></td>
-						<td><input type="radio" name="ems_writeback_section_id" value="<?php echo $id; ?>" <?php checked( $radio_checked ); ?> /></td>
-						<td><?php echo $name; ?></td>
-						<td><?php echo $type; ?></td>
-						<td><code><?php echo $id; ?></code></td>
-					</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-			<p class="submit">
-				<input type="submit" name="ems_save_sections" class="button-primary" value="<?php esc_attr_e( 'Save Managed Sections', 'ems-plugin' ); ?>" />
-			</p>
-		</form>
+			<div class="ems-panel ems-mb-24">
+				<h3 class="ems-panel-title"><?php esc_html_e( 'Configure Managed Sections', 'ems-plugin' ); ?></h3>
+				<div class="ems-panel-content">
+					<form method="post">
+						<?php wp_nonce_field( 'ems_settings_sections' ); ?>
+						<table class="ems-table">
+							<thead>
+								<tr>
+									<th class="ems-col-width-70"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
+									<th class="ems-col-width-120"><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
+									<th><?php esc_html_e( 'Section Name', 'ems-plugin' ); ?></th>
+									<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
+									<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php
+								foreach ( $available as $id => $data ) :
+									$id            = (int) $id;
+									$checked       = isset( $managed[ $id ] );
+									$radio_checked = ( $writeback_id === $id );
+									$name          = esc_html( $data['name'] ?? '' );
+									$type          = esc_html( $data['type'] ?? '' );
+									?>
+								<tr>
+									<td><input type="checkbox" name="ems_managed_section_ids[]" value="<?php echo $id; ?>" <?php checked( $checked ); ?> /></td>
+									<td><input type="radio" name="ems_writeback_section_id" value="<?php echo $id; ?>" <?php checked( $radio_checked ); ?> /></td>
+									<td><strong><?php echo $name; ?></strong></td>
+									<td><span class="ems-pill"><?php echo $type; ?></span></td>
+									<td><code><?php echo $id; ?></code></td>
+								</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+						<p class="submit" style="margin-top: 16px; margin-bottom: 0;">
+							<input type="submit" name="ems_save_sections" class="button-primary" value="<?php esc_attr_e( 'Save Managed Sections', 'ems-plugin' ); ?>" />
+						</p>
+					</form>
+				</div>
+			</div>
 		<?php endif; ?>
-		<hr />
-		<?php if ( ! empty( $managed ) ) :
+
+		<?php if ( ! empty( $available ) && ! empty( $managed ) ) :
 			$writeback_id = (int) get_option( 'ems_writeback_section_id', 0 );
 			?>
-		<h3><?php esc_html_e( 'Currently Managed', 'ems-plugin' ); ?></h3>
-		<table class="ems-table">
-			<thead><tr>
-				<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
-				<th><?php esc_html_e( 'Name', 'ems-plugin' ); ?></th>
-				<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
-				<th><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
-			</tr></thead>
-			<tbody>
-				<?php foreach ( $managed as $id => $data ) :
-					$is_target = ( (int) $id === $writeback_id );
-					?>
-				<tr>
-					<td><code><?php echo (int) $id; ?></code></td>
-					<td><?php echo esc_html( $data['name'] ?? '' ); ?></td>
-					<td><?php echo esc_html( $data['type'] ?? '' ); ?></td>
-					<td><?php echo $is_target ? '<strong>' . esc_html__( 'Yes', 'ems-plugin' ) . '</strong>' : 'No'; ?></td>
-				</tr>
-				<?php endforeach; ?>
-			</tbody>
-		</table>
+			<div class="ems-panel">
+				<h3 class="ems-panel-title"><?php esc_html_e( 'Currently Managed Sections Summary', 'ems-plugin' ); ?></h3>
+				<div class="ems-panel-content">
+					<table class="ems-table">
+						<thead><tr>
+							<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Name', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
+						</tr></thead>
+						<tbody>
+							<?php foreach ( $managed as $id => $data ) :
+								$is_target = ( (int) $id === $writeback_id );
+								?>
+							<tr>
+								<td><code><?php echo (int) $id; ?></code></td>
+								<td><strong><?php echo esc_html( $data['name'] ?? '' ); ?></strong></td>
+								<td><span class="ems-pill"><?php echo esc_html( $data['type'] ?? '' ); ?></span></td>
+								<td><?php echo $is_target ? '<span class="ems-status-badge ems-status-badge--active">' . esc_html__( 'Active Target', 'ems-plugin' ) . '</span>' : esc_html__( 'No', 'ems-plugin' ); ?></td>
+							</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			</div>
 		<?php endif; ?>
 		<?php
 	}
