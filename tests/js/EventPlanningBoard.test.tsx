@@ -83,7 +83,7 @@ describe('EventPlanningBoard', () => {
     
     await waitFor(() => {
       expect(screen.getByText(/Hill Practice 1/)).toBeInTheDocument();
-      expect(screen.getByText(/Available/)).toBeInTheDocument();
+      expect(screen.getByText(/Available Explorers/)).toBeInTheDocument();
     });
   });
 
