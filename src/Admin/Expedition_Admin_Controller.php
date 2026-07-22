@@ -1545,6 +1545,12 @@ class Expedition_Admin_Controller {
 
 			$practice  = $prefs['exped_practice_dates'] ?? array();
 			$qualifier = $prefs['exped_qualifier_dates'] ?? array();
+			if ( ! is_array( $practice ) ) {
+				$practice = array( $practice );
+			}
+			if ( ! is_array( $qualifier ) ) {
+				$qualifier = array( $qualifier );
+			}
 
 			if ( in_array( $event_code, $practice, true ) || in_array( $event_code, $qualifier, true ) ) {
 				$scout_id = (int) $signup['scout_id'];
