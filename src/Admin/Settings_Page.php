@@ -12,13 +12,26 @@ class Settings_Page {
 	}
 
 	public function register(): void {
-		add_submenu_page(
+		$settings_hook = add_submenu_page(
 			'ems',
 			__( 'Settings', 'ems-plugin' ),
 			__( 'Settings', 'ems-plugin' ),
 			'manage_options',
 			'ems-settings',
 			array( $this, 'render' )
+		);
+
+		add_action(
+			'admin_enqueue_scripts',
+			function ( $hook ) use ( $settings_hook ) {
+				if ( $hook === $settings_hook ) {
+					wp_enqueue_style( 'wp-components' );
+					$css_path = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+					$css_url  = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+					$css_version = EMS_VERSION . ( file_exists( $css_path ) ? '.' . filemtime( $css_path ) : '' );
+					wp_enqueue_style( 'ems-admin', $css_url, array( 'wp-components' ), $css_version );
+				}
+			}
 		);
 	}
 
