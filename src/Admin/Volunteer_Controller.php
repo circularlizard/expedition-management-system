@@ -49,6 +49,26 @@ class Volunteer_Controller {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+
+		register_rest_route(
+			'ems/v1',
+			'/volunteers/save',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'save_volunteer_admin' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			'ems/v1',
+			'/volunteers/availability',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'save_availability_admin' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 
 	public function get_public_events( \WP_REST_Request $request ): \WP_REST_Response {
@@ -147,5 +167,63 @@ class Volunteer_Controller {
 			),
 			$success ? 200 : 400
 		);
+	}
+
+	public function save_volunteer_admin( \WP_REST_Request $request ): \WP_REST_Response {
+		$params = $request->get_json_params() ?: array();
+		try {
+			$volunteer = $this->repo->save_volunteer( $params );
+			return new \WP_REST_Response(
+				array(
+					'success'   => true,
+					'volunteer' => $volunteer,
+				),
+				200
+			);
+		} catch ( \Exception $e ) {
+			return new \WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => $e->getMessage(),
+				),
+				400
+			);
+		}
+	}
+
+	public function save_availability_admin( \WP_REST_Request $request ): \WP_REST_Response {
+		$params             = $request->get_json_params() ?: array();
+		$volunteer_id       = isset( $params['volunteer_id'] ) ? (int) $params['volunteer_id'] : 0;
+		$expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
+		$shifts             = isset( $params['shifts'] ) ? (array) $params['shifts'] : array();
+		$signup_type        = isset( $params['signup_type'] ) ? sanitize_text_field( $params['signup_type'] ) : 'part';
+
+		if ( $volunteer_id <= 0 || $expedition_post_id <= 0 ) {
+			return new \WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => 'Invalid volunteer or expedition ID.',
+				),
+				400
+			);
+		}
+
+		try {
+			$this->repo->save_availability( $volunteer_id, $expedition_post_id, $shifts, $signup_type );
+			return new \WP_REST_Response(
+				array(
+					'success' => true,
+				),
+				200
+			);
+		} catch ( \Exception $e ) {
+			return new \WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => $e->getMessage(),
+				),
+				400
+			);
+		}
 	}
 }

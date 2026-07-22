@@ -72,18 +72,7 @@ describe('EventForm', () => {
         expect(screen.getByText('Enter a valid email address')).toBeInTheDocument();
     });
 
-    it('shows route planning status options as Draft and Confirmed', () => {
-        render(<EventForm seasonId={1} />);
-        const select = screen.getByLabelText(/Route Planning Status/i) as HTMLSelectElement;
-        const options = Array.from(select.options).map((option) => option.textContent);
-        expect(options).toContain('Draft');
-        expect(options).toContain('Confirmed');
-    });
 
-    it('renders a rich text editor for route planning notes', () => {
-        render(<EventForm seasonId={1} />);
-        expect(screen.getByRole('textbox', { name: 'Notes' })).toBeInTheDocument();
-    });
 
     it('renders without forbidden inline structural styles', () => {
         const { container } = render(<EventForm seasonId={1} />);

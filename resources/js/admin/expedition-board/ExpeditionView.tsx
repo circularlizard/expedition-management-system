@@ -36,6 +36,7 @@ function levelPillClass(l: string): string {
         bronze: 'ems-pill--bronze',
         silver: 'ems-pill--silver',
         gold: 'ems-pill--gold',
+        multiple: 'ems-pill--multiple',
     };
     return `ems-pill ${map[l] || ''}`;
 }

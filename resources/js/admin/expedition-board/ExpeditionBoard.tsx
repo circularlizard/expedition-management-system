@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBoard } from './useBoard';
 import { useOSMEvents } from './useOSMEvents';
 import { EventsDashboard } from './EventsDashboard';
@@ -15,6 +15,22 @@ const ExpeditionBoard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<BoardTab>('dashboard');
     const [selectedEvent, setSelectedEvent] = useState<Expedition | null>(null);
     const [initialEdit, setInitialEdit] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event_id');
+        if (eventId && data?.seasons) {
+            for (const season of data.seasons) {
+                const event = season.events.find(e => e.ID === Number(eventId));
+                if (event) {
+                    setSelectedEvent(event);
+                    setInitialEdit(false);
+                    setActiveTab('detail');
+                    break;
+                }
+            }
+        }
+    }, [data]);
 
     if (loading) return <p>Loading board…</p>;
     if (error) return <div className="notice notice-error"><p>{error}</p></div>;

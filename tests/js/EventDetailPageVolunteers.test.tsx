@@ -53,7 +53,7 @@ describe('EventDetailPage Volunteers Tab', () => {
 
         await waitFor(() => {
             expect(screen.getAllByText(/Jane Doe/)[0]).toBeInTheDocument();
-            expect(screen.getByText('Supervisors Check')).toBeInTheDocument();
+            expect(screen.getByText('Staffing Metrics:')).toBeInTheDocument();
         });
 
         // Trigger confirmation

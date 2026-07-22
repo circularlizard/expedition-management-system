@@ -39,6 +39,7 @@ class Volunteer_Repository {
 			'dbs_number'      => sanitize_text_field( $data['dbs_number'] ?? '' ),
 			'qualifications'  => isset( $data['qualifications'] ) ? json_encode( $data['qualifications'] ) : null,
 			'preferred_roles' => isset( $data['preferred_roles'] ) ? json_encode( $data['preferred_roles'] ) : null,
+			'constraints'     => isset( $data['constraints'] ) ? ( is_array( $data['constraints'] ) ? json_encode( $data['constraints'] ) : $data['constraints'] ) : null,
 			'updated_at'      => $now,
 		);
 
@@ -198,6 +199,7 @@ class Volunteer_Repository {
 			$v['user_id']         = $v['user_id'] ? (int) $v['user_id'] : null;
 			$v['qualifications']  = $v['qualifications'] ? json_decode( $v['qualifications'], true ) : array();
 			$v['preferred_roles'] = $v['preferred_roles'] ? json_decode( $v['preferred_roles'], true ) : array();
+			$v['constraints']     = ! empty( $v['constraints'] ) ? json_decode( $v['constraints'], true ) : array();
 
 			$v['availability'] = $this->wpdb->get_results(
 				$this->wpdb->prepare( "SELECT * FROM {$a_table} WHERE volunteer_id = %d", $v['id'] ),

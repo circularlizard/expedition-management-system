@@ -39,8 +39,10 @@ class CPT_Registry {
 		return array(
 			'ems_level'                         => array(
 				'type' => 'string',
-				'enum' => array( 'bronze', 'silver', 'gold' ),
+				'enum' => array( 'bronze', 'silver', 'gold', 'multiple' ),
 			),
+			'ems_req_assessors'                 => array( 'type' => 'integer' ),
+			'ems_req_volunteers'                => array( 'type' => 'integer' ),
 			'ems_type'                          => array(
 				'type' => 'string',
 				'enum' => array( 'training', 'practice', 'qualifying' ),
