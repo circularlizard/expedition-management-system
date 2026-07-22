@@ -150,9 +150,9 @@ describe('EventDetailPage Tab Functions', () => {
 
         // Toggle roster open
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'Show Available Roster' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Show Availability Roster' })).toBeInTheDocument();
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Show Available Roster' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Show Availability Roster' }));
 
         await waitFor(() => {
             expect(screen.getByText('Alice Brown')).toBeInTheDocument();
