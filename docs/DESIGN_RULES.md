@@ -82,3 +82,20 @@ To ensure performance, maintainability, and clean DOM separation, follow these i
 * **Utility Classes or Classnames:** Use centralized token-based utility classes or static className references to bind styles.
 * **Skill Enforcement:** Compliance with this CSS architecture is audited programmatically by the [ui-implementation-auditor](file:///Users/davidstrachan/Projects/expedition-management-system/.agents/skills/ui-implementation-auditor/SKILL.md) skill.
 
+---
+
+## 6. DofE Award Branding
+
+To make the various Duke of Edinburgh levels instantly recognizable across the application, use the following official branding palette for highlighting Bronze, Silver, and Gold content:
+
+| Level | Primary Hex | Primary Pantone | Light Accent (Contrast) |
+|---|---|---|---|
+| **Gold Award** | `#B4975A` | Pantone 872 | `#F6F3EC` (Warm cream/gold tint) |
+| **Silver Award** | `#A7A9AC` | Pantone 877 | `#F0F1F2` (Cool grey/silver tint) |
+| **Bronze Award** | `#BA8748` | Pantone 876 | `#F8F3EC` (Warm peach/bronze tint) |
+
+### Usage Rules:
+* Apply these colors to level badges, headers, and iconography specific to Bronze, Silver, and Gold expeditions.
+* Ensure text rendered on light accent backgrounds has high contrast by styling it with the corresponding primary hex color or a darker variant of the level's color.
+
+
