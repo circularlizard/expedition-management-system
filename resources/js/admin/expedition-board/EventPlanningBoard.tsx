@@ -473,7 +473,7 @@ export default function EventPlanningBoard() {
                               {exp.team_preferences && <div>{exp.team_preferences}</div>}
                               {exp.other_events && exp.other_events.length > 0 && (
                                 <div className="ems-table__other-choices">
-                                  Other choices: {exp.other_events.join(', ')}
+                                  {exp.other_events.join(', ')}
                                 </div>
                               )}
                               {!exp.team_preferences && (!exp.other_events || exp.other_events.length === 0) && '—'}
