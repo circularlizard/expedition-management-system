@@ -360,8 +360,14 @@ class Settings_Page {
 	}
 
 	private function render_sections_tab(): void {
-		$available = (array) get_transient( 'ems_available_sections' );
-		$managed   = (array) get_option( 'ems_managed_sections', array() );
+		$available = get_transient( 'ems_available_sections' );
+		if ( ! is_array( $available ) ) {
+			$available = array();
+		}
+		$managed = get_option( 'ems_managed_sections', array() );
+		if ( ! is_array( $managed ) ) {
+			$managed = array();
+		}
 		if ( isset( $_GET['fetched'] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Section list refreshed from OSM.', 'ems-plugin' ) . '</p></div>';
 		}
