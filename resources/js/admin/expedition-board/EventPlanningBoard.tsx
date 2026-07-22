@@ -106,7 +106,7 @@ export default function EventPlanningBoard() {
     );
 
   const handleToggleSelectAll = () => {
-    const visibleIds = sortedExplorers.map(e => e.scout_id);
+    const visibleIds = sortedExplorers.filter(e => !e.allocated_event_code).map(e => e.scout_id);
     const allVisibleSelected = visibleIds.every(id => selectedScoutIds.includes(id));
     if (allVisibleSelected) {
       setSelectedScoutIds(prev => prev.filter(id => !visibleIds.includes(id)));
@@ -201,7 +201,6 @@ export default function EventPlanningBoard() {
 
   const filteredExplorers = explorers.filter(exp => {
     if (filterUnit !== 'all' && exp.unit_name !== filterUnit) return false;
-    if (exp.allocated_event_code === selectedEvent.event_code) return false;
     return true;
   });
 
@@ -212,15 +211,16 @@ export default function EventPlanningBoard() {
       valA = a.unit_name || '';
       valB = b.unit_name || '';
     } else {
-      valA = `${a.last_name} ${a.first_name}`;
-      valB = `${b.last_name} ${b.first_name}`;
+      valA = `${a.first_name} ${a.last_name}`;
+      valB = `${b.first_name} ${b.last_name}`;
     }
     const cmp = valA.localeCompare(valB);
     return sortOrder === 'asc' ? cmp : -cmp;
   });
 
-  const allSelected  = sortedExplorers.length > 0 && sortedExplorers.every(e => selectedScoutIds.includes(e.scout_id));
-  const someSelected = sortedExplorers.length > 0 && sortedExplorers.some(e => selectedScoutIds.includes(e.scout_id)) && !allSelected;
+  const unassignedVisible = sortedExplorers.filter(e => !e.allocated_event_code);
+  const allSelected  = unassignedVisible.length > 0 && unassignedVisible.every(e => selectedScoutIds.includes(e.scout_id));
+  const someSelected = unassignedVisible.length > 0 && unassignedVisible.some(e => selectedScoutIds.includes(e.scout_id)) && !allSelected;
 
   // ── Collapse helpers ──
   const toggleCollapse = (teamKey: string) => {
@@ -377,6 +377,9 @@ export default function EventPlanningBoard() {
                 </div>
               </div>
 
+              {selectedEvent && (
+                <h3 className="ems-section-heading ems-mb-16">Available Explorers</h3>
+              )}
               {explorersLoading ? (
                 <div className="ems-planning-spinner"><Spinner /></div>
               ) : explorers.length === 0 ? (
@@ -410,18 +413,29 @@ export default function EventPlanningBoard() {
                     <tbody>
                       {sortedExplorers.map(exp => {
                         const checked = selectedScoutIds.includes(exp.scout_id);
+                        const isAssignedToThisEvent = exp.allocated_event_code === selectedEvent.event_code;
+                        const isAssignedToOtherEvent = exp.allocated_event_code && exp.allocated_event_code !== selectedEvent.event_code;
+                        const isGreyedOut = !!isAssignedToThisEvent || !!isAssignedToOtherEvent;
+
                         return (
                           <tr
                             key={exp.scout_id}
-                            className={`ems-draggable-row ${checked ? 'ems-table-row--selected' : ''}`}
-                            draggable={true}
-                            onDragStart={e => handleDragStart(e, exp.scout_id)}
+                            className={`ems-draggable-row ${checked ? 'ems-table-row--selected' : ''} ${isGreyedOut ? 'ems-roster-row--assigned' : ''}`}
+                            draggable={!isGreyedOut}
+                            onDragStart={e => {
+                              if (isGreyedOut) {
+                                e.preventDefault();
+                                return;
+                              }
+                              handleDragStart(e, exp.scout_id);
+                            }}
                           >
                             <td className="ems-table-cell--center">
                               <input
                                 type="checkbox"
                                 className="ems-checkbox"
                                 checked={checked}
+                                disabled={isGreyedOut}
                                 onChange={() => handleSelectExplorer(exp.scout_id)}
                                 onClick={e => e.stopPropagation()}
                                 aria-label={`Select ${exp.first_name} ${exp.last_name}`}
@@ -429,12 +443,28 @@ export default function EventPlanningBoard() {
                             </td>
                             <td>
                               <div className="ems-table__name">{exp.first_name} {exp.last_name}</div>
+                              {isAssignedToThisEvent && (
+                                <span className="ems-badge--assigned-this">
+                                  Assigned: {exp.allocated_team_code === 'UNALLOCATED' ? 'Event Pool' : exp.allocated_team_code}
+                                </span>
+                              )}
+                              {isAssignedToOtherEvent && (
+                                <span className="ems-badge--assigned-other">
+                                  Assigned: {exp.allocated_team_code === 'UNALLOCATED' ? 'Event Pool' : exp.allocated_team_code} ({exp.allocated_event_code})
+                                </span>
+                              )}
                             </td>
                             <td>
                               {exp.unit_name}
                             </td>
                             <td className="ems-table-cell--meta">
-                              {exp.team_preferences || '—'}
+                              {exp.team_preferences && <div>{exp.team_preferences}</div>}
+                              {exp.other_events && exp.other_events.length > 0 && (
+                                <div className="ems-table__other-choices">
+                                  Other choices: {exp.other_events.join(', ')}
+                                </div>
+                              )}
+                              {!exp.team_preferences && (!exp.other_events || exp.other_events.length === 0) && '—'}
                             </td>
                           </tr>
                         );
