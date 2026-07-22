@@ -79,6 +79,8 @@ class CPT_Registry {
 			'ems_lic_name'                      => array( 'type' => 'string' ),
 			'ems_lic_email'                     => array( 'type' => 'string' ),
 			'ems_lic_phone'                     => array( 'type' => 'string' ),
+			'ems_lic_private_email'             => array( 'type' => 'string' ),
+			'ems_lic_private_phone'             => array( 'type' => 'string' ),
 			'ems_expedition_lic_name'           => array( 'type' => 'string' ),
 			'ems_expedition_lic_phone'          => array( 'type' => 'string' ),
 			'ems_expedition_lic_email'          => array( 'type' => 'string' ),

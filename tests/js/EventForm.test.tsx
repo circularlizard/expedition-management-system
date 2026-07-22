@@ -67,7 +67,7 @@ describe('EventForm', () => {
         fireEvent.change(screen.getByLabelText(/Event Code/), { target: { value: 'H-SP1' } });
         fireEvent.change(screen.getByLabelText(/Start Date/), { target: { value: '2027-06-01' } });
         fireEvent.change(screen.getByLabelText(/End Date/), { target: { value: '2027-06-03' } });
-        fireEvent.change(screen.getByLabelText(/Leader Email/), { target: { value: 'not-an-email' } });
+        fireEvent.change(screen.getByLabelText(/Leader Public Email/), { target: { value: 'not-an-email' } });
         fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
         expect(screen.getByText('Enter a valid email address')).toBeInTheDocument();
     });
