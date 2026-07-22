@@ -1530,6 +1530,7 @@ class Expedition_Admin_Controller {
 	}
 
 	public function list_planning_availability( \WP_REST_Request $request ): \WP_REST_Response {
+		global $wpdb;
 		$event_code = $request->get_param( 'event_code' );
 
 		$signups_list = $this->signups->get_expedition_signups( 'pending' );

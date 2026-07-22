@@ -788,6 +788,8 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $team_members->shouldReceive( 'list_by_team' )->with( 201 )->andReturn( [ [ 'scout_id' => 4001 ] ] );
         $team_members->shouldReceive( 'list_by_team' )->with( 202 )->andReturn( [] );
 
+        Functions\when( 'get_post_meta' )->justReturn( 'none' );
+
         $controller = $this->create_controller( null, $expeditions, $teams, $team_members, null, null, $signups );
         $response = $controller->list_planning_board( new \WP_REST_Request() );
 
