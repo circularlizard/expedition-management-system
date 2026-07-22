@@ -982,6 +982,36 @@ class Expedition_Admin_Controller {
 				),
 			)
 		);
+
+		register_rest_route(
+			'ems/v1',
+			'/planning-board/add-explorer',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'add_planning_explorer' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array(
+					'scout_id'   => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+					'event_code' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'ems/v1',
+			'/planning-board/synced-explorers',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_planning_synced_explorers' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 
 	private function register_signup_routes(): void {
@@ -1644,6 +1674,64 @@ class Expedition_Admin_Controller {
 				$event_code
 			)
 		);
+
+		if ( $query_event_id ) {
+			$team_ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_type = 'team'",
+					$query_event_id
+				)
+			);
+			if ( ! empty( $team_ids ) ) {
+				$placeholders = implode( ',', array_fill( 0, count( $team_ids ), '%d' ) );
+				$assigned_members = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT tm.scout_id, tm.team_post_id, t.meta_value as team_code 
+						 FROM {$wpdb->prefix}ems_team_members tm
+						 JOIN {$wpdb->postmeta} t ON tm.team_post_id = t.post_id AND t.meta_key = 'ems_team_code'
+						 WHERE tm.team_post_id IN ($placeholders)",
+						...$team_ids
+					),
+					ARRAY_A
+				) ?: array();
+
+				$scout_to_team = array();
+				foreach ( $assigned_members as $m ) {
+					$scout_to_team[ (int) $m['scout_id'] ] = $m['team_code'];
+				}
+
+				$scout_ids = array_keys( $scout_to_team );
+				$loaded_scout_ids = array_column( $available, 'scout_id' );
+
+				$missing_scout_ids = array_diff( $scout_ids, $loaded_scout_ids );
+				if ( ! empty( $missing_scout_ids ) ) {
+					$missing_placeholders = implode( ',', array_fill( 0, count( $missing_scout_ids ), '%d' ) );
+					$explorers_data = $wpdb->get_results(
+						$wpdb->prepare(
+							"SELECT * FROM {$wpdb->prefix}ems_osm_explorers WHERE scout_id IN ($missing_placeholders)",
+							...$missing_scout_ids
+						),
+						ARRAY_A
+					) ?: array();
+
+					foreach ( $explorers_data as $exp ) {
+						$s_id = (int) $exp['scout_id'];
+						$available[] = array(
+							'scout_id'             => $s_id,
+							'first_name'           => $exp['first_name'] ?? '',
+							'last_name'            => $exp['last_name'] ?? '',
+							'unit_name'            => $exp['patrol'] ?: 'Unassigned',
+							'allocated_event_code' => $event_code,
+							'allocated_team_code'  => $scout_to_team[$s_id] ?? 'UNALLOCATED',
+							'team_preferences'     => '',
+							'other_events'         => array(),
+							'first_aid_level'      => $exp['first_aid_level'] ?? 'none',
+							'has_asn'              => false,
+						);
+					}
+				}
+			}
+		}
 		$teams_out      = array();
 		if ( $query_event_id ) {
 			$raw_teams = $this->teams->list_by_expedition( (int) $query_event_id );
@@ -1753,6 +1841,65 @@ class Expedition_Admin_Controller {
 		}
 
 		return new \WP_REST_Response( array( 'success' => true ) );
+	}
+
+	public function add_planning_explorer( \WP_REST_Request $request ): \WP_REST_Response {
+		$scout_id   = (int) $request->get_param( 'scout_id' );
+		$event_code = (string) $request->get_param( 'event_code' );
+
+		global $wpdb;
+		$event_id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'ems_event_code' AND meta_value = %s LIMIT 1",
+				$event_code
+			)
+		);
+
+		if ( ! $event_id ) {
+			return $this->error( 'ems_event_not_found', "No expedition found with event_code '{$event_code}'.", 404 );
+		}
+
+		$unallocated = $this->teams->get_unallocated_team( $event_id );
+		if ( ! $unallocated ) {
+			$unallocated_team_id = $this->teams->create( $event_id, $event_code, 'UNALLOCATED' );
+		} else {
+			$unallocated_team_id = (int) $unallocated['ID'];
+		}
+
+		$team_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_type = 'team'",
+				$event_id
+			)
+		);
+
+		if ( ! empty( $team_ids ) ) {
+			$placeholders = implode( ',', array_fill( 0, count( $team_ids ), '%d' ) );
+			$existing = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM {$wpdb->prefix}ems_team_members WHERE team_post_id IN ($placeholders) AND scout_id = %d LIMIT 1",
+					array_merge( $team_ids, array( $scout_id ) )
+				)
+			);
+			if ( $existing ) {
+				return $this->error( 'ems_explorer_already_assigned', 'Explorer is already assigned to this expedition.', 400 );
+			}
+		}
+
+		$explorer_row = $this->explorers->find_by_scout_id( $scout_id );
+		$wp_user_id = $explorer_row ? (int) ($explorer_row['wp_user_id'] ?? 0) : 0;
+
+		try {
+			$this->team_members->assign( $unallocated_team_id, $scout_id, get_current_user_id(), $wp_user_id );
+		} catch ( \Exception $e ) {
+			return $this->error( 'ems_assign_failed', $e->getMessage(), 500 );
+		}
+
+		return new \WP_REST_Response( array( 'success' => true ) );
+	}
+
+	public function get_planning_synced_explorers( \WP_REST_Request $request ): \WP_REST_Response {
+		return new \WP_REST_Response( $this->list_explorers() );
 	}
 
 	public function export_participant_signups( \WP_REST_Request $request ) {

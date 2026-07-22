@@ -834,6 +834,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
             }
             return [];
         } );
+        $wpdb->shouldReceive( 'get_col' )->andReturn( [] )->byDefault();
 
         // Stub get_post and get_post_meta for Bob's allocation
         $post_obj = (object) [ 'ID' => 201, 'post_type' => 'team', 'post_parent' => 102, 'post_title' => 'Team H-SP2-1' ];
@@ -981,6 +982,63 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $response = $controller->allocate_planning_explorers( $request );
         $this->assertSame( 200, $response->get_status() );
         $this->assertTrue( $response->get_data()['success'] );
+    }
+
+    public function test_add_planning_explorer_success(): void {
+        global $wpdb;
+        $wpdb = \Mockery::mock( \wpdb::class );
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing( function( $sql, ...$args ) {
+            return $sql;
+        } );
+        $wpdb->shouldReceive( 'get_var' )->andReturn( 101 ); // event ID
+        $wpdb->shouldReceive( 'get_col' )->andReturn( [] ); // no other teams/existing assignments
+
+        $teams = \Mockery::mock( Team_Repository::class );
+        $teams->shouldReceive( 'get_unallocated_team' )->with( 101 )->andReturn( [ 'ID' => 201 ] );
+
+        $explorers_repo = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers_repo->shouldReceive( 'find_by_scout_id' )->with( 5001 )->andReturn( [
+            'scout_id'   => 5001,
+            'wp_user_id' => 99,
+        ] );
+
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+        $team_members->shouldReceive( 'assign' )->once()->with( 201, 5001, 1, 99 )->andReturn( 15 );
+
+        $controller = $this->create_controller( null, null, $teams, $team_members, $explorers_repo );
+        $request = $this->json_request( [
+            'scout_id'   => 5001,
+            'event_code' => 'H-SP1',
+        ] );
+
+        $response = $controller->add_planning_explorer( $request );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['success'] );
+    }
+
+    public function test_get_planning_synced_explorers_success(): void {
+        $explorers_repo = \Mockery::mock( OSM_Explorer_Repository::class );
+        $explorers_repo->shouldReceive( 'list_all' )->once()->andReturn( [
+            [
+                'scout_id'        => 5001,
+                'first_name'      => 'Alice',
+                'last_name'       => 'MacLeod',
+                'patrol'          => 'SMESU',
+                'first_aid_level' => 'full_first_aid',
+                'synced_at'       => '2026-06-13 20:00:00',
+                'last_local_update_at' => null,
+            ]
+        ] );
+
+        $controller = $this->create_controller( null, null, null, null, $explorers_repo );
+        $request = new \WP_REST_Request();
+
+        $response = $controller->get_planning_synced_explorers( $request );
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertCount( 1, $data );
+        $this->assertSame( 'Alice', $data[0]['first_name'] );
     }
 }
 
