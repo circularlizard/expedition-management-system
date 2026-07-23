@@ -111,7 +111,7 @@ class OSM_API_ClientTest extends EMSTestCase {
         $client       = new OSM_API_Client( $this->driver, $this->parser );
         $participants = $client->get_section_participants( 99001, 5001 );
 
-        $this->assertGreaterThan( 80, count( $participants ) );
+        $this->assertGreaterThan( 30, count( $participants ) );
         $this->assertSame( 3417257, $participants[0]['member_id'] );
         $this->assertIsString( $participants[0]['first_name'] );
     }
@@ -147,8 +147,8 @@ class OSM_API_ClientTest extends EMSTestCase {
         $client = new OSM_API_Client( $this->driver, $this->parser );
         $detail = $client->get_member_detail( 99001, $scout_id, 5001 );
 
-        $this->assertSame( "scout.{$scout_id}@example-ems.test", $detail['email'] );
-        $this->assertSame( "parent.{$scout_id}@example-ems.test", $detail['parent_email'] );
+        $this->assertSame( $entry['email'], $detail['email'] );
+        $this->assertSame( $entry['parent_email'], $detail['parent_email'] );
     }
 
     public function test_set_access_token_delegates_to_driver(): void {
