@@ -83,3 +83,39 @@ WordPress user roles are programmatically registered on plugin activation and dy
 | `'local'` / Administration | User administers one or more OSM sections (`ems_section_ids` is not empty). | `ems_leader` | Leader access to manage events, teams, sync operations, and approve routes. |
 
 The mapping execution lives in `OIDC_Login_Handler::assign_user_role()`. The roles are evaluated and set on every login request to ensure any changes in their OSM administrative privileges (e.g. promoting a leader or aging out an explorer) are reflected immediately.
+
+---
+
+## 6. How an Explorer's `scout_id` is Determined
+
+The `scout_id` acts as the primary identity key across the system. It is extracted and resolved through three main channels:
+
+### A. Online Scout Manager API Payloads (Member Roster)
+* When retrieving participants from OSM, the API returns list objects where each member is represented with a unique numeric ID (`member_id` or `scoutid`).
+* During roster sync (`OSM_Section_Importer`), the system extracts this value directly:
+  ```php
+  $scout_id = (int) ( $member['member_id'] ?? 0 );
+  ```
+  This is saved directly to `ems_osm_explorers.scout_id`.
+
+### B. OIDC Login Parsing (Parent Mappings)
+* During parent OIDC authentication, the returned profile payload contains access properties nested inside the `member_access` globals block.
+* The system uses `OSM_Parser::parse_scout_ids()` to loop over the keys of the `members` array in this payload to identify child mappings:
+  ```php
+  foreach ( $payload['data']['globals']['member_access'] ?? array() as $section_data ) {
+      foreach ( array_keys( $section_data['members'] ?? array() ) as $scout_id ) {
+          $ids[ (int) $scout_id ] = true;
+      }
+  }
+  ```
+  This array of mapped IDs is serialized and saved to WordPress User Meta (`ems_scout_ids`).
+
+### C. Fluent Forms Submissions (Signup Mapping)
+* When a parent opens a registration/signup form, the child selector dropdown is dynamically populated by the system using active OIDC child metadata.
+* Each option is structured in a pipes-delimited string format:
+  ```
+  value="[scout_id]|[first_name]|[last_name]"
+  ```
+  *Example:* `value="30001|Alex|Smith"`
+* Upon submission, `Fluent_Forms_Sync::parse_name_and_scout_id()` splits this string and extracts the first element as the integer `scout_id` to store in `ems_signups.scout_id`. Alternatively, it reads a custom hidden field `signup_scoutid`.
+
