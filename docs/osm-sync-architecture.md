@@ -69,3 +69,17 @@ For parent-child relationships, the login flow is **decoupled** from the `ems_os
 1. **OSM OIDC Payload**: When a parent logs in, the OSM authorization endpoint returns the parent's live child mappings (`scout_id`s and their sections) directly.
 2. **Managed Unit Filtering**: The plugin queries active units in the local `ems_units` table (`active = 1`).
 3. **Dynamic Intersection Mapping**: The parent is dynamically linked in WordPress User Meta (`ems_children`) to any child in the OIDC payload who belongs to a managed section. The parent-child linkage is fully operational even if the child does not yet exist in the `ems_osm_explorers` table.
+
+---
+
+## 5. WordPress User Role Resolution
+
+WordPress user roles are programmatically registered on plugin activation and dynamically mapped upon successful OIDC login based on the returned access type and section administrations:
+
+| OSM Access Type (`ems_access_type`) | Criteria | Resolved WordPress Role | Role Description |
+|---|---|---|---|
+| `'member'` | User logs in as themselves. | `ems_explorer` | Explorer access to view their own teams, training, and routes. |
+| `'parent'` | User logs in as a parent of active children. | `ems_parent` | Parent access to manage signups and medical forms for linked children. |
+| `'local'` / Administration | User administers one or more OSM sections (`ems_section_ids` is not empty). | `ems_leader` | Leader access to manage events, teams, sync operations, and approve routes. |
+
+The mapping execution lives in `OIDC_Login_Handler::assign_user_role()`. The roles are evaluated and set on every login request to ensure any changes in their OSM administrative privileges (e.g. promoting a leader or aging out an explorer) are reflected immediately.
