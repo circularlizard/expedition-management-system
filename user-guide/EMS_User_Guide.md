@@ -16,7 +16,44 @@ Rather than requiring separate usernames and passwords, users authenticate secur
 
 ---
 
-## 2. System Screens & Features
+## 2. User Roles & Permissions
+
+The EMS distinguishes between four main user roles, dynamically mapped during login via Online Scout Manager (OSM) or assigned in WordPress:
+
+### A. Parents (`ems_parent`)
+- **Access Source**: Dynamically assigned when a user logs in with parental relationships linked in OSM.
+- **Key Capabilities**:
+  - Select and view records, teams, and expedition details for any of their linked children.
+  - Initiate new signups for DofE levels (requires the Explorer to have a valid email on file in OSM).
+  - View route plans, deadlines, and feedback left by the Leader-in-Charge (LiC).
+  - *Constraint*: Parents are restricted from completing online training courses on behalf of their children.
+
+### B. Explorers / Participants (`ems_explorer`)
+- **Access Source**: Dynamically assigned when a young person logs in directly using their OSM member details.
+- **Key Capabilities**:
+  - Access required online training courses in Tutor LMS (access is strictly restricted to this role).
+  - View personal expedition status, team codes, and safety alerts.
+  - Submit route planning materials, including uploading GPX files and Route Card PDFs.
+  - View status updates and feedback from the Leader-in-Charge.
+
+### C. Leaders & Leaders-in-Charge (`ems_leader`)
+- **Access Source**: Automatically assigned if the user administers any sections in OSM, or mapped dynamically on login.
+- **Key Capabilities**:
+  - Review, approve, or request changes on team route planning submissions.
+  - Manage volunteer availability, confirm event staffing levels, and view staff calendars.
+  - View team compositions, explorer lists, and safety details (such as First Aid coverage) for their assigned expeditions.
+
+### D. Expedition Administrators (`administrator`)
+- **Access Source**: Standard WordPress Administrator role.
+- **Key Capabilities**:
+  - Complete control over seasons, events (expeditions), and configuration options.
+  - Execute sync actions to import reference data, section members, and attendance from OSM.
+  - Reconcile Fluent Forms signup submissions with OSM records using the Signups Board.
+  - Manage mappings between EMS fields and OSM Flexi-records.
+
+---
+
+## 3. System Screens & Features
 
 The system is split into **Admin Dashboards** (used by Expedition Admins and Leaders-in-Charge in the WordPress background) and the **Public Portal** (used by explorers and their parents on the front-facing website).
 
@@ -59,14 +96,14 @@ The system is split into **Admin Dashboards** (used by Expedition Admins and Lea
 
 ---
 
-## 3. Forms & Registration
+## 4. Forms & Registration
 
 - **Expedition Signup Form**: Powering the entry point of the participant journey, parents fill out a Fluent Form to declare their child's DofE level, expedition preferences, and current First Aid status.
 - **Reconciliation & Linking**: Submitted signups automatically flow into the **Admin Signups Board**, where they are validated against synced OSM records before participants are placed into teams.
 
 ---
 
-## 4. Thematic Workflows
+## 5. Thematic Workflows
 
 ### Workflow 1: How a Participant Signs Up & Logs In
 1. **Submit Signup**: The parent fills out the signup form on the website to register interest and submit details (including First Aid level).
@@ -85,3 +122,4 @@ The system is split into **Admin Dashboards** (used by Expedition Admins and Lea
 1. **Volunteer Signup**: Adult volunteers visit the expedition portal and sign up for specific dates, checking off days or overnight stays they can cover.
 2. **Admin Review**: On the **Volunteer Board**, the admin views all pending volunteer signups.
 3. **Staff Confirmation**: The admin confirms the volunteers, which updates the calendar dashboard and ensures the Leader-in-Charge knows exactly who is supervising each stage of the route.
+
