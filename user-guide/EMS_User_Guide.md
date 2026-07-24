@@ -46,7 +46,7 @@ The EMS distinguishes between four main user roles, dynamically mapped during lo
 ### D. Expedition Administrators (`administrator`)
 - **Access Source**: Standard WordPress Administrator role.
 - **Key Capabilities**:
-  - Complete control over seasons, events (expeditions), and configuration options.
+  - Complete control over events (expeditions) and configuration options.
   - Execute sync actions to import reference data, section members, and attendance from OSM.
   - Reconcile Fluent Forms signup submissions with OSM records using the Signups Board.
   - Manage mappings between EMS fields and OSM Flexi-records.
@@ -64,9 +64,9 @@ The system is split into **Admin Dashboards** (used by Expedition Admins and Lea
 - **How it works**: When a parent submits a signup form, the system automatically tries to match the explorer using their unique ID or email. If there is a mismatch or a new participant, administrators can manually reconcile the record to link the form data to the correct explorer profile.
 
 #### B. Expedition Board (Planner)
-- **Purpose**: The main planning dashboard to group expeditions by **Seasons**, build **Teams**, and assign participants.
+- **Purpose**: The main planning dashboard to build **Teams** and assign participants to events.
 - **Key Features**:
-  - **Seasons & Events**: Group training, practice, and qualifying expeditions under a specific season. Each event displays details like the Leader-in-Charge (LiC), locations, dates, and the linked OSM Event.
+  - **Events Dashboard**: View training, practice, and qualifying expeditions. Each event displays details like the Leader-in-Charge (LiC), locations, dates, and the linked OSM Event.
   - **Team Builder**: A modern interface to group participants into teams. It displays team sizes (ideally 4–7 members) and raises alerts if a team is too small or too large.
   - **Unassigned Pool**: View all synced participants who are not yet assigned to a team, making it easy to drag/drop them into place.
   - **First Aid Tracking**: Instantly displays the first aid qualifications of each team member to ensure safety compliance.
@@ -76,7 +76,7 @@ The system is split into **Admin Dashboards** (used by Expedition Admins and Lea
 - **Key Features**:
   - **Availability Breakdown**: Volunteers specify their availability (either the whole expedition or specific days/overnights).
   - **Approval Pipeline**: Admins or Leaders-in-Charge review pending signups and mark volunteers as *Confirmed* or *Pending*.
-  - **Multi-View Calendars**: View volunteer coverage in a monthly calendar, look at specific expedition staff lists, or view an individual volunteer's season commitments.
+  - **Multi-View Calendars**: View volunteer coverage in a monthly calendar, look at specific expedition staff lists, or view an individual volunteer's overall commitments.
 
 #### D. Settings & Column Mapper
 - **Purpose**: Configures mappings between custom fields in OSM (Flexi-records) and corresponding variables in EMS (such as First Aid status or Team assignments).
@@ -113,7 +113,7 @@ The system is split into **Admin Dashboards** (used by Expedition Admins and Lea
 
 ### Workflow 2: How Admins Plan an Expedition
 1. **Sync Reference Data**: The admin syncs the latest explorer and event details from OSM via the settings dashboard.
-2. **Define Season & Events**: The admin creates the new Season (e.g., "2026 Season") and adds events with specific dates, transport modes, and codes.
+2. **Define Events**: The admin creates new events (training, practice, or qualifying expeditions) with specific dates, transport modes, and codes.
 3. **Link OSM Events**: EMS events are linked directly to OSM events to sync parent portal exposure.
 4. **Build Teams**: Using the **Expedition Board**, the admin assigns explorers to teams (e.g., auto-generating sequential team codes like `H-SP1-1`). The board shows teammate preferences and flags visual alerts if first aid coverage is lacking.
 5. **Publish & Sync**: Team assignments and safety flags are pushed back to OSM Flexi-records automatically.
