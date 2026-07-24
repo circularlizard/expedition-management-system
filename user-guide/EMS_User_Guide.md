@@ -12,7 +12,7 @@ The EMS is a WordPress-integrated platform designed to simplify and coordinate D
 - **Tutor LMS**: The training portal where explorers complete required online training.
 - **EMS Admin Board & Participant/Parent Portal**: The dashboard where expedition leaders build teams, verify safety/first aid coverage, approve routes, and coordinate volunteers.
 
-Rather than requiring separate usernames and passwords, users authenticate securely using their existing Online Scout Manager (OSM) credentials via Single Sign-On (SSO).
+Rather than requiring separate usernames and passwords, users log in securely using their existing Online Scout Manager (OSM) account details.
 
 ---
 
@@ -88,7 +88,7 @@ The system is split into **Admin Dashboards** (used by Expedition Admins and Lea
 #### E. Participant & Parent Portal
 - **Purpose**: The central dashboard for explorers and parents to manage their expedition journey.
 - **Key Features**:
-  - **OIDC Login**: Sign in securely using an OSM account.
+  - **OSM Login**: Sign in securely using their Online Scout Manager (OSM) credentials.
   - **Child Selection**: Parents with multiple children in the program can select which child's records they want to view.
   - **Expedition Status**: View assigned expeditions, dates, teams, and safety details.
   - **Online Training**: Access and track progress of required courses hosted in Tutor LMS.
@@ -108,7 +108,7 @@ The system is split into **Admin Dashboards** (used by Expedition Admins and Lea
 ### Workflow 1: How a Participant Signs Up & Logs In
 1. **Submit Signup**: The parent fills out the signup form on the website to register interest and submit details (including First Aid level).
 2. **Account Linking**: The system checks the parent's OSM record. If the parent logs in for the first time, a secure parental account is generated, linking their children.
-3. **Explorer Login**: When the explorer logs in using their own email via OIDC, the system automatically links their profile and merges any administrative shell accounts.
+3. **Explorer Login**: When the explorer logs in using their own email via the OSM Login option, the system automatically links their profile and completes their account setup.
 4. **Online Training**: Once logged in, the explorer gains access to Tutor LMS to complete pre-expedition training modules.
 
 ### Workflow 2: How Admins Plan an Expedition
