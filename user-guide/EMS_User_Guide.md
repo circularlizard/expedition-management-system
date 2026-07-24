@@ -26,12 +26,12 @@ The EMS distinguishes between four main user roles, dynamically mapped during lo
   - Select and view records, teams, and expedition details for any of their linked children.
   - Initiate new signups for DofE levels (requires the Explorer to have a valid email on file in OSM).
   - View route plans, deadlines, and feedback left by the Leader-in-Charge (LiC).
-  - *Constraint*: Parents are restricted from completing online training courses on behalf of their children.
+  - *Important Note*: Parents can log in and view details, but any training courses completed under a parent login will not count toward the explorer's requirements. Training must be completed directly under the Explorer's own account to be recorded.
 
 ### B. Explorers / Participants (`ems_explorer`)
 - **Access Source**: Dynamically assigned when a young person logs in directly using their OSM member details.
 - **Key Capabilities**:
-  - Access required online training courses in Tutor LMS (access is strictly restricted to this role).
+  - Access required online training courses in Tutor LMS to earn credit for completed modules.
   - View personal expedition status, team codes, and safety alerts.
   - Submit route planning materials, including uploading GPX files and Route Card PDFs.
   - View status updates and feedback from the Leader-in-Charge.
