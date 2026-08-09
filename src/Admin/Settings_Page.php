@@ -1131,43 +1131,72 @@ class Settings_Page {
 					<th scope="row"><?php esc_html_e( 'Page Restrictions', 'ems-plugin' ); ?></th>
 					<td>
 						<p class="description" style="margin-bottom: 15px;">
-							<?php esc_html_e( 'For each page, select which user roles are permitted to access it. If no roles are selected, the page is public. (Administrators are always allowed).', 'ems-plugin' ); ?>
+							<?php esc_html_e( 'Configure granular access restrictions for specific pages. Public pages (with no restrictions set) are not listed here.', 'ems-plugin' ); ?>
 						</p>
-						<?php if ( empty( $pages ) ) : ?>
-							<p class="description"><?php esc_html_e( 'No published pages found.', 'ems-plugin' ); ?></p>
-						<?php else : ?>
-							<table class="wp-list-table widefat fixed striped" style="max-width: 800px; border: 1px solid #ccd0d4; box-shadow: none;">
-								<thead>
-									<tr>
-										<th style="padding: 10px; font-weight: 600; width: 40%;"><?php esc_html_e( 'Page Title', 'ems-plugin' ); ?></th>
-										<th style="padding: 10px; font-weight: 600;"><?php esc_html_e( 'Permitted Roles', 'ems-plugin' ); ?></th>
+
+						<table class="wp-list-table widefat fixed striped ems-restrictions-table" style="max-width: 850px; border: 1px solid #ccd0d4; box-shadow: none; <?php echo empty( $page_roles ) ? 'display: none;' : ''; ?>">
+							<thead>
+								<tr>
+									<th style="padding: 10px; font-weight: 600; width: 35%;"><?php esc_html_e( 'Page Title', 'ems-plugin' ); ?></th>
+									<th style="padding: 10px; font-weight: 600;"><?php esc_html_e( 'Permitted Roles', 'ems-plugin' ); ?></th>
+									<th style="padding: 10px; font-weight: 600; width: 15%; text-align: center;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="ems-restrictions-tbody">
+								<?php foreach ( $pages as $page ) : 
+									if ( ! isset( $page_roles[ $page->ID ] ) ) {
+										continue;
+									}
+									$selected_roles = $page_roles[ $page->ID ];
+									?>
+									<tr data-page-id="<?php echo esc_attr( $page->ID ); ?>">
+										<td style="padding: 10px; vertical-align: middle;">
+											<strong><?php echo esc_html( $page->post_title ); ?></strong>
+											<span class="description" style="display: block; font-size: 11px; margin-top: 2px;">(ID: <?php echo esc_html( $page->ID ); ?>)</span>
+										</td>
+										<td style="padding: 10px; vertical-align: middle;">
+											<?php foreach ( $all_roles as $role_slug => $role_name ) : 
+												if ( $role_slug === 'administrator' ) {
+													continue;
+												}
+												?>
+												<label style="margin-right: 15px; display: inline-block; font-size: 13px;">
+													<input type="checkbox" name="ems_page_roles[<?php echo esc_attr( $page->ID ); ?>][]" value="<?php echo esc_attr( $role_slug ); ?>" <?php checked( in_array( $role_slug, $selected_roles, true ) ); ?> />
+													<?php echo esc_html( translate_user_role( $role_name ) ); ?>
+												</label>
+											<?php endforeach; ?>
+										</td>
+										<td style="padding: 10px; vertical-align: middle; text-align: center;">
+											<button type="button" class="button button-link delete-restriction-btn" style="color: #dc3232;" data-page-id="<?php echo esc_attr( $page->ID ); ?>" data-page-title="<?php echo esc_attr( $page->post_title ); ?>">
+												<?php esc_html_e( 'Remove', 'ems-plugin' ); ?>
+											</button>
+										</td>
 									</tr>
-								</thead>
-								<tbody>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+
+						<p id="ems-no-restrictions-msg" class="description" style="margin-bottom: 15px; font-style: italic; <?php echo ! empty( $page_roles ) ? 'display: none;' : ''; ?>">
+							<?php esc_html_e( 'No page restrictions configured. All pages are currently public.', 'ems-plugin' ); ?>
+						</p>
+
+						<?php if ( ! empty( $pages ) ) : ?>
+							<div style="margin-top: 15px; background: #f6f7f7; padding: 15px; border-radius: 4px; border: 1px solid #ccd0d4; max-width: 820px;">
+								<span style="font-weight: 600; font-size: 13px; margin-right: 10px; vertical-align: middle;"><?php esc_html_e( 'Restrict access to another page:', 'ems-plugin' ); ?></span>
+								<select id="ems-add-restriction-select" style="max-width: 350px; vertical-align: middle; font-size: 13px; height: 30px;">
+									<option value=""><?php esc_html_e( '-- Select page to restrict --', 'ems-plugin' ); ?></option>
 									<?php foreach ( $pages as $page ) : 
-										$selected_roles = $page_roles[ $page->ID ] ?? array();
+										$is_restricted = isset( $page_roles[ $page->ID ] );
 										?>
-										<tr>
-											<td style="padding: 10px; vertical-align: middle;">
-												<strong><?php echo esc_html( $page->post_title ); ?></strong>
-												<span class="description" style="display: block; font-size: 11px; margin-top: 2px;">(ID: <?php echo esc_html( $page->ID ); ?>)</span>
-											</td>
-											<td style="padding: 10px; vertical-align: middle;">
-												<?php foreach ( $all_roles as $role_slug => $role_name ) : 
-													if ( $role_slug === 'administrator' ) {
-														continue; // Implicitly allowed always
-													}
-													?>
-													<label style="margin-right: 15px; display: inline-block; font-size: 13px;">
-														<input type="checkbox" name="ems_page_roles[<?php echo esc_attr( $page->ID ); ?>][]" value="<?php echo esc_attr( $role_slug ); ?>" <?php checked( in_array( $role_slug, $selected_roles, true ) ); ?> />
-														<?php echo esc_html( translate_user_role( $role_name ) ); ?>
-													</label>
-												<?php endforeach; ?>
-											</td>
-										</tr>
+										<option value="<?php echo esc_attr( $page->ID ); ?>" data-title="<?php echo esc_attr( $page->post_title ); ?>" <?php echo $is_restricted ? 'style="display:none;"' : ''; ?>>
+											<?php echo esc_html( $page->post_title ); ?> (ID: <?php echo esc_html( $page->ID ); ?>)
+										</option>
 									<?php endforeach; ?>
-								</tbody>
-							</table>
+								</select>
+								<button type="button" id="ems-add-restriction-btn" class="button button-secondary" style="vertical-align: middle; margin-left: 5px; height: 30px;">
+									<?php esc_html_e( 'Add Restriction', 'ems-plugin' ); ?>
+								</button>
+							</div>
 						<?php endif; ?>
 					</td>
 				</tr>
@@ -1186,6 +1215,101 @@ class Settings_Page {
 				<input type="submit" name="ems_save_access_control" class="button button-primary" value="<?php esc_attr_e( 'Save Access Control Settings', 'ems-plugin' ); ?>" />
 			</p>
 		</form>
+
+		<template id="ems-row-template">
+			<tr data-page-id="{PAGE_ID}">
+				<td style="padding: 10px; vertical-align: middle;">
+					<strong>{PAGE_TITLE}</strong>
+					<span class="description" style="display: block; font-size: 11px; margin-top: 2px;">(ID: {PAGE_ID})</span>
+				</td>
+				<td style="padding: 10px; vertical-align: middle;">
+					<?php foreach ( $all_roles as $role_slug => $role_name ) : 
+						if ( $role_slug === 'administrator' ) {
+							continue;
+						}
+						?>
+						<label style="margin-right: 15px; display: inline-block; font-size: 13px;">
+							<input type="checkbox" name="ems_page_roles[{PAGE_ID}][]" value="<?php echo esc_attr( $role_slug ); ?>" />
+							<?php echo esc_html( translate_user_role( $role_name ) ); ?>
+						</label>
+					<?php endforeach; ?>
+				</td>
+				<td style="padding: 10px; vertical-align: middle; text-align: center;">
+					<button type="button" class="button button-link delete-restriction-btn" style="color: #dc3232;" data-page-id="{PAGE_ID}" data-page-title="{PAGE_TITLE}">
+						<?php esc_html_e( 'Remove', 'ems-plugin' ); ?>
+					</button>
+				</td>
+			</tr>
+		</template>
+
+		<script>
+		document.addEventListener('DOMContentLoaded', function() {
+			var select = document.getElementById('ems-add-restriction-select');
+			var addBtn = document.getElementById('ems-add-restriction-btn');
+			var table = document.querySelector('.ems-restrictions-table');
+			var tbody = document.getElementById('ems-restrictions-tbody');
+			var noMsg = document.getElementById('ems-no-restrictions-msg');
+			var template = document.getElementById('ems-row-template').innerHTML;
+
+			if (!select || !addBtn || !tbody) {
+				return;
+			}
+
+			// Add restriction
+			addBtn.addEventListener('click', function() {
+				var pageId = select.value;
+				if (!pageId) {
+					return;
+				}
+
+				var selectedOption = select.options[select.selectedIndex];
+				var pageTitle = selectedOption.getAttribute('data-title');
+
+				// Generate row from template
+				var html = template
+					.replace(/{PAGE_ID}/g, pageId)
+					.replace(/{PAGE_TITLE}/g, pageTitle);
+
+				// Append to table
+				tbody.insertAdjacentHTML('beforeend', html);
+
+				// Hide page option from select dropdown
+				selectedOption.style.display = 'none';
+				select.value = '';
+
+				// Toggle table and empty state visibility
+				table.style.display = 'table';
+				noMsg.style.display = 'none';
+			});
+
+			// Remove restriction (using event delegation)
+			tbody.addEventListener('click', function(e) {
+				if (e.target && e.target.classList.contains('delete-restriction-btn')) {
+					var pageId = e.target.getAttribute('data-page-id');
+
+					// Find and remove row
+					var row = tbody.querySelector('tr[data-page-id="' + pageId + '"]');
+					if (row) {
+						row.remove();
+					}
+
+					// Restore option in select dropdown
+					for (var i = 0; i < select.options.length; i++) {
+						if (select.options[i].value === pageId) {
+							select.options[i].style.display = 'block';
+							break;
+						}
+					}
+
+					// Toggle empty state if no rows left
+					if (tbody.children.length === 0) {
+						table.style.display = 'none';
+						noMsg.style.display = 'block';
+					}
+				}
+			});
+		});
+		</script>
 		<?php
 	}
 }
