@@ -619,12 +619,20 @@ class Settings_Page {
 	}
 
 	private function save_access_control( array $post ): void {
-		$pages         = array_map( 'intval', (array) ( $post['ems_protected_pages'] ?? array() ) );
-		$roles         = array_map( 'sanitize_text_field', (array) ( $post['ems_allowed_roles'] ?? array() ) );
-		$protect_tutor = ! empty( $post['ems_protect_tutor_lms'] );
+		$raw_page_roles = $post['ems_page_roles'] ?? array();
+		$page_roles     = array();
 
-		update_option( 'ems_protected_pages', $pages );
-		update_option( 'ems_allowed_roles', $roles );
+		foreach ( $raw_page_roles as $page_id => $roles ) {
+			$page_id = (int) $page_id;
+			$roles   = array_map( 'sanitize_text_field', (array) $roles );
+			if ( ! empty( $roles ) && $page_id > 0 ) {
+				$page_roles[ $page_id ] = $roles;
+			}
+		}
+
+		update_option( 'ems_page_roles', $page_roles );
+
+		$protect_tutor = ! empty( $post['ems_protect_tutor_lms'] );
 		update_option( 'ems_protect_tutor_lms', $protect_tutor );
 
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Access control settings saved.', 'ems-plugin' ) . '</p></div>';
@@ -1110,9 +1118,8 @@ class Settings_Page {
 	}
 
 	private function render_access_control_tab(): void {
-		$protected_page_ids = get_option( 'ems_protected_pages', array() );
-		$allowed_roles      = get_option( 'ems_allowed_roles', array( 'ems_explorer', 'administrator' ) );
-		$protect_tutor      = get_option( 'ems_protect_tutor_lms', true );
+		$page_roles    = get_option( 'ems_page_roles', array() );
+		$protect_tutor = get_option( 'ems_protect_tutor_lms', true );
 
 		$pages     = get_pages( array( 'post_status' => 'publish' ) );
 		$all_roles = wp_roles()->get_names();
@@ -1121,37 +1128,47 @@ class Settings_Page {
 			<?php wp_nonce_field( 'ems_settings_access_control' ); ?>
 			<table class="form-table">
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Protected Pages', 'ems-plugin' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Page Restrictions', 'ems-plugin' ); ?></th>
 					<td>
-						<fieldset>
-							<legend class="screen-reader-text"><span><?php esc_html_e( 'Protected Pages', 'ems-plugin' ); ?></span></legend>
-							<?php if ( empty( $pages ) ) : ?>
-								<p class="description"><?php esc_html_e( 'No published pages found.', 'ems-plugin' ); ?></p>
-							<?php else : ?>
-								<?php foreach ( $pages as $page ) : ?>
-									<label style="display:block; margin-bottom: 5px;">
-										<input type="checkbox" name="ems_protected_pages[]" value="<?php echo esc_attr( $page->ID ); ?>" <?php checked( in_array( $page->ID, $protected_page_ids, true ) ); ?> />
-										<?php echo esc_html( $page->post_title ); ?> (ID: <?php echo esc_html( $page->ID ); ?>)
-									</label>
-								<?php endforeach; ?>
-								<p class="description"><?php esc_html_e( 'Select which WordPress pages are protected and require a user to login via OIDC and have a permitted role.', 'ems-plugin' ); ?></p>
-							<?php endif; ?>
-						</fieldset>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Allowed Roles', 'ems-plugin' ); ?></th>
-					<td>
-						<fieldset>
-							<legend class="screen-reader-text"><span><?php esc_html_e( 'Allowed Roles', 'ems-plugin' ); ?></span></legend>
-							<?php foreach ( $all_roles as $role_slug => $role_name ) : ?>
-								<label style="display:block; margin-bottom: 5px;">
-									<input type="checkbox" name="ems_allowed_roles[]" value="<?php echo esc_attr( $role_slug ); ?>" <?php checked( in_array( $role_slug, $allowed_roles, true ) ); ?> />
-									<?php echo esc_html( translate_user_role( $role_name ) ); ?> (<code><?php echo esc_html( $role_slug ); ?></code>)
-								</label>
-							<?php endforeach; ?>
-							<p class="description"><?php esc_html_e( 'Select which roles are permitted to access protected pages (Administrators are implicitly allowed).', 'ems-plugin' ); ?></p>
-						</fieldset>
+						<p class="description" style="margin-bottom: 15px;">
+							<?php esc_html_e( 'For each page, select which user roles are permitted to access it. If no roles are selected, the page is public. (Administrators are always allowed).', 'ems-plugin' ); ?>
+						</p>
+						<?php if ( empty( $pages ) ) : ?>
+							<p class="description"><?php esc_html_e( 'No published pages found.', 'ems-plugin' ); ?></p>
+						<?php else : ?>
+							<table class="wp-list-table widefat fixed striped" style="max-width: 800px; border: 1px solid #ccd0d4; box-shadow: none;">
+								<thead>
+									<tr>
+										<th style="padding: 10px; font-weight: 600; width: 40%;"><?php esc_html_e( 'Page Title', 'ems-plugin' ); ?></th>
+										<th style="padding: 10px; font-weight: 600;"><?php esc_html_e( 'Permitted Roles', 'ems-plugin' ); ?></th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ( $pages as $page ) : 
+										$selected_roles = $page_roles[ $page->ID ] ?? array();
+										?>
+										<tr>
+											<td style="padding: 10px; vertical-align: middle;">
+												<strong><?php echo esc_html( $page->post_title ); ?></strong>
+												<span class="description" style="display: block; font-size: 11px; margin-top: 2px;">(ID: <?php echo esc_html( $page->ID ); ?>)</span>
+											</td>
+											<td style="padding: 10px; vertical-align: middle;">
+												<?php foreach ( $all_roles as $role_slug => $role_name ) : 
+													if ( $role_slug === 'administrator' ) {
+														continue; // Implicitly allowed always
+													}
+													?>
+													<label style="margin-right: 15px; display: inline-block; font-size: 13px;">
+														<input type="checkbox" name="ems_page_roles[<?php echo esc_attr( $page->ID ); ?>][]" value="<?php echo esc_attr( $role_slug ); ?>" <?php checked( in_array( $role_slug, $selected_roles, true ) ); ?> />
+														<?php echo esc_html( translate_user_role( $role_name ) ); ?>
+													</label>
+												<?php endforeach; ?>
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						<?php endif; ?>
 					</td>
 				</tr>
 				<tr>
@@ -1161,7 +1178,7 @@ class Settings_Page {
 							<input type="checkbox" name="ems_protect_tutor_lms" value="1" <?php checked( $protect_tutor ); ?> />
 							<?php esc_html_e( 'Enable Tutor LMS Route Protection', 'ems-plugin' ); ?>
 						</label>
-						<p class="description"><?php esc_html_e( 'Automatically intercept and restrict access to all Tutor LMS dashboard and course pages.', 'ems-plugin' ); ?></p>
+						<p class="description"><?php esc_html_e( 'Automatically intercept and restrict access to all Tutor LMS dashboard and course pages (requires the "ems_explorer" role).', 'ems-plugin' ); ?></p>
 					</td>
 				</tr>
 			</table>

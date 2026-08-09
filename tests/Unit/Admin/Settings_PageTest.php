@@ -365,13 +365,17 @@ class Settings_PageTest extends EMSTestCase {
         $method->setAccessible(true);
         
         $method->invoke( $page, [
-            'ems_protected_pages'   => [ '42', '43' ],
-            'ems_allowed_roles'     => [ 'ems_explorer', 'ems_leader' ],
+            'ems_page_roles'        => [
+                '42' => [ 'ems_explorer' ],
+                '43' => [ 'ems_leader' ],
+            ],
             'ems_protect_tutor_lms' => '1',
         ] );
 
-        $this->assertEquals( [ 42, 43 ], $stored['ems_protected_pages'] );
-        $this->assertEquals( [ 'ems_explorer', 'ems_leader' ], $stored['ems_allowed_roles'] );
+        $this->assertEquals( [
+            42 => [ 'ems_explorer' ],
+            43 => [ 'ems_leader' ],
+        ], $stored['ems_page_roles'] );
         $this->assertTrue( $stored['ems_protect_tutor_lms'] );
     }
 
@@ -387,8 +391,7 @@ class Settings_PageTest extends EMSTestCase {
         
         $method->invoke( $page, [] );
 
-        $this->assertEquals( [], $stored['ems_protected_pages'] );
-        $this->assertEquals( [], $stored['ems_allowed_roles'] );
+        $this->assertEquals( [], $stored['ems_page_roles'] );
         $this->assertFalse( $stored['ems_protect_tutor_lms'] );
     }
 }

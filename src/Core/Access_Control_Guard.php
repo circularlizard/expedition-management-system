@@ -8,17 +8,29 @@ class Access_Control_Guard {
 	}
 
 	public function guard_request(): void {
-		$protected_page_ids = get_option( 'ems_protected_pages', array() );
-		$allowed_roles      = get_option( 'ems_allowed_roles', array() );
-		$protect_tutor      = get_option( 'ems_protect_tutor_lms', true );
+		$page_roles    = get_option( 'ems_page_roles', array() );
+		$protect_tutor = get_option( 'ems_protect_tutor_lms', true );
 
+		// 1. Check Tutor LMS pages
 		$is_tutor_page = false;
 		if ( $protect_tutor && function_exists( 'tutor' ) ) {
 			$is_tutor_dash   = function_exists( 'is_tutor_dashboard' ) && is_tutor_dashboard();
 			$is_tutor_course = function_exists( 'is_single_course' ) && is_single_course();
 			$is_tutor_page   = $is_tutor_dash || $is_tutor_course;
 		}
-		$is_protected  = ( ! empty( $protected_page_ids ) && is_page( $protected_page_ids ) ) || $is_tutor_page;
+
+		// 2. Check general protected pages
+		$current_page_id = 0;
+		if ( ! empty( $page_roles ) ) {
+			foreach ( array_keys( $page_roles ) as $protected_id ) {
+				if ( is_page( $protected_id ) ) {
+					$current_page_id = $protected_id;
+					break;
+				}
+			}
+		}
+
+		$is_protected = $is_tutor_page || ( $current_page_id > 0 );
 
 		if ( ! $is_protected ) {
 			return;
@@ -34,14 +46,27 @@ class Access_Control_Guard {
 		}
 
 		$current_user = wp_get_current_user();
-		
-		// Administrators are implicitly allowed to access all protected pages
-		if ( in_array( 'administrator', (array) $current_user->roles, true ) ) {
+		$user_roles   = (array) $current_user->roles;
+
+		// Administrators are implicitly allowed to access all pages
+		if ( in_array( 'administrator', $user_roles, true ) ) {
 			return;
 		}
 
-		$user_roles = (array) $current_user->roles;
-		$has_role   = array_intersect( $allowed_roles, $user_roles );
+		if ( $is_tutor_page ) {
+			$allowed_roles = array( 'ems_explorer' );
+			$this->check_role_and_die( $user_roles, $allowed_roles );
+			return;
+		}
+
+		if ( $current_page_id > 0 ) {
+			$allowed_roles = $page_roles[ $current_page_id ];
+			$this->check_role_and_die( $user_roles, $allowed_roles );
+		}
+	}
+
+	private function check_role_and_die( array $user_roles, array $allowed_roles ): void {
+		$has_role = array_intersect( $allowed_roles, $user_roles );
 
 		if ( empty( $has_role ) ) {
 			if ( class_exists( '\EMS\Tests\EMSTestCase' ) ) {
