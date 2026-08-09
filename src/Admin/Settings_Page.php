@@ -169,6 +169,10 @@ class Settings_Page {
 					class="nav-tab<?php echo $active_tab === 'audit_logs' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Audit Logs', 'ems-plugin' ); ?>
 				</a>
+				<a href="<?php echo esc_url( $page_url . '&tab=access_control' ); ?>"
+					class="nav-tab<?php echo $active_tab === 'access_control' ? ' nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Access Control', 'ems-plugin' ); ?>
+				</a>
 			</nav>
 			<?php
 			if ( $active_tab === 'general' ) {
@@ -183,6 +187,8 @@ class Settings_Page {
 				$this->render_backups_tab();
 			} elseif ( $active_tab === 'audit_logs' ) {
 				$this->render_audit_logs_tab();
+			} elseif ( $active_tab === 'access_control' ) {
+				$this->render_access_control_tab();
 			} else {
 				$this->render_sections_tab();
 			}
@@ -1082,6 +1088,73 @@ class Settings_Page {
 				<input type="submit" name="ems_import_backup" class="button button-secondary" value="<?php esc_attr_e( 'Upload & Restore', 'ems-plugin' ); ?>" onclick="return confirm('<?php esc_attr_e( 'Are you sure? This will overwrite all current EMS data.', 'ems-plugin' ); ?>');" />
 			</form>
 		</div>
+		<?php
+	}
+
+	private function render_access_control_tab(): void {
+		if ( isset( $_POST['ems_save_access_control'] ) && check_admin_referer( 'ems_settings_access_control' ) ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Access control settings saved.', 'ems-plugin' ) . '</p></div>';
+		}
+
+		$protected_page_ids = get_option( 'ems_protected_pages', array() );
+		$allowed_roles      = get_option( 'ems_allowed_roles', array( 'ems_explorer', 'administrator' ) );
+		$protect_tutor      = get_option( 'ems_protect_tutor_lms', true );
+
+		$pages     = get_pages( array( 'post_status' => 'publish' ) );
+		$all_roles = wp_roles()->get_names();
+		?>
+		<form method="post">
+			<?php wp_nonce_field( 'ems_settings_access_control' ); ?>
+			<table class="form-table">
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Protected Pages', 'ems-plugin' ); ?></th>
+					<td>
+						<fieldset>
+							<legend class="screen-reader-text"><span><?php esc_html_e( 'Protected Pages', 'ems-plugin' ); ?></span></legend>
+							<?php if ( empty( $pages ) ) : ?>
+								<p class="description"><?php esc_html_e( 'No published pages found.', 'ems-plugin' ); ?></p>
+							<?php else : ?>
+								<?php foreach ( $pages as $page ) : ?>
+									<label style="display:block; margin-bottom: 5px;">
+										<input type="checkbox" name="ems_protected_pages[]" value="<?php echo esc_attr( $page->ID ); ?>" <?php checked( in_array( $page->ID, $protected_page_ids, true ) ); ?> />
+										<?php echo esc_html( $page->post_title ); ?> (ID: <?php echo esc_html( $page->ID ); ?>)
+									</label>
+								<?php endforeach; ?>
+								<p class="description"><?php esc_html_e( 'Select which WordPress pages are protected and require a user to login via OIDC and have a permitted role.', 'ems-plugin' ); ?></p>
+							<?php endif; ?>
+						</fieldset>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Allowed Roles', 'ems-plugin' ); ?></th>
+					<td>
+						<fieldset>
+							<legend class="screen-reader-text"><span><?php esc_html_e( 'Allowed Roles', 'ems-plugin' ); ?></span></legend>
+							<?php foreach ( $all_roles as $role_slug => $role_name ) : ?>
+								<label style="display:block; margin-bottom: 5px;">
+									<input type="checkbox" name="ems_allowed_roles[]" value="<?php echo esc_attr( $role_slug ); ?>" <?php checked( in_array( $role_slug, $allowed_roles, true ) ); ?> />
+									<?php echo esc_html( translate_user_role( $role_name ) ); ?> (<code><?php echo esc_html( $role_slug ); ?></code>)
+								</label>
+							<?php endforeach; ?>
+							<p class="description"><?php esc_html_e( 'Select which roles are permitted to access protected pages (Administrators are implicitly allowed).', 'ems-plugin' ); ?></p>
+						</fieldset>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Tutor LMS Route Protection', 'ems-plugin' ); ?></th>
+					<td>
+						<label>
+							<input type="checkbox" name="ems_protect_tutor_lms" value="1" <?php checked( $protect_tutor ); ?> />
+							<?php esc_html_e( 'Enable Tutor LMS Route Protection', 'ems-plugin' ); ?>
+						</label>
+						<p class="description"><?php esc_html_e( 'Automatically intercept and restrict access to all Tutor LMS dashboard and course pages.', 'ems-plugin' ); ?></p>
+					</td>
+				</tr>
+			</table>
+			<p class="submit">
+				<input type="submit" name="ems_save_access_control" class="button button-primary" value="<?php esc_attr_e( 'Save Access Control Settings', 'ems-plugin' ); ?>" />
+			</p>
+		</form>
 		<?php
 	}
 }
