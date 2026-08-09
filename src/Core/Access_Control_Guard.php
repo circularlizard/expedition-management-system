@@ -40,7 +40,8 @@ class Access_Control_Guard {
 			return;
 		}
 
-		$has_role = array_intersect( $allowed_roles, (array) $current_user->roles );
+		$user_roles = (array) $current_user->roles;
+		$has_role   = array_intersect( $allowed_roles, $user_roles );
 
 		if ( empty( $has_role ) ) {
 			if ( class_exists( '\EMS\Tests\EMSTestCase' ) ) {
