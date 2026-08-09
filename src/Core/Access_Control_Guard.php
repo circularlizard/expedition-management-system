@@ -48,21 +48,48 @@ class Access_Control_Guard {
 			}
 			status_header( 403 );
 			get_header();
-			$home_url   = esc_url( home_url( '/' ) );
 			$logout_url = esc_url( wp_logout_url( home_url( '/' ) ) );
+
+			// Format current user roles and permitted roles
+			$wp_roles        = wp_roles();
+			$user_role_names = array_map( function( $role_slug ) use ( $wp_roles ) {
+				$names     = $wp_roles->get_names();
+				$role_name = $names[ $role_slug ] ?? $role_slug;
+				return translate_user_role( $role_name );
+			}, $user_roles );
+			$user_roles_str  = ! empty( $user_role_names ) ? implode( ', ', $user_role_names ) : __( 'None', 'ems-plugin' );
+
+			$allowed_role_names = array_map( function( $role_slug ) use ( $wp_roles ) {
+				$names     = $wp_roles->get_names();
+				$role_name = $names[ $role_slug ] ?? $role_slug;
+				return translate_user_role( $role_name );
+			}, $allowed_roles );
+			$allowed_roles_str  = implode( ', ', $allowed_role_names );
 			?>
 			<div class="ems-access-denied-wrap" style="padding: 80px 20px; background: #f7f9fa; display: flex; align-items: center; justify-content: center; min-height: 50vh;">
 				<div class="ems-access-denied-container" style="background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; width: 100%; text-align: center; box-sizing: border-box; margin: 0 auto;">
 					<div class="ems-access-denied-icon" style="font-size: 48px; margin-bottom: 20px;">🔒</div>
 					<h1 style="font-size: 24px; margin: 0 0 16px 0; color: #23282d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"><?php esc_html_e( 'Access Restricted', 'ems-plugin' ); ?></h1>
-					<p style="font-size: 15px; line-height: 1.6; color: #646970; margin: 0 0 24px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-						<?php esc_html_e( 'Your account role does not have permission to view this page. If you believe this is an error, please contact your organization administrator.', 'ems-plugin' ); ?>
+					<p style="font-size: 15px; line-height: 1.6; color: #646970; margin: 0 0 20px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+						<?php esc_html_e( 'Your account does not have permission to view this page.', 'ems-plugin' ); ?>
 					</p>
+
+					<div style="background: #fcf8e3; border: 1px solid #faebcc; color: #8a6d3b; padding: 15px; border-radius: 4px; margin-bottom: 24px; text-align: left; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+						<div style="margin-bottom: 8px;"><strong><?php esc_html_e( 'Your Role:', 'ems-plugin' ); ?></strong> <code><?php echo esc_html( $user_roles_str ); ?></code></div>
+						<div><strong><?php esc_html_e( 'Required Roles:', 'ems-plugin' ); ?></strong> <code><?php echo esc_html( $allowed_roles_str ); ?></code></div>
+					</div>
+
+					<p style="font-size: 14px; line-height: 1.6; color: #646970; margin: 0 0 24px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+						<?php
+						echo sprintf(
+							esc_html__( 'If you believe this is an error, please contact your organization administrator or email %s.', 'ems-plugin' ),
+							'<a href="mailto:expeditions@sesscouts.org.uk" style="color: #007cba; text-decoration: none; font-weight: 500;">expeditions@sesscouts.org.uk</a>'
+						);
+						?>
+					</p>
+
 					<div class="ems-access-denied-actions" style="display: flex; flex-direction: column; gap: 12px;">
-						<a href="<?php echo $home_url; ?>" class="ems-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #007cba; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
-							<?php esc_html_e( 'Go to Homepage', 'ems-plugin' ); ?>
-						</a>
-						<a href="<?php echo $logout_url; ?>" class="ems-btn-secondary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #f6f7f7; color: #007cba; border: 1px solid #007cba; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
+						<a href="<?php echo $logout_url; ?>" class="ems-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #007cba; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
 							<?php esc_html_e( 'Log Out & Switch Accounts', 'ems-plugin' ); ?>
 						</a>
 					</div>
