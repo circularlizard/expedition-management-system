@@ -270,3 +270,10 @@ Rules:
 6. `get_flexi_structure(section_id, term_id)` → `ext/members/flexirecords/`
 
 Never call OSM endpoints directly. Always use `OSM_API_Client` methods.
+
+---
+
+## 17. Security, Passwords & Credentials Rules
+
+- **No Unauthorized Password Resets:** Under no circumstances may an agent reset, update, or overwrite user account passwords (including local WordPress administrator or test accounts) without the user's explicit request and approval.
+- **Ask for Unknown Credentials:** If a workflow, browser automation, or test script requires a password or secret that is not known to the agent, the agent must ask the user directly instead of overriding it or creating a temporary credential.
