@@ -113,6 +113,10 @@ class Settings_Page {
 			$this->save_sections( $post_data );
 		} elseif ( isset( $post_data['ems_save_unit_leaders'] ) ) {
 			$this->save_unit_leaders( $post_data );
+		} elseif ( isset( $post_data['ems_save_form_mappings'] ) ) {
+			$this->save_form_mappings( $post_data );
+		} elseif ( isset( $post_data['ems_save_access_control'] ) ) {
+			$this->save_access_control( $post_data );
 		} else {
 			$this->save_general( $post_data );
 		}
@@ -129,6 +133,8 @@ class Settings_Page {
 			$this->save_unit_leaders( $_POST );
 		} elseif ( isset( $_POST['ems_save_form_mappings'] ) && check_admin_referer( 'ems_settings_form_mappings' ) ) {
 			$this->save_form_mappings( $_POST );
+		} elseif ( isset( $_POST['ems_save_access_control'] ) && check_admin_referer( 'ems_settings_access_control' ) ) {
+			$this->save_access_control( $_POST );
 		} elseif ( isset( $_POST['ems_import_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
 			$this->handle_import();
 		} elseif ( isset( $_POST['ems_export_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
@@ -612,6 +618,18 @@ class Settings_Page {
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Form configurations saved.', 'ems-plugin' ) . '</p></div>';
 	}
 
+	private function save_access_control( array $post ): void {
+		$pages         = array_map( 'intval', (array) ( $post['ems_protected_pages'] ?? array() ) );
+		$roles         = array_map( 'sanitize_text_field', (array) ( $post['ems_allowed_roles'] ?? array() ) );
+		$protect_tutor = ! empty( $post['ems_protect_tutor_lms'] );
+
+		update_option( 'ems_protected_pages', $pages );
+		update_option( 'ems_allowed_roles', $roles );
+		update_option( 'ems_protect_tutor_lms', $protect_tutor );
+
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Access control settings saved.', 'ems-plugin' ) . '</p></div>';
+	}
+
 	private function render_form_mappings_tab(): void {
 		$p_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
 		$e_id = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
@@ -1092,10 +1110,6 @@ class Settings_Page {
 	}
 
 	private function render_access_control_tab(): void {
-		if ( isset( $_POST['ems_save_access_control'] ) && check_admin_referer( 'ems_settings_access_control' ) ) {
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Access control settings saved.', 'ems-plugin' ) . '</p></div>';
-		}
-
 		$protected_page_ids = get_option( 'ems_protected_pages', array() );
 		$allowed_roles      = get_option( 'ems_allowed_roles', array( 'ems_explorer', 'administrator' ) );
 		$protect_tutor      = get_option( 'ems_protect_tutor_lms', true );
