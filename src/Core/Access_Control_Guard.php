@@ -69,7 +69,11 @@ class Access_Control_Guard {
 			?>
 			<div class="ems-access-denied-wrap" style="padding: 80px 20px; background: #f7f9fa; display: flex; align-items: center; justify-content: center; min-height: 50vh;">
 				<div class="ems-access-denied-container" style="background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; width: 100%; text-align: center; box-sizing: border-box; margin: 0 auto;">
-					<div class="ems-access-denied-icon" style="font-size: 48px; margin-bottom: 20px;">🔒</div>
+					<div class="ems-access-denied-icon">
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" style="fill: #dc3232; margin: 0 auto 20px auto; display: block;">
+							<path d="M12 2c-2.76 0-5 2.24-5 5v3H6c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1V7c0-2.76-2.24-5-5-5zm-3 5c0-1.66 1.34-3 3-3s3 1.34 3 3v3H9V7zm3 9c-.83 0-1.5-.67-1.5-1.5S11.17 13 12 13s1.5.67 1.5 1.5S12.83 16 12 16z"/>
+						</svg>
+					</div>
 					<h1 style="font-size: 24px; margin: 0 0 16px 0; color: #23282d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"><?php esc_html_e( 'Access Restricted', 'ems-plugin' ); ?></h1>
 					<p style="font-size: 15px; line-height: 1.6; color: #646970; margin: 0 0 20px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
 						<?php esc_html_e( 'Your account does not have permission to view this page.', 'ems-plugin' ); ?>
