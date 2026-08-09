@@ -353,4 +353,42 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertEquals( [ 'scout_id_field' => 'custom_scout_field_p' ], $stored['ems_participant_form_mappings'] );
         $this->assertEquals( [ 'silver_practice_dates_field' => 'custom_practice_field_e' ], $stored['ems_expedition_form_mappings'] );
     }
+
+    public function test_save_access_control_saves_settings(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+
+        $page = new Settings_Page();
+        
+        $reflected = new \ReflectionClass(Settings_Page::class);
+        $method = $reflected->getMethod('save_access_control');
+        $method->setAccessible(true);
+        
+        $method->invoke( $page, [
+            'ems_protected_pages'   => [ '42', '43' ],
+            'ems_allowed_roles'     => [ 'ems_explorer', 'ems_leader' ],
+            'ems_protect_tutor_lms' => '1',
+        ] );
+
+        $this->assertEquals( [ 42, 43 ], $stored['ems_protected_pages'] );
+        $this->assertEquals( [ 'ems_explorer', 'ems_leader' ], $stored['ems_allowed_roles'] );
+        $this->assertTrue( $stored['ems_protect_tutor_lms'] );
+    }
+
+    public function test_save_access_control_sanitizes_empty_inputs(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+
+        $page = new Settings_Page();
+        
+        $reflected = new \ReflectionClass(Settings_Page::class);
+        $method = $reflected->getMethod('save_access_control');
+        $method->setAccessible(true);
+        
+        $method->invoke( $page, [] );
+
+        $this->assertEquals( [], $stored['ems_protected_pages'] );
+        $this->assertEquals( [], $stored['ems_allowed_roles'] );
+        $this->assertFalse( $stored['ems_protect_tutor_lms'] );
+    }
 }
