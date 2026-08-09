@@ -41,11 +41,11 @@ namespace EMS\Tests\Unit\Core {
 
             // Stub standard options
             Functions\when( 'get_option' )->alias( function( $option, $default = false ) {
-                if ( $option === 'ems_protected_pages' ) {
-                    return [ 42, 43 ];
-                }
-                if ( $option === 'ems_allowed_roles' ) {
-                    return [ 'ems_explorer' ];
+                if ( $option === 'ems_page_roles' ) {
+                    return [
+                        42 => [ 'ems_explorer' ],
+                        43 => [ 'ems_explorer' ],
+                    ];
                 }
                 if ( $option === 'ems_protect_tutor_lms' ) {
                     return true;
