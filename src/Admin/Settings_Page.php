@@ -1167,7 +1167,7 @@ class Settings_Page {
 											<?php endforeach; ?>
 										</td>
 										<td style="padding: 10px; vertical-align: middle; text-align: center;">
-											<button type="button" class="button button-link delete-restriction-btn" style="color: #dc3232;" data-page-id="<?php echo esc_attr( $page->ID ); ?>" data-page-title="<?php echo esc_attr( $page->post_title ); ?>">
+											<button type="button" class="delete-restriction-btn" style="color: #dc3232; background: none; border: none; padding: 0; margin: 0; cursor: pointer; font-size: 13px; text-decoration: underline; line-height: 1.3; box-shadow: none;" data-page-id="<?php echo esc_attr( $page->ID ); ?>" data-page-title="<?php echo esc_attr( $page->post_title ); ?>">
 												<?php esc_html_e( 'Remove', 'ems-plugin' ); ?>
 											</button>
 										</td>
@@ -1235,7 +1235,7 @@ class Settings_Page {
 					<?php endforeach; ?>
 				</td>
 				<td style="padding: 10px; vertical-align: middle; text-align: center;">
-					<button type="button" class="button button-link delete-restriction-btn" style="color: #dc3232;" data-page-id="{PAGE_ID}" data-page-title="{PAGE_TITLE}">
+					<button type="button" class="delete-restriction-btn" style="color: #dc3232; background: none; border: none; padding: 0; margin: 0; cursor: pointer; font-size: 13px; text-decoration: underline; line-height: 1.3; box-shadow: none;" data-page-id="{PAGE_ID}" data-page-title="{PAGE_TITLE}">
 						<?php esc_html_e( 'Remove', 'ems-plugin' ); ?>
 					</button>
 				</td>
