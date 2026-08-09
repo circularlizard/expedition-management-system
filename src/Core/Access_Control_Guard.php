@@ -12,7 +12,12 @@ class Access_Control_Guard {
 		$allowed_roles      = get_option( 'ems_allowed_roles', array() );
 		$protect_tutor      = get_option( 'ems_protect_tutor_lms', true );
 
-		$is_tutor_page = $protect_tutor && function_exists( 'tutor' ) && ( is_tutor_dashboard() || is_single_course() );
+		$is_tutor_page = false;
+		if ( $protect_tutor && function_exists( 'tutor' ) ) {
+			$is_tutor_dash   = function_exists( 'is_tutor_dashboard' ) && is_tutor_dashboard();
+			$is_tutor_course = function_exists( 'is_single_course' ) && is_single_course();
+			$is_tutor_page   = $is_tutor_dash || $is_tutor_course;
+		}
 		$is_protected  = ( ! empty( $protected_page_ids ) && is_page( $protected_page_ids ) ) || $is_tutor_page;
 
 		if ( ! $is_protected ) {
