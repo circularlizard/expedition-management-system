@@ -47,101 +47,29 @@ class Access_Control_Guard {
 				throw new \Exception( 'Access Denied: Your account role does not have permission to view this resource.' );
 			}
 			status_header( 403 );
+			get_header();
 			$home_url   = esc_url( home_url( '/' ) );
 			$logout_url = esc_url( wp_logout_url( home_url( '/' ) ) );
 			?>
-			<!DOCTYPE html>
-			<html <?php language_attributes(); ?>>
-			<head>
-				<meta charset="<?php bloginfo( 'charset' ); ?>">
-				<meta name="viewport" content="width=device-width, initial-scale=1">
-				<title><?php esc_html_e( 'Access Denied', 'ems-plugin' ); ?></title>
-				<style>
-					body {
-						background: #f7f9fa;
-						color: #333;
-						font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-						display: flex;
-						align-items: center;
-						justify-content: center;
-						min-height: 100vh;
-						margin: 0;
-					}
-					.container {
-						background: #fff;
-						padding: 40px;
-						border-radius: 8px;
-						box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-						max-width: 500px;
-						width: 100%;
-						text-align: center;
-						box-sizing: border-box;
-					}
-					.icon {
-						font-size: 48px;
-						margin-bottom: 20px;
-					}
-					h1 {
-						font-size: 24px;
-						margin: 0 0 16px 0;
-						color: #23282d;
-					}
-					p {
-						font-size: 15px;
-						line-height: 1.6;
-						color: #646970;
-						margin: 0 0 24px 0;
-					}
-					.actions {
-						display: flex;
-						flex-direction: column;
-						gap: 12px;
-					}
-					.button {
-						display: inline-block;
-						text-decoration: none;
-						padding: 12px 20px;
-						border-radius: 4px;
-						font-weight: 500;
-						font-size: 14px;
-						transition: background 0.15s ease-in-out;
-					}
-					.button-primary {
-						background: #007cba;
-						color: #fff;
-					}
-					.button-primary:hover {
-						background: #006ba1;
-					}
-					.button-secondary {
-						background: #f6f7f7;
-						color: #007cba;
-						border: 1px solid #007cba;
-					}
-					.button-secondary:hover {
-						background: #f0f6fa;
-					}
-				</style>
-			</head>
-			<body>
-				<div class="container">
-					<div class="icon">🔒</div>
-					<h1><?php esc_html_e( 'Access Restricted', 'ems-plugin' ); ?></h1>
-					<p>
+			<div class="ems-access-denied-wrap" style="padding: 80px 20px; background: #f7f9fa; display: flex; align-items: center; justify-content: center; min-height: 50vh;">
+				<div class="ems-access-denied-container" style="background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; width: 100%; text-align: center; box-sizing: border-box; margin: 0 auto;">
+					<div class="ems-access-denied-icon" style="font-size: 48px; margin-bottom: 20px;">🔒</div>
+					<h1 style="font-size: 24px; margin: 0 0 16px 0; color: #23282d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"><?php esc_html_e( 'Access Restricted', 'ems-plugin' ); ?></h1>
+					<p style="font-size: 15px; line-height: 1.6; color: #646970; margin: 0 0 24px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
 						<?php esc_html_e( 'Your account role does not have permission to view this page. If you believe this is an error, please contact your organization administrator.', 'ems-plugin' ); ?>
 					</p>
-					<div class="actions">
-						<a href="<?php echo $home_url; ?>" class="button button-primary">
+					<div class="ems-access-denied-actions" style="display: flex; flex-direction: column; gap: 12px;">
+						<a href="<?php echo $home_url; ?>" class="ems-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #007cba; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
 							<?php esc_html_e( 'Go to Homepage', 'ems-plugin' ); ?>
 						</a>
-						<a href="<?php echo $logout_url; ?>" class="button button-secondary">
+						<a href="<?php echo $logout_url; ?>" class="ems-btn-secondary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #f6f7f7; color: #007cba; border: 1px solid #007cba; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
 							<?php esc_html_e( 'Log Out & Switch Accounts', 'ems-plugin' ); ?>
 						</a>
 					</div>
 				</div>
-			</body>
-			</html>
+			</div>
 			<?php
+			get_footer();
 			exit;
 		}
 	}
