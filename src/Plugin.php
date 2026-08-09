@@ -77,6 +77,8 @@ class Plugin {
 		$fluent_sync = new \EMS\Integrations\Fluent_Forms_Sync();
 		$fluent_sync->init_hooks();
 
+		new \EMS\Core\Access_Control_Guard();
+
 		$settings_page = new Settings_Page();
 		add_action( 'admin_menu', array( $settings_page, 'register' ), 18 );
 
