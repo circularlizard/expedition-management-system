@@ -864,10 +864,12 @@ class Fluent_Forms_Sync {
 	}
 
 	private function get_allowed_children_for_user( int $user_id ): array {
-		$access_type = get_user_meta( $user_id, 'ems_access_type', true );
-		if ( $access_type === 'parent' ) {
-			return get_user_meta( $user_id, 'ems_children', true ) ?: array();
+		$children = get_user_meta( $user_id, 'ems_children', true );
+		if ( ! empty( $children ) && is_array( $children ) ) {
+			return $children;
 		}
+
+		$access_type = get_user_meta( $user_id, 'ems_access_type', true );
 		if ( $access_type === 'member' || $access_type === 'network_member' ) {
 			$scout_ids = get_user_meta( $user_id, 'ems_scout_ids', true ) ?: array();
 			if ( ! empty( $scout_ids ) ) {

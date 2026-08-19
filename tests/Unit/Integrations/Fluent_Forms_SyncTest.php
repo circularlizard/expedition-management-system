@@ -230,4 +230,29 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         unset( $_POST['signup_child'] );
     }
+
+    public function test_get_allowed_children_returns_children_for_leader_who_is_also_parent(): void {
+        $children = [
+            [ 'scout_id' => 30002, 'first_name' => 'Jane', 'last_name' => 'Doe', 'section_ids' => [ 99001 ] ]
+        ];
+        Functions\when( 'get_user_meta' )->alias( function( $uid, $key, $single = false ) use ( $children ) {
+            if ( $key === 'ems_access_type' ) return 'leader';
+            if ( $key === 'ems_children' ) return $children;
+            return '';
+        } );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        
+        $field_data = [
+            'attributes' => [ 'name' => 'signup_child' ],
+            'settings' => [ 'advanced_options' => [] ],
+        ];
+        $form = (object) [ 'id' => 6 ];
+        $result = $sync->populate_child_dropdown( $field_data, $form );
+        
+        $options = $result['settings']['advanced_options'];
+        $this->assertCount( 1, $options );
+        $this->assertEquals( 'Jane Doe', $options[0]['label'] );
+        $this->assertEquals( '30002|Jane|Doe', $options[0]['value'] );
+    }
 }
