@@ -31,6 +31,7 @@ rsync -a \
   --exclude='.gitignore' \
   --exclude='*.log' \
   --exclude='*.crt' \
+  --exclude='tools/' \
   . "$STAGING_DIR/$PLUGIN_NAME/"
 
 

@@ -53,6 +53,7 @@ rsync -a \
   --exclude='phpunit.xml' \
   --exclude='.gitignore' \
   --exclude='*.log' \
+  --exclude='tools/' \
   . "$STAGING_DIR/ems-plugin/"
 
 # Install production Composer dependencies
