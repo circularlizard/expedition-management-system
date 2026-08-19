@@ -19,6 +19,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->api_client = Mockery::mock( OSM_API_Client::class );
         $this->parser     = Mockery::mock( OSM_Parser::class );
         Functions\when( 'get_option' )->alias( fn( $option, $default = false ) => $default );
+        Functions\stubs( [ 'get_user_meta', 'update_user_meta' ] );
 
         $this->user     = Mockery::mock( \WP_User::class );
         $this->user->ID = 42;
@@ -378,6 +379,9 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
             $stored_meta[ $key ] = $val;
             return true;
         } );
+        Functions\when( 'get_user_meta' )->alias( static function ( $uid, $key, $single ) use ( &$stored_meta ) {
+            return $stored_meta[ $key ] ?? '';
+        } );
 
         $transients = [];
         Functions\when( 'set_transient' )->alias( static function ( $key, $val, $exp ) use ( &$transients ): bool {
@@ -418,15 +422,17 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->parser->shouldReceive( 'parse_terms' )->once()->andReturn( $terms );
         $this->parser->shouldReceive( 'find_current_term' )->once()->with( $terms, 99001 )->andReturn( $terms[99001][0] );
 
-        $this->api_client->shouldReceive( 'get_member_detail' )
+        $this->api_client->shouldReceive( 'get_contact_details' )
             ->once()
             ->with( 99001, 30001, 5001 )
-            ->andReturn( [ 'email' => 'child@ems.test', 'parent_email' => 'parent@ems.test' ] );
-
-        $this->api_client->shouldReceive( 'get_individual' )
-            ->once()
-            ->with( 99001, 30001, 5001 )
-            ->andReturn( [ 'scout_id' => 30001, 'dob' => '2010-01-01' ] );
+            ->andReturn( [
+                'scout_id'     => 30001,
+                'first_name'   => 'Child',
+                'last_name'    => 'One',
+                'dob'          => '2010-01-01',
+                'email'        => 'child@ems.test',
+                'parent_email' => 'parent@ems.test'
+            ] );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
         $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
