@@ -810,9 +810,16 @@ if ( isset( $_GET['ajax_action'] ) && $_GET['ajax_action'] === 'call_api' ) {
 
 				<!-- Response Body -->
 				<div class="flex-1 flex flex-col min-h-0">
-					<h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex-shrink-0">Response Body</h3>
+					<div class="flex items-center justify-between mb-1 flex-shrink-0">
+						<h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Response Body</h3>
+						<div id="response-body-tabs" class="hidden flex space-x-2">
+							<button type="button" id="tab-preview" onclick="switchBodyTab('preview')" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-slate-800 text-slate-200 border border-slate-700">Preview</button>
+							<button type="button" id="tab-raw" onclick="switchBodyTab('raw')" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-slate-950 text-slate-400 border border-transparent">Raw HTML</button>
+						</div>
+					</div>
 					<div class="flex-1 min-h-0 bg-slate-950 rounded border border-slate-800 overflow-hidden flex flex-col">
 						<pre id="response-body" class="flex-1 font-mono text-xs p-4 overflow-auto text-green-400 select-all"></pre>
+						<iframe id="response-preview" class="hidden flex-1 bg-white w-full border-none" sandbox="allow-same-origin"></iframe>
 					</div>
 				</div>
 
@@ -836,6 +843,28 @@ if ( isset( $_GET['ajax_action'] ) && $_GET['ajax_action'] === 'call_api' ) {
 				tokenInput.type = 'text';
 			} else {
 				tokenInput.type = 'password';
+			}
+		}
+
+		let currentTab = 'raw';
+		function switchBodyTab(tab) {
+			const tabRaw = document.getElementById('tab-raw');
+			const tabPreview = document.getElementById('tab-preview');
+			const bodyPre = document.getElementById('response-body');
+			const bodyIframe = document.getElementById('response-preview');
+
+			currentTab = tab;
+
+			if (tab === 'raw') {
+				tabRaw.className = 'px-2 py-0.5 text-[10px] font-semibold rounded bg-slate-800 text-slate-200 border border-slate-700';
+				tabPreview.className = 'px-2 py-0.5 text-[10px] font-semibold rounded bg-slate-950 text-slate-400 border border-transparent';
+				bodyPre.classList.remove('hidden');
+				bodyIframe.classList.add('hidden');
+			} else {
+				tabRaw.className = 'px-2 py-0.5 text-[10px] font-semibold rounded bg-slate-950 text-slate-400 border border-transparent';
+				tabPreview.className = 'px-2 py-0.5 text-[10px] font-semibold rounded bg-slate-800 text-slate-200 border border-slate-700';
+				bodyPre.classList.add('hidden');
+				bodyIframe.classList.remove('hidden');
 			}
 		}
 
@@ -981,10 +1010,33 @@ if ( isset( $_GET['ajax_action'] ) && $_GET['ajax_action'] === 'call_api' ) {
 				responseHeaders.innerText = JSON.stringify(data.response.headers, null, 2);
 
 				// Body
+				const bodyIframe = document.getElementById('response-preview');
+				const bodyTabs = document.getElementById('response-body-tabs');
+				
+				bodyIframe.classList.add('hidden');
+				bodyTabs.classList.add('hidden');
+
 				if (data.response.is_json) {
 					responseBody.innerText = JSON.stringify(data.response.body, null, 2);
+					responseBody.classList.remove('hidden');
+					switchBodyTab('raw');
 				} else {
-					responseBody.innerText = data.response.body;
+					const bodyContent = data.response.body;
+					responseBody.innerText = bodyContent;
+					responseBody.classList.remove('hidden');
+
+					const isHtml = typeof bodyContent === 'string' && 
+						(bodyContent.toLowerCase().includes('<!doctype') || 
+						 bodyContent.toLowerCase().includes('<html') || 
+						 bodyContent.toLowerCase().includes('<body'));
+
+					if (isHtml) {
+						bodyTabs.classList.remove('hidden');
+						bodyIframe.srcdoc = bodyContent;
+						switchBodyTab('preview');
+					} else {
+						switchBodyTab('raw');
+					}
 				}
 
 				// Deprecated warning
