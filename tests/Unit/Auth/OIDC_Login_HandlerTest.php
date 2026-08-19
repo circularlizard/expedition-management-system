@@ -422,17 +422,15 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->parser->shouldReceive( 'parse_terms' )->once()->andReturn( $terms );
         $this->parser->shouldReceive( 'find_current_term' )->once()->with( $terms, 99001 )->andReturn( $terms[99001][0] );
 
-        $this->api_client->shouldReceive( 'get_contact_details' )
+        $this->api_client->shouldReceive( 'get_member_detail' )
             ->once()
             ->with( 99001, 30001, 5001 )
-            ->andReturn( [
-                'scout_id'     => 30001,
-                'first_name'   => 'Child',
-                'last_name'    => 'One',
-                'dob'          => '2010-01-01',
-                'email'        => 'child@ems.test',
-                'parent_email' => 'parent@ems.test'
-            ] );
+            ->andReturn( [ 'email' => 'child@ems.test', 'parent_email' => 'parent@ems.test' ] );
+
+        $this->api_client->shouldReceive( 'get_individual' )
+            ->once()
+            ->with( 99001, 30001, 5001 )
+            ->andReturn( [ 'scout_id' => 30001, 'dob' => '2010-01-01' ] );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
         $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
