@@ -17,6 +17,7 @@ services:
       - "8080:80"
     volumes:
       - ./wordpress:/var/www/html
+      - ./tools:/var/www/html/tools
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
@@ -45,6 +46,7 @@ services:
     image: wordpress:cli-php8.2
     volumes:
       - ./wordpress:/var/www/html
+      - ./tools:/var/www/html/tools
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
