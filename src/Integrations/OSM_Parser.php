@@ -172,8 +172,8 @@ class OSM_Parser {
 					return array(
 						'term_id' => (int) $t['termid'],
 						'name'    => $t['name'] ?? '',
-						'start'   => $t['startdate'] ?? '',
-						'end'     => $t['enddate'] ?? '',
+						'start'   => self::uk_to_iso( $t['startdate'] ?? '' ),
+						'end'     => self::uk_to_iso( $t['enddate'] ?? '' ),
 					);
 				},
 				$term_list
