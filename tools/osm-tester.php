@@ -591,6 +591,11 @@ if ( isset( $_GET['ajax_action'] ) && $_GET['ajax_action'] === 'call_api' ) {
 	$headers     = wp_remote_retrieve_headers( $response );
 	$body        = wp_remote_retrieve_body( $response );
 
+	$headers_arr = array();
+	foreach ( $headers as $key => $value ) {
+		$headers_arr[ $key ] = $value;
+	}
+
 	$json_data = json_decode( $body, true );
 
 	wp_send_json_success(
@@ -603,7 +608,7 @@ if ( isset( $_GET['ajax_action'] ) && $_GET['ajax_action'] === 'call_api' ) {
 			'response' => array(
 				'status_code' => $status_code,
 				'duration_ms' => $duration_ms,
-				'headers'     => $headers->to_array(),
+				'headers'     => $headers_arr,
 				'body'        => $json_data !== null ? $json_data : $body,
 				'is_json'     => $json_data !== null,
 			),
