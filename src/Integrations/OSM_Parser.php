@@ -107,10 +107,6 @@ class OSM_Parser {
 	}
 
 	public function parse_children( array $payload ): array {
-		if ( $this->parse_access_type( $payload ) !== 'parent' ) {
-			return array();
-		}
-
 		$children = array();
 		$member_access = $payload['data']['globals']['member_access'] ?? array();
 		if ( is_array( $member_access ) ) {
