@@ -41,17 +41,21 @@ $auth_url         = get_option( 'ems_osm_auth_url', 'https://www.onlinescoutmana
 $token_url        = get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
 $base_url         = get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' );
 $scope            = get_option( 'ems_osm_scope', 'section:member:read section:event:write section:flexirecord:write' );
+$active_scope     = $_SESSION['osm_tester_custom_scope'] ?? $scope;
 
 $redirect_uri = ( isset( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http' ) . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'];
 
 // Handle OAuth Authorization request
 if ( isset( $_GET['authorize'] ) ) {
+	$requested_scope = sanitize_text_field( $_GET['custom_scope'] ?? $scope );
+	$_SESSION['osm_tester_custom_scope'] = $requested_scope;
+
 	$_SESSION['osm_tester_state'] = wp_create_nonce( 'osm_tester_auth' );
 	$query = http_build_query(
 		array(
 			'client_id'     => $client_id,
 			'response_type' => 'code',
-			'scope'         => $scope,
+			'scope'         => $requested_scope,
 			'redirect_uri'  => $redirect_uri,
 			'state'         => $_SESSION['osm_tester_state'],
 		)
@@ -650,8 +654,8 @@ if ( isset( $_GET['ajax_action'] ) && $_GET['ajax_action'] === 'call_api' ) {
 						<div class="font-mono text-xs bg-gray-50 p-2 rounded mt-1"><?php echo $client_secret ? '••••••••••••••••' : 'Not Set'; ?></div>
 					</div>
 					<div>
-						<span class="font-semibold text-gray-600">Requested OAuth Scopes:</span>
-						<div class="font-mono text-xs bg-gray-50 p-2 rounded mt-1 select-all"><?php echo esc_html( $scope ); ?></div>
+						<span class="font-semibold text-gray-600">Scopes configured in WP:</span>
+						<div class="font-mono text-xs bg-gray-50 p-2 rounded mt-1 select-all truncate" title="<?php echo esc_attr( $scope ); ?>"><?php echo esc_html( $scope ); ?></div>
 					</div>
 				</div>
 			</div>
@@ -702,9 +706,16 @@ if ( isset( $_GET['ajax_action'] ) && $_GET['ajax_action'] === 'call_api' ) {
 						<strong>Warning:</strong> Client ID and Secret are missing from WordPress settings. Configure them on the settings page to enable OAuth authorization.
 					</div>
 				<?php else : ?>
-					<a href="?authorize=1" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-center">
-						Authenticate via OAuth2 Flow
-					</a>
+					<form method="get" action="" class="space-y-3">
+						<input type="hidden" name="authorize" value="1">
+						<div>
+							<label class="block text-xs font-semibold text-gray-700 mb-1">OAuth Scopes to Request</label>
+							<input type="text" name="custom_scope" value="<?php echo esc_attr( $active_scope ); ?>" class="w-full px-3 py-1.5 rounded border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-mono" placeholder="e.g. section:member:read ...">
+						</div>
+						<button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-center">
+							Authenticate via OAuth2 Flow
+						</button>
+					</form>
 				<?php endif; ?>
 
 				<form method="post" action="" class="border-t border-gray-100 pt-4">
