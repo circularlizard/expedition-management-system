@@ -14,7 +14,7 @@ class OSM_Parser {
 		}
 
 		// 2. Member / Parent Check
-		$member_access = $payload['data']['globals']['member_access'] ?? array();
+		$member_access = $payload['data']['globals']['member_access'] ?? $payload['data']['member_access'] ?? array();
 		if ( is_array( $member_access ) ) {
 			foreach ( $member_access as $members_by_section ) {
 				$members = $members_by_section['members'] ?? array();
@@ -44,7 +44,7 @@ class OSM_Parser {
 
 	public function parse_scout_ids( array $payload ): array {
 		$ids           = array();
-		$member_access = $payload['data']['globals']['member_access'] ?? array();
+		$member_access = $payload['data']['globals']['member_access'] ?? $payload['data']['member_access'] ?? array();
 		if ( is_array( $member_access ) ) {
 			foreach ( $member_access as $section_data ) {
 				$members = $section_data['members'] ?? array();
@@ -59,7 +59,7 @@ class OSM_Parser {
 	}
 
 	public function parse_section_ids( array $payload ): array {
-		$member_access = $payload['data']['globals']['member_access'] ?? array();
+		$member_access = $payload['data']['globals']['member_access'] ?? $payload['data']['member_access'] ?? array();
 		if ( ! is_array( $member_access ) ) {
 			$member_access = array();
 		}
@@ -108,7 +108,7 @@ class OSM_Parser {
 
 	public function parse_children( array $payload ): array {
 		$children = array();
-		$member_access = $payload['data']['globals']['member_access'] ?? array();
+		$member_access = $payload['data']['globals']['member_access'] ?? $payload['data']['member_access'] ?? array();
 		if ( is_array( $member_access ) ) {
 			foreach ( $member_access as $section_id => $section_data ) {
 				$members = $section_data['members'] ?? array();
@@ -164,7 +164,7 @@ class OSM_Parser {
 	 * Returns: [ section_id => [ ['term_id'=>int, 'name'=>str, 'start'=>str, 'end'=>str], ... ], ... ]
 	 */
 	public function parse_terms( array $payload ): array {
-		$terms_raw = $payload['data']['globals']['terms'] ?? array();
+		$terms_raw = $payload['data']['globals']['terms'] ?? $payload['data']['terms'] ?? array();
 		$result    = array();
 		foreach ( $terms_raw as $section_id => $term_list ) {
 			$result[ (int) $section_id ] = array_map(
@@ -270,17 +270,16 @@ class OSM_Parser {
 		);
 	}
 
-	/**
-	 * Parses a getContactDetails response and extracts DOB.
-	 */
 	public function parse_contact_details( array $raw ): array {
 		// Safe mapping of the nested structure in getContactDetails response
 		$data = $raw['data']['data'] ?? $raw['data'] ?? array();
 		return array(
-			'scout_id'   => (int) ( $data['scoutid'] ?? $data['member_id'] ?? 0 ),
-			'first_name' => $data['firstname'] ?? '',
-			'last_name'  => $data['lastname'] ?? '',
-			'dob'        => $data['dob'] ?? '',
+			'scout_id'     => (int) ( $data['scoutid'] ?? $data['member_id'] ?? 0 ),
+			'first_name'   => $data['firstname'] ?? '',
+			'last_name'    => $data['lastname'] ?? '',
+			'dob'          => $data['dob'] ?? '',
+			'email'        => $data['email1'] ?? '',
+			'parent_email' => $data['email2'] ?? '',
 		);
 	}
 }

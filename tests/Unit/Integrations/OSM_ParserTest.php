@@ -239,6 +239,8 @@ class OSM_ParserTest extends EMSTestCase {
                     'firstname' => 'John',
                     'lastname'  => 'Doe',
                     'dob'       => '2010-05-15',
+                    'email1'    => 'explorer@example.com',
+                    'email2'    => 'parent@example.com',
                 ],
             ],
         ];
@@ -247,6 +249,8 @@ class OSM_ParserTest extends EMSTestCase {
         $this->assertSame( 'John', $parsed['first_name'] );
         $this->assertSame( 'Doe', $parsed['last_name'] );
         $this->assertSame( '2010-05-15', $parsed['dob'] );
+        $this->assertSame( 'explorer@example.com', $parsed['email'] );
+        $this->assertSame( 'parent@example.com', $parsed['parent_email'] );
     }
 
     public function test_parse_contact_details_handles_missing_dob(): void {
@@ -260,5 +264,45 @@ class OSM_ParserTest extends EMSTestCase {
         $parsed = $this->parser->parse_contact_details( $raw );
         $this->assertSame( 67890, $parsed['scout_id'] );
         $this->assertSame( '', $parsed['dob'] );
+        $this->assertSame( '', $parsed['email'] );
+        $this->assertSame( '', $parsed['parent_email'] );
+    }
+
+    public function test_parser_fallbacks_to_root_data_when_globals_is_not_nested(): void {
+        $payload = [
+            'data' => [
+                'globals' => [
+                    'roles' => false,
+                ],
+                'member_access' => [
+                    '99001' => [
+                        'members' => [
+                            '30001' => [
+                                'access_type' => 'parent',
+                                'first_name'  => 'Child',
+                                'last_name'   => 'One',
+                            ],
+                        ],
+                    ],
+                ],
+                'terms' => [
+                    '99001' => [
+                        [ 'termid' => '5001', 'sectionid' => '99001', 'name' => 'Spring 2026', 'startdate' => '2026-01-01', 'enddate' => '2026-07-31' ],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->assertSame( 'parent', $this->parser->parse_access_type( $payload ) );
+        $this->assertSame( [ 30001 ], $this->parser->parse_scout_ids( $payload ) );
+        $this->assertSame( [ 99001 ], $this->parser->parse_section_ids( $payload ) );
+        
+        $children = $this->parser->parse_children( $payload );
+        $this->assertCount( 1, $children );
+        $this->assertSame( 30001, $children[0]['scout_id'] );
+
+        $terms = $this->parser->parse_terms( $payload );
+        $this->assertArrayHasKey( 99001, $terms );
+        $this->assertSame( 5001, $terms[99001][0]['term_id'] );
     }
 }
