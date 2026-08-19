@@ -24,6 +24,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user     = Mockery::mock( \WP_User::class );
         $this->user->ID = 42;
         $this->user->shouldReceive( 'set_role' )->byDefault();
+        $this->user->shouldReceive( 'add_role' )->byDefault();
     }
 
 
@@ -400,7 +401,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'set_access_token' )->once();
         $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
 
-        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'parent' );
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'leader' );
         $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [ 30001 ] );
         $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [ 99001 ] );
         
@@ -475,7 +476,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'set_access_token' )->once();
         $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
 
-        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'parent' );
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'leader' );
         $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [ 30001, 30002 ] );
         $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [ 99001 ] );
         
@@ -616,6 +617,80 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
         $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+    }
+
+    public function test_handle_osm_login_enriches_children_from_db_for_parent(): void {
+        if ( ! defined( 'AUTH_KEY' ) ) {
+            define( 'AUTH_KEY', 'authkeyauthkeyauthkeyauthkeyauthkey' );
+        }
+        if ( ! defined( 'SECURE_AUTH_KEY' ) ) {
+            define( 'SECURE_AUTH_KEY', 'secureauthkeysecureauthkeysecurea' );
+        }
+
+        $stored_meta = [];
+        Functions\when( 'update_user_meta' )->alias( static function ( $uid, $key, $val ) use ( &$stored_meta ): bool {
+            $stored_meta[ $key ] = $val;
+            return true;
+        } );
+        Functions\when( 'get_user_meta' )->alias( static function ( $uid, $key, $single ) use ( &$stored_meta ) {
+            return $stored_meta[ $key ] ?? '';
+        } );
+
+        $transients = [];
+        Functions\when( 'set_transient' )->alias( static function ( $key, $val, $exp ) use ( &$transients ): bool {
+            $transients[ $key ] = $val;
+            return true;
+        } );
+
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'parent' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [ 30001 ] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [] );
+        
+        $children = [
+            [
+                'scout_id'    => 30001,
+                'first_name'  => 'Child',
+                'last_name'   => 'One',
+                'section_ids' => [ 99001 ],
+            ]
+        ];
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( $children );
+        $this->parser->shouldReceive( 'parse_terms' )->once()->andReturn( [] );
+
+        // The OSM API client should NEVER call these for a parent
+        $this->api_client->shouldReceive( 'get_member_detail' )->never();
+        $this->api_client->shouldReceive( 'get_individual' )->never();
+
+        $explorer_repo = Mockery::mock( OSM_Explorer_Repository::class );
+        $explorer_repo->shouldReceive( 'find_by_scout_id' )
+            ->once()
+            ->with( 30001 )
+            ->andReturn( [ 'email' => 'child-db@ems.test', 'parent_email' => 'parent-db@ems.test' ] );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+
+        $expected_transient_key = 'ems_sess_children_42';
+        $this->assertArrayHasKey( $expected_transient_key, $transients );
+
+        $decrypted = \EMS\Core\Encryption::decrypt( $transients[ $expected_transient_key ] );
+        $this->assertNotFalse( $decrypted );
+
+        $data = json_decode( $decrypted, true );
+        $this->assertSame( 30001, $data[0]['scout_id'] );
+        $this->assertSame( 'child-db@ems.test', $data[0]['email'] );
+        $this->assertSame( '', $data[0]['dob'] );
     }
 }
 
