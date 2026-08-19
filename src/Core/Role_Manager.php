@@ -22,6 +22,13 @@ class Role_Manager {
 					'access_ems_explorer_portal' => true,
 				),
 			),
+			'ems_network_member' => array(
+				'display_name' => 'EMS Network Member',
+				'capabilities' => array(
+					'read'                       => true,
+					'access_ems_explorer_portal' => true,
+				),
+			),
 			'ems_leader'   => array(
 				'display_name' => 'EMS Leader',
 				'capabilities' => array(

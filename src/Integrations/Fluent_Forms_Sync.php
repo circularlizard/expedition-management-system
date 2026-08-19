@@ -54,7 +54,7 @@ class Fluent_Forms_Sync {
 			return $data;
 		}
 
-		$children_meta = get_user_meta( $user_id, 'ems_children', true );
+		$children_meta = $this->get_allowed_children_for_user( $user_id );
 		if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
 			return $data;
 		}
@@ -184,7 +184,7 @@ class Fluent_Forms_Sync {
 			$scout_id = (int) $parts[0];
 
 			$user_id       = get_current_user_id();
-			$children_meta = get_user_meta( $user_id, 'ems_children', true ) ?: array();
+			$children_meta = $this->get_allowed_children_for_user( $user_id );
 			$allowed_ids   = array_map( 'intval', array_column( $children_meta, 'scout_id' ) );
 
 			if ( ! in_array( $scout_id, $allowed_ids, true ) ) {
@@ -528,7 +528,7 @@ class Fluent_Forms_Sync {
 			return $data;
 		}
 
-		$children_meta = get_user_meta( $user_id, 'ems_children', true );
+		$children_meta = $this->get_allowed_children_for_user( $user_id );
 		if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
 			return $data;
 		}
@@ -598,7 +598,7 @@ class Fluent_Forms_Sync {
 			return $data;
 		}
 
-		$children_meta = get_user_meta( $user_id, 'ems_children', true );
+		$children_meta = $this->get_allowed_children_for_user( $user_id );
 		if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
 			return $data;
 		}
@@ -629,7 +629,7 @@ class Fluent_Forms_Sync {
 			return;
 		}
 
-		$children_meta = get_user_meta( $user_id, 'ems_children', true );
+		$children_meta = $this->get_allowed_children_for_user( $user_id );
 		if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
 			return;
 		}
@@ -861,5 +861,28 @@ class Fluent_Forms_Sync {
 			});
 		</script>
 		<?php
+	}
+
+	private function get_allowed_children_for_user( int $user_id ): array {
+		$access_type = get_user_meta( $user_id, 'ems_access_type', true );
+		if ( $access_type === 'parent' ) {
+			return get_user_meta( $user_id, 'ems_children', true ) ?: array();
+		}
+		if ( $access_type === 'member' || $access_type === 'network_member' ) {
+			$scout_ids = get_user_meta( $user_id, 'ems_scout_ids', true ) ?: array();
+			if ( ! empty( $scout_ids ) ) {
+				$user = get_userdata( $user_id );
+				return array(
+					array(
+						'scout_id'    => (int) $scout_ids[0],
+						'first_name'  => get_user_meta( $user_id, 'first_name', true ) ?: ( $user->first_name ?? '' ),
+						'last_name'   => get_user_meta( $user_id, 'last_name', true ) ?: ( $user->last_name ?? '' ),
+						'section_ids' => get_user_meta( $user_id, 'ems_section_ids', true ) ?: array(),
+						'patrol'      => get_user_meta( $user_id, 'ems_unit', true ) ?: '',
+					)
+				);
+			}
+		}
+		return array();
 	}
 }
