@@ -193,16 +193,13 @@ class OIDC_Login_Handler {
 			error_log( '[EMS Debug] Processing child: ' . $scout_id . ' (Section count: ' . count( $section_ids ) . ')' );
 
 			foreach ( $section_ids as $section_id ) {
-				$term = $this->parser->find_current_term( $terms, (int) $section_id );
-				if ( ! $term ) {
-					error_log( '[EMS Debug] No current term found for section ID: ' . $section_id );
-					continue;
-				}
+				$term    = $this->parser->find_current_term( $terms, (int) $section_id );
+				$term_id = $term ? (int) $term['term_id'] : 0;
 
 				// Fetch email via get_member_detail
 				if ( empty( $email ) ) {
 					try {
-						$detail    = $this->api_client->get_member_detail( (int) $section_id, $scout_id, (int) $term['term_id'] );
+						$detail    = $this->api_client->get_member_detail( (int) $section_id, $scout_id, $term_id );
 						$log_guard = (int) get_option( 'ems_debug_log_guard', 0 );
 						if ( $log_guard ) {
 							$safe_detail = $detail;
@@ -230,7 +227,7 @@ class OIDC_Login_Handler {
 				// Fetch DOB via get_individual
 				if ( empty( $dob ) ) {
 					try {
-						$contact   = $this->api_client->get_individual( (int) $section_id, $scout_id, (int) $term['term_id'] );
+						$contact   = $this->api_client->get_individual( (int) $section_id, $scout_id, $term_id );
 						$log_guard = (int) get_option( 'ems_debug_log_guard', 0 );
 						if ( $log_guard ) {
 							$safe_contact = $contact;
