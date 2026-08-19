@@ -57,7 +57,11 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $children = [
             [ 'scout_id' => 30001, 'first_name' => 'Mary', 'last_name' => 'Smith', 'section_ids' => [ 99001 ] ]
         ];
-        Functions\when( 'get_user_meta' )->justReturn( $children );
+        Functions\when( 'get_user_meta' )->alias( function( $uid, $key, $single = false ) use ( $children ) {
+            if ( $key === 'ems_access_type' ) return 'parent';
+            if ( $key === 'ems_children' ) return $children;
+            return '';
+        } );
 
         $this->wpdb->rows["SELECT first_name, last_name FROM wp_ems_osm_explorers WHERE scout_id = 30001"] = [
             'first_name' => 'Mary',
@@ -164,5 +168,66 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         ], (object) [ 'id' => 7 ] );
 
         $this->assertTrue( true );
+    }
+
+    public function test_populate_child_dropdown_synthesizes_self_for_member_access(): void {
+        Functions\when( 'get_user_meta' )->alias( function( $uid, $key, $single = false ) {
+            if ( $key === 'ems_access_type' ) return 'member';
+            if ( $key === 'ems_scout_ids' ) return [ 30001 ];
+            if ( $key === 'first_name' ) return 'Tom';
+            if ( $key === 'last_name' ) return 'Strachan';
+            if ( $key === 'ems_section_ids' ) return [ 99001 ];
+            if ( $key === 'ems_unit' ) return 'Kelso';
+            return '';
+        } );
+
+        $user = (object) [ 'first_name' => 'Tom', 'last_name' => 'Strachan' ];
+        Functions\when( 'get_userdata' )->justReturn( $user );
+
+        $this->wpdb->rows["SELECT first_name, last_name FROM wp_ems_osm_explorers WHERE scout_id = 30001"] = [
+            'first_name' => 'Tom',
+            'last_name'  => 'Strachan',
+        ];
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        
+        $field_data = [
+            'attributes' => [ 'name' => 'signup_child' ],
+            'settings'   => [ 'advanced_options' => [] ],
+        ];
+        $form = (object) [ 'id' => 6 ];
+
+        $result = $sync->populate_child_dropdown( $field_data, $form );
+
+        $options = $result['settings']['advanced_options'];
+        $this->assertCount( 1, $options );
+        $this->assertEquals( 'Tom Strachan', $options[0]['label'] );
+        $this->assertEquals( '30001|Tom|Strachan', $options[0]['value'] );
+    }
+
+    public function test_validate_submission_allows_self_scout_id_for_member_access(): void {
+        Functions\when( 'get_user_meta' )->alias( function( $uid, $key, $single = false ) {
+            if ( $key === 'ems_access_type' ) return 'member';
+            if ( $key === 'ems_scout_ids' ) return [ 30001 ];
+            if ( $key === 'first_name' ) return 'Tom';
+            if ( $key === 'last_name' ) return 'Strachan';
+            return '';
+        } );
+
+        $user = (object) [ 'first_name' => 'Tom', 'last_name' => 'Strachan' ];
+        Functions\when( 'get_userdata' )->justReturn( $user );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+
+        $_POST['signup_child'] = '30001|Tom|Strachan';
+        $errors = $sync->validate_submission( [], (object) [ 'id' => 6 ] );
+        $this->assertEmpty( $errors );
+
+        // Should fail for unowned ID
+        $_POST['signup_child'] = '99999|John|Doe';
+        $errors = $sync->validate_submission( [], (object) [ 'id' => 6 ] );
+        $this->assertNotEmpty( $errors );
+
+        unset( $_POST['signup_child'] );
     }
 }
