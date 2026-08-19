@@ -102,6 +102,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
             file_get_contents( __DIR__ . '/../../mocks/osm-get-data-payload-parent.json' ),
             true
         );
+        $raw_payload['data']['globals']['roles'] = false;
         $stored = [];
         Functions\when( 'update_user_meta' )->alias( static function ( $uid, $key, $val ) use ( &$stored ): bool {
             $stored[ $key ] = $val;
@@ -499,4 +500,118 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
         $this->addToAssertionCount( 1 );
     }
+
+    public function test_handle_osm_login_leader_no_member_access_assigns_leader_role(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => false,
+                    'roles' => [
+                        [ 'sectionid' => 85165, 'sectionname' => 'Test Section', 'section' => 'explorers' ]
+                    ]
+                ]
+            ]
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'leader' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [ 85165 ] );
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( [] );
+
+        $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_leader' );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_osm_login_network_member_assigns_network_member_role(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'network_member' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [ 30001 ] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [ 85165 ] );
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( [] );
+
+        $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_network_member' );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_osm_login_parent_and_leader_assigns_dual_roles(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                    'roles' => [
+                        [ 'sectionid' => 85165, 'sectionname' => 'Test Section', 'section' => 'explorers' ]
+                    ]
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        // Leader precedence means parse_access_type returns 'leader'
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'leader' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [ 85165 ] );
+
+        // But we have children associated
+        $children = [ [ 'scout_id' => 30001, 'first_name' => 'Child', 'section_ids' => [] ] ];
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( $children );
+        $this->parser->shouldReceive( 'parse_terms' )->once()->andReturn( [] );
+
+        $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_leader' );
+        $this->user->shouldReceive( 'add_role' )->once()->with( 'ems_parent' );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_handle_osm_login_unknown_role_graceful_wp_die(): void {
+        Functions\stubs( [ 'update_user_meta' ] );
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => false,
+                    'roles' => false
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'unknown' );
+        $this->parser->shouldReceive( 'parse_children' )->never();
+        
+        $this->user->shouldReceive( 'set_role' )->never();
+
+        // In EMSTestCase, wp_die throws an Exception
+        $this->expectException( \Exception::class );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
+    }
 }
+

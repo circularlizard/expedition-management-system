@@ -64,7 +64,7 @@ class Portal_Controller {
 					'patrol'     => $child['patrol'] ?? '',
 				);
 			}
-		} elseif ( $access_type === 'member' ) {
+		} elseif ( $access_type === 'member' || $access_type === 'network_member' ) {
 			$explorer = $this->explorer_repo->find_by_wp_user_id( $user->ID );
 			if ( $explorer ) {
 				$profiles[] = array(
@@ -107,7 +107,7 @@ class Portal_Controller {
 			if ( in_array( $scout_id, array_map( 'intval', $parent_scout_ids ), true ) ) {
 				$authorized = true;
 			}
-		} elseif ( $access_type === 'member' ) {
+		} elseif ( $access_type === 'member' || $access_type === 'network_member' ) {
 			$explorer = $this->explorer_repo->find_by_scout_id( $scout_id );
 			if ( $explorer && (int) $explorer['wp_user_id'] === $user_id ) {
 				$authorized = true;
@@ -152,7 +152,7 @@ class Portal_Controller {
 						break;
 					}
 				}
-			} elseif ( $access_type === 'member' ) {
+			} elseif ( $access_type === 'member' || $access_type === 'network_member' ) {
 				$first_name = get_user_meta( $user_id, 'first_name', true );
 				$last_name  = get_user_meta( $user_id, 'last_name', true );
 			}
@@ -393,7 +393,7 @@ class Portal_Controller {
 		$explorer_wp_user_id = null;
 		if ( $explorer && ! empty( $explorer['wp_user_id'] ) ) {
 			$explorer_wp_user_id = (int) $explorer['wp_user_id'];
-		} elseif ( $access_type === 'member' ) {
+		} elseif ( $access_type === 'member' || $access_type === 'network_member' ) {
 			$explorer_wp_user_id = $user_id;
 		}
 

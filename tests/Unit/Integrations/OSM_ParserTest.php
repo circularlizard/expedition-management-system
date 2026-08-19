@@ -18,10 +18,13 @@ class OSM_ParserTest extends EMSTestCase {
             file_get_contents( __DIR__ . '/../../mocks/osm-get-data-payload-explorer.json' ),
             true
         );
+        $this->explorer_payload['data']['globals']['roles'] = false;
+        
         $this->parent_payload   = json_decode(
             file_get_contents( __DIR__ . '/../../mocks/osm-get-data-payload-parent.json' ),
             true
         );
+        $this->parent_payload['data']['globals']['roles'] = false;
         $this->events_raw       = json_decode(
             file_get_contents( __DIR__ . '/../../mocks/osm-events.json' ),
             true

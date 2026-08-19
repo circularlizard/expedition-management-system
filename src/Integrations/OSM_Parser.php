@@ -7,32 +7,75 @@ class OSM_Parser {
 	}
 
 	public function parse_access_type( array $payload ): string {
-		foreach ( $payload['data']['globals']['member_access'] ?? array() as $members_by_section ) {
-			foreach ( $members_by_section['members'] ?? array() as $member ) {
-				$type = $member['access_type'] ?? '';
-				if ( $type !== '' ) {
-					return $type;
+		// 1. Leader Check (Precedence)
+		$roles = $payload['data']['globals']['roles'] ?? array();
+		if ( ! empty( $roles ) && is_array( $roles ) ) {
+			return 'leader';
+		}
+
+		// 2. Member / Parent Check
+		$member_access = $payload['data']['globals']['member_access'] ?? array();
+		if ( is_array( $member_access ) ) {
+			foreach ( $member_access as $members_by_section ) {
+				$members = $members_by_section['members'] ?? array();
+				if ( is_array( $members ) ) {
+					foreach ( $members as $member ) {
+						$type = $member['access_type'] ?? '';
+						if ( $type === 'member' ) {
+							// Layer 2 detection: permissions === true (adult Network member)
+							if ( isset( $member['permissions'] ) && $member['permissions'] === true ) {
+								return 'network_member';
+							}
+							// Layer 1 detection: section type in OSM is network
+							if ( ( $members_by_section['type'] ?? '' ) === 'network' ) {
+								return 'network_member';
+							}
+						}
+						if ( $type !== '' ) {
+							return $type;
+						}
+					}
 				}
 			}
 		}
+
 		return 'unknown';
 	}
 
 	public function parse_scout_ids( array $payload ): array {
-		$ids = array();
-		foreach ( $payload['data']['globals']['member_access'] ?? array() as $section_data ) {
-			foreach ( array_keys( $section_data['members'] ?? array() ) as $scout_id ) {
-				$ids[ (int) $scout_id ] = true;
+		$ids           = array();
+		$member_access = $payload['data']['globals']['member_access'] ?? array();
+		if ( is_array( $member_access ) ) {
+			foreach ( $member_access as $section_data ) {
+				$members = $section_data['members'] ?? array();
+				if ( is_array( $members ) ) {
+					foreach ( array_keys( $members ) as $scout_id ) {
+						$ids[ (int) $scout_id ] = true;
+					}
+				}
 			}
 		}
 		return array_keys( $ids );
 	}
 
 	public function parse_section_ids( array $payload ): array {
-		return array_map(
-			'intval',
-			array_keys( $payload['data']['globals']['member_access'] ?? array() )
-		);
+		$member_access = $payload['data']['globals']['member_access'] ?? array();
+		if ( ! is_array( $member_access ) ) {
+			$member_access = array();
+		}
+		$ids = array_map( 'intval', array_keys( $member_access ) );
+
+		$roles = $payload['data']['globals']['roles'] ?? array();
+		if ( is_array( $roles ) ) {
+			foreach ( $roles as $role ) {
+				$section_id = (int) ( $role['sectionid'] ?? 0 );
+				if ( $section_id > 0 ) {
+					$ids[] = $section_id;
+				}
+			}
+		}
+
+		return array_values( array_unique( $ids ) );
 	}
 
 	/**
@@ -69,21 +112,27 @@ class OSM_Parser {
 		}
 
 		$children = array();
-		foreach ( $payload['data']['globals']['member_access'] ?? array() as $section_id => $section_data ) {
-			foreach ( $section_data['members'] ?? array() as $scout_id => $member ) {
-				if ( ( $member['access_type'] ?? '' ) !== 'parent' ) {
-					continue;
+		$member_access = $payload['data']['globals']['member_access'] ?? array();
+		if ( is_array( $member_access ) ) {
+			foreach ( $member_access as $section_id => $section_data ) {
+				$members = $section_data['members'] ?? array();
+				if ( is_array( $members ) ) {
+					foreach ( $members as $scout_id => $member ) {
+						if ( ( $member['access_type'] ?? '' ) !== 'parent' ) {
+							continue;
+						}
+						$id = (int) $scout_id;
+						if ( ! isset( $children[ $id ] ) ) {
+							$children[ $id ] = array(
+								'scout_id'    => $id,
+								'first_name'  => $member['first_name'] ?? '',
+								'last_name'   => $member['last_name'] ?? '',
+								'section_ids' => array(),
+							);
+						}
+						$children[ $id ]['section_ids'][] = (int) $section_id;
+					}
 				}
-				$id = (int) $scout_id;
-				if ( ! isset( $children[ $id ] ) ) {
-					$children[ $id ] = array(
-						'scout_id'    => $id,
-						'first_name'  => $member['first_name'] ?? '',
-						'last_name'   => $member['last_name'] ?? '',
-						'section_ids' => array(),
-					);
-				}
-				$children[ $id ]['section_ids'][] = (int) $section_id;
 			}
 		}
 		return array_values( $children );
