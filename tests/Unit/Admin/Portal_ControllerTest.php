@@ -260,4 +260,122 @@ class Portal_ControllerTest extends EMSTestCase {
         $this->assertEquals( 'Alice', $data['team']['teammates'][0]['first_name'] );
         $this->assertEquals( 'S.', $data['team']['teammates'][0]['last_initial'] );
     }
+
+    public function test_get_me_unsynced_member_returns_fallback_profile(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        Functions\when( 'wp_get_current_user' )->alias( function() {
+            $user = \Mockery::mock('WP_User');
+            $user->ID = 123;
+            $user->exists = true;
+            $user->display_name = 'Explorer Name';
+            $user->first_name = 'Explorer';
+            $user->last_name = 'Name';
+            $user->shouldReceive('exists')->andReturn(true);
+            return $user;
+        } );
+
+        Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single ) {
+            if ( $key === 'ems_access_type' ) {
+                return 'member';
+            }
+            if ( $key === 'ems_scout_ids' ) {
+                return [ 30003 ];
+            }
+            if ( $key === 'first_name' ) {
+                return 'Explorer';
+            }
+            if ( $key === 'last_name' ) {
+                return 'Name';
+            }
+            if ( $key === 'ems_unit' ) {
+                return 'Falcons';
+            }
+            return '';
+        } );
+
+        $this->explorer_repo->shouldReceive( 'find_by_wp_user_id' )->with( 123 )->once()->andReturn( null );
+
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client );
+        $request = new \WP_REST_Request( 'GET', '/ems/v1/portal/me' );
+        $response = $controller->get_me( $request );
+
+        $this->assertEquals( 200, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertTrue( $data['logged_in'] );
+        $this->assertEquals( 'member', $data['access_type'] );
+        $this->assertCount( 1, $data['profiles'] );
+        $this->assertEquals( 30003, $data['profiles'][0]['scout_id'] );
+        $this->assertEquals( 'Explorer', $data['profiles'][0]['first_name'] );
+        $this->assertEquals( 'Name', $data['profiles'][0]['last_name'] );
+        $this->assertEquals( 'Falcons', $data['profiles'][0]['patrol'] );
+    }
+
+    public function test_get_explorer_detail_unsynced_parent_returns_fallback_details_and_signups(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        Functions\when( 'get_current_user_id' )->justReturn( 123 );
+        Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single ) {
+            if ( $key === 'ems_access_type' ) {
+                return 'parent';
+            }
+            if ( $key === 'ems_scout_ids' ) {
+                return [ 30003 ];
+            }
+            if ( $key === 'ems_children' ) {
+                return [
+                    [ 'scout_id' => 30003, 'first_name' => 'John', 'last_name' => 'Doe', 'patrol' => 'Falcons' ]
+                ];
+            }
+            return '';
+        } );
+        Functions\when( 'current_user_can' )->justReturn( false );
+
+        $this->explorer_repo->shouldReceive( 'find_by_scout_id' )->with( 30003 )->andReturn( null );
+
+        global $wpdb;
+        $wpdb = \Mockery::mock('stdClass');
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive('prepare')->andReturnUsing(function($query, ...$args) {
+            return [$query, $args];
+        });
+        $wpdb->shouldReceive('get_var')->andReturn('');
+
+        $wpdb->shouldReceive('get_results')->andReturnUsing(function($prepared) {
+            $query = $prepared[0];
+            if (str_contains($query, 'ems_participant_signups')) {
+                return [
+                    [
+                        'id' => 2,
+                        'dofe_level' => 'silver',
+                        'signup_status' => 'received',
+                        'payment_status' => 'pending',
+                        'created_at' => '2026-06-13 20:00:00',
+                        'dob' => '2010-01-01',
+                        'dofe_registered' => 'n',
+                        'dofe_number' => '',
+                        'dofe_org' => '',
+                        'bronze_completion' => '',
+                        'silver_completion' => '',
+                        'form_submission_id' => 101,
+                    ]
+                ];
+            }
+            return [];
+        });
+
+        $this->tutor_client->shouldReceive( 'get_all_courses' )->once()->andReturn([]);
+
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client );
+        $request = new \WP_REST_Request( 'GET', '/ems/v1/portal/explorer/30003' );
+        $request->set_param( 'scout_id', 30003 );
+
+        $response = $controller->get_explorer_detail( $request );
+        $this->assertEquals( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        $this->assertEquals( 'John', $data['explorer']['first_name'] );
+        $this->assertEquals( 'Doe', $data['explorer']['last_name'] );
+        $this->assertEquals( 'none', $data['explorer']['first_aid_level'] );
+        $this->assertCount( 1, $data['signups'] );
+        $this->assertEquals( 'silver', $data['signups'][0]['dofe_level'] );
+    }
 }

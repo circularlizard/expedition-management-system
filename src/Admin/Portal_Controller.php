@@ -73,6 +73,13 @@ class Portal_Controller {
 					'last_name'  => $explorer['last_name'] ?? '',
 					'patrol'     => $explorer['patrol'] ?? '',
 				);
+			} elseif ( ! empty( $scout_ids ) ) {
+				$profiles[] = array(
+					'scout_id'   => (int) $scout_ids[0],
+					'first_name' => get_user_meta( $user->ID, 'first_name', true ) ?: $user->first_name,
+					'last_name'  => get_user_meta( $user->ID, 'last_name', true ) ?: $user->last_name,
+					'patrol'     => get_user_meta( $user->ID, 'ems_unit', true ) ?: '',
+				);
 			}
 		}
 
@@ -104,6 +111,11 @@ class Portal_Controller {
 			$explorer = $this->explorer_repo->find_by_scout_id( $scout_id );
 			if ( $explorer && (int) $explorer['wp_user_id'] === $user_id ) {
 				$authorized = true;
+			} else {
+				$member_scout_ids = get_user_meta( $user_id, 'ems_scout_ids', true ) ?: array();
+				if ( in_array( $scout_id, array_map( 'intval', $member_scout_ids ), true ) ) {
+					$authorized = true;
+				}
 			}
 		}
 
@@ -121,18 +133,61 @@ class Portal_Controller {
 			);
 		}
 
-		$explorer = $this->explorer_repo->find_by_scout_id( $scout_id );
-		if ( ! $explorer ) {
-			return new \WP_REST_Response(
-				array(
-					'code'    => 'not_found',
-					'message' => 'Explorer record not found.',
-				),
-				404
-			);
-		}
-
 		global $wpdb;
+
+		$explorer   = $this->explorer_repo->find_by_scout_id( $scout_id );
+		$first_name = '';
+		$last_name  = '';
+		if ( $explorer ) {
+			$first_name      = $explorer['first_name'] ?? '';
+			$last_name       = $explorer['last_name'] ?? '';
+			$first_aid_level = $explorer['first_aid_level'] ?? 'none';
+		} else {
+			if ( $access_type === 'parent' ) {
+				$children = get_user_meta( $user_id, 'ems_children', true ) ?: array();
+				foreach ( $children as $child ) {
+					if ( (int) ( $child['scout_id'] ?? 0 ) === $scout_id ) {
+						$first_name = $child['first_name'] ?? '';
+						$last_name  = $child['last_name'] ?? '';
+						break;
+					}
+				}
+			} elseif ( $access_type === 'member' ) {
+				$first_name = get_user_meta( $user_id, 'first_name', true );
+				$last_name  = get_user_meta( $user_id, 'last_name', true );
+			}
+
+			if ( empty( $first_name ) && empty( $last_name ) ) {
+				$signup_name = $wpdb->get_row(
+					$wpdb->prepare(
+						"SELECT explorer_first_name, explorer_last_name FROM {$wpdb->prefix}ems_participant_signups WHERE scout_id = %d ORDER BY id DESC LIMIT 1",
+						$scout_id
+					),
+					ARRAY_A
+				);
+				if ( ! $signup_name ) {
+					$signup_name = $wpdb->get_row(
+						$wpdb->prepare(
+							"SELECT explorer_first_name, explorer_last_name FROM {$wpdb->prefix}ems_expedition_signups WHERE scout_id = %d ORDER BY id DESC LIMIT 1",
+							$scout_id
+						),
+						ARRAY_A
+					);
+				}
+				if ( $signup_name ) {
+					$first_name = $signup_name['explorer_first_name'];
+					$last_name  = $signup_name['explorer_last_name'];
+				}
+			}
+
+			$fa_status = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT first_aid_status FROM {$wpdb->prefix}ems_expedition_signups WHERE scout_id = %d ORDER BY id DESC LIMIT 1",
+					$scout_id
+				)
+			);
+			$first_aid_level = $fa_status ?: 'none';
+		}
 
 		$all_courses = $this->tutor_client->get_all_courses() ?: array();
 		$course_map  = array();
@@ -335,7 +390,12 @@ class Portal_Controller {
 		// Training checklist details
 		$required_courses    = array_unique( array_map( 'intval', $required_courses ) );
 		$training_checklist  = array();
-		$explorer_wp_user_id = $explorer['wp_user_id'] ? (int) $explorer['wp_user_id'] : null;
+		$explorer_wp_user_id = null;
+		if ( $explorer && ! empty( $explorer['wp_user_id'] ) ) {
+			$explorer_wp_user_id = (int) $explorer['wp_user_id'];
+		} elseif ( $access_type === 'member' ) {
+			$explorer_wp_user_id = $user_id;
+		}
 
 		$matrix = array();
 		if ( $explorer_wp_user_id && ! empty( $required_courses ) ) {
@@ -367,9 +427,9 @@ class Portal_Controller {
 			array(
 				'explorer'           => array(
 					'scout_id'                 => $scout_id,
-					'first_name'               => $explorer['first_name'] ?? '',
-					'last_name'                => $explorer['last_name'] ?? '',
-					'first_aid_level'          => $explorer['first_aid_level'] ?? 'none',
+					'first_name'               => $first_name,
+					'last_name'                => $last_name,
+					'first_aid_level'          => $first_aid_level,
 					'additional_support_needs' => $latest_support_needs,
 				),
 				'signups'            => $signups,
