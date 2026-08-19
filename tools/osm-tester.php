@@ -6,9 +6,21 @@
  */
 
 // Boot WordPress
-$wp_load_path = dirname( __DIR__ ) . '/wordpress/wp-load.php';
-if ( ! file_exists( $wp_load_path ) ) {
-	die( 'Error: WordPress wp-load.php not found at ' . esc_html( $wp_load_path ) );
+$paths = array(
+	dirname( __DIR__ ) . '/wp-load.php',            // Inside Docker container context
+	dirname( __DIR__ ) . '/wordpress/wp-load.php',  // Host context
+);
+
+$wp_load_path = '';
+foreach ( $paths as $path ) {
+	if ( file_exists( $path ) ) {
+		$wp_load_path = $path;
+		break;
+	}
+}
+
+if ( ! $wp_load_path ) {
+	die( 'Error: WordPress wp-load.php not found in standard paths: ' . htmlspecialchars( implode( ', ', $paths ) ) );
 }
 require_once $wp_load_path;
 
