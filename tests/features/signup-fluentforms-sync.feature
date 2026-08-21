@@ -8,14 +8,14 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
     Given a parent user is logged in with child mappings for Scout ID 30001 named "Mary Smith" in section 99001
     And ESU patrol mapping exists for section 99001 named "Kelso" (short code "BO-Kelso") with unit ID 10
     When the signup form is rendered
-    Then the dropdown choices for "signup_child" should include "Mary Smith" with value "30001|Mary|Smith"
+    Then the dropdown choices for "signup_child" should include "Mary Smith" with value "30001"
     And the default/pre-populated unit selection should be "BO-Kelso" (resolved from child section ID)
 
   Scenario: Dynamic pre-population of self-signup choices for explorer/network member
     Given an explorer or network user is logged in with Scout ID 30001 named "Tom Strachan" in section 99001
     And ESU patrol mapping exists for section 99001 named "Kelso" (short code "BO-Kelso") with unit ID 10
     When the signup form is rendered
-    Then the dropdown choices for "signup_child" should include "Tom Strachan" with value "30001|Tom|Strachan"
+    Then the dropdown choices for "signup_child" should include "Tom Strachan" with value "30001"
     And the default/pre-populated unit selection should be "BO-Kelso" (resolved from own section ID)
 
   Scenario: Explorer submits valid self-signup form
@@ -23,7 +23,7 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
     And ESU patrol mapping exists with short code "BO-Kelso" and unit ID 10
     And form field mappings exist for form ID 4
     When a form submission is inserted for form ID 4 with values:
-      | signup_child              | 30001|Tom|Strachan                                 |
+      | signup_child              | 30001                                                |
       | signup_unit               | BO-Kelso                                             |
       | signup_level              | Bronze                                               |
       | input_radio               | first-response                                       |
@@ -47,7 +47,7 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
     And ESU patrol mapping exists with short code "BO-Kelso" and unit ID 10
     And form field mappings exist for form ID 4
     When a form submission is inserted for form ID 4 with values:
-      | signup_child              | 30001|Mary|Smith                                  |
+      | signup_child              | 30001                                                |
       | signup_unit               | BO-Kelso                                             |
       | signup_level              | Bronze                                               |
       | input_radio               | first-response                                       |
@@ -73,8 +73,24 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
   Scenario: Prevent parent from submitting a child they do not own
     Given a parent user is logged in with child mappings for Scout ID 30001
     And form field mappings exist for form ID 4
-    When the form submits option value "99999|John|Doe" (unlinked to parent)
+    When the form submits option value "99999" (unlinked to parent)
     Then the submission should fail validation with an ownership error
+
+  Scenario: Guest submits valid signup form
+    Given a guest user (logged out)
+    And form field mappings exist for form ID 4
+    When a form submission is inserted for form ID 4 with values:
+      | signup_child              |                                                      |
+      | signup_child_name         | {"first_name": "James", "last_name": "Guest"}        |
+      | signup_unit               | BO-Kelso                                             |
+      | signup_level              | Bronze                                               |
+      | exped_type                | Hillwalking                                          |
+    Then a signup record should be created in the database with:
+      | scout_id                  | 0                                                    |
+      | parent_user_id            | 0                                                    |
+      | explorer_first_name       | James                                                |
+      | explorer_last_name        | Guest                                                |
+      | dofe_level                | bronze                                               |
 
   Scenario: Stripe payment success updates signup record to paid
     Given a signup record exists in the database for submission entry ID 1234

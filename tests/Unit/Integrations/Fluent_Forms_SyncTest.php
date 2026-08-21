@@ -40,6 +40,15 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             if ( $key === 'ems_fluent_expedition_form_id' ) return 7;
             return $default ?? [];
         } );
+
+        $this->wpdb->rows["SELECT first_name, last_name FROM wp_ems_osm_explorers WHERE scout_id = 30001"] = [
+            'first_name' => 'Mary',
+            'last_name'  => 'Smith',
+        ];
+        $this->wpdb->rows["SELECT first_name, last_name FROM wp_ems_osm_explorers WHERE scout_id = 30002"] = [
+            'first_name' => 'Jane',
+            'last_name'  => 'Doe',
+        ];
     }
 
     public function test_init_hooks_adds_filters_and_actions(): void {
@@ -81,7 +90,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $options = $result['settings']['advanced_options'];
         $this->assertCount( 1, $options );
         $this->assertEquals( 'Mary Smith', $options[0]['label'] );
-        $this->assertEquals( '30001|Mary|Smith', $options[0]['value'] );
+        $this->assertEquals( '30001', $options[0]['value'] );
     }
 
     public function test_handle_submission_creates_participant_signup_record(): void {
@@ -98,7 +107,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
         $sync->handle_submission( 999, [
-            'signup_child'          => '30001|Mary|Smith',
+            'signup_child'          => '30001',
             'signup_level'          => 'Bronze',
             'signup_dob'            => '2010-05-15',
             'signup_dofe_registered'=> 'n',
@@ -121,7 +130,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
         $sync->handle_submission( 999, [
-            'signup_child' => '30001|Mary|Smith',
+            'signup_child' => '30001',
             'signup_level' => 'Silver',
             'exped_type'   => 'Hillwalking',
             'input_radio'  => 'first-response',
@@ -158,7 +167,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
         $sync->handle_submission( 999, [
-            'signup_child' => '30001|Mary|Smith',
+            'signup_child' => '30001',
             'signup_level' => 'Silver',
             'exped_type'   => 'Hillwalking',
             'exped-silver-practice-dates' => [ 'P-SILVER-1' ],
@@ -202,7 +211,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $options = $result['settings']['advanced_options'];
         $this->assertCount( 1, $options );
         $this->assertEquals( 'Tom Strachan', $options[0]['label'] );
-        $this->assertEquals( '30001|Tom|Strachan', $options[0]['value'] );
+        $this->assertEquals( '30001', $options[0]['value'] );
     }
 
     public function test_validate_submission_allows_self_scout_id_for_member_access(): void {
@@ -219,12 +228,12 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
 
-        $_POST['signup_child'] = '30001|Tom|Strachan';
+        $_POST['signup_child'] = '30001';
         $errors = $sync->validate_submission( [], (object) [ 'id' => 6 ] );
         $this->assertEmpty( $errors );
 
         // Should fail for unowned ID
-        $_POST['signup_child'] = '99999|John|Doe';
+        $_POST['signup_child'] = '99999';
         $errors = $sync->validate_submission( [], (object) [ 'id' => 6 ] );
         $this->assertNotEmpty( $errors );
 
@@ -253,6 +262,6 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $options = $result['settings']['advanced_options'];
         $this->assertCount( 1, $options );
         $this->assertEquals( 'Jane Doe', $options[0]['label'] );
-        $this->assertEquals( '30002|Jane|Doe', $options[0]['value'] );
+        $this->assertEquals( '30002', $options[0]['value'] );
     }
 }

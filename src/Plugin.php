@@ -22,6 +22,7 @@ class Plugin {
 		$this->init_hooks();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );
 		add_shortcode( 'ems-portal', array( $this, 'render_portal_shortcode' ) );
+		add_shortcode( 'ems_signup_banner', array( $this, 'render_signup_banner_shortcode' ) );
 	}
 
 	private function init_hooks(): void {
@@ -694,6 +695,56 @@ class Plugin {
 		);
 
 		return '<div id="ems-portal-root"></div>';
+	}
+
+	public function render_signup_banner_shortcode( $atts ): string {
+		$atts = shortcode_atts(
+			array(
+				'form_id'     => '6',
+				'type'        => 'participant',
+				'scout_field' => 'signup_child',
+				'unit_field'  => 'signup_unit',
+			),
+			$atts,
+			'ems_signup_banner'
+		);
+
+		$form_id     = (int) $atts['form_id'];
+		$type        = sanitize_text_field( $atts['type'] );
+		$scout_field = sanitize_text_field( $atts['scout_field'] );
+		$unit_field  = sanitize_text_field( $atts['unit_field'] );
+
+		if ( in_array( $type, array( 'participant', 'expedition' ), true ) ) {
+			$existing_id       = (int) get_option( "ems_fluent_{$type}_form_id" );
+			$existing_mappings = get_option( "ems_{$type}_form_mappings", array() );
+			$new_mappings      = array_merge(
+				$existing_mappings,
+				array(
+					'scout_id_field'   => $scout_field,
+					'esu_patrol_field' => $unit_field,
+				)
+			);
+
+			if ( $existing_id !== $form_id ) {
+				update_option( "ems_fluent_{$type}_form_id", $form_id );
+			}
+			if ( $existing_mappings !== $new_mappings ) {
+				update_option( "ems_{$type}_form_mappings", $new_mappings );
+			}
+		}
+
+		if ( is_user_logged_in() ) {
+			return '';
+		}
+
+		$login_url = esc_url( wp_login_url( get_permalink() ) );
+		return '<div class="ems-login-banner ems-card ems-p-16 ems-flex-between ems-align-center">' .
+			'<div>' .
+			'<h4 class="ems-m-0">' . esc_html__( 'Speed up your DofE registration', 'ems-plugin' ) . '</h4>' .
+			'<p class="ems-meta-text ems-m-0 ems-small-text">' . esc_html__( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ) . '</p>' .
+			'</div>' .
+			'<a href="' . $login_url . '" class="button button-primary">' . esc_html__( 'Log in via OSM', 'ems-plugin' ) . '</a>' .
+			'</div>';
 	}
 }
 
