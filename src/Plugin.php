@@ -704,6 +704,8 @@ class Plugin {
 				'type'        => 'participant',
 				'scout_field' => 'signup_child',
 				'unit_field'  => 'signup_unit',
+				'headline'    => __( 'Speed up your DofE registration', 'ems-plugin' ),
+				'message'     => __( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ),
 			),
 			$atts,
 			'ems_signup_banner'
@@ -713,6 +715,8 @@ class Plugin {
 		$type        = sanitize_text_field( $atts['type'] );
 		$scout_field = sanitize_text_field( $atts['scout_field'] );
 		$unit_field  = sanitize_text_field( $atts['unit_field'] );
+		$headline    = sanitize_text_field( $atts['headline'] );
+		$message     = sanitize_text_field( $atts['message'] );
 		$first_name_field = 'signup_child_name';
 
 		if ( in_array( $type, array( 'participant', 'expedition' ), true ) ) {
@@ -741,14 +745,14 @@ class Plugin {
 			return '<style>.ff-el-group:has([name^="' . esc_attr( $first_name_field ) . '"]) { display: none !important; }</style>';
 		}
 
-		$style = '<style>.ff-el-group:has(select[name="' . esc_attr( $scout_field ) . '"]), .ff-el-group:has([name="' . esc_attr( $scout_field ) . '"]) { display: none !important; }</style>';
+		$style = '<style>.ff-el-group:has(select[name="' . esc_attr($scout_field) . '"]), .ff-el-group:has([name="' . esc_attr($scout_field) . '"]) { display: none !important; }</style>';
 		$login_url = esc_url( wp_login_url( get_permalink() ) );
 		$logo_url  = esc_url( site_url( '/wp-content/uploads/2026/02/osm-logo-wo.webp' ) );
 
 		return $style . '<div class="ems-login-banner ems-card ems-p-20 ems-mb-24" style="border: 2px solid #5c2d8b; background-color: #f7f3fc; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">' .
 			'<div class="ems-login-banner__text" style="flex: 1; min-width: 280px;">' .
-			'<h4 class="ems-m-0" style="margin: 0 0 6px 0; color: #411f62; font-size: 18px; font-weight: 700;">' . esc_html__( 'Speed up your DofE registration', 'ems-plugin' ) . '</h4>' .
-			'<p class="ems-meta-text ems-m-0 ems-small-text" style="margin: 0; color: #50575e; font-size: 14px; line-height: 1.4;">' . esc_html__( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ) . '</p>' .
+			'<h4 class="ems-m-0" style="margin: 0 0 6px 0; color: #411f62; font-size: 18px; font-weight: 700;">' . esc_html( $headline ) . '</h4>' .
+			'<p class="ems-meta-text ems-m-0 ems-small-text" style="margin: 0; color: #50575e; font-size: 14px; line-height: 1.4;">' . esc_html( $message ) . '</p>' .
 			'</div>' .
 			'<div class="oauth-login-button-container" style="flex-shrink: 0;">' .
 			'<a class="oauth-login-button oauth-login-button--osm" href="' . $login_url . '" style="background-color:#411f62;color:#fff;border:solid #5c2d8b;border-width:1px 1px calc(1px + 1px);border-radius:4px;padding:10px 15px;font-size:16px;display:inline-flex;align-items:center;text-decoration:none;gap:10px;">' .

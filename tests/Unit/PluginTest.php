@@ -12,6 +12,7 @@ class PluginTest extends EMSTestCase {
         $wpdb = (object) [ 'prefix' => 'wp_' ];
         Functions\stubs( [ 'add_shortcode' ] );
         Functions\when( 'esc_attr' )->alias( fn( $text ) => $text );
+        Functions\when( 'esc_html' )->alias( fn( $text ) => $text );
         Functions\when( 'esc_url' )->alias( fn( $text ) => $text );
         Functions\when( 'site_url' )->alias( fn( $path ) => 'http://site' . $path );
         Functions\when( 'shortcode_atts' )->alias( function( $pairs, $atts, $shortcode = '' ) {
@@ -90,5 +91,23 @@ class PluginTest extends EMSTestCase {
         $this->assertStringContainsString( 'oauth-login-button--osm', $output );
         $this->assertStringContainsString( 'osm-logo-wo.webp', $output );
         $this->assertStringContainsString( 'Login with OSM', $output );
+    }
+
+    public function test_render_signup_banner_shortcode_custom_text(): void {
+        Functions\when( 'get_option' )->alias( fn( $key, $default = null ) => $default );
+        Functions\when( 'update_option' )->justReturn( true );
+        Functions\when( 'wp_enqueue_style' )->justReturn( true );
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
+        Functions\when( 'wp_login_url' )->justReturn( 'http://login' );
+        Functions\when( 'get_permalink' )->justReturn( 'http://current' );
+
+        $plugin = new Plugin();
+        $output = $plugin->render_signup_banner_shortcode([
+            'headline' => 'Custom Headline Text',
+            'message'  => 'Custom Message Text Goes Here',
+        ]);
+
+        $this->assertStringContainsString( 'Custom Headline Text', $output );
+        $this->assertStringContainsString( 'Custom Message Text Goes Here', $output );
     }
 }
