@@ -21,7 +21,6 @@ class OIDC_Login_Handler {
 		add_action( 'oauth.login_user_logged_in', array( $this, 'handle_osm_login' ), 10, 2 );
 		add_action( 'oauth.login_user_created', array( $this, 'handle_user_created' ), 10, 2 );
 		add_filter( 'http_response', array( $this, 'capture_token_from_response' ), 10, 3 );
-		add_action( 'wp_logout', array( $this, 'cleanup_session_transient' ) );
 	}
 
 	/**
@@ -100,7 +99,6 @@ class OIDC_Login_Handler {
 				$children = $this->parser->parse_children( $payload );
 				if ( ! empty( $children ) ) {
 					update_user_meta( $user->ID, 'ems_children', $children );
-					$this->enrich_children( $children, $payload, $user->ID, $access_type );
 				}
 			}
 			// Access token intentionally NOT stored — ADR 009.
@@ -163,144 +161,4 @@ class OIDC_Login_Handler {
 		$this->explorer_repo->link_wp_user_by_email( $user->user_email, $user->ID );
 	}
 
-	/**
-	 * Fetch children's sensitive details (emails & DOB) and save them to a secure session transient.
-	 */
-	private function enrich_children( array $children, array $payload, int $user_id, string $access_type = '' ): void {
-		error_log( '[EMS Debug] Starting enrich_children for user ID: ' . $user_id . '. Count: ' . count( $children ) );
-		$terms    = $this->parser->parse_terms( $payload );
-		$enriched = array();
-
-		global $wpdb;
-		$active_sections = array();
-		if ( ! empty( $wpdb ) ) {
-			$sections = $wpdb->get_col( "SELECT DISTINCT section_id FROM {$wpdb->prefix}ems_units WHERE active = 1" );
-			$units    = $wpdb->get_col( "SELECT DISTINCT unit_id FROM {$wpdb->prefix}ems_units WHERE active = 1 AND unit_id IS NOT NULL" );
-			$active_sections = array_merge( $sections ?: array(), $units ?: array() );
-		}
-		$active_sections = array_map( 'intval', $active_sections ?: array() );
-
-		foreach ( $children as $child ) {
-			$scout_id     = (int) $child['scout_id'];
-			$email        = '';
-			$parent_email = '';
-			$dob          = '';
-
-			if ( $access_type !== 'leader' ) {
-				// Non-leaders (e.g. parents) cannot call OSM child contact/member APIs.
-				// Retrieve child details from local database instead.
-				if ( $this->explorer_repo !== null ) {
-					$db_explorer = $this->explorer_repo->find_by_scout_id( $scout_id );
-					if ( ! empty( $db_explorer ) ) {
-						$email        = $db_explorer['email'] ?? '';
-						$parent_email = $db_explorer['parent_email'] ?? '';
-					}
-				}
-			} else {
-				// Filter sections to only active/managed sections in the units table
-				$section_ids = (array) ( $child['section_ids'] ?? array() );
-				if ( ! empty( $active_sections ) ) {
-					$section_ids = array_values( array_intersect( $section_ids, $active_sections ) );
-				}
-
-				error_log( '[EMS Debug] Processing child: ' . $scout_id . ' (Section count: ' . count( $section_ids ) . ')' );
-
-				foreach ( $section_ids as $section_id ) {
-					$term    = $this->parser->find_current_term( $terms, (int) $section_id );
-					$term_id = $term ? (int) $term['term_id'] : 0;
-
-					// Fetch email via get_member_detail
-					if ( empty( $email ) ) {
-						try {
-							$detail    = $this->api_client->get_member_detail( (int) $section_id, $scout_id, $term_id );
-							$log_guard = (int) get_option( 'ems_debug_log_guard', 0 );
-							if ( $log_guard ) {
-								$safe_detail = $detail;
-								if ( isset( $safe_detail['email'] ) ) { $safe_detail['email'] = '[REDACTED]'; }
-								if ( isset( $safe_detail['parent_email'] ) ) { $safe_detail['parent_email'] = '[REDACTED]'; }
-								error_log( '[EMS Debug] Raw email payload from get_member_detail: ' . print_r( $safe_detail, true ) );
-							} else {
-								error_log( '[EMS Debug] Raw email payload from get_member_detail: ' . print_r( $detail, true ) );
-							}
-							$email        = $detail['email'] ?? '';
-							$parent_email = $detail['parent_email'] ?? '';
-							if ( $log_guard ) {
-								error_log( '[EMS Debug] get_member_detail successful for ' . $scout_id . '. Email: [REDACTED], Parent Email: [REDACTED]' );
-							} else {
-								error_log( '[EMS Debug] get_member_detail successful for ' . $scout_id . '. Email: ' . $email . ', Parent Email: ' . $parent_email );
-							}
-						} catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception | \EMS\Integrations\Exceptions\Rate_Limit_Exception $e ) {
-							error_log( '[EMS] Critical API error fetching email: ' . $e->getMessage() . '. Aborting child metadata enrichment.' );
-							break 2;
-						} catch ( \Exception $e ) {
-							error_log( '[EMS] Failed to fetch email for scout ' . $scout_id . ': ' . $e->getMessage() );
-						}
-					}
-
-					// Fetch DOB via get_individual
-					if ( empty( $dob ) ) {
-						try {
-							$contact   = $this->api_client->get_individual( (int) $section_id, $scout_id, $term_id );
-							$log_guard = (int) get_option( 'ems_debug_log_guard', 0 );
-							if ( $log_guard ) {
-								$safe_contact = $contact;
-								if ( isset( $safe_contact['dob'] ) ) { $safe_contact['dob'] = '[REDACTED]'; }
-								if ( isset( $safe_contact['birthdate'] ) ) { $safe_contact['birthdate'] = '[REDACTED]'; }
-								error_log( '[EMS Debug] Raw contact payload from get_individual: ' . print_r( $safe_contact, true ) );
-							} else {
-								error_log( '[EMS Debug] Raw contact payload from get_individual: ' . print_r( $contact, true ) );
-							}
-							$dob = $contact['dob'] ?? '';
-							if ( $log_guard ) {
-								error_log( '[EMS Debug] get_individual successful for ' . $scout_id . '. DOB: [REDACTED]' );
-							} else {
-								error_log( '[EMS Debug] get_individual successful for ' . $scout_id . '. DOB: ' . $dob );
-							}
-						} catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception | \EMS\Integrations\Exceptions\Rate_Limit_Exception $e ) {
-							error_log( '[EMS] Critical API error fetching DOB: ' . $e->getMessage() . '. Aborting child metadata enrichment.' );
-							break 2;
-						} catch ( \Exception $e ) {
-							error_log( '[EMS] Failed to fetch DOB for scout ' . $scout_id . ': ' . $e->getMessage() );
-						}
-					}
-
-					// Break early if both email and DOB have been successfully populated
-					if ( ! empty( $email ) && ! empty( $dob ) ) {
-						break;
-					}
-				}
-			}
-
-			// Always take the first non-empty email between column 12 and 14
-			$explorer_email = ! empty( $email ) ? $email : $parent_email;
-
-			$enriched[] = array(
-				'scout_id' => $scout_id,
-				'email'    => $explorer_email,
-				'dob'      => $dob,
-			);
-		}
-
-		// Encrypt and store in the session transient
-		$json_payload = json_encode( $enriched );
-		error_log( '[EMS Debug] Storing enriched data in transient for user ' . $user_id . ': ' . $json_payload );
-		$encrypted = \EMS\Core\Encryption::encrypt( $json_payload );
-		if ( $encrypted !== false ) {
-			$expiration = 2 * DAY_IN_SECONDS;
-			$success    = set_transient( 'ems_sess_children_' . $user_id, $encrypted, $expiration );
-			error_log( '[EMS Debug] set_transient result: ' . ( $success ? 'success' : 'failed' ) );
-		} else {
-			error_log( '[EMS Debug] Failed to encrypt transient payload!' );
-		}
-	}
-
-	/**
-	 * Deletes the session-linked transient on user logout.
-	 */
-	public function cleanup_session_transient( int $user_id = 0 ): void {
-		$uid = $user_id ?: get_current_user_id();
-		if ( $uid ) {
-			delete_transient( 'ems_sess_children_' . $uid );
-		}
-	}
 }
