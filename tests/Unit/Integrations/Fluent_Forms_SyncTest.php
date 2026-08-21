@@ -264,4 +264,57 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->assertEquals( 'Jane Doe', $options[0]['label'] );
         $this->assertEquals( '30002', $options[0]['value'] );
     }
+
+    public function test_populate_parent_email_prepopulates_and_sets_readonly_when_logged_in(): void {
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_participant_form_mappings' ) return [ 'parent_email_field' => 'custom_parent_email' ];
+            return $default;
+        } );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 42 );
+
+        $mock_user = (object) [ 'user_email' => 'parent@example.com' ];
+        Functions\when( 'get_userdata' )->justReturn( $mock_user );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+
+        $field_data = [
+            'attributes' => [ 'name' => 'custom_parent_email', 'class' => 'existing-class' ],
+            'settings' => [ 'value' => '' ],
+        ];
+        $form = (object) [ 'id' => 6 ];
+
+        $result = $sync->populate_parent_email( $field_data, $form );
+
+        $this->assertSame( 'parent@example.com', $result['attributes']['value'] );
+        $this->assertSame( 'parent@example.com', $result['settings']['value'] );
+        $this->assertSame( 'readonly', $result['attributes']['readonly'] );
+        $this->assertSame( 'existing-class ff-read-only', $result['attributes']['class'] );
+    }
+
+    public function test_populate_parent_email_does_not_set_readonly_when_logged_out(): void {
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_participant_form_mappings' ) return [ 'parent_email_field' => 'custom_parent_email' ];
+            return $default;
+        } );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'get_userdata' )->justReturn( null );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+
+        $field_data = [
+            'attributes' => [ 'name' => 'custom_parent_email', 'class' => 'existing-class' ],
+            'settings' => [ 'value' => '' ],
+        ];
+        $form = (object) [ 'id' => 6 ];
+
+        $result = $sync->populate_parent_email( $field_data, $form );
+
+        $this->assertArrayNotHasKey( 'value', $result['attributes'] );
+        $this->assertArrayNotHasKey( 'readonly', $result['attributes'] );
+        $this->assertSame( 'existing-class', $result['attributes']['class'] );
+    }
 }

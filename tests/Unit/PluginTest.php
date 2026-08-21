@@ -36,15 +36,17 @@ class PluginTest extends EMSTestCase {
 
         $plugin = new Plugin();
         $output = $plugin->render_signup_banner_shortcode([
-            'form_id'     => '10',
-            'type'        => 'participant',
-            'scout_field' => 'custom_child',
-            'unit_field'  => 'custom_unit',
+            'form_id'            => '10',
+            'type'               => 'participant',
+            'scout_field'        => 'custom_child',
+            'unit_field'         => 'custom_unit',
+            'parent_email_field' => 'custom_parent_email',
         ]);
 
         $this->assertSame( 10, $options['ems_fluent_participant_form_id'] );
         $this->assertSame( 'custom_child', $options['ems_participant_form_mappings']['scout_id_field'] );
         $this->assertSame( 'custom_unit', $options['ems_participant_form_mappings']['esu_patrol_field'] );
+        $this->assertSame( 'custom_parent_email', $options['ems_participant_form_mappings']['parent_email_field'] );
     }
 
     public function test_render_signup_banner_shortcode_logged_in(): void {
