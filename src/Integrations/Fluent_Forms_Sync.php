@@ -78,7 +78,7 @@ class Fluent_Forms_Sync {
 			$first_name = $explorer['first_name'] ?? $child['first_name'] ?? '';
 			$last_name  = $explorer['last_name'] ?? $child['last_name'] ?? '';
 			$label      = trim( "{$first_name} {$last_name}" ) ?: "Explorer #{$scout_id}";
-			$value      = "{$scout_id}|{$first_name}|{$last_name}";
+			$value      = (string) $scout_id;
 
 			$options[] = array(
 				'label'      => $label,
@@ -180,15 +180,16 @@ class Fluent_Forms_Sync {
 		$submitted_level = strtolower( sanitize_text_field( $_POST[ $level_field ] ?? '' ) );
 
 		if ( ! empty( $submitted_child ) ) {
-			$parts    = explode( '|', $submitted_child );
-			$scout_id = (int) $parts[0];
+			$scout_id = (int) $submitted_child;
 
-			$user_id       = get_current_user_id();
-			$children_meta = $this->get_allowed_children_for_user( $user_id );
-			$allowed_ids   = array_map( 'intval', array_column( $children_meta, 'scout_id' ) );
+			$user_id = get_current_user_id();
+			if ( $user_id !== 0 ) {
+				$children_meta = $this->get_allowed_children_for_user( $user_id );
+				$allowed_ids   = array_map( 'intval', array_column( $children_meta, 'scout_id' ) );
 
-			if ( ! in_array( $scout_id, $allowed_ids, true ) ) {
-				$errors[ $scout_field ] = array( __( 'You do not have permission to register this child.', 'ems-plugin' ) );
+				if ( ! in_array( $scout_id, $allowed_ids, true ) ) {
+					$errors[ $scout_field ] = array( __( 'You do not have permission to register this child.', 'ems-plugin' ) );
+				}
 			}
 		}
 
@@ -269,10 +270,20 @@ class Fluent_Forms_Sync {
 		$last_name       = '';
 
 		if ( ! empty( $submitted_child ) ) {
-			$parts      = explode( '|', $submitted_child );
-			$scout_id   = (int) $parts[0];
-			$first_name = $parts[1] ?? '';
-			$last_name  = $parts[2] ?? '';
+			$scout_id = (int) $submitted_child;
+			if ( $scout_id > 0 ) {
+				$explorer = $this->wpdb->get_row(
+					$this->wpdb->prepare(
+						"SELECT first_name, last_name FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
+						$scout_id
+					),
+					ARRAY_A
+				);
+				if ( $explorer ) {
+					$first_name = $explorer['first_name'] ?? '';
+					$last_name  = $explorer['last_name'] ?? '';
+				}
+			}
 		}
 
 		if ( ! empty( $formData['signup_scoutid'] ) ) {
@@ -315,7 +326,7 @@ class Fluent_Forms_Sync {
 
 		$insert_data = array(
 			'scout_id'            => $scout_id,
-			'parent_user_id'      => get_current_user_id() ?: 1,
+			'parent_user_id'      => get_current_user_id(),
 			'unit_name'           => sanitize_text_field( $formData[ $config['esu_patrol_field'] ] ?? '' ),
 			'explorer_first_name' => sanitize_text_field( $first_name ),
 			'explorer_last_name'  => sanitize_text_field( $last_name ),
@@ -408,7 +419,7 @@ class Fluent_Forms_Sync {
 
 		$insert_data = array(
 			'scout_id'                 => $scout_id,
-			'parent_user_id'           => get_current_user_id() ?: 1,
+			'parent_user_id'           => get_current_user_id(),
 			'unit_name'                => sanitize_text_field( $formData[ $config['esu_patrol_field'] ] ?? '' ),
 			'explorer_first_name'      => sanitize_text_field( $first_name ),
 			'explorer_last_name'       => sanitize_text_field( $last_name ),
@@ -651,19 +662,6 @@ class Fluent_Forms_Sync {
 			'dobField'           => $config['dob_field'] ?? 'signup_dob',
 		);
 
-		$temp_children = array();
-		$encrypted     = get_transient( 'ems_sess_children_' . $user_id );
-		error_log( '[EMS Debug] Fluent_Forms_Sync fetching transient key ems_sess_children_' . $user_id . '. Exists: ' . ( $encrypted ? 'yes' : 'no' ) );
-		if ( $encrypted ) {
-			$decrypted = \EMS\Core\Encryption::decrypt( $encrypted );
-			error_log( '[EMS Debug] Transient decryption ' . ( $decrypted !== false ? 'successful' : 'failed' ) );
-			if ( $decrypted ) {
-				$temp_children = json_decode( $decrypted, true ) ?: array();
-				error_log( '[EMS Debug] Decrypted transient children: ' . print_r( $temp_children, true ) );
-			}
-		}
-		$temp_by_id = array_column( $temp_children, null, 'scout_id' );
-
 		$js_mappings = array();
 		foreach ( $children_meta as $child ) {
 			$scout_id = (int) ( $child['scout_id'] ?? 0 );
@@ -673,17 +671,13 @@ class Fluent_Forms_Sync {
 
 			$res = $this->resolve_unit_for_child( $child );
 
-			$child_enrich   = $temp_by_id[ $scout_id ] ?? array();
-			$explorer_email = $child_enrich['email'] ?? '';
-			$dob            = $child_enrich['dob'] ?? '';
-
 			$js_mappings[ $scout_id ] = array(
 				'firstName'     => $child['first_name'] ?? '',
 				'lastName'      => $child['last_name'] ?? '',
 				'unitCode'      => $res['short_code'],
 				'unitId'        => $res['unit_id'],
-				'explorerEmail' => $explorer_email,
-				'dob'           => $dob,
+				'explorerEmail' => '',
+				'dob'           => '',
 				'leaderEmail'   => $res['leader_email'],
 			);
 		}
@@ -714,7 +708,7 @@ class Fluent_Forms_Sync {
 					function updateUnit() {
 						var val = childSelect.value;
 						if (!val) return;
-						var scoutId = val.split('|')[0];
+						var scoutId = val;
 						var mapping = window.emsFormMappings[scoutId];
 						if (!mapping) return;
 
@@ -832,7 +826,7 @@ class Fluent_Forms_Sync {
 					childSelect.addEventListener('change', updateUnit);
 
 					var nonPlaceholderOptions = Array.from(childSelect.options).filter(function(o) {
-						return o.value && o.value.includes('|');
+						return o.value && window.emsFormMappings[o.value];
 					});
 
 					if (nonPlaceholderOptions.length === 1) {
