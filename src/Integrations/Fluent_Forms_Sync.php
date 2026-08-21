@@ -510,8 +510,14 @@ class Fluent_Forms_Sync {
 
 		$user = get_userdata( get_current_user_id() );
 		if ( $user && ! empty( $user->user_email ) ) {
-			$data['attributes']['value'] = $user->user_email;
-			$data['settings']['value']   = $user->user_email;
+			$data['attributes']['value']    = $user->user_email;
+			$data['settings']['value']      = $user->user_email;
+			$data['attributes']['readonly'] = 'readonly';
+
+			$classes = $data['attributes']['class'] ?? '';
+			if ( strpos( $classes, 'ff-read-only' ) === false ) {
+				$data['attributes']['class'] = trim( $classes . ' ff-read-only' );
+			}
 		}
 		return $data;
 	}

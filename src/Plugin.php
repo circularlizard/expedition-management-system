@@ -700,24 +700,26 @@ class Plugin {
 	public function render_signup_banner_shortcode( $atts ): string {
 		$atts = shortcode_atts(
 			array(
-				'form_id'     => '6',
-				'type'        => 'participant',
-				'scout_field' => 'signup_child',
-				'unit_field'  => 'signup_unit',
-				'headline'    => __( 'Speed up your DofE registration', 'ems-plugin' ),
-				'message'     => __( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ),
+				'form_id'            => '6',
+				'type'               => 'participant',
+				'scout_field'        => 'signup_child',
+				'unit_field'         => 'signup_unit',
+				'parent_email_field' => 'signup_parent_email',
+				'headline'           => __( 'Speed up your DofE registration', 'ems-plugin' ),
+				'message'            => __( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ),
 			),
 			$atts,
 			'ems_signup_banner'
 		);
 
-		$form_id     = (int) $atts['form_id'];
-		$type        = sanitize_text_field( $atts['type'] );
-		$scout_field = sanitize_text_field( $atts['scout_field'] );
-		$unit_field  = sanitize_text_field( $atts['unit_field'] );
-		$headline    = sanitize_text_field( $atts['headline'] );
-		$message     = sanitize_text_field( $atts['message'] );
-		$first_name_field = 'signup_child_name';
+		$form_id            = (int) $atts['form_id'];
+		$type               = sanitize_text_field( $atts['type'] );
+		$scout_field        = sanitize_text_field( $atts['scout_field'] );
+		$unit_field         = sanitize_text_field( $atts['unit_field'] );
+		$parent_email_field = sanitize_text_field( $atts['parent_email_field'] );
+		$headline           = sanitize_text_field( $atts['headline'] );
+		$message            = sanitize_text_field( $atts['message'] );
+		$first_name_field   = 'signup_child_name';
 
 		if ( in_array( $type, array( 'participant', 'expedition' ), true ) ) {
 			$existing_id       = (int) get_option( "ems_fluent_{$type}_form_id" );
@@ -726,8 +728,9 @@ class Plugin {
 			$new_mappings      = array_merge(
 				$existing_mappings,
 				array(
-					'scout_id_field'   => $scout_field,
-					'esu_patrol_field' => $unit_field,
+					'scout_id_field'     => $scout_field,
+					'esu_patrol_field'   => $unit_field,
+					'parent_email_field' => $parent_email_field,
 				)
 			);
 
