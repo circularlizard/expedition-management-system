@@ -713,10 +713,12 @@ class Plugin {
 		$type        = sanitize_text_field( $atts['type'] );
 		$scout_field = sanitize_text_field( $atts['scout_field'] );
 		$unit_field  = sanitize_text_field( $atts['unit_field'] );
+		$first_name_field = 'signup_child_name';
 
 		if ( in_array( $type, array( 'participant', 'expedition' ), true ) ) {
 			$existing_id       = (int) get_option( "ems_fluent_{$type}_form_id" );
 			$existing_mappings = get_option( "ems_{$type}_form_mappings", array() );
+			$first_name_field  = $existing_mappings['first_name_field'] ?? 'signup_child_name';
 			$new_mappings      = array_merge(
 				$existing_mappings,
 				array(
@@ -733,12 +735,15 @@ class Plugin {
 			}
 		}
 
+		wp_enqueue_style( 'ems-admin' );
+
 		if ( is_user_logged_in() ) {
-			return '';
+			return '<style>.ff-el-group:has([name^="' . esc_attr( $first_name_field ) . '"]) { display: none !important; }</style>';
 		}
 
+		$style = '<style>.ff-el-group:has(select[name="' . esc_attr( $scout_field ) . '"]), .ff-el-group:has([name="' . esc_attr( $scout_field ) . '"]) { display: none !important; }</style>';
 		$login_url = esc_url( wp_login_url( get_permalink() ) );
-		return '<div class="ems-login-banner ems-card ems-p-16 ems-flex-between ems-align-center">' .
+		return $style . '<div class="ems-login-banner ems-card ems-p-16 ems-flex-between ems-align-center">' .
 			'<div>' .
 			'<h4 class="ems-m-0">' . esc_html__( 'Speed up your DofE registration', 'ems-plugin' ) . '</h4>' .
 			'<p class="ems-meta-text ems-m-0 ems-small-text">' . esc_html__( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ) . '</p>' .
