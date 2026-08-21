@@ -635,14 +635,23 @@ class Fluent_Forms_Sync {
 			return;
 		}
 
-		$user_id = get_current_user_id();
-		if ( ! $user_id ) {
-			return;
+		$user_id       = get_current_user_id();
+		$children_meta = $user_id ? $this->get_allowed_children_for_user( $user_id ) : array();
+		if ( ! is_array( $children_meta ) ) {
+			$children_meta = array();
 		}
 
-		$children_meta = $this->get_allowed_children_for_user( $user_id );
-		if ( empty( $children_meta ) || ! is_array( $children_meta ) ) {
-			return;
+		$units = $this->wpdb->get_results(
+			"SELECT short_code, leader_email FROM {$this->wpdb->prefix}ems_units WHERE active = 1",
+			ARRAY_A
+		);
+		$unit_mappings = array();
+		if ( is_array( $units ) ) {
+			foreach ( $units as $u ) {
+				if ( ! empty( $u['short_code'] ) ) {
+					$unit_mappings[ $u['short_code'] ] = $u['leader_email'] ?: '';
+				}
+			}
 		}
 
 		$config = array();
@@ -687,11 +696,15 @@ class Fluent_Forms_Sync {
 			if (typeof window.emsFormMappings === 'undefined') {
 				window.emsFormMappings = new Object();
 			}
+			if (typeof window.emsUnitMappings === 'undefined') {
+				window.emsUnitMappings = new Object();
+			}
 			if (typeof window.emsFields === 'undefined') {
 				window.emsFields = JSON.parse('<?php echo json_encode( $js_fields, JSON_FORCE_OBJECT ); ?>');
 			}
 			Object.assign(window.emsFormMappings, JSON.parse('<?php echo json_encode( $js_mappings, JSON_FORCE_OBJECT ); ?>'));
-			console.log('[EMS Sync] Loaded children mappings & fields:', window.emsFormMappings, window.emsFields);
+			Object.assign(window.emsUnitMappings, JSON.parse('<?php echo json_encode( $unit_mappings, JSON_FORCE_OBJECT ); ?>'));
+			console.log('[EMS Sync] Loaded children mappings, unit mappings & fields:', window.emsFormMappings, window.emsUnitMappings, window.emsFields);
 
 			function emsGetChoices(el) {
 				return (window.jQuery && window.jQuery(el).data('choicesjs')) || null;
@@ -703,9 +716,30 @@ class Fluent_Forms_Sync {
 					var unitSelect  = document.querySelector('select[name="' + window.emsFields.unitField + '"]');
 					var unitIdInput = document.querySelector('input[name="signup_unitid"]');
 
-					if (!childSelect) return;
+					function updateLeaderEmail() {
+						if (!unitSelect) return;
+						var unitVal = unitSelect.value;
+						if (!unitVal) return;
+						var leaderEmail = window.emsUnitMappings[unitVal] || '';
+
+						(function trySetLeader(deadline) {
+							var leaderEmailInput = document.querySelector('input[name="' + window.emsFields.leaderEmailField + '"]');
+							if (leaderEmailInput) {
+								leaderEmailInput.value = leaderEmail;
+								leaderEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
+							} else if (Date.now() < deadline) {
+								setTimeout(function() { trySetLeader(deadline); }, 100);
+							}
+						})(Date.now() + 3000);
+					}
+
+					if (unitSelect) {
+						unitSelect.addEventListener('change', updateLeaderEmail);
+						updateLeaderEmail();
+					}
 
 					function updateUnit() {
+						if (!childSelect) return;
 						var val = childSelect.value;
 						if (!val) return;
 						var scoutId = val;
@@ -756,7 +790,7 @@ class Fluent_Forms_Sync {
 							unitIdInput.dispatchEvent(new Event('change', { bubbles: true }));
 						}
 
-						// 4. Emails with retry loop to ensure they populate at the same time as unit does
+						// 4. Emails
 						(function trySetExplorerEmail(deadline) {
 							var explorerEmailInput = document.querySelector('input[name="' + window.emsFields.explorerEmailField + '"]');
 							if (explorerEmailInput) {
@@ -769,16 +803,6 @@ class Fluent_Forms_Sync {
 								}
 							} else if (Date.now() < deadline) {
 								setTimeout(function() { trySetExplorerEmail(deadline); }, 100);
-							}
-						})(Date.now() + 3000);
-
-						(function trySetLeaderEmail(deadline) {
-							var leaderEmailInput = document.querySelector('input[name="' + window.emsFields.leaderEmailField + '"]');
-							if (leaderEmailInput) {
-								leaderEmailInput.value = mapping.leaderEmail || '';
-								leaderEmailInput.dispatchEvent(new Event('change', { bubbles: true }));
-							} else if (Date.now() < deadline) {
-								setTimeout(function() { trySetLeaderEmail(deadline); }, 100);
 							}
 						})(Date.now() + 3000);
 
@@ -823,32 +847,34 @@ class Fluent_Forms_Sync {
 						})(Date.now() + 3000);
 					}
 
-					childSelect.addEventListener('change', updateUnit);
+					if (childSelect) {
+						childSelect.addEventListener('change', updateUnit);
 
-					var nonPlaceholderOptions = Array.from(childSelect.options).filter(function(o) {
-						return o.value && window.emsFormMappings[o.value];
-					});
+						var nonPlaceholderOptions = Array.from(childSelect.options).filter(function(o) {
+							return o.value && window.emsFormMappings[o.value];
+						});
 
-					if (nonPlaceholderOptions.length === 1) {
-						var targetVal = nonPlaceholderOptions[0].value;
-						(function trySetChild(deadline) {
-							var choices = emsGetChoices(childSelect);
-							if (choices) {
-								try {
-									choices.setChoiceByValue(targetVal);
+						if (nonPlaceholderOptions.length === 1) {
+							var targetVal = nonPlaceholderOptions[0].value;
+							(function trySetChild(deadline) {
+								var choices = emsGetChoices(childSelect);
+								if (choices) {
+									try {
+										choices.setChoiceByValue(targetVal);
+										childSelect.dispatchEvent(new Event('change', { bubbles: true }));
+									} catch (e) {
+										console.warn('[EMS Sync] Choices.js failed to set child choice:', targetVal, e);
+									}
+								} else if (Date.now() < deadline) {
+									setTimeout(function() { trySetChild(deadline); }, 100);
+								} else {
+									childSelect.value = targetVal;
 									childSelect.dispatchEvent(new Event('change', { bubbles: true }));
-								} catch (e) {
-									console.warn('[EMS Sync] Choices.js failed to set child choice:', targetVal, e);
 								}
-							} else if (Date.now() < deadline) {
-								setTimeout(function() { trySetChild(deadline); }, 100);
-							} else {
-								childSelect.value = targetVal;
-								childSelect.dispatchEvent(new Event('change', { bubbles: true }));
-							}
-						})(Date.now() + 3000);
-					} else {
-						updateUnit();
+							})(Date.now() + 3000);
+						} else {
+							updateUnit();
+						}
 					}
 				}
 				initEmsFormSync();
