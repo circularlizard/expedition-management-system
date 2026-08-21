@@ -13,6 +13,7 @@ class PluginTest extends EMSTestCase {
         Functions\stubs( [ 'add_shortcode' ] );
         Functions\when( 'esc_attr' )->alias( fn( $text ) => $text );
         Functions\when( 'esc_url' )->alias( fn( $text ) => $text );
+        Functions\when( 'site_url' )->alias( fn( $path ) => 'http://site' . $path );
         Functions\when( 'shortcode_atts' )->alias( function( $pairs, $atts, $shortcode = '' ) {
             return array_merge( $pairs, (array) $atts );
         } );
@@ -85,5 +86,9 @@ class PluginTest extends EMSTestCase {
         $this->assertStringContainsString( 'signup_child', $output );
         $this->assertStringContainsString( 'Speed up your DofE registration', $output );
         $this->assertStringContainsString( 'http://login?redirect=http%3A%2F%2Fcurrent', $output );
+        $this->assertStringContainsString( 'oauth-login-button-container', $output );
+        $this->assertStringContainsString( 'oauth-login-button--osm', $output );
+        $this->assertStringContainsString( 'osm-logo-wo.webp', $output );
+        $this->assertStringContainsString( 'Login with OSM', $output );
     }
 }
