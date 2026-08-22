@@ -1134,39 +1134,56 @@ class Fluent_Forms_Sync {
 						if (explorerEmail && explorerEmail === parentEmail) {
 							console.log('[EMS Sync] Duplicate email detected, bypassing explorer verification.');
 							if (explorerOtpInput) {
-								var otpGroup = explorerOtpInput.closest('.ff-el-group');
-								if (otpGroup) otpGroup.style.display = 'none';
+								var otpGroup = explorerOtpInput.closest('.ff-el-group') || explorerOtpInput.closest('.ff-el-form-element') || explorerOtpInput.parentElement;
+								if (otpGroup) {
+									otpGroup.style.setProperty('display', 'none', 'important');
+								}
 								setInputValue(explorerOtpInput, '000000');
 							}
 							var btnWrap  = document.querySelector('.ems-otp-wrap[data-target="' + window.emsFields.explorerEmailField + '"]');
-							if (btnWrap) btnWrap.style.display = 'none';
+							if (btnWrap) {
+								btnWrap.style.setProperty('display', 'none', 'important');
+							}
 
 							if (explorerEmailInput) {
 								var dupStatusEl = explorerEmailInput.parentNode.querySelector('.ems-dup-email-status');
 								if (!dupStatusEl) {
-									dupStatusEl = document.createElement('span');
+									dupStatusEl = document.createElement('div');
 									dupStatusEl.className = 'ems-dup-email-status';
-									dupStatusEl.style.marginLeft = '10px';
+									dupStatusEl.style.marginTop = '8px';
+									dupStatusEl.style.padding = '6px 12px';
+									dupStatusEl.style.backgroundColor = '#e6f4ea';
+									dupStatusEl.style.color = '#137333';
+									dupStatusEl.style.borderRadius = '4px';
+									dupStatusEl.style.border = '1px solid #ceead6';
 									dupStatusEl.style.fontSize = '0.9em';
-									dupStatusEl.style.color = '#28a745';
+									dupStatusEl.style.fontWeight = '500';
 									explorerEmailInput.parentNode.insertBefore(dupStatusEl, explorerEmailInput.nextSibling);
 								}
-								dupStatusEl.textContent = 'Email matches verified parent email (Verification bypassed).';
+								dupStatusEl.style.setProperty('display', 'block', 'important');
+								dupStatusEl.textContent = '✓ Email matches verified parent email (Verification bypassed).';
 							}
 						} else {
 							if (explorerOtpInput) {
-								var otpGroup = explorerOtpInput.closest('.ff-el-group');
-								if (otpGroup) otpGroup.style.display = '';
+								var otpGroup = explorerOtpInput.closest('.ff-el-group') || explorerOtpInput.closest('.ff-el-form-element') || explorerOtpInput.parentElement;
+								if (otpGroup) {
+									otpGroup.style.removeProperty('display');
+								}
 								if (explorerOtpInput.value === '000000') {
 									setInputValue(explorerOtpInput, '');
 								}
 							}
 							var btnWrap  = document.querySelector('.ems-otp-wrap[data-target="' + window.emsFields.explorerEmailField + '"]');
-							if (btnWrap) btnWrap.style.display = '';
+							if (btnWrap) {
+								btnWrap.style.removeProperty('display');
+							}
 
 							if (explorerEmailInput) {
 								var dupStatusEl = explorerEmailInput.parentNode.querySelector('.ems-dup-email-status');
-								if (dupStatusEl) dupStatusEl.textContent = '';
+								if (dupStatusEl) {
+									dupStatusEl.style.setProperty('display', 'none', 'important');
+									dupStatusEl.textContent = '';
+								}
 							}
 						}
 					}
