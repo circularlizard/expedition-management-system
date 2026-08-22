@@ -904,27 +904,46 @@ class Fluent_Forms_Sync {
 						var btn = e.target.closest('.ems-otp-wrap button');
 						if (!btn) return;
 						e.preventDefault();
+						console.log('[EMS Sync] OTP Send Code button clicked:', btn);
 
 						var container = btn.closest('.ems-otp-wrap');
-						if (!container) return;
+						if (!container) {
+							console.warn('[EMS Sync] OTP button wrapper not found for click.');
+							return;
+						}
 						var targetField = container.getAttribute('data-target');
-						if (!targetField) return;
+						if (!targetField) {
+							console.warn('[EMS Sync] data-target attribute missing on OTP wrapper.');
+							return;
+						}
+						console.log('[EMS Sync] Target email field name:', targetField);
 
 						var emailInput = document.querySelector('input[name="' + targetField + '"]');
 						var statusText = container.querySelector('.fluent-otp-status');
 
-						if (!emailInput || !statusText) return;
+						if (!emailInput) {
+							console.error('[EMS Sync] Email input element not found for name:', targetField);
+							return;
+						}
+						if (!statusText) {
+							console.error('[EMS Sync] Status text container (.fluent-otp-status) not found in button wrapper.');
+							return;
+						}
 
 						var email = emailInput.value.trim();
+						console.log('[EMS Sync] Retrieved email value:', email);
+
 						if (!email || !email.includes('@')) {
 							statusText.style.color = '#dc3545';
 							statusText.textContent = 'Please enter a valid email address first.';
+							console.warn('[EMS Sync] Invalid email format, blocking dispatch.');
 							return;
 						}
 
 						btn.disabled = true;
 						statusText.style.color = '#6c757d';
 						statusText.textContent = 'Sending code...';
+						console.log('[EMS Sync] Sending AJAX request to send_fluent_otp...');
 
 						var formData = new FormData();
 						formData.append('action', 'send_fluent_otp');
@@ -937,8 +956,12 @@ class Fluent_Forms_Sync {
 							body: formData,
 							credentials: 'same-origin'
 						})
-						.then(function(res) { return res.json(); })
+						.then(function(res) { 
+							console.log('[EMS Sync] Received response from send_fluent_otp server:', res);
+							return res.json(); 
+						})
 						.then(function(data) {
+							console.log('[EMS Sync] Decoded server response:', data);
 							if (data.success) {
 								statusText.style.color = '#28a745';
 								statusText.textContent = data.data.message || 'Code sent! Check your inbox.';
@@ -964,16 +987,21 @@ class Fluent_Forms_Sync {
 							btn.disabled = false;
 							statusText.style.color = '#dc3545';
 							statusText.textContent = 'Network error. Please try again.';
+							console.error('[EMS Sync] Fetch error in send_fluent_otp:', err);
 						});
 					});
 
 					// Real-time inline verification (Event Delegation)
 					function checkOtp(otpInput, emailFieldName) {
 						var emailInput = document.querySelector('input[name="' + emailFieldName + '"]');
-						if (!emailInput) return;
+						if (!emailInput) {
+							console.warn('[EMS Sync] Email input not found for inline verify name:', emailFieldName);
+							return;
+						}
 
 						var email = emailInput.value.trim();
 						var code = otpInput.value.trim();
+						console.log('[EMS Sync] Inline checkOtp triggered. Email:', email, 'Code:', code);
 
 						var container = otpInput.closest('.ff-el-group');
 						var statusEl = container ? container.querySelector('.ems-inline-otp-status') : null;
@@ -995,6 +1023,7 @@ class Fluent_Forms_Sync {
 							statusEl.style.color = '#6c757d';
 							statusEl.textContent = 'Verifying code...';
 						}
+						console.log('[EMS Sync] Sending AJAX request to verify_fluent_otp for code:', code);
 
 						var formData = new FormData();
 						formData.append('action', 'verify_fluent_otp');
@@ -1010,6 +1039,7 @@ class Fluent_Forms_Sync {
 						})
 						.then(function(res) { return res.json(); })
 						.then(function(data) {
+							console.log('[EMS Sync] verify_fluent_otp response:', data);
 							if (data.success) {
 								if (statusEl) {
 									statusEl.style.color = '#28a745';
@@ -1028,11 +1058,12 @@ class Fluent_Forms_Sync {
 								emailInput.classList.remove('ff-read-only');
 							}
 						})
-						.catch(function() {
+						.catch(function(err) {
 							if (statusEl) {
 								statusEl.style.color = '#dc3545';
 								statusEl.textContent = 'Verification error.';
 							}
+							console.error('[EMS Sync] verify_fluent_otp fetch error:', err);
 						});
 					}
 
