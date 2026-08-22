@@ -1,4 +1,4 @@
-# Privacy Policy - Expedition Management System (EMS)
+# Privacy Policy - South East Scotland Scouts
 
 **South East Scotland Scouts**
 
@@ -8,129 +8,158 @@
 
 ## Introduction
 
-South East Scotland Scouts collects and processes personal data in order to carry out its business. As a membership organisation we hold data on members and also staff and others, such as customers and donors. 
+South East Scotland Scouts collects and processes personal data in order to carry out its business. As a membership organisation we hold data on members and also staff and others, such as customers, volunteers, participants, and donors.
 
-We take the issue of privacy very seriously and are committed to protecting and respecting your privacy in compliance with data protection law. This includes when you use our online services and this privacy statement should also be read alongside our [website terms and conditions](https://sesscouts.org.uk/terms/).
-
-This specific Privacy Policy explains how we collect, store, use, and protect your personal information when you use the Expedition Management System (EMS) portal, submit signup forms, upload route cards/GPX files, or manage volunteer availability. 
+We take the issue of privacy very seriously and are committed to protecting and respecting your privacy in compliance with data protection law. This includes when you use our online services, portals, and systems. This privacy statement should also be read alongside our [website terms and conditions](https://sesscouts.org.uk/terms/).
 
 ---
 
-## 1. Who We Are
+## 1. The Information We Collect
 
-We are the South East Scotland Region of the Scout Association (known as **South East Scotland Scouts**), a registered Scottish charity (SC030556). 
+The only circumstances in which we will provide any of your personal data to a third party for non-commercial purposes are those contained in this Privacy Policy.
 
-If you want to contact us to raise any questions about this privacy statement, or any general matters relating to the EMS or our website, you can contact us using this email address: [communications@sesscouts.org.uk](mailto:communications@sesscouts.org.uk).
+### Membership & Administration Data
+We have security measures in place to protect our customer and member databases. Access to these databases is restricted internally. However, it remains each Member’s responsibility:
+* To keep their password secret.
+* To protect against unauthorised access to their personal details.
+* To log off from the www.sesscouts.org.uk service when not using it.
+* To ensure against use by anyone else of the www.sesscouts.org.uk service through the machine that Member uses while they are “logged on”.
+* To search and obtain only the data specifically required and allowed for relating to their role.
 
-* **Regional Address:** Communications Team, South East Scotland Scouts, 71 Bonaly Road, Edinburgh, EH13 0PB
-* **DofE/Expedition Team Contacts:** [expeditions@sesscouts.org.uk](mailto:expeditions@sesscouts.org.uk)
+Due to our safeguarding responsibilities, we are legally required to retain certain records relating to all our members indefinitely. We need to make members aware of this when they register with us, as should you request at a later stage that we remove all your data, we will not be able to comply with this request.
 
----
+### Expedition Management System (EMS) Data
+When registering or signing up for a Duke of Edinburgh’s Award (DofE) place or an expedition, we collect and process:
+* **Participant Details:** Full name, date of birth, email address, Scout ID, patrol, unit, and section.
+* **Parent/Carer Details:** Full name, email address, telephone number, and link to the participant's record.
+* **Award & Event Details:** DofE award level (Bronze, Silver, Gold), expedition preferences, first aid certifications, and payment status (deposit/fees).
+* **Expedition Safety & Route Planning:** Team assignments, route plans, GPX files, coordinates, and digital route cards uploaded by participants or leaders.
+* **Special Category (Sensitive) Data:** To ensure physical safety and welfare during expeditions, we collect medical conditions, allergies, regular medications, dietary requirements, and 24-hour emergency contacts.
 
-## 2. Information We Collect
-
-In addition to general membership information, the EMS collects and processes specific data necessary to plan, organize, and safely run expeditions and the Duke of Edinburgh’s Award program.
-
-### A. Participant / Explorer Registration & Signups
-When registering or signing up for a DofE place or expedition, we collect:
-* **Explorer/Participant Details:** Full name, date of birth, email address, Scout ID (identity anchor from Online Scout Manager), patrol, unit, and section.
-* **Parent/Carer Details:** Full name, email address, telephone number, and link to the explorer's record.
-* **Award Level:** DofE award level (Bronze, Silver, Gold).
-* **Expedition Preferences:** Options selected for specific training, practice, or qualifying expeditions.
-* **First Aid Status:** Detail of any first aid qualifications held by the explorer.
-* **Payment Status:** Record of paid deposits or event fees (payment processing details are handled securely by our payment gateway; we do not store credit or debit card numbers).
-
-### B. Special Category (Sensitive) Data
-To ensure the physical safety and welfare of explorers on expeditions, we collect and process:
-* **Medical Information:** Details of physical or mental health conditions, allergies, regular medications, or treatments.
-* **Dietary Requirements:** Special dietary needs for catering or group food planning.
-* **Emergency Contact Details:** Contact name, relationship, and 24-hour phone number for at least one parent/carer or guardian during the physical expedition.
-
-### C. Expedition Teams & Route Planning
-To facilitate team organization and navigation safety:
-* **Team Assignments:** Participant linkages to specific teams and event codes.
-* **Route Submissions:** GPX files, map coordinates, route plans, and digital route cards uploaded by teams or leaders.
-* **Assessor Feedback:** Reviews and approvals of team route submissions.
-
-### D. Volunteer & Leader Information
-To manage staff coverage and safeguarding requirements:
-* **Availability:** Dates, roles, and overnight availability submitted by volunteer leaders.
-* **Confirmation Status:** Internal approvals and verification of volunteer qualifications (e.g., permits, safeguarding checks, first aid).
-
-### E. Automated & Synced Data
-* **Online Scout Manager (OSM) Integration:** The system syncs with OSM to keep records up to date. We sync explorer names, parent contacts, section events, and event attendance using secure API calls. **OSM OAuth authentication tokens are processed in real-time and are never stored on our servers.**
-* **Technical Logs:** We capture IP addresses, login timestamps, and session identifiers to verify access control, prevent unauthorized entry, and secure data transmission.
+### Learning Management System (LMS) & Training Records
+For leaders, volunteers, and participants undertaking learning pathways:
+* **Training Participation:** Records of courses enrolled in, modules completed, training progress, assessment scores, and completion certificates.
+* **Evaluations & Feedback:** Quiz attempts, course submissions, and trainer/tutor feedback.
+* **Tutor Logs:** Interaction history with training tutors, progress milestones, and course completion status.
 
 ---
 
-## 3. Lawful Basis for Processing
+## 2. Registration of Information
 
-We process your data under the following lawful bases under UK GDPR and Data Protection legislation:
+South East Scotland Scouts will usually ask for your name, email address and postcode. Sometimes we might ask for your Scout membership number, Group and/or District location and your current appointment.
 
-1. **Performance of a Contract / Service:** To deliver the expedition training, assessment, and DofE award coordination that participants sign up to receive.
-2. **Legitimate Interests:** To run a safe, structured, and compliant Scouting program, coordinate regional volunteers, and optimize our website portal.
-3. **Vital Interests:** Processing medical information and emergency contacts to protect the life or physical safety of participants during wilderness expeditions.
-4. **Consent:** Where special category data (such as medical/dietary requirements) is voluntarily provided to us on signup forms for safety purposes.
+There are occasions when we ask for more details to meet the needs of a particular requirement, event, or course registration (including medical details and emergency contact details for physical expeditions, and training history for course candidates). We usually also capture your IP address at the time you register.
 
 ---
 
-## 4. How We Use Your Information
+## 3. Sharing of Data
 
-We use the information collected via the EMS to:
-* Verify user roles (e.g., ensuring only verified parents, carers, or network members can register candidates).
-* Organise participants into compliant expedition teams (4–7 members).
-* Map and assess navigation route submissions (GPX and route cards) for outdoor safety compliance.
-* Share dietary/medical summaries with event caterers and field leaders in charge of participant safety.
-* Sync records with Online Scout Manager to avoid duplicate admin entry.
-* Manage volunteer shifts, licensing, and supervisor credentials.
+We may share data supplied by you (or collected about you) with other parts of South East Scotland Scouts such as Districts, South East Scotland Scouts Activity Centres, or South East Scotland Scouts event and training organisers. For example:
+* **Expedition Leaders & Supervisors:** Designated field staff have access to participant medical details and emergency contact numbers during physical trips.
+* **Training Administrators & Tutors:** Regional tutors and trainers have access to candidate course progress, learning histories, and certification records to support training pathways.
+
+We do not store credit card details nor do we share your details with any third parties for commercial purposes. There may be circumstances when we need to share your details with Scouts Scotland Headquarters, Scout National Headquarters, or the Duke of Edinburgh’s Award (DofE) national organisation to record achievements and verify registrations.
 
 ---
 
-## 5. Sharing of Your Data
+## 4. Legal Jurisdiction
 
-We restrict access to personal data to those who specifically require it to run or oversee expeditions:
-* **Scout Leaders & Supervisors:** Field leaders in charge of your child's expedition team have access to medical forms and emergency contacts during the event.
-* **Assessors & Approvers:** Appointed DofE Assessors will review team names, participant lists, and route submissions.
-* **Scouts Scotland / The Scout Association:** We may share details when necessary for insurance, permit verification, or safeguarding requirements.
-* **The Duke of Edinburgh’s Award (DofE):** Participant info may be synchronized to register achievements or check licensing requirements.
-* **Legal Disclosures:** We will only share details with law enforcement or emergency medical services if legally required, or if a participant's vital safety is at risk.
-
-**We do not share your details with commercial third parties, nor do we store credit card details or sell your data for advertising purposes.**
+All personal information and details are held on and processed by computers situated in the United Kingdom.
 
 ---
 
-## 6. Data Security and Caching
+## 5. Disclosure of Data by Law or Order of a Court
 
-We take security seriously and utilize technical safeguards to prevent unauthorized access:
-* **Role Restricting:** Only users verified with the role of `ems_parent` or `ems_network_member` (alongside Site Administrators) can access signup forms. Custom role-guards actively intercept requests to block unauthorized access.
-* **Client-Side Cache Scope:** Form inputs, email verification tokens, and OTP checks are stored inside the browser's `sessionStorage` and scoped strictly by form ID to prevent cross-form leakage. 
-* **Auto-Clear Protocols:** Session storage caches are automatically wiped clean upon successful form submission or user logout.
-* **Encryption:** Sensitive configuration parameters, client secrets, and data transfers are protected with AES-256-CBC encryption and secure HTTPS protocols.
+We may be required to communicate the personal data we hold on a member or participant to a third party if required by law, e.g. regulation or statute or by order of a court.
 
 ---
 
-## 7. Data Retention
+## 6. Use of Cookies by South East Scotland Scouts
 
-Due to our safeguarding responsibilities and licensing rules as an Operating Authority:
-* **Indefinite Retention:** We are legally required to retain certain incident records, safeguarding files, and participant attendance lists indefinitely.
-* **Active Expedition Data:** Route submissions, GPX files, medical details, and volunteer availability lists are deleted or anonymized once they are no longer required to verify award completion or safety logs (typically within 1 to 3 years following the expedition).
+Cookies are small text files that are placed on your computer by websites that you visit. They are widely used in order to make websites work, or work more efficiently, as well as to provide information to the owners of the site.
 
----
+The table below explains the cookies we use and why:
 
-## 8. Your Rights
+| Name | Format | Expires | Reason |
+|---|---|---|---|
+| `ckmsg` | Numeric String | 6 months | Cookie message to user |
+| `__utma` | Numeric String | 2 years | Google Analytics |
+| `__utmb` | Numeric String | 30 minutes | Google Analytics |
+| `__utmc` | Alphanumeric String | Session | Google Analytics |
+| `__utmz` | Alphanumeric String | 6 months | Google Analytics |
+| `__atuvc` | Alphanumeric String | 2 years | Add This Share Widget |
 
-Under current UK Data Protection legislation, you have the right to:
-* Request access to the personal data we hold about you (a Subject Access Request).
-* Request the correction of inaccurate or incomplete data.
-* Request the deletion of data (subject to our legal and safeguarding retention requirements).
-* Object to or restrict the processing of your data.
-
-To make a Subject Access Request, please contact the Scout Association legal services team at [legal.services@scouts.org.uk](mailto:legal.services@scouts.org.uk). For regional updates or corrections to your EMS records, please contact [expeditions@sesscouts.org.uk](mailto:expeditions@sesscouts.org.uk).
-
-If you are unsatisfied with how we handle your data, you can make a complaint to the [Information Commissioner’s Office (ICO)](https://ico.org.uk/concerns/).
+To find out more about how we use cookies, [please click here](https://sesscouts.org.uk/cookies/) for our Cookie Policy.
 
 ---
 
-## 9. Changes to This Policy
+## 7. YouTube Cookies
 
-We may update this Privacy Policy from time to time to reflect changes in our services, system updates, or legislative changes. The "Last Updated" date at the top of the policy will indicate when the last changes were made.
+We embed videos from our official YouTube channel using YouTube’s privacy-enhanced mode. This mode may set cookies on your computer once you click on the YouTube video player, but YouTube will not store personally-identifiable cookie information for playbacks of embedded videos using the privacy-enhanced mode.
+
+To find out more please visit [YouTube’s embedding videos information page](https://support.google.com/youtube/answer/171780?hl=en-GB).
+
+---
+
+## 8. The Data Protection Act
+
+South East Scotland Scouts adheres to the key principles set out in current data protection legislation.
+
+You can obtain more information about data protection legislation from the [Information Commissioner’s Office](http://ico.org.uk/) or if you wish to make a complaint about how we handle your data you can contact them [here](https://ico.org.uk/concerns/).
+
+To get in contact with The Scout Association with regards to a Subject Access Request (SAR), please email [legal.services@scouts.org.uk](mailto:legal.services@scouts.org.uk).
+
+---
+
+## 9. Google Analytics
+
+Visitors to this website who have javascript enabled are tracked using Google Analytics. Google Analytics collects the following types of information from users:
+* Type of user agent (web browser) used, software manufacturer and version number.
+* Type of operating system.
+* Screen colors (color processing ability of the user's screen).
+* Javascript support.
+* Flash version.
+* Screen resolution.
+* Network location and IP address (can include country, city, state, region, county, or any other geographic data; hostname; bandwidth/internet connection speed).
+* Time of visit.
+* Pages visited.
+* Time spent on each page of the website.
+* Referring site statistics (the website/URI the user came through in order to arrive at this website; search engine query used).
+
+**This data is only used to optimise our website for our visitors.**
+
+**This data DOES NOT include any personalised identification information such as:**
+* Names
+* Phone numbers
+* Email addresses
+* Mailing addresses
+* Bank account numbers
+* Credit card information
+
+---
+
+## 10. Advertising
+
+Our website www.sesscouts.org.uk or other publications may include advertising for other businesses as part of our operation. We may use, and provide to third parties, your contact details but only if you have given explicit consent for us to do so.
+
+---
+
+## 11. Further Scouting Related Information
+
+We will, as part of our normal operation, communicate information to members, course candidates, and expedition participants which is relevant to their role in Scouting or their registered activities.
+
+In addition, our website sends out emails with information to our members. However, members can decide which emails they wish to receive as they register.
+
+---
+
+## 12. Changes to This Policy
+
+We may amend this policy at any time in response to your feedback, new or altered systems and procedures, Internet best practices, Scottish, UK and European law.
+
+---
+
+## 13. Contacting Us
+
+If you want to contact us to raise any questions about this privacy statement, or any general matters relating to www.sesscouts.org.uk, you can contact us using this email address: [communications@sesscouts.org.uk](mailto:communications@sesscouts.org.uk).
+
+* **Address:** Communications Team, South East Scotland Scouts, 71 Bonaly Road, Edinburgh, EH13 0PB
