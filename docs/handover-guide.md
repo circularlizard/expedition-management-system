@@ -100,6 +100,8 @@ To fix this, a small custom JavaScript snippet runs on the /signup page to handl
 
 To simplify registrations, parents can optionally log in via Online Scout Manager (OSM) to auto-fill their child's details. Guests (logged-out) can type details manually but must verify their email ownership via a One-Time Passcode (OTP) sent to their inbox.
 
+We have used custom code in the EMS plugin to do this, rather than purchasing an email validation tool.
+
 ### **1. Setting up the Signup Banner Shortcode**
 
 On each form registration page (e.g. `/signup-dofe-award/` or `/signup-expedition/`), add the custom `[ems_signup_banner]` shortcode immediately above your Fluent Form block or Elementor widget:
