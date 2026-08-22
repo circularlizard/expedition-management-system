@@ -18,6 +18,8 @@ class PluginTest extends EMSTestCase {
         Functions\when( 'shortcode_atts' )->alias( function( $pairs, $atts, $shortcode = '' ) {
             return array_merge( $pairs, (array) $atts );
         } );
+        Functions\when( 'get_option' )->alias( fn( $key, $default = null ) => $default );
+        Functions\stubs( [ 'update_option', 'wp_enqueue_style' ] );
     }
 
     public function test_render_signup_banner_shortcode_updates_options(): void {
@@ -111,5 +113,48 @@ class PluginTest extends EMSTestCase {
 
         $this->assertStringContainsString( 'Custom Headline Text', $output );
         $this->assertStringContainsString( 'Custom Message Text Goes Here', $output );
+    }
+
+    public function test_enforce_user_login_role_restrictions_allows_administrator(): void {
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'administrator' ];
+
+        $plugin = new Plugin();
+        $plugin->enforce_user_login_role_restrictions( 'admin_username', $user );
+
+        // If it returns without exception/wp_die, it passed!
+        $this->assertTrue( true );
+    }
+
+    public function test_enforce_user_login_role_restrictions_allows_parent(): void {
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'ems_parent' ];
+
+        $plugin = new Plugin();
+        $plugin->enforce_user_login_role_restrictions( 'parent_username', $user );
+
+        $this->assertTrue( true );
+    }
+
+    public function test_enforce_user_login_role_restrictions_allows_network_member(): void {
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'ems_network_member' ];
+
+        $plugin = new Plugin();
+        $plugin->enforce_user_login_role_restrictions( 'network_username', $user );
+
+        $this->assertTrue( true );
+    }
+
+    public function test_enforce_user_login_role_restrictions_denies_other_roles(): void {
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'ems_explorer' ];
+
+        Functions\expect( 'wp_logout' )->once();
+
+        $plugin = new Plugin();
+
+        $this->expectException( \Exception::class );
+        $plugin->enforce_user_login_role_restrictions( 'explorer_username', $user );
     }
 }
