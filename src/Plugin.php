@@ -826,26 +826,14 @@ class Plugin {
 						</svg>
 					</div>
 					<h1 style="font-size: 24px; margin: 0 0 16px 0; color: #23282d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"><?php esc_html_e( 'Access Restricted', 'ems-plugin' ); ?></h1>
-					<p style="font-size: 15px; line-height: 1.6; color: #646970; margin: 0 0 20px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-						<?php esc_html_e( 'Your account does not have permission to view this site. Only Parents and Network Members are allowed to proceed.', 'ems-plugin' ); ?>
-					</p>
-
-					<div style="background: #fcf8e3; border: 1px solid #faebcc; color: #8a6d3b; padding: 15px; border-radius: 4px; margin-bottom: 24px; text-align: left; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-						<div style="margin-bottom: 8px;"><strong><?php esc_html_e( 'Your Roles:', 'ems-plugin' ); ?></strong> <code><?php echo esc_html( implode( ', ', $roles ) ); ?></code></div>
-					</div>
-
-					<p style="font-size: 14px; line-height: 1.6; color: #646970; margin: 0 0 24px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-						<?php
-						echo sprintf(
-							esc_html__( 'If you believe this is an error, please contact your organization administrator or email %s.', 'ems-plugin' ),
-							'<a href="mailto:expeditions@sesscouts.org.uk" style="color: #007cba; text-decoration: none; font-weight: 500;">expeditions@sesscouts.org.uk</a>'
-						);
-						?>
+					<p style="font-size: 15px; line-height: 1.6; color: #646970; margin: 0 0 24px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+						<?php esc_html_e( 'To sign up for an expedition or DofE place you need to be either a parent/carer or a network member. If we have not identified your role correctly, please sign up without logging in.', 'ems-plugin' ); ?>
 					</p>
 
 					<div class="ems-access-denied-actions" style="display: flex; flex-direction: column; gap: 12px;">
-						<a href="<?php echo $login_url; ?>" class="ems-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #007cba; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
-							<?php esc_html_e( 'Log In with a Different Account', 'ems-plugin' ); ?>
+						<?php $redirect_url = esc_url( home_url( $_SERVER['REQUEST_URI'] ?? '/' ) ); ?>
+						<a href="<?php echo $redirect_url; ?>" class="ems-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #007cba; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
+							<?php esc_html_e( 'Back', 'ems-plugin' ); ?>
 						</a>
 					</div>
 				</div>
