@@ -464,4 +464,44 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $this->assertEmpty( $error );
     }
+
+    public function test_validate_email_otp_bypass_for_matching_email_deduplication_bidirectional(): void {
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_participant_form_mappings' ) {
+                return [
+                    'parent_email_field'   => 'signup_parent_email',
+                    'parent_otp_field'     => 'signup_parent_otp_code',
+                    'explorer_email_field' => 'signup_explorer_email',
+                    'explorer_otp_field'   => 'signup_explorer_otp_code',
+                ];
+            }
+            return $default;
+        } );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
+
+        $otp = '654321';
+        $email = 'family@example.com';
+        $explorer_transient_key = 'fluent_otp_' . md5($email . '_signup_explorer_email');
+        
+        $transients = [ $explorer_transient_key => hash('sha256', $otp) ];
+        Functions\when( 'get_transient' )->alias( fn($key) => $transients[$key] ?? null );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+
+        $field = [ 'name' => 'signup_parent_email' ];
+        $formData = [
+            'signup_parent_email'      => 'family@example.com',
+            'signup_parent_otp_code'   => '',
+            'signup_explorer_email'    => 'family@example.com',
+            'signup_explorer_otp_code' => '654321',
+        ];
+        $form = (object) [ 'id' => 6 ];
+
+        $error = $sync->validate_email_otp( '', $field, $formData, [], $form );
+
+        $this->assertEmpty( $error );
+    }
 }
