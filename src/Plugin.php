@@ -36,6 +36,8 @@ class Plugin {
 			\EMS\Core\Audit_Logger::log( 'login_success', null, $u_id );
 		}, 10, 2 );
 
+		add_action( 'wp_login', array( $this, 'enforce_user_login_role_restrictions' ), 15, 2 );
+
 		add_action( 'wp_login_failed', function( $username ) {
 			\EMS\Core\Audit_Logger::log( 'login_failure' );
 		} );
@@ -780,6 +782,25 @@ class Plugin {
 			'</a>' .
 			'</div>' .
 			'</div>';
+	}
+
+	public function enforce_user_login_role_restrictions( $user_login, $user ): void {
+		if ( ! $user instanceof \WP_User ) {
+			return;
+		}
+
+		$roles = (array) $user->roles;
+
+		// Administrators are always allowed to proceed
+		if ( in_array( 'administrator', $roles, true ) ) {
+			return;
+		}
+
+		// Must have ems_parent or ems_network_member
+		if ( ! in_array( 'ems_parent', $roles, true ) && ! in_array( 'ems_network_member', $roles, true ) ) {
+			wp_logout();
+			wp_die( esc_html__( 'Access Denied. You do not have the required role to access this site. Only Parents and Network Members are allowed to proceed.', 'ems-plugin' ) );
+		}
 	}
 
 	public function add_logout_param_to_redirect( $redirect_to, $requested_redirect_to, $user ) {
