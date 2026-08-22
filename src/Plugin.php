@@ -51,6 +51,10 @@ class Plugin {
 			$logout_user_id = 0;
 		} );
 
+		add_filter( 'logout_redirect', array( $this, 'add_logout_param_to_redirect' ), 10, 3 );
+		add_action( 'wp_head', array( $this, 'clear_session_cache_on_logout_landing' ) );
+		add_action( 'login_head', array( $this, 'clear_session_cache_on_logout_landing' ) );
+
 		$admin_page = new Admin_Page(
 			new Diagnostic_Panel()
 		);
@@ -776,6 +780,27 @@ class Plugin {
 			'</a>' .
 			'</div>' .
 			'</div>';
+	}
+
+	public function add_logout_param_to_redirect( $redirect_to, $requested_redirect_to, $user ) {
+		return add_query_arg( 'ems_logout', '1', $redirect_to );
+	}
+
+	public function clear_session_cache_on_logout_landing(): void {
+		if ( isset( $_GET['ems_logout'] ) || ( isset( $_GET['loggedout'] ) && $_GET['loggedout'] === 'true' ) ) {
+			?>
+			<script type="text/javascript">
+				if (typeof sessionStorage !== 'undefined') {
+					sessionStorage.clear();
+					if (window.history && window.history.replaceState) {
+						var url = new URL(window.location.href);
+						url.searchParams.delete('ems_logout');
+						window.history.replaceState({}, '', url.pathname + url.search);
+					}
+				}
+			</script>
+			<?php
+		}
 	}
 }
 
