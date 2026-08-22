@@ -926,8 +926,12 @@ class Fluent_Forms_Sync {
 							return;
 						}
 						if (!statusText) {
-							console.error('[EMS Sync] Status text container (.fluent-otp-status) not found in button wrapper.');
-							return;
+							console.log('[EMS Sync] Status text container missing, creating dynamically...');
+							statusText = document.createElement('span');
+							statusText.className = 'fluent-otp-status';
+							statusText.style.marginLeft = '10px';
+							statusText.style.fontSize = '0.9em';
+							btn.parentNode.insertBefore(statusText, btn.nextSibling);
 						}
 
 						var email = emailInput.value.trim();
