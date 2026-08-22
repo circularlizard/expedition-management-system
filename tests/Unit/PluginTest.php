@@ -25,13 +25,17 @@ class PluginTest extends EMSTestCase {
         Functions\when( 'home_url' )->alias( fn( $path = '' ) => 'http://home' . $path );
     }
 
-    public function test_render_signup_banner_shortcode_updates_options(): void {
-        $options = [];
+    public function test_render_signup_banner_shortcode_does_not_update_options(): void {
+        $options = [
+            'ems_fluent_participant_form_id' => 6,
+            'ems_fluent_expedition_form_id'  => 3,
+        ];
         Functions\when( 'get_option' )->alias( function( $key, $default = null ) use ( &$options ) {
             return $options[ $key ] ?? $default;
         } );
-        Functions\when( 'update_option' )->alias( function( $key, $val ) use ( &$options ) {
-            $options[ $key ] = $val;
+        $update_calls = [];
+        Functions\when( 'update_option' )->alias( function( $key, $val ) use ( &$update_calls ) {
+            $update_calls[ $key ] = $val;
             return true;
         } );
         Functions\when( 'wp_enqueue_style' )->justReturn( true );
@@ -48,10 +52,9 @@ class PluginTest extends EMSTestCase {
             'parent_email_field' => 'custom_parent_email',
         ]);
 
-        $this->assertSame( 10, $options['ems_fluent_participant_form_id'] );
-        $this->assertSame( 'custom_child', $options['ems_participant_form_mappings']['scout_id_field'] );
-        $this->assertSame( 'custom_unit', $options['ems_participant_form_mappings']['esu_patrol_field'] );
-        $this->assertSame( 'custom_parent_email', $options['ems_participant_form_mappings']['parent_email_field'] );
+        $this->assertEmpty( $update_calls );
+        $this->assertSame( 6, $options['ems_fluent_participant_form_id'] );
+        $this->assertSame( 3, $options['ems_fluent_expedition_form_id'] );
     }
 
     public function test_render_signup_banner_shortcode_logged_in(): void {

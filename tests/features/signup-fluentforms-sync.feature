@@ -106,3 +106,12 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
     Given a signup record exists in the database for submission entry ID 1234 with payment_status "paid"
     When a Stripe payment status updated hook is triggered for entry ID 1234 with status "processing"
     Then the signup record payment status in the database should remain "paid"
+
+  Scenario: Frontend shortcode rendering does not overwrite backend settings
+    Given the admin has configured "ems_fluent_participant_form_id" as 6
+    And the admin has configured "ems_fluent_expedition_form_id" as 3
+    When the signup banner shortcode is rendered with attributes:
+      | type    | expedition |
+      | form_id | 6          |
+    Then the option "ems_fluent_participant_form_id" should remain 6
+    And the option "ems_fluent_expedition_form_id" should remain 3
