@@ -694,6 +694,7 @@ class Fluent_Forms_Sync {
 			'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
 			'nonce'              => wp_create_nonce( 'fluent_otp_nonce' ),
 			'isLoggedIn'         => is_user_logged_in(),
+			'formId'             => $form_id,
 		);
 
 		$js_mappings = array();
@@ -903,6 +904,25 @@ class Fluent_Forms_Sync {
 					}
 
 					// --- OTP Verification Logic (Event Delegation) ---
+					
+					// Helper to scope session storage keys by Form ID
+					function getCacheKey(suffix) {
+						return 'ems_f' + window.emsFields.formId + '_' + suffix;
+					}
+
+					// Clear form-specific cache keys on successful submission
+					if (window.jQuery) {
+						window.jQuery(document).on('fluentform_submission_success', function(event, form) {
+							var prefix = 'ems_f' + window.emsFields.formId + '_';
+							for (var i = sessionStorage.length - 1; i >= 0; i--) {
+								var key = sessionStorage.key(i);
+								if (key && key.indexOf(prefix) === 0) {
+									sessionStorage.removeItem(key);
+								}
+							}
+						});
+					}
+
 					document.addEventListener('click', function(e) {
 						var btn = e.target.closest('.ems-otp-wrap button');
 						if (!btn) return;
@@ -1032,8 +1052,8 @@ class Fluent_Forms_Sync {
 						if (code === '000000') {
 							var explorerEmailInput = document.querySelector('input[name="' + window.emsFields.explorerEmailField + '"]');
 							var parentEmailInput   = document.querySelector('input[name="' + window.emsFields.parentEmailField + '"]');
-							var explorerEmail = (explorerEmailInput ? explorerEmailInput.value.trim() : sessionStorage.getItem('ems_val_' + window.emsFields.explorerEmailField)) || '';
-							var parentEmail   = (parentEmailInput ? parentEmailInput.value.trim() : sessionStorage.getItem('ems_val_' + window.emsFields.parentEmailField)) || '';
+							var explorerEmail = (explorerEmailInput ? explorerEmailInput.value.trim() : sessionStorage.getItem(getCacheKey('val_' + window.emsFields.explorerEmailField))) || '';
+							var parentEmail   = (parentEmailInput ? parentEmailInput.value.trim() : sessionStorage.getItem(getCacheKey('val_' + window.emsFields.parentEmailField))) || '';
 							
 							if (explorerEmail && explorerEmail === parentEmail && otpFieldName === window.emsFields.explorerOtpField) {
 								console.log('[EMS Sync] checkOtp: detected duplicate bypass code 000000, skipping AJAX verification.');
@@ -1044,7 +1064,7 @@ class Fluent_Forms_Sync {
 								otpInput.style.borderColor = '#28a745';
 								emailInput.setAttribute('readonly', 'readonly');
 								emailInput.classList.add('ff-read-only');
-								sessionStorage.setItem('ems_verified_' + emailFieldName, 'true');
+								sessionStorage.setItem(getCacheKey('verified_' + emailFieldName), 'true');
 								return;
 							}
 						}
@@ -1071,8 +1091,8 @@ class Fluent_Forms_Sync {
 						.then(function(data) {
 							console.log('[EMS Sync] verify_fluent_otp response:', data);
 							if (data.success) {
-								sessionStorage.setItem('ems_verified_' + emailFieldName, 'true');
-								sessionStorage.setItem('ems_val_' + otpFieldName, code);
+								sessionStorage.setItem(getCacheKey('verified_' + emailFieldName), 'true');
+								sessionStorage.setItem(getCacheKey('val_' + otpFieldName), code);
 								if (statusEl) {
 									statusEl.style.color = '#28a745';
 									statusEl.textContent = '✓ ' + (data.data.message || 'Email verified!');
@@ -1081,7 +1101,7 @@ class Fluent_Forms_Sync {
 								emailInput.setAttribute('readonly', 'readonly');
 								emailInput.classList.add('ff-read-only');
 							} else {
-								sessionStorage.removeItem('ems_verified_' + emailFieldName);
+								sessionStorage.removeItem(getCacheKey('verified_' + emailFieldName));
 								if (statusEl) {
 									statusEl.style.color = '#dc3545';
 									statusEl.textContent = '✗ ' + (data.data.message || 'Incorrect code.');
@@ -1159,8 +1179,8 @@ class Fluent_Forms_Sync {
 						var explorerOtpInput   = document.querySelector('input[name="' + window.emsFields.explorerOtpField + '"]');
 						var parentOtpInput     = document.querySelector('input[name="' + window.emsFields.parentOtpField + '"]');
 						
-						var explorerEmail = (explorerEmailInput ? explorerEmailInput.value.trim() : sessionStorage.getItem('ems_val_' + window.emsFields.explorerEmailField)) || '';
-						var parentEmail   = (parentEmailInput ? parentEmailInput.value.trim() : sessionStorage.getItem('ems_val_' + window.emsFields.parentEmailField)) || '';
+						var explorerEmail = (explorerEmailInput ? explorerEmailInput.value.trim() : sessionStorage.getItem(getCacheKey('val_' + window.emsFields.explorerEmailField))) || '';
+						var parentEmail   = (parentEmailInput ? parentEmailInput.value.trim() : sessionStorage.getItem(getCacheKey('val_' + window.emsFields.parentEmailField))) || '';
 
 						console.log('[EMS Sync] checkDeduplicate check. explorerEmailInput:', !!explorerEmailInput, 'parentEmailInput:', !!parentEmailInput, 'explorerOtpInput:', !!explorerOtpInput, 'parentOtpInput:', !!parentOtpInput);
 						console.log('[EMS Sync] comparing explorerEmail:', explorerEmail, 'with parentEmail:', parentEmail);
@@ -1168,8 +1188,8 @@ class Fluent_Forms_Sync {
 						if (explorerEmail && explorerEmail === parentEmail) {
 							console.log('[EMS Sync] Duplicate email detected.');
 							
-							var parentTime = parseInt(sessionStorage.getItem('ems_time_' + window.emsFields.parentEmailField) || '0', 10);
-							var explorerTime = parseInt(sessionStorage.getItem('ems_time_' + window.emsFields.explorerEmailField) || '0', 10);
+							var parentTime = parseInt(sessionStorage.getItem(getCacheKey('time_' + window.emsFields.parentEmailField)) || '0', 10);
+							var explorerTime = parseInt(sessionStorage.getItem(getCacheKey('time_' + window.emsFields.explorerEmailField)) || '0', 10);
 							
 							var secondField = window.emsFields.explorerEmailField; // Default
 							if (parentTime > explorerTime) {
@@ -1192,7 +1212,7 @@ class Fluent_Forms_Sync {
 								// 2. Restore parent OTP (since it is first/verified)
 								if (parentOtpInput && !window.emsFields.isLoggedIn) {
 									var parentGroup = parentOtpInput.closest('.ff-el-group') || parentOtpInput.closest('.ff-el-form-element') || parentOtpInput.parentElement;
-									if (parentGroup && !parentOtpInput.classList.contains('ff-read-only') && sessionStorage.getItem('ems_verified_' + window.emsFields.parentEmailField) !== 'true') {
+									if (parentGroup && !parentOtpInput.classList.contains('ff-read-only') && sessionStorage.getItem(getCacheKey('verified_' + window.emsFields.parentEmailField)) !== 'true') {
 										parentGroup.style.removeProperty('display');
 									}
 									if (parentOtpInput.value === '000000') {
@@ -1200,7 +1220,7 @@ class Fluent_Forms_Sync {
 									}
 								}
 								var parentBtnWrap = document.querySelector('.ems-otp-wrap[data-target="' + window.emsFields.parentEmailField + '"]');
-								if (parentBtnWrap && !window.emsFields.isLoggedIn && sessionStorage.getItem('ems_verified_' + window.emsFields.parentEmailField) !== 'true') {
+								if (parentBtnWrap && !window.emsFields.isLoggedIn && sessionStorage.getItem(getCacheKey('verified_' + window.emsFields.parentEmailField)) !== 'true') {
 									parentBtnWrap.style.removeProperty('display');
 								}
 
@@ -1226,7 +1246,7 @@ class Fluent_Forms_Sync {
 									// 2. Restore explorer OTP (since it is first/verified)
 									if (explorerOtpInput) {
 										var explorerGroup = explorerOtpInput.closest('.ff-el-group') || explorerOtpInput.closest('.ff-el-form-element') || explorerOtpInput.parentElement;
-										if (explorerGroup && !explorerOtpInput.classList.contains('ff-read-only') && sessionStorage.getItem('ems_verified_' + window.emsFields.explorerEmailField) !== 'true') {
+										if (explorerGroup && !explorerOtpInput.classList.contains('ff-read-only') && sessionStorage.getItem(getCacheKey('verified_' + window.emsFields.explorerEmailField)) !== 'true') {
 											explorerGroup.style.removeProperty('display');
 										}
 										if (explorerOtpInput.value === '000000') {
@@ -1234,7 +1254,7 @@ class Fluent_Forms_Sync {
 										}
 									}
 									var explorerBtnWrap = document.querySelector('.ems-otp-wrap[data-target="' + window.emsFields.explorerEmailField + '"]');
-									if (explorerBtnWrap && sessionStorage.getItem('ems_verified_' + window.emsFields.explorerEmailField) !== 'true') {
+									if (explorerBtnWrap && sessionStorage.getItem(getCacheKey('verified_' + window.emsFields.explorerEmailField)) !== 'true') {
 										explorerBtnWrap.style.removeProperty('display');
 									}
 
@@ -1292,16 +1312,16 @@ class Fluent_Forms_Sync {
 						}
 
 						// 1. Sync values to sessionStorage when elements are visible
-						if (parentEmailInput) sessionStorage.setItem('ems_val_' + window.emsFields.parentEmailField, parentEmailInput.value.trim());
+						if (parentEmailInput) sessionStorage.setItem(getCacheKey('val_' + window.emsFields.parentEmailField), parentEmailInput.value.trim());
 						if (parentOtpInput) {
 							if (parentOtpInput.value.trim()) {
-								sessionStorage.setItem('ems_val_' + window.emsFields.parentOtpField, parentOtpInput.value.trim());
+								sessionStorage.setItem(getCacheKey('val_' + window.emsFields.parentOtpField), parentOtpInput.value.trim());
 							}
 						}
-						if (explorerEmailInput) sessionStorage.setItem('ems_val_' + window.emsFields.explorerEmailField, explorerEmailInput.value.trim());
+						if (explorerEmailInput) sessionStorage.setItem(getCacheKey('val_' + window.emsFields.explorerEmailField), explorerEmailInput.value.trim());
 						if (explorerOtpInput) {
 							if (explorerOtpInput.value !== '000000' && explorerOtpInput.value.trim()) {
-								sessionStorage.setItem('ems_val_' + window.emsFields.explorerOtpField, explorerOtpInput.value.trim());
+								sessionStorage.setItem(getCacheKey('val_' + window.emsFields.explorerOtpField), explorerOtpInput.value.trim());
 							}
 						}
 
@@ -1310,7 +1330,7 @@ class Fluent_Forms_Sync {
 							var emailInput = document.querySelector('input[name="' + emailFieldName + '"]');
 							if (!emailInput) return;
 							
-							var isVerified = sessionStorage.getItem('ems_verified_' + emailFieldName) === 'true';
+							var isVerified = sessionStorage.getItem(getCacheKey('verified_' + emailFieldName)) === 'true';
 							if (window.emsFields.isLoggedIn && emailFieldName === window.emsFields.parentEmailField) {
 								isVerified = true;
 							}
@@ -1339,7 +1359,7 @@ class Fluent_Forms_Sync {
 									otpInput.style.borderColor = '#28a745';
 									
 									// Restore code value if empty in DOM
-									var cachedCode = sessionStorage.getItem('ems_val_' + otpFieldName);
+									var cachedCode = sessionStorage.getItem(getCacheKey('val_' + otpFieldName));
 									if (cachedCode && !otpInput.value) {
 										setInputValue(otpInput, cachedCode);
 									}
@@ -1354,21 +1374,21 @@ class Fluent_Forms_Sync {
 					document.addEventListener('input', function(e) {
 						var name = e.target.name;
 						if (name === window.emsFields.explorerEmailField || name === window.emsFields.parentEmailField) {
-							sessionStorage.setItem('ems_time_' + name, Date.now().toString());
+							sessionStorage.setItem(getCacheKey('time_' + name), Date.now().toString());
 							syncFormState();
 						}
 					});
 					document.addEventListener('change', function(e) {
 						var name = e.target.name;
 						if (name === window.emsFields.explorerEmailField || name === window.emsFields.parentEmailField) {
-							sessionStorage.setItem('ems_time_' + name, Date.now().toString());
+							sessionStorage.setItem(getCacheKey('time_' + name), Date.now().toString());
 							syncFormState();
 						}
 					});
 					document.addEventListener('keyup', function(e) {
 						var name = e.target.name;
 						if (name === window.emsFields.explorerEmailField || name === window.emsFields.parentEmailField) {
-							sessionStorage.setItem('ems_time_' + name, Date.now().toString());
+							sessionStorage.setItem(getCacheKey('time_' + name), Date.now().toString());
 							syncFormState();
 						}
 					});
