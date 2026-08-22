@@ -809,7 +809,58 @@ class Plugin {
 		// Must have ems_parent or ems_network_member
 		if ( ! in_array( 'ems_parent', $roles, true ) && ! in_array( 'ems_network_member', $roles, true ) ) {
 			wp_logout();
-			wp_die( esc_html__( 'Access Denied. You do not have the required role to access this site. Only Parents and Network Members are allowed to proceed.', 'ems-plugin' ) );
+			
+			if ( is_admin() || ! function_exists( 'get_header' ) ) {
+				wp_die( esc_html__( 'Access Denied. You do not have the required role to access this site. Only Parents and Network Members are allowed to proceed.', 'ems-plugin' ) );
+			}
+
+			status_header( 403 );
+			get_header();
+			$login_url = esc_url( wp_login_url( home_url( '/' ) ) );
+			?>
+			<div class="ems-access-denied-wrap" style="padding: 80px 20px; background: #f7f9fa; display: flex; align-items: center; justify-content: center; min-height: 50vh;">
+				<div class="ems-access-denied-container" style="background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; width: 100%; text-align: center; box-sizing: border-box; margin: 0 auto;">
+					<div class="ems-access-denied-icon">
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" style="fill: #dc3232; margin: 0 auto 20px auto; display: block;">
+							<path d="M12 2c-2.76 0-5 2.24-5 5v3H6c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1V7c0-2.76-2.24-5-5-5zm-3 5c0-1.66 1.34-3 3-3s3 1.34 3 3v3H9V7zm3 9c-.83 0-1.5-.67-1.5-1.5S11.17 13 12 13s1.5.67 1.5 1.5S12.83 16 12 16z"/>
+						</svg>
+					</div>
+					<h1 style="font-size: 24px; margin: 0 0 16px 0; color: #23282d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"><?php esc_html_e( 'Access Restricted', 'ems-plugin' ); ?></h1>
+					<p style="font-size: 15px; line-height: 1.6; color: #646970; margin: 0 0 20px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+						<?php esc_html_e( 'Your account does not have permission to view this site. Only Parents and Network Members are allowed to proceed.', 'ems-plugin' ); ?>
+					</p>
+
+					<div style="background: #fcf8e3; border: 1px solid #faebcc; color: #8a6d3b; padding: 15px; border-radius: 4px; margin-bottom: 24px; text-align: left; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+						<div style="margin-bottom: 8px;"><strong><?php esc_html_e( 'Your Roles:', 'ems-plugin' ); ?></strong> <code><?php echo esc_html( implode( ', ', $roles ) ); ?></code></div>
+					</div>
+
+					<p style="font-size: 14px; line-height: 1.6; color: #646970; margin: 0 0 24px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+						<?php
+						echo sprintf(
+							esc_html__( 'If you believe this is an error, please contact your organization administrator or email %s.', 'ems-plugin' ),
+							'<a href="mailto:expeditions@sesscouts.org.uk" style="color: #007cba; text-decoration: none; font-weight: 500;">expeditions@sesscouts.org.uk</a>'
+						);
+						?>
+					</p>
+
+					<div class="ems-access-denied-actions" style="display: flex; flex-direction: column; gap: 12px;">
+						<a href="<?php echo $login_url; ?>" class="ems-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #007cba; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
+							<?php esc_html_e( 'Log In with a Different Account', 'ems-plugin' ); ?>
+						</a>
+					</div>
+				</div>
+			</div>
+			<script type="text/javascript">
+				if (typeof sessionStorage !== 'undefined') {
+					sessionStorage.clear();
+				}
+			</script>
+			<?php
+			get_footer();
+			if ( class_exists( '\EMS\Tests\EMSTestCase' ) ) {
+				throw new \Exception( 'Redirect terminated' );
+			}
+			exit;
 		}
 	}
 
