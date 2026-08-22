@@ -722,10 +722,10 @@ class Fluent_Forms_Sync {
 				window.emsUnitMappings = new Object();
 			}
 			if (typeof window.emsFields === 'undefined') {
-				window.emsFields = JSON.parse('<?php echo json_encode( $js_fields, JSON_FORCE_OBJECT ); ?>');
+				window.emsFields = <?php echo wp_json_encode( $js_fields ); ?>;
 			}
-			Object.assign(window.emsFormMappings, JSON.parse('<?php echo json_encode( $js_mappings, JSON_FORCE_OBJECT ); ?>'));
-			Object.assign(window.emsUnitMappings, JSON.parse('<?php echo json_encode( $unit_mappings, JSON_FORCE_OBJECT ); ?>'));
+			Object.assign(window.emsFormMappings, <?php echo wp_json_encode( $js_mappings ); ?>);
+			Object.assign(window.emsUnitMappings, <?php echo wp_json_encode( $unit_mappings ); ?>);
 			console.log('[EMS Sync] Loaded children mappings, unit mappings & fields:', window.emsFormMappings, window.emsUnitMappings, window.emsFields);
 
 			function emsGetChoices(el) {
