@@ -37,6 +37,8 @@ class Plugin {
 		}, 10, 2 );
 
 		add_action( 'wp_login', array( $this, 'enforce_user_login_role_restrictions' ), 15, 2 );
+		add_action( 'template_redirect', array( $this, 'enforce_user_login_role_restrictions' ) );
+		add_action( 'admin_init', array( $this, 'enforce_user_login_role_restrictions' ) );
 
 		add_action( 'wp_login_failed', function( $username ) {
 			\EMS\Core\Audit_Logger::log( 'login_failure' );
@@ -784,7 +786,15 @@ class Plugin {
 			'</div>';
 	}
 
-	public function enforce_user_login_role_restrictions( $user_login, $user ): void {
+	public function enforce_user_login_role_restrictions( $user_login = null, $user = null ): void {
+		if ( ! is_user_logged_in() && $user === null ) {
+			return;
+		}
+
+		if ( $user === null ) {
+			$user = wp_get_current_user();
+		}
+
 		if ( ! $user instanceof \WP_User ) {
 			return;
 		}
