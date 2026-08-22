@@ -20,6 +20,7 @@ class PluginTest extends EMSTestCase {
         } );
         Functions\when( 'get_option' )->alias( fn( $key, $default = null ) => $default );
         Functions\stubs( [ 'update_option', 'wp_enqueue_style' ] );
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
     }
 
     public function test_render_signup_banner_shortcode_updates_options(): void {
