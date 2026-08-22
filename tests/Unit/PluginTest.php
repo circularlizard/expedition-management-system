@@ -22,6 +22,7 @@ class PluginTest extends EMSTestCase {
         Functions\stubs( [ 'update_option', 'wp_enqueue_style' ] );
         Functions\when( 'is_user_logged_in' )->justReturn( false );
         Functions\when( 'is_admin' )->justReturn( false );
+        Functions\when( 'home_url' )->alias( fn( $path = '' ) => 'http://home' . $path );
     }
 
     public function test_render_signup_banner_shortcode_updates_options(): void {
