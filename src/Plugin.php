@@ -735,26 +735,8 @@ class Plugin {
 		$first_name_field   = 'signup_child_name';
 
 		if ( in_array( $type, array( 'participant', 'expedition' ), true ) ) {
-			$existing_id       = (int) get_option( "ems_fluent_{$type}_form_id" );
 			$existing_mappings = get_option( "ems_{$type}_form_mappings", array() );
 			$first_name_field  = $existing_mappings['first_name_field'] ?? 'signup_child_name';
-			$new_mappings      = array_merge(
-				$existing_mappings,
-				array(
-					'scout_id_field'     => $scout_field,
-					'esu_patrol_field'   => $unit_field,
-					'parent_email_field' => $parent_email_field,
-					'parent_otp_field'   => $parent_otp_field,
-					'explorer_otp_field' => $explorer_otp_field,
-				)
-			);
-
-			if ( $existing_id !== $form_id ) {
-				update_option( "ems_fluent_{$type}_form_id", $form_id );
-			}
-			if ( $existing_mappings !== $new_mappings ) {
-				update_option( "ems_{$type}_form_mappings", $new_mappings );
-			}
 		}
 
 		wp_enqueue_style( 'ems-admin' );
