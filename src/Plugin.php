@@ -705,6 +705,8 @@ class Plugin {
 				'scout_field'        => 'signup_child',
 				'unit_field'         => 'signup_unit',
 				'parent_email_field' => 'signup_parent_email',
+				'parent_otp_field'   => 'signup_parent_otp_code',
+				'explorer_otp_field' => 'signup_explorer_otp_code',
 				'headline'           => __( 'Speed up your DofE registration', 'ems-plugin' ),
 				'message'            => __( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ),
 			),
@@ -717,6 +719,8 @@ class Plugin {
 		$scout_field        = sanitize_text_field( $atts['scout_field'] );
 		$unit_field         = sanitize_text_field( $atts['unit_field'] );
 		$parent_email_field = sanitize_text_field( $atts['parent_email_field'] );
+		$parent_otp_field   = sanitize_text_field( $atts['parent_otp_field'] );
+		$explorer_otp_field = sanitize_text_field( $atts['explorer_otp_field'] );
 		$headline           = sanitize_text_field( $atts['headline'] );
 		$message            = sanitize_text_field( $atts['message'] );
 		$first_name_field   = 'signup_child_name';
@@ -731,6 +735,8 @@ class Plugin {
 					'scout_id_field'     => $scout_field,
 					'esu_patrol_field'   => $unit_field,
 					'parent_email_field' => $parent_email_field,
+					'parent_otp_field'   => $parent_otp_field,
+					'explorer_otp_field' => $explorer_otp_field,
 				)
 			);
 
@@ -744,11 +750,17 @@ class Plugin {
 
 		wp_enqueue_style( 'ems-admin' );
 
+		$otp_css = '<style>' .
+			'.ems-otp-wrap button { background-color: #5c2d8b !important; color: #ffffff !important; border: none !important; padding: 6px 14px !important; border-radius: 4px !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: background-color 0.2s ease-in-out !important; display: inline-block !important; }' .
+			'.ems-otp-wrap button:hover:not(:disabled) { background-color: #4a2072 !important; }' .
+			'.ems-otp-wrap button:disabled { background-color: #cccccc !important; color: #666666 !important; cursor: not-allowed !important; }' .
+			'</style>';
+
 		if ( is_user_logged_in() ) {
-			return '<style>.ff-el-group:has([name^="' . esc_attr( $first_name_field ) . '"]) { display: none !important; }</style>';
+			return $otp_css . '<style>.ff-el-group:has([name^="' . esc_attr( $first_name_field ) . '"]) { display: none !important; } .ff-el-group:has([name^="' . esc_attr( $parent_otp_field ) . '"]), .ems-otp-wrap[data-target="' . esc_attr( $parent_email_field ) . '"] { display: none !important; }</style>';
 		}
 
-		$style = '<style>.ff-el-group:has(select[name="' . esc_attr($scout_field) . '"]), .ff-el-group:has([name="' . esc_attr($scout_field) . '"]) { display: none !important; }</style>';
+		$style = $otp_css . '<style>.ff-el-group:has(select[name="' . esc_attr($scout_field) . '"]), .ff-el-group:has([name="' . esc_attr($scout_field) . '"]) { display: none !important; }</style>';
 		$login_url = esc_url( wp_login_url( get_permalink() ) );
 		$logo_url  = esc_url( site_url( '/wp-content/uploads/2026/02/osm-logo-wo.webp' ) );
 
