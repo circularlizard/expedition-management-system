@@ -1024,6 +1024,26 @@ class Fluent_Forms_Sync {
 							return;
 						}
 
+						if (code === '000000') {
+							var explorerEmailInput = document.querySelector('input[name="' + window.emsFields.explorerEmailField + '"]');
+							var parentEmailInput   = document.querySelector('input[name="' + window.emsFields.parentEmailField + '"]');
+							var explorerEmail = (explorerEmailInput ? explorerEmailInput.value.trim() : sessionStorage.getItem('ems_val_' + window.emsFields.explorerEmailField)) || '';
+							var parentEmail   = (parentEmailInput ? parentEmailInput.value.trim() : sessionStorage.getItem('ems_val_' + window.emsFields.parentEmailField)) || '';
+							
+							if (explorerEmail && explorerEmail === parentEmail && otpFieldName === window.emsFields.explorerOtpField) {
+								console.log('[EMS Sync] checkOtp: detected duplicate bypass code 000000, skipping AJAX verification.');
+								if (statusEl) {
+									statusEl.style.color = '#28a745';
+									statusEl.textContent = '✓ Email verified!';
+								}
+								otpInput.style.borderColor = '#28a745';
+								emailInput.setAttribute('readonly', 'readonly');
+								emailInput.classList.add('ff-read-only');
+								sessionStorage.setItem('ems_verified_' + emailFieldName, 'true');
+								return;
+							}
+						}
+
 						if (statusEl) {
 							statusEl.style.color = '#6c757d';
 							statusEl.textContent = 'Verifying code...';
