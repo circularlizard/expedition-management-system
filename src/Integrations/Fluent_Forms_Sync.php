@@ -1000,6 +1000,8 @@ class Fluent_Forms_Sync {
 						var emailInput = document.querySelector('input[name="' + emailFieldName + '"]');
 						if (!emailInput) {
 							console.warn('[EMS Sync] Email input not found for inline verify name:', emailFieldName);
+							return;
+						}
 						var email = emailInput.value.trim();
 						var code = otpInput.value.trim();
 						var otpFieldName = (emailFieldName === window.emsFields.parentEmailField) ? window.emsFields.parentOtpField : window.emsFields.explorerOtpField;
