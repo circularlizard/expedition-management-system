@@ -39,6 +39,17 @@ class Fluent_Forms_Sync {
 
 		// Hidden email field pre-population
 		add_filter( 'fluentform/rendering_field_data_input_email', array( $this, 'populate_parent_email' ), 10, 2 );
+
+		// OTP verification hooks
+		add_action( 'wp_ajax_send_fluent_otp', array( $this, 'handle_send_fluent_otp' ) );
+		add_action( 'wp_ajax_nopriv_send_fluent_otp', array( $this, 'handle_send_fluent_otp' ) );
+		add_action( 'wp_ajax_verify_fluent_otp', array( $this, 'handle_verify_fluent_otp' ) );
+		add_action( 'wp_ajax_nopriv_verify_fluent_otp', array( $this, 'handle_verify_fluent_otp' ) );
+
+		add_filter( 'fluentform/validate_input_item_email', array( $this, 'validate_email_otp' ), 10, 5 );
+		add_filter( 'fluentform/validation_rules', array( $this, 'bypass_otp_required_validation' ), 10, 2 );
+		add_filter( 'fluentform/rendering_field_data_input_text', array( $this, 'bypass_otp_frontend_required' ), 10, 2 );
+		add_filter( 'fluentform/rendering_field_data_input_number', array( $this, 'bypass_otp_frontend_required' ), 10, 2 );
 	}
 
 	/**
@@ -672,9 +683,14 @@ class Fluent_Forms_Sync {
 			'unitField'          => $config['esu_patrol_field'] ?? 'signup_unit',
 			'explorerEmailField' => $config['explorer_email_field'] ?? 'signup_explorer_email',
 			'leaderEmailField'   => $config['leader_email_field'] ?? 'signup_leader_email',
+			'parentEmailField'   => $config['parent_email_field'] ?? 'signup_parent_email',
+			'parentOtpField'     => $config['parent_otp_field'] ?? 'signup_parent_otp_code',
+			'explorerOtpField'   => $config['explorer_otp_field'] ?? 'signup_explorer_otp_code',
 			'firstNameField'     => $config['first_name_field'] ?? 'signup_child_name',
 			'lastNameField'      => $config['last_name_field'] ?? 'signup_child_name',
 			'dobField'           => $config['dob_field'] ?? 'signup_dob',
+			'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
+			'nonce'              => wp_create_nonce( 'fluent_otp_nonce' ),
 		);
 
 		$js_mappings = array();
@@ -882,6 +898,194 @@ class Fluent_Forms_Sync {
 							updateUnit();
 						}
 					}
+
+					// --- OTP Verification Logic ---
+					var sendBtns = document.querySelectorAll('.ems-otp-wrap button');
+					sendBtns.forEach(function(btn) {
+						btn.addEventListener('click', function(e) {
+							e.preventDefault();
+							var container = btn.closest('.ems-otp-wrap');
+							if (!container) return;
+							var targetField = container.getAttribute('data-target');
+							if (!targetField) return;
+
+							var emailInput = document.querySelector('input[name="' + targetField + '"]');
+							var statusText = container.querySelector('.fluent-otp-status');
+
+							if (!emailInput || !statusText) return;
+
+							var email = emailInput.value.trim();
+							if (!email || !email.includes('@')) {
+								statusText.style.color = '#dc3545';
+								statusText.textContent = 'Please enter a valid email address first.';
+								return;
+							}
+
+							btn.disabled = true;
+							statusText.style.color = '#6c757d';
+							statusText.textContent = 'Sending code...';
+
+							var formData = new FormData();
+							formData.append('action', 'send_fluent_otp');
+							formData.append('email', email);
+							formData.append('field_name', targetField);
+							formData.append('security', window.emsFields.nonce);
+
+							fetch(window.emsFields.ajaxUrl, {
+								method: 'POST',
+								body: formData,
+								credentials: 'same-origin'
+							})
+							.then(function(res) { return res.json(); })
+							.then(function(data) {
+								if (data.success) {
+									statusText.style.color = '#28a745';
+									statusText.textContent = data.data.message || 'Code sent! Check your inbox.';
+									
+									var countdown = 60;
+									var interval = setInterval(function() {
+										countdown--;
+										btn.textContent = 'Resend in ' + countdown + 's';
+										if (countdown <= 0) {
+											clearInterval(interval);
+											btn.disabled = false;
+											btn.textContent = 'Resend Verification Code';
+										}
+									}, 1000);
+								} else {
+									btn.disabled = false;
+									statusText.style.color = '#dc3545';
+									statusText.textContent = data.data.message || 'Error sending code.';
+								}
+							})
+							.catch(function(err) {
+								btn.disabled = false;
+								statusText.style.color = '#dc3545';
+								statusText.textContent = 'Network error. Please try again.';
+							});
+						});
+					});
+
+					// Real-time inline verification as they type
+					function setupInlineOtpVerify(otpFieldName, emailFieldName) {
+						var otpInput = document.querySelector('input[name="' + otpFieldName + '"]');
+						if (!otpInput) return;
+
+						function checkOtp() {
+							var emailInput = document.querySelector('input[name="' + emailFieldName + '"]');
+							if (!emailInput) return;
+
+							var email = emailInput.value.trim();
+							var code = otpInput.value.trim();
+
+							var container = otpInput.closest('.ff-el-group');
+							var statusEl = container ? container.querySelector('.ems-inline-otp-status') : null;
+							if (container && !statusEl) {
+								statusEl = document.createElement('span');
+								statusEl.className = 'ems-inline-otp-status';
+								statusEl.style.marginLeft = '10px';
+								statusEl.style.fontSize = '0.9em';
+								otpInput.parentNode.insertBefore(statusEl, otpInput.nextSibling);
+							}
+
+							if (!email || code.length !== 6) {
+								if (statusEl) statusEl.textContent = '';
+								otpInput.style.borderColor = '';
+								return;
+							}
+
+							if (statusEl) {
+								statusEl.style.color = '#6c757d';
+								statusEl.textContent = 'Verifying code...';
+							}
+
+							var formData = new FormData();
+							formData.append('action', 'verify_fluent_otp');
+							formData.append('email', email);
+							formData.append('field_name', emailFieldName);
+							formData.append('code', code);
+							formData.append('security', window.emsFields.nonce);
+
+							fetch(window.emsFields.ajaxUrl, {
+								method: 'POST',
+								body: formData,
+								credentials: 'same-origin'
+							})
+							.then(function(res) { return res.json(); })
+							.then(function(data) {
+								if (data.success) {
+									if (statusEl) {
+										statusEl.style.color = '#28a745';
+										statusEl.textContent = '✓ ' + (data.data.message || 'Email verified!');
+									}
+									otpInput.style.borderColor = '#28a745';
+									emailInput.setAttribute('readonly', 'readonly');
+									emailInput.classList.add('ff-read-only');
+								} else {
+									if (statusEl) {
+										statusEl.style.color = '#dc3545';
+										statusEl.textContent = '✗ ' + (data.data.message || 'Incorrect code.');
+									}
+									otpInput.style.borderColor = '#dc3545';
+									emailInput.removeAttribute('readonly');
+									emailInput.classList.remove('ff-read-only');
+								}
+							})
+							.catch(function() {
+								if (statusEl) {
+									statusEl.style.color = '#dc3545';
+									statusEl.textContent = 'Verification error.';
+								}
+							});
+						}
+
+						otpInput.addEventListener('input', checkOtp);
+						otpInput.addEventListener('change', checkOtp);
+					}
+
+					setupInlineOtpVerify(window.emsFields.parentOtpField, window.emsFields.parentEmailField);
+					setupInlineOtpVerify(window.emsFields.explorerOtpField, window.emsFields.explorerEmailField);
+
+					// Dynamic Deduplication: Hide explorer OTP if emails match
+					var explorerEmailInput = document.querySelector('input[name="' + window.emsFields.explorerEmailField + '"]');
+					var parentEmailInput   = document.querySelector('input[name="' + window.emsFields.parentEmailField + '"]');
+					var explorerOtpInput   = document.querySelector('input[name="' + window.emsFields.explorerOtpField + '"]');
+					
+					function checkDeduplicate() {
+						if (!explorerEmailInput || !parentEmailInput || !explorerOtpInput) return;
+						var explorerEmail = explorerEmailInput.value.trim();
+						var parentEmail = parentEmailInput.value.trim();
+						
+						var otpGroup = explorerOtpInput.closest('.ff-el-group');
+						var btnWrap  = document.querySelector('.ems-otp-wrap[data-target="' + window.emsFields.explorerEmailField + '"]');
+						
+						var dupStatusEl = explorerEmailInput.parentNode.querySelector('.ems-dup-email-status');
+						if (!dupStatusEl) {
+							dupStatusEl = document.createElement('span');
+							dupStatusEl.className = 'ems-dup-email-status';
+							dupStatusEl.style.marginLeft = '10px';
+							dupStatusEl.style.fontSize = '0.9em';
+							dupStatusEl.style.color = '#28a745';
+							explorerEmailInput.parentNode.insertBefore(dupStatusEl, explorerEmailInput.nextSibling);
+						}
+
+						if (explorerEmail && explorerEmail === parentEmail) {
+							if (otpGroup) otpGroup.style.display = 'none';
+							if (btnWrap) btnWrap.style.display = 'none';
+							explorerOtpInput.value = 'BYPASS';
+							dupStatusEl.textContent = 'Email matches verified parent email (Verification bypassed).';
+						} else {
+							if (otpGroup) otpGroup.style.display = '';
+							if (btnWrap) btnWrap.style.display = '';
+							if (explorerOtpInput.value === 'BYPASS') explorerOtpInput.value = '';
+							dupStatusEl.textContent = '';
+						}
+					}
+					if (explorerEmailInput && parentEmailInput) {
+						explorerEmailInput.addEventListener('input', checkDeduplicate);
+						parentEmailInput.addEventListener('input', checkDeduplicate);
+						checkDeduplicate();
+					}
 				}
 				initEmsFormSync();
 			});
@@ -912,5 +1116,195 @@ class Fluent_Forms_Sync {
 			}
 		}
 		return array();
+	}
+
+	public function handle_send_fluent_otp(): void {
+		check_ajax_referer( 'fluent_otp_nonce', 'security' );
+
+		$email      = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+		$field_name = isset( $_POST['field_name'] ) ? sanitize_key( wp_unslash( $_POST['field_name'] ) ) : '';
+
+		if ( ! is_email( $email ) ) {
+			wp_send_json_error( array( 'message' => __( 'Please provide a valid email address.', 'ems-plugin' ) ) );
+		}
+
+		$rate_limit_key = 'fluent_otp_limit_' . md5( $email . '_' . $field_name );
+		if ( get_transient( $rate_limit_key ) ) {
+			wp_send_json_error( array( 'message' => __( 'Please wait 60 seconds before requesting another code.', 'ems-plugin' ) ) );
+		}
+
+		$otp = wp_rand( 100000, 999999 );
+		$transient_key = 'fluent_otp_' . md5( $email . '_' . $field_name );
+
+		set_transient( $transient_key, hash( 'sha256', (string) $otp ), 10 * MINUTE_IN_SECONDS );
+		set_transient( $rate_limit_key, true, 60 );
+
+		$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$subject   = sprintf( __( '[%s] Your Verification Code: %s', 'ems-plugin' ), $site_name, $otp );
+		
+		$message  = "Hello,\n\n";
+		$message .= "Your verification code is: {$otp}\n\n";
+		$message .= "This code is valid for 10 minutes. If you did not request this code, please ignore this email.\n\n";
+		$message .= "Regards,\n{$site_name}";
+
+		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
+
+		$mail_sent = wp_mail( $email, $subject, $message, $headers );
+
+		if ( $mail_sent ) {
+			wp_send_json_success( array( 'message' => __( 'Verification code sent to your email.', 'ems-plugin' ) ) );
+		} else {
+			wp_send_json_error( array( 'message' => __( 'Failed to send verification email. Please try again.', 'ems-plugin' ) ) );
+		}
+	}
+
+	public function handle_verify_fluent_otp(): void {
+		check_ajax_referer( 'fluent_otp_nonce', 'security' );
+
+		$email      = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+		$field_name = isset( $_POST['field_name'] ) ? sanitize_key( wp_unslash( $_POST['field_name'] ) ) : '';
+		$code       = isset( $_POST['code'] ) ? sanitize_text_field( trim( wp_unslash( $_POST['code'] ) ) ) : '';
+
+		if ( ! is_email( $email ) || empty( $code ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid parameters.', 'ems-plugin' ) ) );
+		}
+
+		$transient_key = 'fluent_otp_' . md5( $email . '_' . $field_name );
+		$stored_hash   = get_transient( $transient_key );
+
+		if ( ! $stored_hash ) {
+			wp_send_json_error( array( 'message' => __( 'Verification code has expired or not requested.', 'ems-plugin' ) ) );
+		}
+
+		if ( hash_equals( $stored_hash, hash( 'sha256', $code ) ) ) {
+			wp_send_json_success( array( 'message' => __( 'Email verified!', 'ems-plugin' ) ) );
+		} else {
+			wp_send_json_error( array( 'message' => __( 'Incorrect verification code.', 'ems-plugin' ) ) );
+		}
+	}
+
+	public function validate_email_otp( $errorMessage, $field, $formData, $fields, $form ) {
+		$form_id             = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
+		$participant_form_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
+		$expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
+
+		$config = array();
+		if ( $form_id === $participant_form_id ) {
+			$config = get_option( 'ems_participant_form_mappings', array() );
+		} elseif ( $form_id === $expedition_form_id ) {
+			$config = get_option( 'ems_expedition_form_mappings', array() );
+		}
+
+		$parent_email_field   = $config['parent_email_field'] ?? 'signup_parent_email';
+		$parent_otp_field     = $config['parent_otp_field'] ?? 'signup_parent_otp_code';
+		$explorer_email_field = $config['explorer_email_field'] ?? 'signup_explorer_email';
+		$explorer_otp_field   = $config['explorer_otp_field'] ?? 'signup_explorer_otp_code';
+
+		$current_field = $field['name'] ?? '';
+
+		if ( $current_field !== $parent_email_field && $current_field !== $explorer_email_field ) {
+			return $errorMessage;
+		}
+
+		if ( $current_field === $parent_email_field && is_user_logged_in() ) {
+			return $errorMessage;
+		}
+
+		$email = isset( $formData[ $current_field ] ) ? sanitize_email( $formData[ $current_field ] ) : '';
+		if ( empty( $email ) ) {
+			return $errorMessage;
+		}
+
+		if ( $current_field === $explorer_email_field ) {
+			$parent_email = isset( $formData[ $parent_email_field ] ) ? sanitize_email( $formData[ $parent_email_field ] ) : '';
+			if ( $email === $parent_email ) {
+				if ( is_user_logged_in() ) {
+					return $errorMessage;
+				}
+				$parent_code = isset( $formData[ $parent_otp_field ] ) ? sanitize_text_field( trim( $formData[ $parent_otp_field ] ) ) : '';
+				if ( ! empty( $parent_code ) ) {
+					$parent_transient_key = 'fluent_otp_' . md5( $parent_email . '_' . $parent_email_field );
+					$parent_stored_hash   = get_transient( $parent_transient_key );
+					if ( $parent_stored_hash && hash_equals( $parent_stored_hash, hash( 'sha256', $parent_code ) ) ) {
+						return $errorMessage;
+					}
+				}
+			}
+		}
+
+		$otp_field_name = ( $current_field === $parent_email_field ) ? $parent_otp_field : $explorer_otp_field;
+		$user_otp       = isset( $formData[ $otp_field_name ] ) ? sanitize_text_field( trim( $formData[ $otp_field_name ] ) ) : '';
+
+		if ( empty( $user_otp ) ) {
+			return __( 'Please verify this email address with the 6-digit code.', 'ems-plugin' );
+		}
+
+		$transient_key = 'fluent_otp_' . md5( $email . '_' . $current_field );
+		$stored_hash   = get_transient( $transient_key );
+
+		if ( ! $stored_hash ) {
+			return __( 'The verification code has expired or was not requested.', 'ems-plugin' );
+		}
+
+		if ( ! hash_equals( $stored_hash, hash( 'sha256', $user_otp ) ) ) {
+			return __( 'The verification code is incorrect.', 'ems-plugin' );
+		}
+
+		delete_transient( $transient_key );
+
+		return $errorMessage;
+	}
+
+	public function bypass_otp_required_validation( $rules, $form ) {
+		if ( ! is_user_logged_in() ) {
+			return $rules;
+		}
+
+		$form_id             = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
+		$participant_form_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
+		$expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
+
+		$config = array();
+		if ( $form_id === $participant_form_id ) {
+			$config = get_option( 'ems_participant_form_mappings', array() );
+		} elseif ( $form_id === $expedition_form_id ) {
+			$config = get_option( 'ems_expedition_form_mappings', array() );
+		}
+
+		$parent_otp_field = $config['parent_otp_field'] ?? 'signup_parent_otp_code';
+
+		if ( isset( $rules[ $parent_otp_field ]['required'] ) ) {
+			unset( $rules[ $parent_otp_field ]['required'] );
+		}
+
+		return $rules;
+	}
+
+	public function bypass_otp_frontend_required( array $data, $form ): array {
+		if ( ! is_user_logged_in() ) {
+			return $data;
+		}
+
+		$form_id             = (int) ( is_array( $form ) ? ( $form['id'] ?? 0 ) : ( $form->id ?? 0 ) );
+		$participant_form_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
+		$expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
+
+		$config = array();
+		if ( $form_id === $participant_form_id ) {
+			$config = get_option( 'ems_participant_form_mappings', array() );
+		} elseif ( $form_id === $expedition_form_id ) {
+			$config = get_option( 'ems_expedition_form_mappings', array() );
+		}
+
+		$parent_otp_field = $config['parent_otp_field'] ?? 'signup_parent_otp_code';
+
+		if ( ( $data['attributes']['name'] ?? '' ) === $parent_otp_field ) {
+			unset( $data['attributes']['required'] );
+			if ( isset( $data['settings']['validation_rules']['required'] ) ) {
+				unset( $data['settings']['validation_rules']['required'] );
+			}
+		}
+
+		return $data;
 	}
 }

@@ -317,4 +317,151 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $this->assertArrayNotHasKey( 'readonly', $result['attributes'] );
         $this->assertSame( 'existing-class', $result['attributes']['class'] );
     }
+
+    public function test_validate_email_otp_success_for_guest_with_correct_otp(): void {
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_participant_form_mappings' ) {
+                return [
+                    'parent_email_field' => 'signup_parent_email',
+                    'parent_otp_field'   => 'signup_parent_otp_code',
+                ];
+            }
+            return $default;
+        } );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
+
+        $otp = '123456';
+        $email = 'parent@example.com';
+        $transient_key = 'fluent_otp_' . md5($email . '_signup_parent_email');
+        
+        $transients = [ $transient_key => hash('sha256', $otp) ];
+        Functions\when( 'get_transient' )->alias( fn($key) => $transients[$key] ?? null );
+        Functions\when( 'delete_transient' )->alias( function($key) use (&$transients) {
+            unset($transients[$key]);
+            return true;
+        } );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+
+        $field = [ 'name' => 'signup_parent_email' ];
+        $formData = [
+            'signup_parent_email'    => 'parent@example.com',
+            'signup_parent_otp_code' => '123456',
+        ];
+        $form = (object) [ 'id' => 6 ];
+
+        $error = $sync->validate_email_otp( '', $field, $formData, [], $form );
+
+        $this->assertEmpty( $error );
+        $this->assertArrayNotHasKey( $transient_key, $transients );
+    }
+
+    public function test_validate_email_otp_failure_for_guest_with_incorrect_otp(): void {
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_participant_form_mappings' ) {
+                return [
+                    'parent_email_field' => 'signup_parent_email',
+                    'parent_otp_field'   => 'signup_parent_otp_code',
+                ];
+            }
+            return $default;
+        } );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
+
+        $otp = '123456';
+        $email = 'parent@example.com';
+        $transient_key = 'fluent_otp_' . md5($email . '_signup_parent_email');
+        
+        $transients = [ $transient_key => hash('sha256', $otp) ];
+        Functions\when( 'get_transient' )->alias( fn($key) => $transients[$key] ?? null );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+
+        $field = [ 'name' => 'signup_parent_email' ];
+        $formData = [
+            'signup_parent_email'    => 'parent@example.com',
+            'signup_parent_otp_code' => '999999',
+        ];
+        $form = (object) [ 'id' => 6 ];
+
+        $error = $sync->validate_email_otp( '', $field, $formData, [], $form );
+
+        $this->assertSame( 'The verification code is incorrect.', $error );
+        $this->assertNotEmpty( $transients[$transient_key] );
+    }
+
+    public function test_validate_email_otp_bypass_for_logged_in_parent(): void {
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_participant_form_mappings' ) {
+                return [
+                    'parent_email_field' => 'signup_parent_email',
+                    'parent_otp_field'   => 'signup_parent_otp_code',
+                ];
+            }
+            return $default;
+        } );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 42 );
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+
+        $field = [ 'name' => 'signup_parent_email' ];
+        $formData = [
+            'signup_parent_email'    => 'parent@example.com',
+            'signup_parent_otp_code' => '',
+        ];
+        $form = (object) [ 'id' => 6 ];
+
+        $error = $sync->validate_email_otp( '', $field, $formData, [], $form );
+
+        $this->assertEmpty( $error );
+    }
+
+    public function test_validate_email_otp_bypass_for_matching_email_deduplication(): void {
+        Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
+            if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+            if ( $key === 'ems_participant_form_mappings' ) {
+                return [
+                    'parent_email_field'   => 'signup_parent_email',
+                    'parent_otp_field'     => 'signup_parent_otp_code',
+                    'explorer_email_field' => 'signup_explorer_email',
+                    'explorer_otp_field'   => 'signup_explorer_otp_code',
+                ];
+            }
+            return $default;
+        } );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
+
+        $otp = '123456';
+        $email = 'family@example.com';
+        $parent_transient_key = 'fluent_otp_' . md5($email . '_signup_parent_email');
+        
+        $transients = [ $parent_transient_key => hash('sha256', $otp) ];
+        Functions\when( 'get_transient' )->alias( fn($key) => $transients[$key] ?? null );
+
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+
+        $field = [ 'name' => 'signup_explorer_email' ];
+        $formData = [
+            'signup_parent_email'      => 'family@example.com',
+            'signup_parent_otp_code'   => '123456',
+            'signup_explorer_email'    => 'family@example.com',
+            'signup_explorer_otp_code' => '',
+        ];
+        $form = (object) [ 'id' => 6 ];
+
+        $error = $sync->validate_email_otp( '', $field, $formData, [], $form );
+
+        $this->assertEmpty( $error );
+    }
 }
