@@ -8,6 +8,7 @@ class Fluent_Forms_Sync {
 	private Signup_Repository $signup_repo;
 	private Unit_Repository $unit_repo;
 	private object $wpdb;
+	private bool $parent_email_verified = false;
 
 	public function __construct( ?Signup_Repository $signup_repo = null, ?Unit_Repository $unit_repo = null, ?object $wpdb = null ) {
 		if ( $wpdb === null ) {
@@ -1084,6 +1085,20 @@ class Fluent_Forms_Sync {
 						}
 					});
 
+					// Helper to update React-controlled inputs safely
+					function setInputValue(input, value) {
+						if (!input) return;
+						var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value') ? 
+							Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set : null;
+						if (nativeInputValueSetter) {
+							nativeInputValueSetter.call(input, value);
+						} else {
+							input.value = value;
+						}
+						input.dispatchEvent(new Event('input', { bubbles: true }));
+						input.dispatchEvent(new Event('change', { bubbles: true }));
+					}
+
 					// Dynamic Deduplication (Event Delegation)
 					function checkDeduplicate() {
 						var explorerEmailInput = document.querySelector('input[name="' + window.emsFields.explorerEmailField + '"]');
@@ -1101,7 +1116,7 @@ class Fluent_Forms_Sync {
 							if (explorerOtpInput) {
 								var otpGroup = explorerOtpInput.closest('.ff-el-group');
 								if (otpGroup) otpGroup.style.display = 'none';
-								explorerOtpInput.value = '000000';
+								setInputValue(explorerOtpInput, '000000');
 							}
 							var btnWrap  = document.querySelector('.ems-otp-wrap[data-target="' + window.emsFields.explorerEmailField + '"]');
 							if (btnWrap) btnWrap.style.display = 'none';
@@ -1123,7 +1138,7 @@ class Fluent_Forms_Sync {
 								var otpGroup = explorerOtpInput.closest('.ff-el-group');
 								if (otpGroup) otpGroup.style.display = '';
 								if (explorerOtpInput.value === '000000') {
-									explorerOtpInput.value = '';
+									setInputValue(explorerOtpInput, '');
 								}
 							}
 							var btnWrap  = document.querySelector('.ems-otp-wrap[data-target="' + window.emsFields.explorerEmailField + '"]');
@@ -1189,7 +1204,7 @@ class Fluent_Forms_Sync {
 									// Restore code value if empty in DOM
 									var cachedCode = sessionStorage.getItem('ems_val_' + otpFieldName);
 									if (cachedCode && !otpInput.value) {
-										otpInput.value = cachedCode;
+										setInputValue(otpInput, cachedCode);
 									}
 								}
 							}
@@ -1356,6 +1371,9 @@ class Fluent_Forms_Sync {
 				if ( is_user_logged_in() ) {
 					return $errorMessage;
 				}
+				if ( $this->parent_email_verified ) {
+					return $errorMessage;
+				}
 				$parent_code = isset( $formData[ $parent_otp_field ] ) ? sanitize_text_field( trim( $formData[ $parent_otp_field ] ) ) : '';
 				if ( ! empty( $parent_code ) ) {
 					$parent_transient_key = 'fluent_otp_' . md5( $parent_email . '_' . $parent_email_field );
@@ -1383,6 +1401,10 @@ class Fluent_Forms_Sync {
 
 		if ( ! hash_equals( $stored_hash, hash( 'sha256', $user_otp ) ) ) {
 			return __( 'The verification code is incorrect.', 'ems-plugin' );
+		}
+
+		if ( $current_field === $parent_email_field ) {
+			$this->parent_email_verified = true;
 		}
 
 		delete_transient( $transient_key );
