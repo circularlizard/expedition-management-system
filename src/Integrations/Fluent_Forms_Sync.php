@@ -899,159 +899,159 @@ class Fluent_Forms_Sync {
 						}
 					}
 
-					// --- OTP Verification Logic ---
-					var sendBtns = document.querySelectorAll('.ems-otp-wrap button');
-					sendBtns.forEach(function(btn) {
-						btn.addEventListener('click', function(e) {
-							e.preventDefault();
-							var container = btn.closest('.ems-otp-wrap');
-							if (!container) return;
-							var targetField = container.getAttribute('data-target');
-							if (!targetField) return;
+					// --- OTP Verification Logic (Event Delegation) ---
+					document.addEventListener('click', function(e) {
+						var btn = e.target.closest('.ems-otp-wrap button');
+						if (!btn) return;
+						e.preventDefault();
 
-							var emailInput = document.querySelector('input[name="' + targetField + '"]');
-							var statusText = container.querySelector('.fluent-otp-status');
+						var container = btn.closest('.ems-otp-wrap');
+						if (!container) return;
+						var targetField = container.getAttribute('data-target');
+						if (!targetField) return;
 
-							if (!emailInput || !statusText) return;
+						var emailInput = document.querySelector('input[name="' + targetField + '"]');
+						var statusText = container.querySelector('.fluent-otp-status');
 
-							var email = emailInput.value.trim();
-							if (!email || !email.includes('@')) {
-								statusText.style.color = '#dc3545';
-								statusText.textContent = 'Please enter a valid email address first.';
-								return;
-							}
+						if (!emailInput || !statusText) return;
 
-							btn.disabled = true;
-							statusText.style.color = '#6c757d';
-							statusText.textContent = 'Sending code...';
+						var email = emailInput.value.trim();
+						if (!email || !email.includes('@')) {
+							statusText.style.color = '#dc3545';
+							statusText.textContent = 'Please enter a valid email address first.';
+							return;
+						}
 
-							var formData = new FormData();
-							formData.append('action', 'send_fluent_otp');
-							formData.append('email', email);
-							formData.append('field_name', targetField);
-							formData.append('security', window.emsFields.nonce);
+						btn.disabled = true;
+						statusText.style.color = '#6c757d';
+						statusText.textContent = 'Sending code...';
 
-							fetch(window.emsFields.ajaxUrl, {
-								method: 'POST',
-								body: formData,
-								credentials: 'same-origin'
-							})
-							.then(function(res) { return res.json(); })
-							.then(function(data) {
-								if (data.success) {
-									statusText.style.color = '#28a745';
-									statusText.textContent = data.data.message || 'Code sent! Check your inbox.';
-									
-									var countdown = 60;
-									var interval = setInterval(function() {
-										countdown--;
-										btn.textContent = 'Resend in ' + countdown + 's';
-										if (countdown <= 0) {
-											clearInterval(interval);
-											btn.disabled = false;
-											btn.textContent = 'Resend Verification Code';
-										}
-									}, 1000);
-								} else {
-									btn.disabled = false;
-									statusText.style.color = '#dc3545';
-									statusText.textContent = data.data.message || 'Error sending code.';
-								}
-							})
-							.catch(function(err) {
+						var formData = new FormData();
+						formData.append('action', 'send_fluent_otp');
+						formData.append('email', email);
+						formData.append('field_name', targetField);
+						formData.append('security', window.emsFields.nonce);
+
+						fetch(window.emsFields.ajaxUrl, {
+							method: 'POST',
+							body: formData,
+							credentials: 'same-origin'
+						})
+						.then(function(res) { return res.json(); })
+						.then(function(data) {
+							if (data.success) {
+								statusText.style.color = '#28a745';
+								statusText.textContent = data.data.message || 'Code sent! Check your inbox.';
+								
+								var countdown = 60;
+								btn.textContent = 'Resend in ' + countdown + 's';
+								var interval = setInterval(function() {
+									countdown--;
+									btn.textContent = 'Resend in ' + countdown + 's';
+									if (countdown <= 0) {
+										clearInterval(interval);
+										btn.disabled = false;
+										btn.textContent = 'Resend Verification Code';
+									}
+								}, 1000);
+							} else {
 								btn.disabled = false;
 								statusText.style.color = '#dc3545';
-								statusText.textContent = 'Network error. Please try again.';
-							});
+								statusText.textContent = data.data.message || 'Error sending code.';
+							}
+						})
+						.catch(function(err) {
+							btn.disabled = false;
+							statusText.style.color = '#dc3545';
+							statusText.textContent = 'Network error. Please try again.';
 						});
 					});
 
-					// Real-time inline verification as they type
-					function setupInlineOtpVerify(otpFieldName, emailFieldName) {
-						var otpInput = document.querySelector('input[name="' + otpFieldName + '"]');
-						if (!otpInput) return;
+					// Real-time inline verification (Event Delegation)
+					function checkOtp(otpInput, emailFieldName) {
+						var emailInput = document.querySelector('input[name="' + emailFieldName + '"]');
+						if (!emailInput) return;
 
-						function checkOtp() {
-							var emailInput = document.querySelector('input[name="' + emailFieldName + '"]');
-							if (!emailInput) return;
+						var email = emailInput.value.trim();
+						var code = otpInput.value.trim();
 
-							var email = emailInput.value.trim();
-							var code = otpInput.value.trim();
-
-							var container = otpInput.closest('.ff-el-group');
-							var statusEl = container ? container.querySelector('.ems-inline-otp-status') : null;
-							if (container && !statusEl) {
-								statusEl = document.createElement('span');
-								statusEl.className = 'ems-inline-otp-status';
-								statusEl.style.marginLeft = '10px';
-								statusEl.style.fontSize = '0.9em';
-								otpInput.parentNode.insertBefore(statusEl, otpInput.nextSibling);
-							}
-
-							if (!email || code.length !== 6) {
-								if (statusEl) statusEl.textContent = '';
-								otpInput.style.borderColor = '';
-								return;
-							}
-
-							if (statusEl) {
-								statusEl.style.color = '#6c757d';
-								statusEl.textContent = 'Verifying code...';
-							}
-
-							var formData = new FormData();
-							formData.append('action', 'verify_fluent_otp');
-							formData.append('email', email);
-							formData.append('field_name', emailFieldName);
-							formData.append('code', code);
-							formData.append('security', window.emsFields.nonce);
-
-							fetch(window.emsFields.ajaxUrl, {
-								method: 'POST',
-								body: formData,
-								credentials: 'same-origin'
-							})
-							.then(function(res) { return res.json(); })
-							.then(function(data) {
-								if (data.success) {
-									if (statusEl) {
-										statusEl.style.color = '#28a745';
-										statusEl.textContent = '✓ ' + (data.data.message || 'Email verified!');
-									}
-									otpInput.style.borderColor = '#28a745';
-									emailInput.setAttribute('readonly', 'readonly');
-									emailInput.classList.add('ff-read-only');
-								} else {
-									if (statusEl) {
-										statusEl.style.color = '#dc3545';
-										statusEl.textContent = '✗ ' + (data.data.message || 'Incorrect code.');
-									}
-									otpInput.style.borderColor = '#dc3545';
-									emailInput.removeAttribute('readonly');
-									emailInput.classList.remove('ff-read-only');
-								}
-							})
-							.catch(function() {
-								if (statusEl) {
-									statusEl.style.color = '#dc3545';
-									statusEl.textContent = 'Verification error.';
-								}
-							});
+						var container = otpInput.closest('.ff-el-group');
+						var statusEl = container ? container.querySelector('.ems-inline-otp-status') : null;
+						if (container && !statusEl) {
+							statusEl = document.createElement('span');
+							statusEl.className = 'ems-inline-otp-status';
+							statusEl.style.marginLeft = '10px';
+							statusEl.style.fontSize = '0.9em';
+							otpInput.parentNode.insertBefore(statusEl, otpInput.nextSibling);
 						}
 
-						otpInput.addEventListener('input', checkOtp);
-						otpInput.addEventListener('change', checkOtp);
+						if (!email || code.length !== 6) {
+							if (statusEl) statusEl.textContent = '';
+							otpInput.style.borderColor = '';
+							return;
+						}
+
+						if (statusEl) {
+							statusEl.style.color = '#6c757d';
+							statusEl.textContent = 'Verifying code...';
+						}
+
+						var formData = new FormData();
+						formData.append('action', 'verify_fluent_otp');
+						formData.append('email', email);
+						formData.append('field_name', emailFieldName);
+						formData.append('code', code);
+						formData.append('security', window.emsFields.nonce);
+
+						fetch(window.emsFields.ajaxUrl, {
+							method: 'POST',
+							body: formData,
+							credentials: 'same-origin'
+						})
+						.then(function(res) { return res.json(); })
+						.then(function(data) {
+							if (data.success) {
+								if (statusEl) {
+									statusEl.style.color = '#28a745';
+									statusEl.textContent = '✓ ' + (data.data.message || 'Email verified!');
+								}
+								otpInput.style.borderColor = '#28a745';
+								emailInput.setAttribute('readonly', 'readonly');
+								emailInput.classList.add('ff-read-only');
+							} else {
+								if (statusEl) {
+									statusEl.style.color = '#dc3545';
+									statusEl.textContent = '✗ ' + (data.data.message || 'Incorrect code.');
+								}
+								otpInput.style.borderColor = '#dc3545';
+								emailInput.removeAttribute('readonly');
+								emailInput.classList.remove('ff-read-only');
+							}
+						})
+						.catch(function() {
+							if (statusEl) {
+								statusEl.style.color = '#dc3545';
+								statusEl.textContent = 'Verification error.';
+							}
+						});
 					}
 
-					setupInlineOtpVerify(window.emsFields.parentOtpField, window.emsFields.parentEmailField);
-					setupInlineOtpVerify(window.emsFields.explorerOtpField, window.emsFields.explorerEmailField);
+					document.addEventListener('input', function(e) {
+						var target = e.target;
+						if (!target || !target.name) return;
+						if (target.name === window.emsFields.parentOtpField) {
+							checkOtp(target, window.emsFields.parentEmailField);
+						} else if (target.name === window.emsFields.explorerOtpField) {
+							checkOtp(target, window.emsFields.explorerEmailField);
+						}
+					});
 
-					// Dynamic Deduplication: Hide explorer OTP if emails match
-					var explorerEmailInput = document.querySelector('input[name="' + window.emsFields.explorerEmailField + '"]');
-					var parentEmailInput   = document.querySelector('input[name="' + window.emsFields.parentEmailField + '"]');
-					var explorerOtpInput   = document.querySelector('input[name="' + window.emsFields.explorerOtpField + '"]');
-					
+					// Dynamic Deduplication (Event Delegation)
 					function checkDeduplicate() {
+						var explorerEmailInput = document.querySelector('input[name="' + window.emsFields.explorerEmailField + '"]');
+						var parentEmailInput   = document.querySelector('input[name="' + window.emsFields.parentEmailField + '"]');
+						var explorerOtpInput   = document.querySelector('input[name="' + window.emsFields.explorerOtpField + '"]');
+						
 						if (!explorerEmailInput || !parentEmailInput || !explorerOtpInput) return;
 						var explorerEmail = explorerEmailInput.value.trim();
 						var parentEmail = parentEmailInput.value.trim();
@@ -1081,11 +1081,15 @@ class Fluent_Forms_Sync {
 							dupStatusEl.textContent = '';
 						}
 					}
-					if (explorerEmailInput && parentEmailInput) {
-						explorerEmailInput.addEventListener('input', checkDeduplicate);
-						parentEmailInput.addEventListener('input', checkDeduplicate);
-						checkDeduplicate();
-					}
+
+					document.addEventListener('input', function(e) {
+						var name = e.target.name;
+						if (name === window.emsFields.explorerEmailField || name === window.emsFields.parentEmailField) {
+							checkDeduplicate();
+						}
+					});
+
+					setTimeout(checkDeduplicate, 500);
 				}
 				initEmsFormSync();
 			});
