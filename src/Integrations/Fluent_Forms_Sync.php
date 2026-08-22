@@ -1087,10 +1087,14 @@ class Fluent_Forms_Sync {
 						var parentEmailInput   = document.querySelector('input[name="' + window.emsFields.parentEmailField + '"]');
 						var explorerOtpInput   = document.querySelector('input[name="' + window.emsFields.explorerOtpField + '"]');
 						
+						console.log('[EMS Sync] checkDeduplicate check. explorerEmailInput:', !!explorerEmailInput, 'parentEmailInput:', !!parentEmailInput, 'explorerOtpInput:', !!explorerOtpInput);
+
 						if (!explorerEmailInput || !parentEmailInput || !explorerOtpInput) return;
 						var explorerEmail = explorerEmailInput.value.trim();
 						var parentEmail = parentEmailInput.value.trim();
 						
+						console.log('[EMS Sync] comparing explorerEmail:', explorerEmail, 'with parentEmail:', parentEmail);
+
 						var otpGroup = explorerOtpInput.closest('.ff-el-group');
 						var btnWrap  = document.querySelector('.ems-otp-wrap[data-target="' + window.emsFields.explorerEmailField + '"]');
 						
@@ -1105,14 +1109,17 @@ class Fluent_Forms_Sync {
 						}
 
 						if (explorerEmail && explorerEmail === parentEmail) {
+							console.log('[EMS Sync] Duplicate email detected, bypassing explorer verification.');
 							if (otpGroup) otpGroup.style.display = 'none';
 							if (btnWrap) btnWrap.style.display = 'none';
-							explorerOtpInput.value = 'BYPASS';
+							explorerOtpInput.value = '000000';
 							dupStatusEl.textContent = 'Email matches verified parent email (Verification bypassed).';
 						} else {
 							if (otpGroup) otpGroup.style.display = '';
 							if (btnWrap) btnWrap.style.display = '';
-							if (explorerOtpInput.value === 'BYPASS') explorerOtpInput.value = '';
+							if (explorerOtpInput.value === '000000') {
+								explorerOtpInput.value = '';
+							}
 							dupStatusEl.textContent = '';
 						}
 					}
@@ -1123,8 +1130,22 @@ class Fluent_Forms_Sync {
 							checkDeduplicate();
 						}
 					});
+					document.addEventListener('change', function(e) {
+						var name = e.target.name;
+						if (name === window.emsFields.explorerEmailField || name === window.emsFields.parentEmailField) {
+							checkDeduplicate();
+						}
+					});
+					document.addEventListener('keyup', function(e) {
+						var name = e.target.name;
+						if (name === window.emsFields.explorerEmailField || name === window.emsFields.parentEmailField) {
+							checkDeduplicate();
+						}
+					});
 
 					setTimeout(checkDeduplicate, 500);
+					setTimeout(checkDeduplicate, 1500);
+					setTimeout(checkDeduplicate, 3000);
 				}
 				initEmsFormSync();
 			});
@@ -1175,7 +1196,7 @@ class Fluent_Forms_Sync {
 		$otp = wp_rand( 100000, 999999 );
 		$transient_key = 'fluent_otp_' . md5( $email . '_' . $field_name );
 
-		set_transient( $transient_key, hash( 'sha256', (string) $otp ), 10 * MINUTE_IN_SECONDS );
+		set_transient( $transient_key, hash( 'sha256', (string) $otp ), 30 * MINUTE_IN_SECONDS );
 		set_transient( $rate_limit_key, true, 60 );
 
 		$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
@@ -1183,7 +1204,7 @@ class Fluent_Forms_Sync {
 		
 		$message  = "Hello,\n\n";
 		$message .= "Your verification code is: {$otp}\n\n";
-		$message .= "This code is valid for 10 minutes. If you did not request this code, please ignore this email.\n\n";
+		$message .= "This code is valid for 30 minutes. If you did not request this code, please ignore this email.\n\n";
 		$message .= "Regards,\n{$site_name}";
 
 		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
