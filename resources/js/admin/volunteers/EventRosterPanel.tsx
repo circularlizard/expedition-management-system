@@ -166,7 +166,7 @@ export const EventRosterPanel: React.FC<EventRosterPanelProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h2 style={{ margin: 0 }}>
                         <a 
-                            href={`admin.php?page=ems&event_id=${selectedEvent.ID}`} 
+                            href={`admin.php?page=ems-expeditions&event_id=${selectedEvent.ID}`} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             style={{ color: '#2271b1', textDecoration: 'underline' }}
