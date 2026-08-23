@@ -339,4 +339,28 @@ describe('SignupsBoard', () => {
             });
         });
     });
+
+    it('does not render First Aid column in table but displays it in the inspector panel', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0);
+        });
+
+        // Ensure "First Aid" table header is not in the document
+        expect(screen.queryByRole('columnheader', { name: /First Aid/i })).not.toBeInTheDocument();
+
+        // Open Inspector for Mary Jones
+        fireEvent.click(screen.getAllByText('Mary Jones')[0]);
+
+        await waitFor(() => {
+            // First Aid Status should be in the inspector
+            expect(screen.getByText('First Aid Status')).toBeInTheDocument();
+            expect(screen.getByText('first_response')).toBeInTheDocument();
+        });
+    });
 });
