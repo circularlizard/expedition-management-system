@@ -92,6 +92,42 @@ class Table_Installer {
 			$wpdb->query( "ALTER TABLE {$vol_table} ADD COLUMN constraints TEXT DEFAULT NULL AFTER preferred_roles" );
 		}
 
+		$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'email1' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN email1 VARCHAR(100) NOT NULL DEFAULT '' AFTER last_name" );
+		}
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'email2' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN email2 VARCHAR(100) NOT NULL DEFAULT '' AFTER email1" );
+		}
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'p1_email1' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN p1_email1 VARCHAR(100) NOT NULL DEFAULT '' AFTER email2" );
+		}
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'p1_email2' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN p1_email2 VARCHAR(100) NOT NULL DEFAULT '' AFTER p1_email1" );
+		}
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'p2_email1' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN p2_email1 VARCHAR(100) NOT NULL DEFAULT '' AFTER p1_email2" );
+		}
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'p2_email2' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN p2_email2 VARCHAR(100) NOT NULL DEFAULT '' AFTER p2_email1" );
+		}
+
+		// Backfill existing emails if columns were just added
+		if ( $this->column_exists( $wpdb, $explorers_table, 'email1' ) && $this->column_exists( $wpdb, $explorers_table, 'email' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "UPDATE {$explorers_table} SET email1 = email WHERE email1 = '' AND email != ''" );
+		}
+		if ( $this->column_exists( $wpdb, $explorers_table, 'p1_email1' ) && $this->column_exists( $wpdb, $explorers_table, 'parent_email' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "UPDATE {$explorers_table} SET p1_email1 = parent_email WHERE p1_email1 = '' AND parent_email != ''" );
+		}
+
 		// Migrate legacy statuses to 'submitted'
 		$wpdb->query( "UPDATE {$wpdb->prefix}ems_participant_signups SET signup_status = 'submitted' WHERE signup_status IN ('received', 'allocated')" );
 		$wpdb->query( "UPDATE {$wpdb->prefix}ems_expedition_signups SET signup_status = 'submitted' WHERE signup_status = 'pending'" );
@@ -263,6 +299,12 @@ class Table_Installer {
             last_name            VARCHAR(100)    NOT NULL DEFAULT '',
             email                VARCHAR(100)    NOT NULL DEFAULT '',
             parent_email         VARCHAR(100)    NOT NULL DEFAULT '',
+            email1               VARCHAR(100)    NOT NULL DEFAULT '',
+            email2               VARCHAR(100)    NOT NULL DEFAULT '',
+            p1_email1            VARCHAR(100)    NOT NULL DEFAULT '',
+            p1_email2            VARCHAR(100)    NOT NULL DEFAULT '',
+            p2_email1            VARCHAR(100)    NOT NULL DEFAULT '',
+            p2_email2            VARCHAR(100)    NOT NULL DEFAULT '',
             patrol               VARCHAR(100)    NOT NULL DEFAULT '',
             first_aid_level      VARCHAR(30)     NOT NULL DEFAULT 'none',
             dofe_number          VARCHAR(50)              DEFAULT NULL,

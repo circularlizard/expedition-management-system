@@ -130,7 +130,12 @@ class OSM_API_ClientTest extends EMSTestCase {
                     'group_id' => 6,
                     'columns'  => [
                         [ 'column_id' => 12, 'value' => $entry['email'] ],
-                        [ 'column_id' => 14, 'value' => $entry['parent_email'] ],
+                    ],
+                ],
+                [
+                    'group_id' => 1,
+                    'columns'  => [
+                        [ 'column_id' => 12, 'value' => $entry['parent_email'] ],
                     ],
                 ],
             ],

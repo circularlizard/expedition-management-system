@@ -62,11 +62,17 @@ class OSM_Section_Importer {
 						'last_name'    => $member['last_name'] ?? '',
 						'email'        => $member['email'] ?? '',
 						'parent_email' => $member['parent_email'] ?? '',
+						'email1'       => $member['email'] ?? '',
+						'email2'       => '',
+						'p1_email1'    => $member['parent_email'] ?? '',
+						'p1_email2'    => '',
+						'p2_email1'    => '',
+						'p2_email2'    => '',
 						'patrol'       => $member['patrol'] ?? '',
 						'synced_at'    => $now,
 					),
 					array( 'scout_id' => $scout_id ),
-					array( '%d', '%s', '%s', '%s', '%s', '%s', '%s' ),
+					array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
 					array( '%d' )
 				);
 			} else {
@@ -79,10 +85,16 @@ class OSM_Section_Importer {
 						'last_name'    => $member['last_name'] ?? '',
 						'email'        => $member['email'] ?? '',
 						'parent_email' => $member['parent_email'] ?? '',
+						'email1'       => $member['email'] ?? '',
+						'email2'       => '',
+						'p1_email1'    => $member['parent_email'] ?? '',
+						'p1_email2'    => '',
+						'p2_email1'    => '',
+						'p2_email2'    => '',
 						'patrol'       => $member['patrol'] ?? '',
 						'synced_at'    => $now,
 					),
-					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
+					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 				);
 			}
 		}
