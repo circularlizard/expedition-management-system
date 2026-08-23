@@ -352,7 +352,7 @@ class Fluent_Forms_Sync {
 			'dofe_org'            => sanitize_text_field( $formData[ $config['dofe_org_field'] ] ?? '' ),
 			'bronze_completion'   => $bronze,
 			'silver_completion'   => $silver,
-			'signup_status'       => 'received',
+			'signup_status'       => 'submitted',
 			'payment_status'      => 'pending',
 			'form_submission_id'  => $entryId,
 		);
@@ -443,7 +443,7 @@ class Fluent_Forms_Sync {
 			'additional_support_needs' => sanitize_textarea_field( $formData[ $config['asn_field'] ] ?? '' ),
 			'first_aid_status'         => sanitize_text_field( $formData[ $config['first_aid_field'] ] ?? 'none' ),
 			'first_aid_expiry'         => $fa_expiry,
-			'signup_status'            => 'pending',
+			'signup_status'            => 'submitted',
 			'form_submission_id'       => $entryId,
 		);
 
