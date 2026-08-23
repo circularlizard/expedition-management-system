@@ -232,17 +232,17 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         return explorers.filter(e => {
             const ef = normalize(e.first_name);
             const el = normalize(e.last_name);
-            const ee = normalize(e.email);
-            const ep = normalize(e.parent_email);
 
             // 1. Exact first and last name match
             if (sf === ef && sl === el) return true;
 
-            // 2. Exact explorer email match (if present)
-            if (se && se === ee) return true;
+            // 2. Exact explorer email match (if present) against any explorer email
+            const explorerEmails = [e.email1, e.email2, e.email].map(normalize).filter(Boolean);
+            if (se && explorerEmails.includes(se)) return true;
 
-            // 3. Parent email match AND first name similarity (sibling guard)
-            if (sp && sp === ep && firstNamesSimilar(signup.explorer_first_name, e.first_name)) {
+            // 3. Parent email match (against any parent email) AND first name similarity (sibling guard)
+            const parentEmails = [e.p1_email1, e.p1_email2, e.p2_email1, e.p2_email2, e.parent_email].map(normalize).filter(Boolean);
+            if (sp && parentEmails.includes(sp) && firstNamesSimilar(signup.explorer_first_name, e.first_name)) {
                 return true;
             }
 
