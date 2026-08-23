@@ -126,6 +126,12 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'dofe_number', $explorers_sql );
         $this->assertStringContainsString( "DEFAULT 'none'", $explorers_sql );
         $this->assertStringContainsString( 'UNIQUE KEY idx_scout_id', $explorers_sql );
+        $this->assertStringContainsString( 'email1', $explorers_sql );
+        $this->assertStringContainsString( 'email2', $explorers_sql );
+        $this->assertStringContainsString( 'p1_email1', $explorers_sql );
+        $this->assertStringContainsString( 'p1_email2', $explorers_sql );
+        $this->assertStringContainsString( 'p2_email1', $explorers_sql );
+        $this->assertStringContainsString( 'p2_email2', $explorers_sql );
     }
 
     public function test_participant_signups_columns(): void {
