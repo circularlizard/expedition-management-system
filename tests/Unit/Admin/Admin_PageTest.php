@@ -59,7 +59,7 @@ class Admin_PageTest extends EMSTestCase {
 
         $this->assertContains( 'ems', $submenu_slugs );
         $this->assertContains( 'ems-explorers', $submenu_slugs );
-        $this->assertContains( 'ems-signups', $submenu_slugs );
+        $this->assertContains( 'ems-expeditions', $submenu_slugs );
         $this->assertContains( 'ems-volunteers', $submenu_slugs );
         $this->assertContains( 'ems-reference', $submenu_slugs );
 

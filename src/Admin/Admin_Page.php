@@ -16,9 +16,18 @@ class Admin_Page {
 			'EMS',
 			'manage_options',
 			'ems',
-			array( $this, 'render_dashboard' ),
+			array( $this, 'render_signups_page' ),
 			'dashicons-location-alt',
 			5
+		);
+
+		$signups_hook = add_submenu_page(
+			'ems',
+			__( 'Signups', 'ems-plugin' ),
+			__( 'Signups', 'ems-plugin' ),
+			'manage_options',
+			'ems',
+			array( $this, 'render_signups_page' )
 		);
 
 		$dashboard_hook = add_submenu_page(
@@ -26,22 +35,25 @@ class Admin_Page {
 			__( 'Expeditions', 'ems-plugin' ),
 			__( 'Expeditions', 'ems-plugin' ),
 			'manage_options',
-			'ems',
+			'ems-expeditions',
 			array( $this, 'render_dashboard' )
 		);
 
 		add_action(
 			'admin_enqueue_scripts',
-			function ( $hook ) use ( $dashboard_hook ) {
+			function ( $hook ) use ( $dashboard_hook, $signups_hook ) {
 				if ( $hook === $dashboard_hook ) {
 					$this->enqueue_dashboard_assets();
+				}
+				if ( $hook === $signups_hook ) {
+					$this->enqueue_signups_assets();
 				}
 			}
 		);
 	}
 
 	/**
-	 * Registers the Explorer List and Signups submenus.
+	 * Registers the Explorer List submenu.
 	 */
 	public function register_explorers_menu(): void {
 		$explorers_hook = add_submenu_page(
@@ -53,23 +65,11 @@ class Admin_Page {
 			array( $this, 'render_explorers_page' )
 		);
 
-		$signups_hook = add_submenu_page(
-			'ems',
-			__( 'Signups', 'ems-plugin' ),
-			__( 'Signups', 'ems-plugin' ),
-			'manage_options',
-			'ems-signups',
-			array( $this, 'render_signups_page' )
-		);
-
 		add_action(
 			'admin_enqueue_scripts',
-			function ( $hook ) use ( $explorers_hook, $signups_hook ) {
+			function ( $hook ) use ( $explorers_hook ) {
 				if ( $hook === $explorers_hook ) {
 					$this->enqueue_dashboard_assets();
-				}
-				if ( $hook === $signups_hook ) {
-					$this->enqueue_signups_assets();
 				}
 			}
 		);
