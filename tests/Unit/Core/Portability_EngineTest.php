@@ -86,4 +86,93 @@ class Portability_EngineTest extends EMSTestCase {
 
 		$this->assertTrue( $result );
 	}
+
+	public function test_export_units_serializes_only_ems_units(): void {
+		$this->wpdb->shouldReceive( 'get_results' )
+			->with( 'SELECT * FROM wp_ems_units', ARRAY_A )
+			->once()
+			->andReturn( [
+				[
+					'id' => 1,
+					'patrol_id' => 101,
+					'section_id' => 201,
+					'name' => 'Kestrels',
+					'active' => 1,
+				]
+			] );
+
+		$engine = new Portability_Engine();
+		$json = $engine->export_units();
+
+		$data = json_decode( $json, true );
+		$this->assertSame( 'ems_units_export', $data['type'] );
+		$this->assertSame( '0.1.x', $data['version'] );
+		$this->assertArrayNotHasKey( 'options', $data );
+		$this->assertArrayNotHasKey( 'tables', $data );
+		$this->assertSame( [
+			[
+				'id' => 1,
+				'patrol_id' => 101,
+				'section_id' => 201,
+				'name' => 'Kestrels',
+				'active' => 1,
+			]
+		], $data['units'] );
+	}
+
+	public function test_import_units_restores_only_ems_units(): void {
+		$backup_data = array(
+			'type'    => 'ems_units_export',
+			'version' => '0.1.x',
+			'units'   => array(
+				array(
+					'id'        => 5,
+					'patrol_id' => 500,
+					'section_id'=> 600,
+					'name'      => 'Falcons',
+					'active'    => 1,
+				)
+			)
+		);
+		$json = json_encode( $backup_data );
+
+		$this->wpdb->shouldReceive( 'query' )
+			->with( 'TRUNCATE TABLE wp_ems_units' )
+			->once()
+			->andReturn( true );
+
+		$this->wpdb->shouldReceive( 'insert' )
+			->with( 'wp_ems_units', [
+				'id'        => 5,
+				'patrol_id' => 500,
+				'section_id'=> 600,
+				'name'      => 'Falcons',
+				'active'    => 1,
+			] )
+			->once()
+			->andReturn( true );
+
+		$engine = new Portability_Engine();
+		$result = $engine->import_units( $json );
+
+		$this->assertTrue( $result );
+	}
+
+	public function test_import_units_throws_on_invalid_structure(): void {
+		$invalid_data = array(
+			'options' => array(),
+			'tables' => array(),
+		);
+		$json = json_encode( $invalid_data );
+
+		$this->wpdb->shouldNotReceive( 'query' );
+		$this->wpdb->shouldNotReceive( 'insert' );
+
+		$engine = new Portability_Engine();
+
+		$this->expectException( \Exception::class );
+		$this->expectExceptionMessage( 'Invalid units backup file structure.' );
+
+		$engine->import_units( $json );
+	}
 }

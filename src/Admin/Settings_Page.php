@@ -139,6 +139,10 @@ class Settings_Page {
 			$this->handle_import();
 		} elseif ( isset( $_POST['ems_export_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
 			$this->handle_export();
+		} elseif ( isset( $_POST['ems_import_units'] ) && check_admin_referer( 'ems_settings_unit_portability' ) ) {
+			$this->handle_import_units();
+		} elseif ( isset( $_POST['ems_export_units'] ) && check_admin_referer( 'ems_settings_unit_portability' ) ) {
+			$this->handle_export_units();
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'sections';
@@ -596,6 +600,33 @@ class Settings_Page {
 				</p>
 			<?php endif; ?>
 		</form>
+
+		<div style="display: flex; gap: 20px; margin-top: 30px;">
+			<div class="card" style="flex: 1; min-width: 280px; padding: 20px; margin: 0;">
+				<h3><?php esc_html_e( 'Export Unit Lookup Table', 'ems-plugin' ); ?></h3>
+				<p class="description">
+					<?php esc_html_e( 'Download a JSON file containing only the Unit lookup configurations.', 'ems-plugin' ); ?>
+				</p>
+				<form method="post">
+					<?php wp_nonce_field( 'ems_settings_unit_portability' ); ?>
+					<input type="submit" name="ems_export_units" class="button button-secondary" value="<?php esc_attr_e( 'Export Units (.json)', 'ems-plugin' ); ?>" />
+				</form>
+			</div>
+
+			<div class="card" style="flex: 1; min-width: 280px; padding: 20px; margin: 0;">
+				<h3><?php esc_html_e( 'Import Unit Lookup Table', 'ems-plugin' ); ?></h3>
+				<p class="description">
+					<?php esc_html_e( 'Upload a units-only JSON backup file. Warning: This will truncate current units data and restore it from the file.', 'ems-plugin' ); ?>
+				</p>
+				<form method="post" enctype="multipart/form-data">
+					<?php wp_nonce_field( 'ems_settings_unit_portability' ); ?>
+					<p>
+						<input type="file" name="ems_units_backup_file" accept=".json" required />
+					</p>
+					<input type="submit" name="ems_import_units" class="button button-secondary" value="<?php esc_attr_e( 'Import Units', 'ems-plugin' ); ?>" onclick="return confirm('<?php esc_attr_e( 'Are you sure? This will overwrite the current Unit lookup data.', 'ems-plugin' ); ?>');" />
+				</form>
+			</div>
+		</div>
 		<?php
 	}
 
@@ -1085,6 +1116,65 @@ class Settings_Page {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'EMS backup restored and replicated successfully.', 'ems-plugin' ) . '</p></div>';
 		} catch ( \Exception $e ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sprintf( __( 'Restore failed: %s', 'ems-plugin' ), $e->getMessage() ) ) . '</p></div>';
+		}
+	}
+
+	/**
+	 * Exports the Unit lookup configurations as a JSON string file download.
+	 *
+	 * @return void
+	 */
+	private function handle_export_units(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$engine   = new \EMS\Core\Portability_Engine();
+		$json     = $engine->export_units();
+		$filename = 'ems-units-backup-' . current_time( 'Y-md-His' ) . '.json';
+
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Pragma: no-cache' );
+		header( 'Expires: 0' );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $json;
+		exit;
+	}
+
+	/**
+	 * Imports Unit lookup configurations from an uploaded JSON file.
+	 *
+	 * @return void
+	 */
+	private function handle_import_units(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( empty( $_FILES['ems_units_backup_file']['tmp_name'] ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Please upload a unit lookup backup file.', 'ems-plugin' ) . '</p></div>';
+			return;
+		}
+
+		try {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$file_path = sanitize_text_field( wp_unslash( $_FILES['ems_units_backup_file']['tmp_name'] ) );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			$content = file_get_contents( $file_path );
+			if ( ! $content ) {
+				throw new \Exception( 'Failed to read uploaded file.' );
+			}
+
+			$engine = new \EMS\Core\Portability_Engine();
+			$engine->import_units( $content );
+
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Unit lookup data imported successfully.', 'ems-plugin' ) . '</p></div>';
+		} catch ( \Exception $e ) {
+			// translators: %s: The error message returned when import fails.
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sprintf( __( 'Import failed: %s', 'ems-plugin' ), $e->getMessage() ) ) . '</p></div>';
 		}
 	}
 
