@@ -222,6 +222,18 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 'ems_explorer_not_found', $response->get_data()->get_error_code() );
     }
 
+    public function test_add_member_zero_scout_id_returns_400(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $controller = $this->create_controller();
+        $request    = $this->json_request( [ 'scout_id' => 0 ] );
+        $request->set_param( 'team_id', 30 );
+        $response   = $controller->add_member( $request );
+
+        $this->assertSame( 400, $response->get_status() );
+        $this->assertSame( 'ems_invalid_scout_id', $response->get_data()->get_error_code() );
+    }
+
     public function test_get_board_returns_season_event_team_hierarchy(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
         Functions\when( 'get_option' )->justReturn( '2026-06-13 20:00:00' );
@@ -595,7 +607,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         Functions\when( 'current_user_can' )->justReturn( true );
 
         $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_participant_signups' )->with( 'received' )->andReturn( [
+        $signups->shouldReceive( 'get_participant_signups' )->with( 'submitted' )->andReturn( [
             [
                 'id' => 10,
                 'scout_id' => 101,
@@ -613,7 +625,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
                 'dofe_org' => null,
                 'bronze_completion' => null,
                 'silver_completion' => null,
-                'signup_status' => 'received',
+                'signup_status' => 'submitted',
                 'payment_status' => 'paid',
                 'form_submission_id' => 1234,
                 'is_synced_osm' => 1,
@@ -623,7 +635,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
         $controller = $this->create_controller( null, null, null, null, null, null, $signups );
         $request = new \WP_REST_Request();
-        $request->set_param( 'status', 'received' );
+        $request->set_param( 'status', 'submitted' );
         $response = $controller->list_participant_signups( $request );
 
         $this->assertSame( 200, $response->get_status() );
@@ -639,7 +651,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         Functions\when( 'current_user_can' )->justReturn( true );
 
         $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_participant_signups_for_export' )->with( 'received', 'bronze' )->andReturn( [
+        $signups->shouldReceive( 'get_participant_signups_for_export' )->with( 'submitted', 'bronze' )->andReturn( [
             [
                 'id' => 10,
                 'scout_id' => 101,
@@ -657,7 +669,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
                 'dofe_org' => null,
                 'bronze_completion' => null,
                 'silver_completion' => null,
-                'signup_status' => 'received',
+                'signup_status' => 'submitted',
                 'payment_status' => 'paid',
                 'form_submission_id' => 1234,
                 'is_synced_osm' => 1,
@@ -671,7 +683,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
         $controller = $this->create_controller( null, null, null, null, null, null, $signups );
         $request = new \WP_REST_Request();
-        $request->set_param( 'status', 'received' );
+        $request->set_param( 'status', 'submitted' );
         $request->set_param( 'level', 'bronze' );
 
         ob_start();
@@ -691,7 +703,8 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $signups->shouldReceive( 'get_participant_signup' )->with( 10 )->andReturn( [
             'id' => 10,
             'payment_status' => 'paid',
-            'signup_status' => 'received',
+            'signup_status' => 'submitted',
+            'dofe_number' => null,
         ] );
         $signups->shouldReceive( 'process_participant_signup' )->with( 10, 42, 'D-778899' )->andReturn( true );
 
@@ -703,8 +716,6 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 200, $response->get_status() );
         $this->assertTrue( $response->get_data()['processed'] );
     }
-
-
 
     public function test_archive_participant_signup_success(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
@@ -726,7 +737,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         Functions\when( 'current_user_can' )->justReturn( true );
 
         $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_expedition_signups' )->with( 'pending' )->andReturn( [
+        $signups->shouldReceive( 'get_expedition_signups' )->with( 'submitted' )->andReturn( [
             [
                 'id' => 20,
                 'scout_id' => 102,
@@ -743,7 +754,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
                 'additional_support_needs' => '',
                 'first_aid_status' => 'first_response',
                 'first_aid_expiry' => '2028-06-13',
-                'signup_status' => 'pending',
+                'signup_status' => 'submitted',
                 'form_submission_id' => 5678,
                 'is_synced_osm' => 0,
                 'created_at' => '2026-06-13 20:00:00',
@@ -752,13 +763,88 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
         $controller = $this->create_controller( null, null, null, null, null, null, $signups );
         $request = new \WP_REST_Request();
-        $request->set_param( 'status', 'pending' );
+        $request->set_param( 'status', 'submitted' );
         $response = $controller->list_expedition_signups( $request );
 
         $this->assertSame( 200, $response->get_status() );
         $data = $response->get_data();
         $this->assertCount( 1, $data );
         $this->assertSame( 'John', $data[0]['explorer_first_name'] );
+    }
+
+    public function test_reconcile_signup_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'reconcile_signup' )->with( 500, 'participant', 12345 )->once()->andReturn( true );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 500,
+            'signup_type' => 'participant',
+            'scout_id'    => 12345,
+        ] );
+        $response = $controller->reconcile_signup( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['reconciled'] );
+    }
+
+    public function test_unlink_signup_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'unlink_signup' )->with( 500, 'participant' )->once()->andReturn( true );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 500,
+            'signup_type' => 'participant',
+        ] );
+        $response = $controller->unlink_signup( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['unlinked'] );
+    }
+
+    public function test_unlink_signup_conflict_if_assigned(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'unlink_signup' )->with( 500, 'participant' )->once()->andThrow( new \RuntimeException( 'Cannot unlink explorer who is currently assigned to a team.' ) );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 500,
+            'signup_type' => 'participant',
+        ] );
+        $response = $controller->unlink_signup( $request );
+
+        $this->assertSame( 409, $response->get_status() );
+        $this->assertSame( 'ems_unlink_conflict', $response->get_data()->get_error_code() );
+    }
+
+    public function test_list_all_signups_returns_combined_active_list(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'get_participant_signups' )->with( 'submitted' )->andReturn( [
+            [ 'id' => 10, 'explorer_first_name' => 'Mary', 'signup_status' => 'submitted' ]
+        ] );
+        $signups->shouldReceive( 'get_expedition_signups' )->with( 'submitted' )->andReturn( [
+            [ 'id' => 20, 'explorer_first_name' => 'John', 'signup_status' => 'submitted' ]
+        ] );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request = new \WP_REST_Request();
+        $request->set_param( 'status', 'submitted' );
+        $response = $controller->list_all_signups( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertCount( 2, $data );
+        $this->assertSame( 'participant', $data[0]['type'] );
+        $this->assertSame( 'expedition', $data[1]['type'] );
     }
 
     public function test_list_planning_board_success(): void {
