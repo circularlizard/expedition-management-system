@@ -45,10 +45,9 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [unitFilter, setUnitFilter] = useState<string>('all');
-    const [allocationFilter, setAllocationFilter] = useState<string>('all');
 
     // Grouping & Sorting
-    const [grouping, setGrouping] = useState<'none' | 'unit' | 'level'>('none');
+    const [grouping, setGrouping] = useState<'none' | 'unit' | 'level' | 'explorer' | 'parent'>('none');
     const [sortKey, setSortKey] = useState<string>('created_at');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -65,7 +64,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, typeFilter, levelFilter, unitFilter, allocationFilter, sortKey, sortOrder, grouping]);
+    }, [statusFilter, typeFilter, levelFilter, unitFilter, sortKey, sortOrder, grouping]);
 
     useEffect(() => {
         if (selectedSignup && inspectorRef.current) {
@@ -256,11 +255,6 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         if (typeFilter !== 'all' && s.type !== typeFilter) return false;
         if (levelFilter !== 'all' && s.dofe_level !== levelFilter) return false;
         if (unitFilter !== 'all' && (s.unit_name || 'Unassigned') !== unitFilter) return false;
-        if (allocationFilter !== 'all') {
-            const hasAllocated = !!s.dofe_number;
-            if (allocationFilter === 'allocated' && !hasAllocated) return false;
-            if (allocationFilter === 'unallocated' && hasAllocated) return false;
-        }
         return true;
     });
 
@@ -307,24 +301,64 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
             return [{ title: null, items: sortedSignups }];
         }
 
-        const groupsMap: { [key: string]: any[] } = {};
+        const groupsMap: { [key: string]: { title: string, items: any[] } } = {};
         sortedSignups.forEach(s => {
             let key = '';
+            let title = '';
             if (grouping === 'unit') {
-                key = `Unit: ${s.unit_name || 'Unassigned'}`;
+                key = `unit_${s.unit_name || 'Unassigned'}`;
+                title = `Unit: ${s.unit_name || 'Unassigned'}`;
             } else if (grouping === 'level') {
-                key = `Level: ${s.dofe_level || 'Unknown'}`;
+                key = `level_${s.dofe_level || 'Unknown'}`;
+                title = `Level: ${s.dofe_level || 'Unknown'}`;
+            } else if (grouping === 'explorer') {
+                if (s.scout_id && s.scout_id !== 0) {
+                    key = `scout_${s.scout_id}`;
+                    title = `${s.explorer_first_name} ${s.explorer_last_name} (Scout ID: ${s.scout_id})`;
+                } else {
+                    const emailPart = s.explorer_email ? normalize(s.explorer_email) : '';
+                    const namePart = `${normalize(s.explorer_first_name)}_${normalize(s.explorer_last_name)}`;
+                    const parentPart = s.parent_email ? normalize(s.parent_email) : '';
+                    key = `guest_${parentPart}_${namePart}_${emailPart}`;
+                    title = `${s.explorer_first_name} ${s.explorer_last_name} (Guest)`;
+                }
+            } else if (grouping === 'parent') {
+                if (s.parent_user_id && s.parent_user_id !== 0) {
+                    key = `user_${s.parent_user_id}`;
+                    title = `Parent ID: ${s.parent_user_id} (${s.parent_email || 'No email'})`;
+                } else {
+                    const email = normalize(s.parent_email || 'unknown');
+                    key = `email_${email}`;
+                    title = `Parent: ${s.parent_email || 'No Email'}`;
+                }
             }
+
             if (!groupsMap[key]) {
-                groupsMap[key] = [];
+                groupsMap[key] = { title, items: [] };
             }
-            groupsMap[key].push(s);
+            groupsMap[key].items.push(s);
         });
 
-        // Sort groups alphabetically by key, with internal items already sorted
-        return Object.keys(groupsMap).sort().map(key => ({
-            title: key,
-            items: groupsMap[key]
+        const sortGroupItems = (items: any[]) => {
+            return [...items].sort((a, b) => {
+                const lastA = (a.explorer_last_name || '').toLowerCase();
+                const lastB = (b.explorer_last_name || '').toLowerCase();
+                if (lastA < lastB) return -1;
+                if (lastA > lastB) return 1;
+                const firstA = (a.explorer_first_name || '').toLowerCase();
+                const firstB = (b.explorer_first_name || '').toLowerCase();
+                if (firstA < firstB) return -1;
+                if (firstA > firstB) return 1;
+                return 0;
+            });
+        };
+
+        // Sort groups alphabetically by their title
+        return Object.keys(groupsMap).sort((a, b) => {
+            return groupsMap[a].title.localeCompare(groupsMap[b].title);
+        }).map(key => ({
+            title: groupsMap[key].title,
+            items: sortGroupItems(groupsMap[key].items)
         }));
     };
 
@@ -505,6 +539,8 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                 className="ems-select"
                             >
                                 <option value="none">Ungrouped</option>
+                                <option value="explorer">Explorer</option>
+                                <option value="parent">Parent</option>
                                 <option value="unit">Unit</option>
                                 <option value="level">Level</option>
                             </select>
@@ -557,21 +593,6 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                             </select>
                         </div>
 
-                        {/* Allocation selector */}
-                        <div className="ems-flex-center ems-gap-8">
-                            <label htmlFor="allocation-filter" className="ems-toolbar__label">Allocation:</label>
-                            <select
-                                id="allocation-filter"
-                                value={allocationFilter}
-                                onChange={(e) => setAllocationFilter(e.target.value)}
-                                className="ems-select"
-                            >
-                                <option value="all">All Allocations</option>
-                                <option value="allocated">Allocated</option>
-                                <option value="unallocated">Unallocated</option>
-                            </select>
-                        </div>
-
                         <button
                             type="button"
                             className="button button-secondary"
@@ -592,6 +613,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                             <thead>
                                 <tr>
                                     <th className="ems-table-cell--center ems-m-0"></th>
+                                    {renderHeader('Form Type', 'type')}
                                     {renderHeader('Submission Date', 'created_at')}
                                     {renderHeader('Explorer Name', 'explorer_first_name')}
                                     {renderHeader('Level', 'dofe_level')}
@@ -604,7 +626,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                             <tbody>
                                 {paginatedGroupedSignups.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
+                                        <td colSpan={9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                             No signup records found for this filter state.
                                         </td>
                                     </tr>
@@ -613,7 +635,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         <React.Fragment key={g.title || 'flat'}>
                                             {g.title && (
                                                 <tr className="ems-table-group-header">
-                                                    <td colSpan={8}><strong>{g.title}</strong></td>
+                                                    <td colSpan={9}><strong>{g.title}</strong></td>
                                                 </tr>
                                             )}
                                             {g.items.map((s) => (
@@ -630,13 +652,15 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                         )}
                                                     </td>
                                                     <td>
+                                                        <span className={`ems-status-badge ems-status-badge--${s.type}`}>
+                                                            {s.type === 'participant' ? 'Place' : 'Exped'}
+                                                        </span>
+                                                    </td>
+                                                    <td>
                                                         {s.created_at ? s.created_at.substring(0, 16) : '—'}
                                                     </td>
                                                     <td>
                                                         <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
-                                                        <span className="ems-meta-text ems-small-text ems-ml-8">
-                                                            ({s.type === 'participant' ? 'Place' : 'Pref'})
-                                                        </span>
                                                     </td>
                                                     <td>
                                                         <span className={`ems-pill ems-pill--${s.dofe_level}`}>

@@ -158,6 +158,9 @@ describe('SignupsBoard', () => {
             expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0);
             expect(screen.getByText('Alice Smith')).toBeInTheDocument();
             expect(screen.getByText('Charlie Smith')).toBeInTheDocument();
+            // Form Type column assertions
+            expect(screen.getAllByText('Place').length).toBeGreaterThan(0);
+            expect(screen.getAllByText('Exped').length).toBeGreaterThan(0);
         });
 
         // Group by Unit ESU
@@ -175,6 +178,22 @@ describe('SignupsBoard', () => {
             expect(screen.getByText('Level: bronze')).toBeInTheDocument();
             expect(screen.getByText('Level: silver')).toBeInTheDocument();
         });
+
+        // Group by Explorer
+        fireEvent.change(groupingSelect, { target: { value: 'explorer' } });
+        await waitFor(() => {
+            expect(screen.getByText(/Mary Jones \(Scout ID: 30003\)/)).toBeInTheDocument();
+            expect(screen.getByText(/Alice Smith \(Guest\)/)).toBeInTheDocument();
+        });
+
+        // Group by Parent
+        fireEvent.change(groupingSelect, { target: { value: 'parent' } });
+        await waitFor(() => {
+            expect(screen.getByText(/Parent ID: 4/)).toBeInTheDocument();
+        });
+
+        // Reset grouping back to none for filtering test
+        fireEvent.change(groupingSelect, { target: { value: 'none' } });
 
         // Test Level Filter
         const levelSelect = screen.getByLabelText(/Filter Level/i);
