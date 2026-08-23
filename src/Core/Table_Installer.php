@@ -92,6 +92,10 @@ class Table_Installer {
 			$wpdb->query( "ALTER TABLE {$vol_table} ADD COLUMN constraints TEXT DEFAULT NULL AFTER preferred_roles" );
 		}
 
+		// Migrate legacy statuses to 'submitted'
+		$wpdb->query( "UPDATE {$wpdb->prefix}ems_participant_signups SET signup_status = 'submitted' WHERE signup_status IN ('received', 'allocated')" );
+		$wpdb->query( "UPDATE {$wpdb->prefix}ems_expedition_signups SET signup_status = 'submitted' WHERE signup_status = 'pending'" );
+
 		$this->migrate_season_deprecation( $wpdb );
 	}
 
@@ -350,7 +354,7 @@ class Table_Installer {
             dofe_org               VARCHAR(100)             DEFAULT NULL,
             bronze_completion      TEXT                     DEFAULT NULL,
             silver_completion      TEXT                     DEFAULT NULL,
-            signup_status          VARCHAR(30)     NOT NULL DEFAULT 'received',
+            signup_status          VARCHAR(30)     NOT NULL DEFAULT 'submitted',
             payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending',
             processed_by           BIGINT UNSIGNED          DEFAULT NULL,
             processed_at           DATETIME                 DEFAULT NULL,
@@ -379,7 +383,7 @@ class Table_Installer {
             additional_support_needs TEXT                   DEFAULT NULL,
             first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
             first_aid_expiry       DATE                     DEFAULT NULL,
-            signup_status          VARCHAR(30)     NOT NULL DEFAULT 'pending',
+            signup_status          VARCHAR(30)     NOT NULL DEFAULT 'submitted',
             form_submission_id     BIGINT UNSIGNED NOT NULL,
             created_at             DATETIME        NOT NULL,
             updated_at             DATETIME        NOT NULL,

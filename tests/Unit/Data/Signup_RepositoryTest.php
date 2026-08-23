@@ -50,7 +50,7 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertEquals( 'Borders Scout Region', $inserted_data['dofe_org'] );
         $this->assertEquals( 'bronze', $inserted_data['dofe_level'] );
         $this->assertEquals( '2010-05-15', $inserted_data['dob'] );
-        $this->assertEquals( 'received', $inserted_data['signup_status'] );
+        $this->assertEquals( 'submitted', $inserted_data['signup_status'] );
         $this->assertEquals( 1234, $inserted_data['form_submission_id'] );
     }
 
@@ -90,7 +90,7 @@ class Signup_RepositoryTest extends EMSTestCase {
 
         $this->assertEquals( 30001, $inserted_data['scout_id'] );
         $this->assertEquals( 'silver', $inserted_data['dofe_level'] );
-        $this->assertEquals( 'pending', $inserted_data['signup_status'] );
+        $this->assertEquals( 'submitted', $inserted_data['signup_status'] );
         $this->assertJson( $inserted_data['expedition_preferences'] );
         $this->assertEquals( '2028-06-13', $inserted_data['first_aid_expiry'] );
     }
@@ -116,7 +116,7 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertEquals( 1234, $wpdb->updated[0]['where']['form_submission_id'] );
     }
 
-    public function test_process_participant_signup_updates_status_and_dofe_number(): void {
+    public function test_process_participant_signup_updates_dofe_number(): void {
         $wpdb = new class {
             public $prefix = 'wp_';
             public $updated = [];
@@ -133,7 +133,7 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertTrue( $result );
         $this->assertCount( 1, $wpdb->updated );
         $this->assertEquals( 'wp_ems_participant_signups', $wpdb->updated[0]['table'] );
-        $this->assertEquals( 'allocated', $wpdb->updated[0]['data']['signup_status'] );
+        $this->assertArrayNotHasKey( 'signup_status', $wpdb->updated[0]['data'] );
         $this->assertEquals( 'D-778899', $wpdb->updated[0]['data']['dofe_number'] );
         $this->assertEquals( 42, $wpdb->updated[0]['data']['processed_by'] );
         $this->assertNotNull( $wpdb->updated[0]['data']['processed_at'] );
@@ -177,11 +177,88 @@ class Signup_RepositoryTest extends EMSTestCase {
         };
 
         $repo = new Signup_Repository( $wpdb );
-        $repo->get_participant_signups( 'allocated' );
+        $repo->get_participant_signups( 'submitted' );
         $repo->get_participant_signups( 'all' );
 
         $this->assertCount( 2, $wpdb->queries );
-        $this->assertStringContainsString( "signup_status = 'allocated'", $wpdb->queries[0] );
+        $this->assertStringContainsString( "signup_status = 'submitted'", $wpdb->queries[0] );
         $this->assertStringNotContainsString( "WHERE", $wpdb->queries[1] );
+    }
+
+    public function test_reconcile_signup_runs_transactional_batch_updates(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $queries = [];
+            public $row = [
+                'explorer_first_name' => 'Mary',
+                'explorer_last_name' => 'Smith',
+                'explorer_email' => 'mary@example.com',
+                'parent_email' => 'parent@example.com',
+            ];
+
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
+            }
+
+            public function get_row( string $sql, string $output = ARRAY_A ) {
+                return $this->row;
+            }
+
+            public function query( string $sql ) {
+                $this->queries[] = $sql;
+                return true;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+        $result = $repo->reconcile_signup( 500, 'participant', 12345 );
+
+        $this->assertTrue( $result );
+        $this->assertContains( 'START TRANSACTION', $wpdb->queries );
+        $this->assertContains( 'COMMIT', $wpdb->queries );
+        
+        $participant_update = null;
+        $expedition_update = null;
+        foreach ( $wpdb->queries as $q ) {
+            if ( strpos( $q, 'wp_ems_participant_signups' ) !== false && strpos( $q, 'SET scout_id = 12345' ) !== false ) {
+                $participant_update = $q;
+            }
+            if ( strpos( $q, 'wp_ems_expedition_signups' ) !== false && strpos( $q, 'SET scout_id = 12345' ) !== false ) {
+                $expedition_update = $q;
+            }
+        }
+        $this->assertNotNull( $participant_update );
+        $this->assertNotNull( $expedition_update );
+    }
+
+    public function test_unlink_signup_throws_exception_if_assigned_to_team(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $row = [
+                'scout_id' => 12345,
+                'explorer_first_name' => 'Mary',
+                'explorer_last_name' => 'Smith',
+                'explorer_email' => 'mary@example.com',
+                'parent_email' => 'parent@example.com',
+            ];
+
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%d', '%d', $sql ), $args );
+            }
+
+            public function get_row( string $sql, string $output = ARRAY_A ) {
+                return $this->row;
+            }
+
+            public function get_var( string $sql ) {
+                // Return 1 to indicate the scout is active in ems_team_members
+                return 1;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+        $this->expectException( \RuntimeException::class );
+        $this->expectExceptionMessage( 'Cannot unlink explorer who is currently assigned to a team.' );
+        $repo->unlink_signup( 500, 'participant' );
     }
 }

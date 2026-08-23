@@ -34,7 +34,7 @@ class Signup_Repository {
 			'dofe_org'            => ! empty( $data['dofe_org'] ) ? sanitize_text_field( $data['dofe_org'] ) : null,
 			'bronze_completion'   => ! empty( $data['bronze_completion'] ) ? ( is_array( $data['bronze_completion'] ) ? json_encode( $data['bronze_completion'] ) : $data['bronze_completion'] ) : null,
 			'silver_completion'   => ! empty( $data['silver_completion'] ) ? ( is_array( $data['silver_completion'] ) ? json_encode( $data['silver_completion'] ) : $data['silver_completion'] ) : null,
-			'signup_status'       => sanitize_text_field( $data['signup_status'] ?? 'received' ),
+			'signup_status'       => sanitize_text_field( $data['signup_status'] ?? 'submitted' ),
 			'payment_status'      => sanitize_text_field( $data['payment_status'] ?? 'pending' ),
 			'form_submission_id'  => (int) ( $data['form_submission_id'] ?? 0 ),
 			'created_at'          => $now,
@@ -99,7 +99,7 @@ class Signup_Repository {
 			'additional_support_needs' => ! empty( $data['additional_support_needs'] ) ? sanitize_textarea_field( $data['additional_support_needs'] ) : null,
 			'first_aid_status'         => sanitize_text_field( $data['first_aid_status'] ?? 'none' ),
 			'first_aid_expiry'         => ! empty( $data['first_aid_expiry'] ) ? sanitize_text_field( $data['first_aid_expiry'] ) : null,
-			'signup_status'            => sanitize_text_field( $data['signup_status'] ?? 'pending' ),
+			'signup_status'            => sanitize_text_field( $data['signup_status'] ?? 'submitted' ),
 			'form_submission_id'       => (int) ( $data['form_submission_id'] ?? 0 ),
 			'created_at'               => $now,
 			'updated_at'               => $now,
@@ -199,10 +199,8 @@ class Signup_Repository {
 			return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
 		}
 
-		$db_status = 'received';
-		if ( $status === 'allocated' ) {
-			$db_status = 'allocated';
-		} elseif ( $status === 'archived' ) {
+		$db_status = 'submitted';
+		if ( $status === 'archived' ) {
 			$db_status = 'archived';
 		}
 
@@ -238,7 +236,7 @@ class Signup_Repository {
 			return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
 		}
 
-		$db_status = 'pending';
+		$db_status = 'submitted';
 		if ( $status === 'archived' ) {
 			$db_status = 'archived';
 		}
@@ -256,13 +254,12 @@ class Signup_Repository {
 	 */
 	public function process_participant_signup( int $id, int $user_id, ?string $dofe_number = null ): bool {
 		$update_data = array(
-			'signup_status' => 'allocated',
 			'processed_by'  => $user_id,
 			'processed_at'  => current_time( 'mysql' ),
 			'updated_at'    => current_time( 'mysql' ),
 		);
 
-		$format = array( '%s', '%d', '%s', '%s' );
+		$format = array( '%d', '%s', '%s' );
 
 		if ( ! empty( $dofe_number ) ) {
 			$update_data['dofe_number'] = sanitize_text_field( $dofe_number );
@@ -278,8 +275,6 @@ class Signup_Repository {
 		);
 		return $result !== false;
 	}
-
-
 
 	/**
 	 * Archive a participant signup
@@ -313,6 +308,132 @@ class Signup_Repository {
 			array( '%d' )
 		);
 		return $result !== false;
+	}
+
+	/**
+	 * Reconcile / match unmatched signups (scout_id = 0) to a synced OSM explorer.
+	 */
+	public function reconcile_signup( int $signup_id, string $signup_type, int $scout_id ): bool {
+		if ( $signup_type === 'participant' ) {
+			$signup = $this->get_participant_signup( $signup_id );
+		} else {
+			$signup = $this->get_expedition_signup( $signup_id );
+		}
+
+		if ( ! $signup ) {
+			return false;
+		}
+
+		$first_name   = $signup['explorer_first_name'];
+		$last_name    = $signup['explorer_last_name'];
+		$email        = $signup['explorer_email'];
+		$parent_email = $signup['parent_email'];
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		// Batch update participant places
+		$p_sql = $this->wpdb->prepare(
+			"UPDATE {$this->wpdb->prefix}ems_participant_signups 
+			SET scout_id = %d 
+			WHERE scout_id = 0 AND signup_status = 'submitted' AND (
+				(explorer_email = %s AND explorer_email != '') OR 
+				(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+			)",
+			$scout_id,
+			$email,
+			$first_name,
+			$last_name,
+			$parent_email
+		);
+		$this->wpdb->query( $p_sql );
+
+		// Batch update expedition preferences
+		$e_sql = $this->wpdb->prepare(
+			"UPDATE {$this->wpdb->prefix}ems_expedition_signups 
+			SET scout_id = %d 
+			WHERE scout_id = 0 AND signup_status = 'submitted' AND (
+				(explorer_email = %s AND explorer_email != '') OR 
+				(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+			)",
+			$scout_id,
+			$email,
+			$first_name,
+			$last_name,
+			$parent_email
+		);
+		$this->wpdb->query( $e_sql );
+
+		$this->wpdb->query( 'COMMIT' );
+		return true;
+	}
+
+	/**
+	 * Unlink a matched signup back to guest status (scout_id = 0).
+	 */
+	public function unlink_signup( int $signup_id, string $signup_type ): bool {
+		if ( $signup_type === 'participant' ) {
+			$signup = $this->get_participant_signup( $signup_id );
+		} else {
+			$signup = $this->get_expedition_signup( $signup_id );
+		}
+
+		if ( ! $signup || (int) $signup['scout_id'] === 0 ) {
+			return false;
+		}
+
+		$scout_id     = (int) $signup['scout_id'];
+		$first_name   = $signup['explorer_first_name'];
+		$last_name    = $signup['explorer_last_name'];
+		$email        = $signup['explorer_email'];
+		$parent_email = $signup['parent_email'];
+
+		// Enforce safety constraint: explorer must not be assigned to any teams
+		$assigned = $this->wpdb->get_var(
+			$this->wpdb->prepare(
+				"SELECT COUNT(*) FROM {$this->wpdb->prefix}ems_team_members WHERE scout_id = %d",
+				$scout_id
+			)
+		);
+		if ( $assigned > 0 ) {
+			throw new \RuntimeException( 'Cannot unlink explorer who is currently assigned to a team.' );
+		}
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		// Batch update participant places back to 0
+		$p_sql = $this->wpdb->prepare(
+			"UPDATE {$this->wpdb->prefix}ems_participant_signups 
+			SET scout_id = 0 
+			WHERE scout_id = %d AND signup_status = 'submitted' AND (
+				(explorer_email = %s AND explorer_email != '') OR 
+				(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+			)",
+			$scout_id,
+			$email,
+			$first_name,
+			$last_name,
+			$parent_email
+		);
+		$this->wpdb->query( $p_sql );
+
+		// Batch update expedition preferences back to 0
+		$e_sql = $this->wpdb->prepare(
+			"UPDATE {$this->wpdb->prefix}ems_expedition_signups 
+			SET scout_id = 0 
+			WHERE scout_id = %d AND signup_status = 'submitted' AND (
+				(explorer_email = %s AND explorer_email != '') OR 
+				(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+			)",
+			$scout_id,
+			$email,
+			$first_name,
+			$last_name,
+			$parent_email
+		);
+		$this->wpdb->query( $e_sql );
+
+		$this->wpdb->query( 'COMMIT' );
+		return true;
 	}
 
 	public function has_additional_support_needs( int $scout_id ): bool {
