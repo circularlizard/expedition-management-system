@@ -301,44 +301,6 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
             return [{ title: null, items: sortedSignups }];
         }
 
-        const groupsMap: { [key: string]: { title: string, items: any[] } } = {};
-        sortedSignups.forEach(s => {
-            let key = '';
-            let title = '';
-            if (grouping === 'unit') {
-                key = `unit_${s.unit_name || 'Unassigned'}`;
-                title = `Unit: ${s.unit_name || 'Unassigned'}`;
-            } else if (grouping === 'level') {
-                key = `level_${s.dofe_level || 'Unknown'}`;
-                title = `Level: ${s.dofe_level || 'Unknown'}`;
-            } else if (grouping === 'explorer') {
-                if (s.scout_id && s.scout_id !== 0) {
-                    key = `scout_${s.scout_id}`;
-                    title = `${s.explorer_first_name} ${s.explorer_last_name} (Scout ID: ${s.scout_id})`;
-                } else {
-                    const emailPart = s.explorer_email ? normalize(s.explorer_email) : '';
-                    const namePart = `${normalize(s.explorer_first_name)}_${normalize(s.explorer_last_name)}`;
-                    const parentPart = s.parent_email ? normalize(s.parent_email) : '';
-                    key = `guest_${parentPart}_${namePart}_${emailPart}`;
-                    title = `${s.explorer_first_name} ${s.explorer_last_name} (Guest)`;
-                }
-            } else if (grouping === 'parent') {
-                if (s.parent_user_id && s.parent_user_id !== 0) {
-                    key = `user_${s.parent_user_id}`;
-                    title = `Parent ID: ${s.parent_user_id} (${s.parent_email || 'No email'})`;
-                } else {
-                    const email = normalize(s.parent_email || 'unknown');
-                    key = `email_${email}`;
-                    title = `Parent: ${s.parent_email || 'No Email'}`;
-                }
-            }
-
-            if (!groupsMap[key]) {
-                groupsMap[key] = { title, items: [] };
-            }
-            groupsMap[key].items.push(s);
-        });
-
         const sortGroupItems = (items: any[]) => {
             return [...items].sort((a, b) => {
                 const lastA = (a.explorer_last_name || '').toLowerCase();
@@ -352,6 +314,95 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                 return 0;
             });
         };
+
+        if (grouping === 'explorer') {
+            const explorerGroups: { title: string; keys: Set<string>; items: any[] }[] = [];
+
+            sortedSignups.forEach(s => {
+                let matchedGroup = null;
+
+                const scoutId = Number(s.scout_id || 0);
+                if (scoutId !== 0) {
+                    const sIdStr = String(scoutId);
+                    matchedGroup = explorerGroups.find(g => g.keys.has(`scout_${sIdStr}`));
+                } else {
+                    const email = s.explorer_email ? normalize(s.explorer_email) : '';
+                    const name = `${normalize(s.explorer_first_name)}_${normalize(s.explorer_last_name)}`;
+                    const parent = s.parent_email ? normalize(s.parent_email) : '';
+
+                    matchedGroup = explorerGroups.find(g => {
+                        const hasEmailMatch = email && g.keys.has(`email_${email}`);
+                        const hasNameMatch = name && parent && g.keys.has(`name_${parent}_${name}`);
+                        return hasEmailMatch || hasNameMatch;
+                    });
+                }
+
+                const itemKeys = new Set<string>();
+                if (scoutId !== 0) {
+                    itemKeys.add(`scout_${scoutId}`);
+                } else {
+                    if (s.explorer_email) {
+                        itemKeys.add(`email_${normalize(s.explorer_email)}`);
+                    }
+                    const name = `${normalize(s.explorer_first_name)}_${normalize(s.explorer_last_name)}`;
+                    const parent = s.parent_email ? normalize(s.parent_email) : '';
+                    if (name && parent) {
+                        itemKeys.add(`name_${parent}_${name}`);
+                    }
+                }
+
+                if (matchedGroup) {
+                    itemKeys.forEach(k => matchedGroup.keys.add(k));
+                    matchedGroup.items.push(s);
+                } else {
+                    const title = scoutId !== 0 
+                        ? `${s.explorer_first_name} ${s.explorer_last_name} (Scout ID: ${scoutId})`
+                        : `${s.explorer_first_name} ${s.explorer_last_name} (Guest)`;
+
+                    explorerGroups.push({
+                        title,
+                        keys: itemKeys,
+                        items: [s]
+                    });
+                }
+            });
+
+            // Sort explorer groups alphabetically by title
+            return explorerGroups.sort((a, b) => {
+                return a.title.localeCompare(b.title);
+            }).map(g => ({
+                title: g.title,
+                items: sortGroupItems(g.items)
+            }));
+        }
+
+        const groupsMap: { [key: string]: { title: string, items: any[] } } = {};
+        sortedSignups.forEach(s => {
+            let key = '';
+            let title = '';
+            if (grouping === 'unit') {
+                key = `unit_${s.unit_name || 'Unassigned'}`;
+                title = `Unit: ${s.unit_name || 'Unassigned'}`;
+            } else if (grouping === 'level') {
+                key = `level_${s.dofe_level || 'Unknown'}`;
+                title = `Level: ${s.dofe_level || 'Unknown'}`;
+            } else if (grouping === 'parent') {
+                const parentUserId = Number(s.parent_user_id || 0);
+                if (parentUserId !== 0) {
+                    key = `user_${parentUserId}`;
+                    title = `Parent ID: ${parentUserId} (${s.parent_email || 'No email'})`;
+                } else {
+                    const email = normalize(s.parent_email || 'unknown');
+                    key = `email_${email}`;
+                    title = `Parent: ${s.parent_email || 'No Email'}`;
+                }
+            }
+
+            if (!groupsMap[key]) {
+                groupsMap[key] = { title, items: [] };
+            }
+            groupsMap[key].items.push(s);
+        });
 
         // Sort groups alphabetically by their title
         return Object.keys(groupsMap).sort((a, b) => {
