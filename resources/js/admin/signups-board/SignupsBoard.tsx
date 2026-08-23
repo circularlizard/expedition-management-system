@@ -668,14 +668,13 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                     {renderHeader('Level', 'dofe_level')}
                                     {renderHeader('ESU', 'unit_name')}
                                     {renderHeader('Email', 'explorer_email')}
-                                    {renderHeader('First Aid', 'first_aid_status')}
                                     {renderHeader('DofE Number', 'dofe_number')}
                                 </tr>
                             </thead>
                             <tbody>
                                 {paginatedGroupedSignups.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
+                                        <td colSpan={8} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                             No signup records found for this filter state.
                                         </td>
                                     </tr>
@@ -684,7 +683,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         <React.Fragment key={g.title || 'flat'}>
                                             {g.title && (
                                                 <tr className="ems-table-group-header">
-                                                    <td colSpan={9}><strong>{g.title}</strong></td>
+                                                    <td colSpan={8}><strong>{g.title}</strong></td>
                                                 </tr>
                                             )}
                                             {g.items.map((s) => (
@@ -718,7 +717,6 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                     </td>
                                                     <td>{s.unit_name || 'Unassigned'}</td>
                                                     <td>{s.explorer_email || '—'}</td>
-                                                    <td>{s.first_aid_status || '—'}</td>
                                                     <td className="ems-monospace">
                                                         {s.dofe_number || '—'}
                                                         {s.dofe_registered === 'y-other' && (
