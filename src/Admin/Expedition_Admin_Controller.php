@@ -888,6 +888,28 @@ class Expedition_Admin_Controller {
 		return $explorers;
 	}
 
+	public function get_explorers_roster( \WP_REST_Request $request ): \WP_REST_Response {
+		$explorers = array();
+		foreach ( $this->explorers->list_all() as $row ) {
+			$explorers[] = array(
+				'scout_id'             => (int) ( $row['scout_id'] ?? 0 ),
+				'first_name'           => $row['first_name'] ?? '',
+				'last_name'            => $row['last_name'] ?? '',
+				'patrol'               => $row['patrol'] ?? '',
+				'email1'               => $row['email1'] ?? '',
+				'email2'               => $row['email2'] ?? '',
+				'p1_email1'            => $row['p1_email1'] ?? '',
+				'p1_email2'            => $row['p1_email2'] ?? '',
+				'p2_email1'            => $row['p2_email1'] ?? '',
+				'p2_email2'            => $row['p2_email2'] ?? '',
+				// Compatibility
+				'email'                => $row['email1'] ?? $row['email'] ?? '',
+				'parent_email'         => $row['p1_email1'] ?? $row['parent_email'] ?? '',
+			);
+		}
+		return new \WP_REST_Response( $explorers );
+	}
+
 	private function error( string $code, string $message, int $status ): \WP_REST_Response {
 		return new \WP_REST_Response( new \WP_Error( $code, $message, array( 'status' => $status ) ), $status );
 	}
@@ -1056,6 +1078,16 @@ class Expedition_Admin_Controller {
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'list_participant_signups' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			'ems/v1',
+			'/explorers',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_explorers_roster' ),
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);

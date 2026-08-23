@@ -238,35 +238,65 @@ class OSM_Parser {
 		);
 	}
 
-	/**
-	 * Parses a getData (members-getData) response and extracts email addresses.
-	 * group_id=6 (Member contact), column_id=12 (Email 1 / explorer email),
-	 * column_id=14 (Email 2 / parent email).
-	 *
-	 * @return array ['email' => string, 'parent_email' => string]
-	 */
-	public function parse_member_detail( array $raw ): array {
-		$email        = '';
-		$parent_email = '';
-
-		$groups = $raw['data'] ?? array();
+	private function extract_emails_from_group( array $groups, int $target_group_id ): array {
+		$col12 = '';
+		$col14 = '';
 		foreach ( $groups as $group ) {
-			if ( (int) ( $group['group_id'] ?? 0 ) !== 6 ) {
-				continue;
-			}
-			foreach ( $group['columns'] ?? array() as $col ) {
-				$cid = (int) ( $col['column_id'] ?? 0 );
-				if ( $cid === 12 ) {
-					$email = $col['value'] ?? '';
-				} elseif ( $cid === 14 ) {
-					$parent_email = $col['value'] ?? '';
+			if ( (int) ( $group['group_id'] ?? 0 ) === $target_group_id ) {
+				foreach ( $group['columns'] ?? array() as $col ) {
+					$cid = (int) ( $col['column_id'] ?? 0 );
+					if ( $cid === 12 ) {
+						$col12 = trim( $col['value'] ?? '' );
+					} elseif ( $cid === 14 ) {
+						$col14 = trim( $col['value'] ?? '' );
+					}
 				}
+				break;
 			}
 		}
 
+		$email1 = '';
+		$email2 = '';
+		if ( ! empty( $col12 ) && ! empty( $col14 ) ) {
+			$email1 = $col12;
+			$email2 = $col14;
+		} elseif ( ! empty( $col12 ) ) {
+			$email1 = $col12;
+		} elseif ( ! empty( $col14 ) ) {
+			$email1 = $col14;
+		}
+
+		return array( $email1, $email2 );
+	}
+
+	/**
+	 * Parses a getData (members-getData) response and extracts email addresses.
+	 * Group 6: Member contact
+	 * Group 1: Parent 1 contact
+	 * Group 2: Parent 2 contact
+	 *
+	 * Column 12: Primary email
+	 * Column 14: Secondary email
+	 *
+	 * @return array Synced email fields.
+	 */
+	public function parse_member_detail( array $raw ): array {
+		$groups = $raw['data'] ?? array();
+
+		list( $email1, $email2 )       = $this->extract_emails_from_group( $groups, 6 );
+		list( $p1_email1, $p1_email2 ) = $this->extract_emails_from_group( $groups, 1 );
+		list( $p2_email1, $p2_email2 ) = $this->extract_emails_from_group( $groups, 2 );
+
 		return array(
-			'email'        => $email,
-			'parent_email' => $parent_email,
+			'email1'       => $email1,
+			'email2'       => $email2,
+			'p1_email1'    => $p1_email1,
+			'p1_email2'    => $p1_email2,
+			'p2_email1'    => $p2_email1,
+			'p2_email2'    => $p2_email2,
+			// Aliases for backward compatibility
+			'email'        => $email1,
+			'parent_email' => $p1_email1,
 		);
 	}
 

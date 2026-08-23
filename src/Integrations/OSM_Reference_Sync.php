@@ -173,13 +173,19 @@ class OSM_Reference_Sync {
 						'section_id'   => $section_id,
 						'first_name'   => $member['first_name'] ?? '',
 						'last_name'    => $member['last_name'] ?? '',
-						'email'        => $detail['email'] ?? '',
-						'parent_email' => $detail['parent_email'] ?? '',
+						'email'        => ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' ),
+						'parent_email' => ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' ),
+						'email1'       => ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' ),
+						'email2'       => $detail['email2'] ?? '',
+						'p1_email1'    => ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' ),
+						'p1_email2'    => $detail['p1_email2'] ?? '',
+						'p2_email1'    => $detail['p2_email1'] ?? '',
+						'p2_email2'    => $detail['p2_email2'] ?? '',
 						'patrol'       => $member['patrol'] ?? '',
 						'synced_at'    => $now,
 					),
 					array( 'scout_id' => $scout_id ),
-					array( '%d', '%s', '%s', '%s', '%s', '%s', '%s' ),
+					array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
 					array( '%d' )
 				);
 			} else {
@@ -190,12 +196,18 @@ class OSM_Reference_Sync {
 						'section_id'   => $section_id,
 						'first_name'   => $member['first_name'] ?? '',
 						'last_name'    => $member['last_name'] ?? '',
-						'email'        => $detail['email'] ?? '',
-						'parent_email' => $detail['parent_email'] ?? '',
+						'email'        => ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' ),
+						'parent_email' => ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' ),
+						'email1'       => ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' ),
+						'email2'       => $detail['email2'] ?? '',
+						'p1_email1'    => ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' ),
+						'p1_email2'    => $detail['p1_email2'] ?? '',
+						'p2_email1'    => $detail['p2_email1'] ?? '',
+						'p2_email2'    => $detail['p2_email2'] ?? '',
 						'patrol'       => $member['patrol'] ?? '',
 						'synced_at'    => $now,
 					),
-					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
+					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 				);
 			}
 
