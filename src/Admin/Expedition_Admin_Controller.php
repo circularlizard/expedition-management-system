@@ -544,6 +544,10 @@ class Expedition_Admin_Controller {
 		$body     = $request->get_json_params() ?: array();
 		$scout_id = (int) ( $body['scout_id'] ?? 0 );
 
+		if ( $scout_id === 0 ) {
+			return $this->error( 'ems_invalid_scout_id', 'Cannot allocate unmatched explorer without a Scout ID.', 400 );
+		}
+
 		$team = $this->teams->get_by_id( $team_id );
 		if ( ! $team ) {
 			return $this->error( 'ems_team_not_found', 'Team not found.', 404 );
@@ -1015,6 +1019,36 @@ class Expedition_Admin_Controller {
 	}
 
 	private function register_signup_routes(): void {
+		register_rest_route(
+			'ems/v1',
+			'/signups',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'list_all_signups' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			'ems/v1',
+			'/signups/reconcile',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'reconcile_signup' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			'ems/v1',
+			'/signups/unlink',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'unlink_signup' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
 		// Participant Places Endpoints
 		register_rest_route(
 			'ems/v1',
@@ -1100,7 +1134,7 @@ class Expedition_Admin_Controller {
 	}
 
 	public function list_participant_signups( \WP_REST_Request $request ): \WP_REST_Response {
-		$status = $request->get_param( 'status' ) ?: 'received';
+		$status = $request->get_param( 'status' ) ?: 'submitted';
 		$rows   = $this->signups->get_participant_signups( $status );
 
 		$response_data = array();
@@ -1148,7 +1182,7 @@ class Expedition_Admin_Controller {
 			return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
 		}
 
-		if ( $signup['signup_status'] === 'allocated' ) {
+		if ( ! empty( $signup['dofe_number'] ) ) {
 			return $this->error( 'ems_signup_already_processed', 'Signup is already processed.', 400 );
 		}
 
@@ -1171,7 +1205,7 @@ class Expedition_Admin_Controller {
 	}
 
 	public function list_expedition_signups( \WP_REST_Request $request ): \WP_REST_Response {
-		$status = $request->get_param( 'status' ) ?: 'pending';
+		$status = $request->get_param( 'status' ) ?: 'submitted';
 		$rows   = $this->signups->get_expedition_signups( $status );
 
 		$response_data = array();
@@ -1206,8 +1240,6 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $response_data );
 	}
 
-
-
 	public function archive_expedition_signup( \WP_REST_Request $request ): \WP_REST_Response {
 		$id = (int) $request->get_param( 'id' );
 
@@ -1219,6 +1251,76 @@ class Expedition_Admin_Controller {
 		$this->signups->archive_expedition_signup( $id );
 
 		return new \WP_REST_Response( array( 'archived' => true ) );
+	}
+
+	public function reconcile_signup( \WP_REST_Request $request ): \WP_REST_Response {
+		$body        = $request->get_json_params() ?: array();
+		$signup_id   = isset( $body['signup_id'] ) ? (int) $body['signup_id'] : 0;
+		$signup_type = isset( $body['signup_type'] ) ? sanitize_text_field( $body['signup_type'] ) : '';
+		$scout_id    = isset( $body['scout_id'] ) ? (int) $body['scout_id'] : 0;
+
+		if ( ! $signup_id || ! $signup_type || ! $scout_id ) {
+			return $this->error( 'ems_missing_parameters', 'Missing required parameters.', 400 );
+		}
+
+		$success = $this->signups->reconcile_signup( $signup_id, $signup_type, $scout_id );
+		if ( ! $success ) {
+			return $this->error( 'ems_reconcile_failed', 'Reconcile failed.', 400 );
+		}
+
+		return new \WP_REST_Response( array( 'reconciled' => true ) );
+	}
+
+	public function unlink_signup( \WP_REST_Request $request ): \WP_REST_Response {
+		$body        = $request->get_json_params() ?: array();
+		$signup_id   = isset( $body['signup_id'] ) ? (int) $body['signup_id'] : 0;
+		$signup_type = isset( $body['signup_type'] ) ? sanitize_text_field( $body['signup_type'] ) : '';
+
+		if ( ! $signup_id || ! $signup_type ) {
+			return $this->error( 'ems_missing_parameters', 'Missing required parameters.', 400 );
+		}
+
+		try {
+			$success = $this->signups->unlink_signup( $signup_id, $signup_type );
+			if ( ! $success ) {
+				return $this->error( 'ems_unlink_failed', 'Unlink failed.', 400 );
+			}
+		} catch ( \RuntimeException $e ) {
+			return $this->error( 'ems_unlink_conflict', $e->getMessage(), 409 );
+		}
+
+		return new \WP_REST_Response( array( 'unlinked' => true ) );
+	}
+
+	public function list_all_signups( \WP_REST_Request $request ): \WP_REST_Response {
+		$status = $request->get_param( 'status' ) ?: 'submitted';
+
+		// Get both lists
+		$participant_response = $this->list_participant_signups( $request );
+		$expedition_response  = $this->list_expedition_signups( $request );
+
+		$participants = $participant_response->get_data();
+		$expeditions  = $expedition_response->get_data();
+
+		$merged = array();
+		foreach ( $participants as $p ) {
+			$p['type'] = 'participant';
+			$merged[]  = $p;
+		}
+		foreach ( $expeditions as $e ) {
+			$e['type'] = 'expedition';
+			$merged[]  = $e;
+		}
+
+		// Sort by created_at DESC
+		usort(
+			$merged,
+			function ( $a, $b ) {
+				return strcmp( $b['created_at'], $a['created_at'] );
+			}
+		);
+
+		return new \WP_REST_Response( $merged );
 	}
 
 	public function list_event_teams( \WP_REST_Request $request ): \WP_REST_Response {
