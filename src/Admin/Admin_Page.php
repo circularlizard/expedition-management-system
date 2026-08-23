@@ -53,31 +53,22 @@ class Admin_Page {
 			array( $this, 'render_explorers_page' )
 		);
 
-		$participant_hook = add_submenu_page(
+		$signups_hook = add_submenu_page(
 			'ems',
-			__( 'Participant Places', 'ems-plugin' ),
-			__( 'Participant Places', 'ems-plugin' ),
+			__( 'Signups', 'ems-plugin' ),
+			__( 'Signups', 'ems-plugin' ),
 			'manage_options',
-			'ems-participant-signups',
-			array( $this, 'render_participant_signups_page' )
-		);
-
-		$expedition_hook = add_submenu_page(
-			'ems',
-			__( 'Expedition Signups', 'ems-plugin' ),
-			__( 'Expedition Signups', 'ems-plugin' ),
-			'manage_options',
-			'ems-expedition-signups',
-			array( $this, 'render_expedition_signups_page' )
+			'ems-signups',
+			array( $this, 'render_signups_page' )
 		);
 
 		add_action(
 			'admin_enqueue_scripts',
-			function ( $hook ) use ( $explorers_hook, $participant_hook, $expedition_hook ) {
+			function ( $hook ) use ( $explorers_hook, $signups_hook ) {
 				if ( $hook === $explorers_hook ) {
 					$this->enqueue_dashboard_assets();
 				}
-				if ( $hook === $participant_hook || $hook === $expedition_hook ) {
+				if ( $hook === $signups_hook ) {
 					$this->enqueue_signups_assets();
 				}
 			}
@@ -104,20 +95,11 @@ class Admin_Page {
 		echo '</div>';
 	}
 
-	public function render_participant_signups_page(): void {
+	public function render_signups_page(): void {
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Participant Places', 'ems-plugin' ); ?></h1>
-			<div id="ems-participant-signups-root"></div>
-		</div>
-		<?php
-	}
-
-	public function render_expedition_signups_page(): void {
-		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'Expedition Signups', 'ems-plugin' ); ?></h1>
-			<div id="ems-expedition-signups-root"></div>
+			<h1><?php esc_html_e( 'Signups', 'ems-plugin' ); ?></h1>
+			<div id="ems-signups-root"></div>
 		</div>
 		<?php
 	}
