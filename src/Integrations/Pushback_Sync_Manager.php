@@ -96,10 +96,12 @@ class Pushback_Sync_Manager {
 
 			$team_ids = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT DISTINCT tm.team_post_id 
-					FROM {$t_members} tm
-					JOIN {$t_explorers} e ON e.scout_id = tm.scout_id
-					WHERE e.section_id = %d",
+					"SELECT DISTINCT t.ID 
+					FROM {$posts} t
+					JOIN {$posts} exp ON exp.ID = t.post_parent
+					JOIN {$postmeta} m_event ON m_event.post_id = exp.ID AND m_event.meta_key = 'ems_osm_event_id'
+					JOIN {$wpdb->prefix}ems_osm_events oe ON oe.event_id = CAST(m_event.meta_value AS UNSIGNED)
+					WHERE t.post_type = 'team' AND t.post_status = 'publish' AND oe.section_id = %d",
 					$section_id
 				)
 			) ?: array();
@@ -133,14 +135,13 @@ class Pushback_Sync_Manager {
 
 			$eligible_assignments = array();
 			foreach ( $local_assignments as $assign ) {
-				if ( (int) $assign->section_id !== $section_id ) {
+				$scout_id = (int) $assign->scout_id;
+				if ( ! isset( $osm_data[ $scout_id ] ) ) {
 					$preview['errors'][] = sprintf(
-						'Explorer %s %s (Scout ID: %d) belongs to a different section (ID: %d). They must be added to the target section (ID: %d) to be synced.',
+						'Explorer %s %s (Scout ID: %d) is not a member of this section in Online Scout Manager. They must be added to the target section in OSM to be synced.',
 						$assign->first_name,
 						$assign->last_name,
-						$assign->scout_id,
-						$assign->section_id,
-						$section_id
+						$scout_id
 					);
 					continue;
 				}
