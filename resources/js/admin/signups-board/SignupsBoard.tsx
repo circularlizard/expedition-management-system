@@ -415,27 +415,25 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     const groupedSignups = getGroupedSignups();
 
-    // Get flat list of current visible items (for pagination across groups if ungrouped, or simple pagination)
-    // Note: To keep standard rendering simple, paginated items apply to the sorted flat list.
-    const totalPages = Math.ceil(sortedSignups.length / itemsPerPage);
-    const paginatedSignupsFlat = sortedSignups.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    const totalItems = grouping === 'none' ? sortedSignups.length : groupedSignups.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-    // Reconstruct grouped view restricted to only show paginated items
-    const getGroupedPaginatedSignups = () => {
+    // Paginate grouped signups directly to keep groups together on a page
+    const getPaginatedGroupedSignups = () => {
         if (grouping === 'none') {
-            return [{ title: null, items: paginatedSignupsFlat }];
+            const flatSlice = sortedSignups.slice(
+                (currentPage - 1) * itemsPerPage,
+                currentPage * itemsPerPage
+            );
+            return [{ title: null, items: flatSlice }];
         }
-        const paginatedKeys = new Set(paginatedSignupsFlat.map(s => `${s.type}_${s.id}`));
-        return groupedSignups.map(g => ({
-            title: g.title,
-            items: g.items.filter(item => paginatedKeys.has(`${item.type}_${item.id}`))
-        })).filter(g => g.items.length > 0);
+        return groupedSignups.slice(
+            (currentPage - 1) * itemsPerPage,
+            currentPage * itemsPerPage
+        );
     };
 
-    const paginatedGroupedSignups = getGroupedPaginatedSignups();
+    const paginatedGroupedSignups = getPaginatedGroupedSignups();
 
     const toggleSort = (key: string) => {
         if (sortKey === key) {
@@ -738,10 +736,10 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                         </table>
 
                         {/* Pagination Bar */}
-                        {filteredSignups.length > 0 && (
+                        {totalItems > 0 && (
                             <div className="ems-table-pagination">
                                 <div className="ems-meta-text">
-                                    Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredSignups.length)} of {filteredSignups.length} records
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} {grouping === 'none' ? 'records' : (grouping === 'explorer' ? 'explorers' : 'groups')}
                                 </div>
                                 <div className="ems-flex-center ems-gap-8">
                                     <label htmlFor="items-per-page" className="ems-toolbar__label">Items per page:</label>
