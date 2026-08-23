@@ -129,7 +129,7 @@ class OSM_Sync_Auth_Handler {
 		$on_success( $access_token, $mode );
 
 		if ( $mode === 'fetch_sections' ) {
-			$redirect_page = 'admin.php?page=ems-settings&tab=sections&fetched=1';
+			$redirect_page = 'admin.php?page=ems-reference&tab=sections&fetched=1';
 		} elseif ( $mode === 'pushback' ) {
 			$redirect_page = 'admin.php?page=ems-reference&tab=pushback&auth=success';
 		} else {
