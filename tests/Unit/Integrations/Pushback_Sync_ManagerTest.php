@@ -116,7 +116,7 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 			] )
 		] );
 
-		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [] ] );
+		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [ [ 'scoutid' => 30001 ] ] ] );
 
 		$this->wpdb->shouldReceive( 'get_results' )->andReturnUsing( function( $query ) {
 			if ( strpos( $query, 'ems_team_members' ) !== false ) {
@@ -165,7 +165,7 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 		} );
 
 		$this->api_client->shouldReceive( 'get_flexi_record_structure' )->andReturn( [ 'config' => '[]' ] );
-		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [] ] );
+		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [ [ 'scoutid' => 30001 ] ] ] );
 
 		$this->wpdb->shouldReceive( 'get_results' )->andReturnUsing( function( $query ) {
 			if ( strpos( $query, 'ems_team_members' ) !== false ) {
@@ -274,7 +274,7 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 		} );
 
 		$this->api_client->shouldReceive( 'get_flexi_record_structure' )->andReturn( [ 'config' => '[]' ] );
-		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [] ] );
+		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [ [ 'scoutid' => 30001 ] ] ] );
 
 		$this->wpdb->shouldReceive( 'get_results' )->andReturnUsing( function( $query ) {
 			if ( strpos( $query, 'ems_team_members' ) !== false ) {
@@ -448,7 +448,7 @@ class Pushback_Sync_ManagerTest extends EMSTestCase {
 				] )
 			] );
 
-		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [] ] );
+		$this->api_client->shouldReceive( 'get_flexi_record_data' )->andReturn( [ 'items' => [ [ 'scoutid' => 30001 ] ] ] );
 
 		$this->wpdb->shouldReceive( 'get_results' )->andReturnUsing( function( $query ) {
 			if ( strpos( $query, 'ems_team_members' ) !== false ) {
