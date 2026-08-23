@@ -394,4 +394,81 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertEquals( [], $stored['ems_page_roles'] );
         $this->assertFalse( $stored['ems_protect_tutor_lms'] );
     }
+
+    public function test_handle_import_units_unauthorized(): void {
+        Functions\when( 'current_user_can' )->justReturn( false );
+        $page = new Settings_Page();
+        
+        $this->expectException( \Exception::class );
+        $this->expectExceptionMessage( 'Unauthorized.' );
+
+        $reflected = new \ReflectionClass(Settings_Page::class);
+        $method = $reflected->getMethod('handle_import_units');
+        $method->setAccessible(true);
+        $method->invoke( $page );
+    }
+
+    public function test_handle_import_units_empty_file(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+        $page = new Settings_Page();
+
+        unset($_FILES['ems_units_backup_file']);
+
+        $reflected = new \ReflectionClass(Settings_Page::class);
+        $method = $reflected->getMethod('handle_import_units');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke( $page );
+        $output = ob_get_clean();
+
+        $this->assertStringContainsString( 'Please upload a unit lookup backup file.', $output );
+    }
+
+    public function test_handle_import_units_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+        
+        // Create a temporary file to use as the backup file
+        $temp_file = tempnam( sys_get_temp_dir(), 'ems_test' );
+        $backup_data = array(
+            'type'    => 'ems_units_export',
+            'version' => '0.1.x',
+            'units'   => array(
+                array(
+                    'id'        => 5,
+                    'patrol_id' => 500,
+                    'section_id'=> 600,
+                    'name'      => 'Falcons',
+                    'active'    => 1,
+                )
+            )
+        );
+        file_put_contents( $temp_file, json_encode( $backup_data ) );
+
+        $_FILES['ems_units_backup_file'] = array(
+            'tmp_name' => $temp_file,
+        );
+
+        // Mock wpdb functions called during Portability_Engine->import_units
+        $wpdb = \Mockery::mock( 'wpdb' );
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive( 'query' )->with( 'TRUNCATE TABLE wp_ems_units' )->once()->andReturn( true );
+        $wpdb->shouldReceive( 'insert' )->with( 'wp_ems_units', $backup_data['units'][0] )->once()->andReturn( true );
+        $GLOBALS['wpdb'] = $wpdb;
+
+        $page = new Settings_Page();
+
+        $reflected = new \ReflectionClass(Settings_Page::class);
+        $method = $reflected->getMethod('handle_import_units');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke( $page );
+        $output = ob_get_clean();
+
+        $this->assertStringContainsString( 'Unit lookup data imported successfully.', $output );
+
+        unlink( $temp_file );
+        unset( $_FILES['ems_units_backup_file'] );
+    }
 }
