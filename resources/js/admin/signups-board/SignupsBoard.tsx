@@ -253,7 +253,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     // Filter signups in memory
     const filteredSignups = signups.filter(s => {
         if (typeFilter !== 'all' && s.type !== typeFilter) return false;
-        if (levelFilter !== 'all' && s.dofe_level !== levelFilter) return false;
+        if (levelFilter !== 'all' && (s.dofe_level || '').toLowerCase() !== levelFilter.toLowerCase()) return false;
         if (unitFilter !== 'all' && (s.unit_name || 'Unassigned') !== unitFilter) return false;
         return true;
     });
@@ -377,10 +377,10 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         if (grouping === 'none') {
             return [{ title: null, items: paginatedSignupsFlat }];
         }
-        const paginatedIds = new Set(paginatedSignupsFlat.map(s => s.id));
+        const paginatedKeys = new Set(paginatedSignupsFlat.map(s => `${s.type}_${s.id}`));
         return groupedSignups.map(g => ({
             title: g.title,
-            items: g.items.filter(item => paginatedIds.has(item.id))
+            items: g.items.filter(item => paginatedKeys.has(`${item.type}_${item.id}`))
         })).filter(g => g.items.length > 0);
     };
 
@@ -640,7 +640,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                             )}
                                             {g.items.map((s) => (
                                                 <tr 
-                                                    key={s.id} 
+                                                    key={`${s.type}_${s.id}`} 
                                                     onClick={() => setSelectedSignup(s)}
                                                     className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id && selectedSignup.type === s.type ? 'ems-table-row--selected' : ''}`}
                                                 >
