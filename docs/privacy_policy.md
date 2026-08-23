@@ -6,19 +6,24 @@
 
 ---
 
-## Introduction
+### 1. Who We Are
+South East Explorer Expeditions (SEEE) is an operating unit of the South East Scotland 
+Region of The Scout Association (known as **South East Scotland Scouts**), a registered 
+Scottish Charity (No. **SC010563**).
 
-South East Scotland Scouts collects and processes personal data in order to carry out its business. As a membership organisation we hold data on members and also staff and others, such as customers, volunteers, participants, and donors.
-
-We take the issue of privacy very seriously and are committed to protecting and respecting your privacy in compliance with data protection law. This includes when you use our online services, portals, and systems. This privacy statement should also be read alongside our [website terms and conditions](https://sesscouts.org.uk/terms/).
+For any data protection inquiries, Subject Access Requests, or questions regarding 
+this website and the Expedition Management System (EMS), please contact:
+* **Email:** communications@sesscouts.org.uk
+* **Address:** Regional Headquarters, South East Scotland Scouts, 71 Bonaly Road, Edinburgh, EH13 0PB
+* **Data Controller:** South East Scotland Regional Scout Council
 
 ---
 
-## 1. The Information We Collect
+### 2. Information We Collect & Why
 
 The only circumstances in which we will provide any of your personal data to a third party for non-commercial purposes are those contained in this Privacy Policy.
 
-### Membership & Administration Data
+#### Membership & Administration Data
 We have security measures in place to protect our customer and member databases. Access to these databases is restricted internally. However, it remains each Member’s responsibility:
 * To keep their password secret.
 * To protect against unauthorised access to their personal details.
@@ -28,7 +33,7 @@ We have security measures in place to protect our customer and member databases.
 
 Due to our safeguarding responsibilities, we are legally required to retain certain records relating to all our members indefinitely. We need to make members aware of this when they register with us, as should you request at a later stage that we remove all your data, we will not be able to comply with this request.
 
-### Expedition Management System (EMS) Data
+#### Expedition Management System (EMS) Data
 When registering or signing up for a Duke of Edinburgh’s Award (DofE) place or an expedition, we collect and process:
 * **Participant Details:** Full name, date of birth, email address, Scout ID, patrol, unit, and section.
 * **Parent/Carer Details:** Full name, email address, telephone number, and link to the participant's record.
@@ -36,13 +41,61 @@ When registering or signing up for a Duke of Edinburgh’s Award (DofE) place or
 * **Expedition Safety & Route Planning:** Team assignments, route plans, GPX files, coordinates, and digital route cards uploaded by participants or leaders.
 * **Special Category (Sensitive) Data:** To ensure physical safety and welfare during expeditions, we collect medical conditions, allergies, regular medications, dietary requirements, and 24-hour emergency contacts.
 
-### Learning Management System (LMS) & Training Records
+#### Learning Management System (LMS) & Training Records
 For leaders, volunteers, and participants undertaking learning pathways:
 * **Training Participation:** Records of courses enrolled in, modules completed, training progress, assessment scores, and completion certificates.
 * **Evaluations & Feedback:** Quiz attempts, course submissions, and trainer/tutor feedback.
 * **Tutor Logs:** Interaction history with training tutors, progress milestones, and course completion status.
 
 ---
+
+### 3. Lawful Basis for Processing
+
+We only process personal data where there is a lawful basis under UK GDPR:
+
+* **Contractual Necessity:** Processing registrations, event entries, and payments.
+* **Legitimate Interests:** Running expeditions & events, administering DofE awards, and tracking training progress.
+* **Legal Obligation:** Fulfilling charity accounting, safety, and safeguarding duties.
+* **Explicit Consent:** Photographic/video media for publicity.
+* **Special Category Data (Health & Medical):** Processed under Article 9(2)(d) (non-profit legitimate activities) to ensure physical safety and welfare during expeditions, and Article 9(2)(c) (vital interests) in emergency medical situations.
+
+---
+
+### 4. Who We Share Your Information With
+
+We do not sell personal data, nor do we share it with third parties for marketing purposes. Data is shared strictly on a need-to-know basis with:
+
+* **Expedition Leaders, Supervisors & First Aiders:** 
+  Authorised adult volunteer leaders receive essential information (including medical declarations, dietary needs, emergency contacts, and route cards) strictly as needed to ensure safety, welfare, and logistics in the field.
+* **DofE Assessors:** 
+  Accredited DofE Assessors receive participant names, eDofE IDs, and team route plans to evaluate qualifying expeditions and complete official Assessor Reports.
+* **Home Explorer Scout Units & Districts:** 
+  Designated local Scout leaders may receive updates on participant sign-up status, training completion, and award progress.
+* **The Duke of Edinburgh’s Award (DofE):** 
+  Participant details, award levels, and assessment outcomes are uploaded to *eDofE* for formal registration, progress logging, and award verification.
+* **The Scout Association (UK & Scotland):** 
+  To verify active membership, adult volunteer appointments, permits, and safeguarding compliance.
+* **Emergency Services & Medical Personnel:** 
+  Relevant medical information and emergency contacts will be disclosed immediately to emergency services or medical practitioners in the event of an accident or medical emergency.
+* **Data Processors & Technical Providers:** 
+  Secure third-party services providing our web hosting, database storage, email delivery, and payment processing, all bound by strict data processing agreements.
+
+### 5. Data Retention & Security
+
+We do not hold personal data longer than necessary:
+* **Expedition Medical & Emergency Data:** Retained only for the duration of the expedition season, securely archived or destroyed thereafter unless required for incident/insurance investigation.
+* **Training & DofE Progress:** Retained until award verification and sign-off.
+* **Financial Records:** Retained for 7 years to comply with statutory accounting and Gift Aid requirements.
+* **Safeguarding & Governance:** Specific records are retained in line with The Scout Association’s national data retention policy.
+
+---
+
+### 6. Your Rights
+Under UK data protection law, you have the right to request access to your data, correction of errors, restriction or deletion of data (subject to legal retention limits), and withdrawal of consent where applicable. 
+
+If you are unsatisfied with our response, you have the right to lodge a complaint with the UK supervisory authority:
+**Information Commissioner’s Office (ICO):** [ico.org.uk](https://ico.org.uk) / 0303 123 1113.
+
 
 ## 2. Registration of Information
 

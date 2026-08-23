@@ -24,6 +24,7 @@ VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
 # Write new version back into the plugin header
 sed -i '' "s/ \* Version: ${CURRENT}/ \* Version: ${VERSION}/" "$PLUGIN_FILE"
+sed -i '' "s/define( 'EMS_VERSION', '${CURRENT}' );/define( 'EMS_VERSION', '${VERSION}' );/" "$PLUGIN_FILE"
 echo "==> Bumped version: ${CURRENT} → ${VERSION}"
 
 ZIP_NAME="ems-plugin-${VERSION}.zip"
