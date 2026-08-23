@@ -757,8 +757,15 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
             {selectedSignup && (
                 <div ref={inspectorRef} className="ems-signups-inspector">
                     {/* Header */}
-                    <div className="ems-signups-inspector__header">
-                        <h3 className="ems-m-0 ems-font-semibold">Explorer Details</h3>
+                    <div className={`ems-signups-inspector__header ems-signups-inspector__header--${selectedSignup.type}`}>
+                        <div className="ems-flex-center ems-gap-6">
+                            <span style={{ fontSize: '18px' }}>
+                                {selectedSignup.type === 'participant' ? '📋' : '🏕️'}
+                            </span>
+                            <h3 className="ems-m-0 ems-font-semibold" style={{ fontSize: '15px', color: '#1d2327' }}>
+                                {selectedSignup.type === 'participant' ? 'Participant Place Details' : 'Expedition Preference Details'}
+                            </h3>
+                        </div>
                         <div className="ems-flex-center ems-gap-4">
                             {currentUnprocessedIndex >= 0 && (
                                 <>
@@ -766,6 +773,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         onClick={handlePrevSignup} 
                                         disabled={currentUnprocessedIndex === 0}
                                         className="button button-secondary button-small"
+                                        title="Previous Signup"
                                     >
                                         &lt;
                                     </button>
@@ -773,6 +781,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         onClick={handleNextSignup} 
                                         disabled={currentUnprocessedIndex === activeUnprocessedSignups.length - 1}
                                         className="button button-secondary button-small"
+                                        title="Next Signup"
                                     >
                                         &gt;
                                     </button>
@@ -781,6 +790,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                             <button 
                                 onClick={() => setSelectedSignup(null)}
                                 className="button-link"
+                                style={{ fontSize: '20px', marginLeft: '8px', color: '#1d2327', textDecoration: 'none', cursor: 'pointer' }}
                             >
                                 &times;
                             </button>
@@ -791,7 +801,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                     <div className="ems-signups-inspector__body">
                         {/* Matching Widget */}
                         <div className="ems-signups-matching-panel ems-mb-16">
-                            <span className="ems-signups-inspector__label">OSM Profile Linkage</span>
+                            <div className="ems-signups-inspector__section-title" style={{ marginTop: 0 }}>OSM Profile Linkage</div>
                             {selectedSignup.scout_id !== 0 ? (
                                 <div className="ems-mt-8">
                                     <div className="ems-flex-between ems-align-center">
@@ -877,23 +887,24 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                             )}
                         </div>
 
-                        <div className="ems-flex-between">
-                            <div>
+                        {/* Explorer Profile Details */}
+                        <div className="ems-signups-inspector__section-title">Explorer Profile</div>
+                        <div className="ems-signups-detail-grid">
+                            <div className="ems-signups-detail-item ems-signups-detail-item--full">
                                 <span className="ems-signups-inspector__label">Name</span>
                                 <div className="ems-signups-inspector__value--large">
                                     {selectedSignup.explorer_first_name} {selectedSignup.explorer_last_name}
                                 </div>
                             </div>
-                            <div className="ems-table-cell--right">
+                            
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Scout ID</span>
                                 <div className="ems-signups-inspector__value ems-monospace ems-font-semibold">
                                     {selectedSignup.scout_id || 'Unmatched'}
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="ems-flex-between ems-gap-8">
-                            <div>
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Status</span>
                                 <div className="ems-mt-4">
                                     <span className={`ems-status-badge ems-status-badge--${selectedSignup.signup_status}`}>
@@ -901,7 +912,8 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                     </span>
                                 </div>
                             </div>
-                            <div>
+
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Level</span>
                                 <div className="ems-mt-4">
                                     <span className={`ems-pill ems-pill--${selectedSignup.dofe_level}`}>
@@ -909,148 +921,151 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                     </span>
                                 </div>
                             </div>
-                            {selectedSignup.type === 'expedition' && (
-                                <div>
-                                    <span className="ems-signups-inspector__label">Expedition</span>
-                                    <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4 ems-flex-center ems-gap-4">
-                                        {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
-                                    </div>
-                                </div>
-                            )}
-                            <div>
+
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Unit</span>
-                                <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4">{selectedSignup.unit_name || 'Unassigned'}</div>
+                                <div className="ems-signups-inspector__value ems-font-semibold">
+                                    {selectedSignup.unit_name || 'Unassigned'}
+                                </div>
                             </div>
                         </div>
 
-                        {selectedSignup.type === 'participant' && (
-                            <>
-                                <div className="ems-flex-between">
-                                    <div>
+                        {/* Form Specific Details */}
+                        <div className="ems-signups-inspector__section-title">Form Submissions</div>
+                        <div className="ems-signups-detail-grid">
+                            {selectedSignup.type === 'participant' ? (
+                                <>
+                                    <div className="ems-signups-detail-item">
                                         <span className="ems-signups-inspector__label">DofE Registration Status</span>
-                                        <div className="ems-signups-inspector__value ems-mt-4">
+                                        <div className="ems-signups-inspector__value">
                                             {selectedSignup.dofe_registered === 'y' ? 'Registered' : (selectedSignup.dofe_registered === 'y-other' ? 'Registered (Other)' : 'Needs Registration')}
                                         </div>
                                     </div>
-                                    <div>
+
+                                    <div className="ems-signups-detail-item">
                                         <span className="ems-signups-inspector__label">DOB</span>
-                                        <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.dob || '—'}</div>
+                                        <div className="ems-signups-inspector__value">{selectedSignup.dob || '—'}</div>
                                     </div>
-                                </div>
 
-                                {selectedSignup.dofe_registered === 'y-other' && (
-                                    <div className="ems-signups-inspector__transfer-alert">
-                                        <div className="ems-flex-center ems-gap-4">
-                                            <span>⚠️</span> <strong>Transfer Required</strong>
-                                        </div>
-                                        <div className="ems-font-normal ems-meta-text ems-small-text ems-mt-4">
-                                            From: <strong className="ems-font-semibold">{selectedSignup.dofe_org || 'Unknown Organisation'}</strong>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div>
-                                    <label htmlFor="inspector-dofe-num" className="ems-signups-inspector__label">eDofE Number</label>
-                                    <input 
-                                        id="inspector-dofe-num"
-                                        type="text" 
-                                        value={editedDofeNumber} 
-                                        onChange={(e) => setEditedDofeNumber(e.target.value)}
-                                        placeholder="Enter eDofE number..."
-                                        className="ems-signups-inspector__input"
-                                    />
-                                </div>
-
-                                <div>
-                                    <span className="ems-signups-inspector__label">Prior Level Completions</span>
-                                    <div className="ems-mt-4">
-                                        {renderPriorCompletions(selectedSignup)}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <span className="ems-signups-inspector__label">Payment Status</span>
-                                    <div className="ems-mt-4">
-                                        <span className={`ems-status-badge ems-status-badge--${selectedSignup.payment_status}`}>
-                                            {selectedSignup.payment_status === 'paid' ? 'Paid' : selectedSignup.payment_status === 'failed' ? 'Failed' : 'Pending'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        {/* Expedition Specific Content */}
-                        {selectedSignup.type === 'expedition' && (
-                            <>
-                                <div>
-                                    <span className="ems-signups-inspector__label">eDofE Number</span>
-                                    <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4 ems-monospace">{selectedSignup.dofe_number || '—'}</div>
-                                </div>
-
-                                <div className="ems-flex-between ems-gap-16">
-                                    <div className="ems-main">
-                                        <span className="ems-signups-inspector__label">First Aid Status</span>
-                                        <div className="ems-signups-inspector__value ems-mt-4 ems-font-semibold">{selectedSignup.first_aid_status}</div>
-                                    </div>
-                                    {selectedSignup.first_aid_expiry && (
-                                        <div className="ems-main">
-                                            <span className="ems-signups-inspector__label">First Aid Expiry</span>
-                                            <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.first_aid_expiry}</div>
+                                    {selectedSignup.dofe_registered === 'y-other' && (
+                                        <div className="ems-signups-detail-item ems-signups-detail-item--full">
+                                            <div className="ems-signups-inspector__transfer-alert">
+                                                <div className="ems-flex-center ems-gap-4">
+                                                    <span>⚠️</span> <strong>Transfer Required</strong>
+                                                </div>
+                                                <div className="ems-font-normal ems-meta-text ems-small-text ems-mt-4">
+                                                    From: <strong className="ems-font-semibold">{selectedSignup.dofe_org || 'Unknown Organisation'}</strong>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
-                                </div>
 
-                                <div>
-                                    <span className="ems-signups-inspector__label">Additional Support Needs</span>
-                                    <div className="ems-signups-inspector__support-box">
-                                        {selectedSignup.additional_support_needs || 'None declared.'}
+                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
+                                        <label htmlFor="inspector-dofe-num" className="ems-signups-inspector__label">eDofE Number</label>
+                                        <input 
+                                            id="inspector-dofe-num"
+                                            type="text" 
+                                            value={editedDofeNumber} 
+                                            onChange={(e) => setEditedDofeNumber(e.target.value)}
+                                            placeholder="Enter eDofE number..."
+                                            className="ems-signups-inspector__input"
+                                        />
                                     </div>
-                                </div>
 
-                                <div>
-                                    <span className="ems-signups-inspector__label">Expedition Preferences</span>
-                                    <div className="ems-small-text ems-mt-4 ems-flex-col ems-gap-8">
-                                        {selectedSignup.expedition_preferences ? (
-                                            <>
-                                                <div><strong>Practice Dates:</strong> {selectedSignup.expedition_preferences.exped_practice_dates || '—'}</div>
-                                                <div><strong>Qualifier Dates:</strong> {selectedSignup.expedition_preferences.exped_qualifier_dates || '—'}</div>
-                                                <div><strong>Teammates:</strong> {selectedSignup.expedition_preferences.exped_team_names || '—'}</div>
-                                            </>
-                                        ) : (
-                                            <div>No preferences specified.</div>
-                                        )}
+                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
+                                        <span className="ems-signups-inspector__label">Prior Level Completions</span>
+                                        <div className="ems-mt-4">
+                                            {renderPriorCompletions(selectedSignup)}
+                                        </div>
                                     </div>
-                                </div>
-                            </>
-                        )}
 
-                        {/* Emails Block (rendered just above Submission Info) */}
-                        <div className="ems-flex-col ems-gap-12 ems-mt-12 ems-border-divider">
-                            <div>
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">Payment Status</span>
+                                        <div className="ems-mt-4">
+                                            <span className={`ems-status-badge ems-status-badge--${selectedSignup.payment_status}`}>
+                                                {selectedSignup.payment_status === 'paid' ? 'Paid' : selectedSignup.payment_status === 'failed' ? 'Failed' : 'Pending'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">Expedition Mode</span>
+                                        <div className="ems-signups-inspector__value ems-font-semibold ems-flex-center ems-gap-4">
+                                            {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
+                                        </div>
+                                    </div>
+
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">eDofE Number</span>
+                                        <div className="ems-signups-inspector__value ems-font-semibold ems-monospace">{selectedSignup.dofe_number || '—'}</div>
+                                    </div>
+
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">First Aid Status</span>
+                                        <div className="ems-signups-inspector__value ems-font-semibold">{selectedSignup.first_aid_status}</div>
+                                    </div>
+
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">First Aid Expiry</span>
+                                        <div className="ems-signups-inspector__value">{selectedSignup.first_aid_expiry || '—'}</div>
+                                    </div>
+
+                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
+                                        <span className="ems-signups-inspector__label">Additional Support Needs</span>
+                                        <div className="ems-signups-inspector__support-box">
+                                            {selectedSignup.additional_support_needs || 'None declared.'}
+                                        </div>
+                                    </div>
+
+                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
+                                        <span className="ems-signups-inspector__label">Expedition Preferences</span>
+                                        <div className="ems-signups-inspector__support-box" style={{ fontStyle: 'normal' }}>
+                                            {selectedSignup.expedition_preferences ? (
+                                                <div className="ems-flex-col ems-gap-8 ems-small-text">
+                                                    <div><strong>Practice:</strong> {selectedSignup.expedition_preferences.exped_practice_dates || '—'}</div>
+                                                    <div><strong>Qualifier:</strong> {selectedSignup.expedition_preferences.exped_qualifier_dates || '—'}</div>
+                                                    <div><strong>Teammates:</strong> {selectedSignup.expedition_preferences.exped_team_names || '—'}</div>
+                                                </div>
+                                            ) : (
+                                                <div className="ems-meta-text ems-italic">No preferences specified.</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Contacts Block */}
+                        <div className="ems-signups-inspector__section-title">Contacts</div>
+                        <div className="ems-signups-detail-grid">
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Explorer Email</span>
-                                <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.explorer_email || '—'}</div>
+                                <div className="ems-signups-inspector__value">{selectedSignup.explorer_email || '—'}</div>
                             </div>
 
-                            <div>
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Parent Email</span>
-                                <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.parent_email || '—'}</div>
+                                <div className="ems-signups-inspector__value">{selectedSignup.parent_email || '—'}</div>
                             </div>
 
-                            <div>
+                            <div className="ems-signups-detail-item ems-signups-detail-item--full">
                                 <span className="ems-signups-inspector__label">Leader Email</span>
-                                <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.leader_email || '—'}</div>
+                                <div className="ems-signups-inspector__value">{selectedSignup.leader_email || '—'}</div>
                             </div>
                         </div>
 
-                        {/* Submission ID & Date Block (rendered at bottom) */}
-                        <div className="ems-flex-between ems-mt-12" style={{ borderTop: '1px dashed #ccd0d4', paddingTop: '16px' }}>
-                            <div>
+                        {/* Submission Metadata */}
+                        <div className="ems-signups-inspector__section-title">Submission Info</div>
+                        <div className="ems-signups-detail-grid" style={{ marginBottom: '16px' }}>
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Submission ID</span>
-                                <div className="ems-signups-inspector__value ems-mt-4">#{selectedSignup.form_submission_id || '—'}</div>
+                                <div className="ems-signups-inspector__value">#{selectedSignup.form_submission_id || '—'}</div>
                             </div>
-                            <div>
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Submitted At</span>
-                                <div className="ems-signups-inspector__value ems-mt-4">{selectedSignup.created_at || '—'}</div>
+                                <div className="ems-signups-inspector__value">{selectedSignup.created_at || '—'}</div>
                             </div>
                         </div>
                     </div>
