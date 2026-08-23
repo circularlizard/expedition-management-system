@@ -463,8 +463,8 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
 
             {/* Profile Inspector slide-out panel */}
             {selectedScoutId && (
-                <div ref={inspectorRef} className="ems-signups-inspector">
-                    <div className="ems-signups-inspector__header">
+                <div ref={inspectorRef} className="ems-signups-inspector ems-signups-inspector--osm">
+                    <div className="ems-signups-inspector__header ems-signups-inspector__header--osm">
                         <h3 className="ems-signups-inspector__title">Explorer Profile</h3>
                         <div className="ems-flex-center ems-gap-6">
                             <button
@@ -522,14 +522,37 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                     </div>
                                 </div>
 
-                                {/* Email */}
-                                <div>
-                                    <span className="ems-signups-inspector__label">Email Address</span>
-                                    <div className="ems-signups-inspector__value">{profileData.email || '—'}</div>
+                                {/* Synced Contact Emails */}
+                                <div className="ems-signups-inspector__section-title">OSM Synced Emails</div>
+                                <div className="ems-signups-detail-grid">
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">Explorer Primary</span>
+                                        <div className="ems-signups-inspector__value">{profileData.email1 || '—'}</div>
+                                    </div>
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">Explorer Secondary</span>
+                                        <div className="ems-signups-inspector__value">{profileData.email2 || '—'}</div>
+                                    </div>
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">Parent 1 Primary</span>
+                                        <div className="ems-signups-inspector__value">{profileData.p1_email1 || '—'}</div>
+                                    </div>
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">Parent 1 Secondary</span>
+                                        <div className="ems-signups-inspector__value">{profileData.p1_email2 || '—'}</div>
+                                    </div>
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">Parent 2 Primary</span>
+                                        <div className="ems-signups-inspector__value">{profileData.p2_email1 || '—'}</div>
+                                    </div>
+                                    <div className="ems-signups-detail-item">
+                                        <span className="ems-signups-inspector__label">Parent 2 Secondary</span>
+                                        <div className="ems-signups-inspector__value">{profileData.p2_email2 || '—'}</div>
+                                    </div>
                                 </div>
 
                                 {/* Unit info */}
-                                <div className="ems-grid-2 ems-gap-12">
+                                <div className="ems-signups-detail-grid">
                                     <div>
                                         <span className="ems-signups-inspector__label">Unit</span>
                                         <div className="ems-signups-inspector__value">{profileData.unit || '—'}</div>
