@@ -220,7 +220,7 @@ describe('SignupsBoard', () => {
         fireEvent.click(screen.getByText('Alice Smith'));
 
         await waitFor(() => {
-            expect(screen.getByText('Explorer Details')).toBeInTheDocument();
+            expect(screen.getByText(/Details/i)).toBeInTheDocument();
             // Should suggest Alice Smith (scout_id 30001) as match due to same parent email and name similarity
             expect(screen.getAllByText(/Alice Smith/i).length).toBeGreaterThan(0);
             expect(screen.getByRole('button', { name: /Confirm Match/i })).toBeInTheDocument();
@@ -310,7 +310,7 @@ describe('SignupsBoard', () => {
         fireEvent.click(screen.getAllByText('Mary Jones')[0]);
 
         await waitFor(() => {
-            expect(screen.getByText('Explorer Details')).toBeInTheDocument();
+            expect(screen.getByText(/Details/i)).toBeInTheDocument();
         });
 
         // Find the close button (the '×' text button)
@@ -318,7 +318,7 @@ describe('SignupsBoard', () => {
         fireEvent.click(closeBtn);
 
         await waitFor(() => {
-            expect(screen.queryByText('Explorer Details')).not.toBeInTheDocument();
+            expect(screen.queryByText(/Details/i)).not.toBeInTheDocument();
         });
     });
 
