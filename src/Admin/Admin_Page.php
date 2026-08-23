@@ -344,36 +344,7 @@ class Admin_Page {
 	}
 
 	private function render_explorers_tab( $wpdb ): void {
-		$table     = $wpdb->prefix . 'ems_osm_explorers';
-		$explorers = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY last_name, first_name", ARRAY_A );
-
-		if ( $wpdb->last_error ) {
-			echo '<div class="notice notice-error inline"><p><strong>DB error:</strong> ' . esc_html( $wpdb->last_error ) . '</p></div>';
-			return;
-		}
-
-		if ( empty( $explorers ) ) {
-			echo '<p>' . esc_html__( 'No explorer data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
-			return;
-		}
-
-		echo '<p class="ems-text-muted">' . sprintf( esc_html__( '%d explorers', 'ems-plugin' ), count( $explorers ) ) . '</p>';
-		echo '<table class="wp-list-table widefat fixed striped">';
-		echo '<thead><tr>';
-		echo '<th>' . esc_html__( 'Scout ID', 'ems-plugin' ) . '</th>';
-		echo '<th>' . esc_html__( 'Name', 'ems-plugin' ) . '</th>';
-		echo '<th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th>';
-		echo '<th>' . esc_html__( 'Email', 'ems-plugin' ) . '</th>';
-		echo '</tr></thead><tbody>';
-		foreach ( $explorers as $row ) {
-			echo '<tr>';
-			echo '<td>' . esc_html( $row['scout_id'] ) . '</td>';
-			echo '<td>' . esc_html( $row['first_name'] . ' ' . $row['last_name'] ) . '</td>';
-			echo '<td>' . esc_html( $row['patrol'] ) . '</td>';
-			echo '<td>' . esc_html( $row['email'] ) . '</td>';
-			echo '</tr>';
-		}
-		echo '</tbody></table>';
+		echo '<div id="ems-explorers-root"></div>';
 	}
 
 	private function render_patrols_tab( $wpdb ): void {
