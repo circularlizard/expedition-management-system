@@ -2769,6 +2769,15 @@ input.ems-form-input {
     border-color: #00a650 !important;
 }
 
+.ems-signups-inspector__header--osm {
+    background: #f5e6fe !important;
+    border-bottom: 2px solid #8a2be2 !important;
+}
+
+.ems-signups-inspector--osm {
+    border-color: #8a2be2 !important;
+}
+
 .ems-signups-detail-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;

@@ -21,6 +21,12 @@ const mockProfileResponse = {
     first_name: 'Alice',
     last_name: 'MacLeod',
     email: 'alice@example.com',
+    email1: 'alice.primary@example.com',
+    email2: 'alice.secondary@example.com',
+    p1_email1: 'parent1.primary@example.com',
+    p1_email2: 'parent1.secondary@example.com',
+    p2_email1: 'parent2.primary@example.com',
+    p2_email2: 'parent2.secondary@example.com',
     unit: 'Hawks',
     leader_email: 'hawk_leader@example.com',
     organiser_notes: 'Organizer notes content',
@@ -72,6 +78,12 @@ describe('OSMReference', () => {
         await waitFor(() => {
             expect(screen.getByText('Explorer Profile')).toBeInTheDocument();
             expect(screen.getByText('hawk_leader@example.com')).toBeInTheDocument();
+            expect(screen.getByText('alice.primary@example.com')).toBeInTheDocument();
+            expect(screen.getByText('alice.secondary@example.com')).toBeInTheDocument();
+            expect(screen.getByText('parent1.primary@example.com')).toBeInTheDocument();
+            expect(screen.getByText('parent1.secondary@example.com')).toBeInTheDocument();
+            expect(screen.getByText('parent2.primary@example.com')).toBeInTheDocument();
+            expect(screen.getByText('parent2.secondary@example.com')).toBeInTheDocument();
             expect(screen.getByText('Organizer notes content')).toBeInTheDocument();
             expect(screen.getByText('Parent notes content')).toBeInTheDocument();
             expect(screen.getByText('Bronze Training (T-HA1)')).toBeInTheDocument();
