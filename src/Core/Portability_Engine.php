@@ -111,4 +111,59 @@ class Portability_Engine {
 
 		return true;
 	}
+
+	/**
+	 * Exports only the EMS units lookup table contents as a JSON string.
+	 *
+	 * @return string The JSON encoded backup payload.
+	 */
+	public function export_units(): string {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'ems_units';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results( "SELECT * FROM {$table}", ARRAY_A );
+		if ( ! is_array( $rows ) ) {
+			$rows = array();
+		}
+
+		$payload = array(
+			'type'        => 'ems_units_export',
+			'version'     => '0.1.x',
+			'exported_at' => current_time( 'mysql' ),
+			'units'       => $rows,
+		);
+
+		return (string) wp_json_encode( $payload, JSON_PRETTY_PRINT );
+	}
+
+	/**
+	 * Imports only the EMS units lookup table from a JSON string.
+	 *
+	 * @param string $json_content The JSON backup data.
+	 * @return bool True on success.
+	 * @throws \Exception When the backup structure is invalid.
+	 */
+	public function import_units( string $json_content ): bool {
+		global $wpdb;
+
+		$data = json_decode( $json_content, true );
+		if ( ! is_array( $data ) || ! isset( $data['type'] ) || 'ems_units_export' !== $data['type'] || ! isset( $data['units'] ) ) {
+			throw new \Exception( 'Invalid units backup file structure.' );
+		}
+
+		$table = $wpdb->prefix . 'ems_units';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( "TRUNCATE TABLE {$table}" );
+
+		$rows = $data['units'];
+		if ( ! empty( $rows ) ) {
+			foreach ( $rows as $row ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+				$wpdb->insert( $table, $row );
+			}
+		}
+
+		return true;
+	}
 }
