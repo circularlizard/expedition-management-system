@@ -804,7 +804,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
             {/* Inspector Panel - Slide-Out/Docked Layout */}
             {selectedSignup && (
-                <div ref={inspectorRef} className="ems-signups-inspector">
+                <div ref={inspectorRef} className={`ems-signups-inspector ems-signups-inspector--${selectedSignup.type}`}>
                     {/* Header */}
                     <div className={`ems-signups-inspector__header ems-signups-inspector__header--${selectedSignup.type}`}>
                         <div className="ems-flex-center ems-gap-6">
