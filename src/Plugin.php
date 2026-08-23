@@ -184,7 +184,7 @@ class Plugin {
 			'admin_post_ems_fetch_sections',
 			function () {
 				if ( ! current_user_can( 'manage_options' ) ) {
-					wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&error=forbidden' ) );
+					wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&tab=sections&error=forbidden' ) );
 					exit;
 				}
 				check_admin_referer( 'ems_fetch_sections' );
@@ -201,7 +201,7 @@ class Plugin {
 							$osm_client->set_access_token( $token );
 							$payload = $osm_client->get_data_payload();
 							set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
-							wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&fetched=1' ) );
+							wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&tab=sections&fetched=1' ) );
 						},
 						'fetch_sections'
 					);
@@ -210,7 +210,7 @@ class Plugin {
 					$osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
 					$payload    = $osm_client->get_data_payload();
 					set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
-					wp_safe_redirect( admin_url( 'admin.php?page=ems-settings&tab=sections&fetched=1' ) );
+					wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&tab=sections&fetched=1' ) );
 				}
 				exit;
 			}

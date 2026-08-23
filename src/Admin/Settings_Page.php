@@ -82,24 +82,6 @@ class Settings_Page {
 		}
 	}
 
-	public function save_sections( array $post_data ): void {
-		$available   = (array) get_transient( 'ems_available_sections' );
-		$checked_ids = array_map( 'intval', (array) ( $post_data['ems_managed_section_ids'] ?? array() ) );
-
-		$sections = array();
-		foreach ( $checked_ids as $id ) {
-			if ( isset( $available[ $id ] ) ) {
-				$sections[ $id ] = array(
-					'name' => sanitize_text_field( $available[ $id ]['name'] ?? '' ),
-					'type' => sanitize_text_field( $available[ $id ]['type'] ?? '' ),
-				);
-			}
-		}
-		update_option( 'ems_managed_sections', $sections );
-		$writeback_id = isset( $post_data['ems_writeback_section_id'] ) ? (int) $post_data['ems_writeback_section_id'] : 0;
-		update_option( 'ems_writeback_section_id', $writeback_id );
-	}
-
 	/**
 	 * Legacy entry-point used by existing callers (Plugin.php etc.).
 	 * Routes to the appropriate per-tab save based on which submit button was pressed.
@@ -109,10 +91,6 @@ class Settings_Page {
 			$this->save_general( $post_data );
 		} elseif ( isset( $post_data['ems_save_connection'] ) ) {
 			$this->save_connection( $post_data );
-		} elseif ( isset( $post_data['ems_save_sections'] ) ) {
-			$this->save_sections( $post_data );
-		} elseif ( isset( $post_data['ems_save_unit_leaders'] ) ) {
-			$this->save_unit_leaders( $post_data );
 		} elseif ( isset( $post_data['ems_save_form_mappings'] ) ) {
 			$this->save_form_mappings( $post_data );
 		} elseif ( isset( $post_data['ems_save_access_control'] ) ) {
@@ -127,10 +105,6 @@ class Settings_Page {
 			$this->save_general( $_POST );
 		} elseif ( isset( $_POST['ems_save_connection'] ) && check_admin_referer( 'ems_settings_connection' ) ) {
 			$this->save_connection( $_POST );
-		} elseif ( isset( $_POST['ems_save_sections'] ) && check_admin_referer( 'ems_settings_sections' ) ) {
-			$this->save_sections( $_POST );
-		} elseif ( isset( $_POST['ems_save_unit_leaders'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
-			$this->save_unit_leaders( $_POST );
 		} elseif ( isset( $_POST['ems_save_form_mappings'] ) && check_admin_referer( 'ems_settings_form_mappings' ) ) {
 			$this->save_form_mappings( $_POST );
 		} elseif ( isset( $_POST['ems_save_access_control'] ) && check_admin_referer( 'ems_settings_access_control' ) ) {
@@ -139,13 +113,9 @@ class Settings_Page {
 			$this->handle_import();
 		} elseif ( isset( $_POST['ems_export_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
 			$this->handle_export();
-		} elseif ( isset( $_POST['ems_import_units'] ) && check_admin_referer( 'ems_settings_unit_portability' ) ) {
-			$this->handle_import_units();
-		} elseif ( isset( $_POST['ems_export_units'] ) && check_admin_referer( 'ems_settings_unit_portability' ) ) {
-			$this->handle_export_units();
 		}
 
-		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'sections';
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';
 		$page_url   = admin_url( 'admin.php?page=ems-settings' );
 		?>
 		<div class="wrap">
@@ -158,14 +128,6 @@ class Settings_Page {
 				<a href="<?php echo esc_url( $page_url . '&tab=connection' ); ?>"
 					class="nav-tab<?php echo $active_tab === 'connection' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'OSM Connection', 'ems-plugin' ); ?>
-				</a>
-				<a href="<?php echo esc_url( $page_url . '&tab=sections' ); ?>"
-					class="nav-tab<?php echo $active_tab === 'sections' ? ' nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Managed Sections', 'ems-plugin' ); ?>
-				</a>
-				<a href="<?php echo esc_url( $page_url . '&tab=unit_leaders' ); ?>"
-					class="nav-tab<?php echo $active_tab === 'unit_leaders' ? ' nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Unit Lookup', 'ems-plugin' ); ?>
 				</a>
 				<a href="<?php echo esc_url( $page_url . '&tab=form_mappings' ); ?>"
 					class="nav-tab<?php echo $active_tab === 'form_mappings' ? ' nav-tab-active' : ''; ?>">
@@ -185,12 +147,8 @@ class Settings_Page {
 				</a>
 			</nav>
 			<?php
-			if ( $active_tab === 'general' ) {
-				$this->render_general_tab();
-			} elseif ( $active_tab === 'connection' ) {
+			if ( $active_tab === 'connection' ) {
 				$this->render_connection_tab();
-			} elseif ( $active_tab === 'unit_leaders' ) {
-				$this->render_unit_leaders_tab();
 			} elseif ( $active_tab === 'form_mappings' ) {
 				$this->render_form_mappings_tab();
 			} elseif ( $active_tab === 'backups' ) {
@@ -200,7 +158,7 @@ class Settings_Page {
 			} elseif ( $active_tab === 'access_control' ) {
 				$this->render_access_control_tab();
 			} else {
-				$this->render_sections_tab();
+				$this->render_general_tab();
 			}
 			?>
 		</div>
@@ -372,261 +330,6 @@ class Settings_Page {
 				<input type="submit" name="ems_save_connection" class="button-primary" value="<?php esc_attr_e( 'Save Connection Settings', 'ems-plugin' ); ?>" />
 			</p>
 		</form>
-		<?php
-	}
-
-	private function render_sections_tab(): void {
-		$available = get_transient( 'ems_available_sections' );
-		if ( ! is_array( $available ) ) {
-			$available = array();
-		}
-		$managed = get_option( 'ems_managed_sections', array() );
-		if ( ! is_array( $managed ) ) {
-			$managed = array();
-		}
-		if ( isset( $_GET['fetched'] ) ) {
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Section list refreshed from OSM.', 'ems-plugin' ) . '</p></div>';
-		}
-		?>
-		<div class="ems-panel ems-mb-24">
-			<h3 class="ems-panel-title"><?php esc_html_e( 'Fetch OSM Sections', 'ems-plugin' ); ?></h3>
-			<div class="ems-panel-content">
-				<p><?php esc_html_e( 'Before you can manage sections, you need to fetch the available sections list from Online Scout Manager (OSM).', 'ems-plugin' ); ?></p>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
-					<?php wp_nonce_field( 'ems_fetch_sections' ); ?>
-					<input type="hidden" name="action" value="ems_fetch_sections" />
-					<button type="submit" class="button button-primary"><?php esc_html_e( 'Fetch sections from OSM', 'ems-plugin' ); ?></button>
-					<span class="description"><?php esc_html_e( 'Retrieves the section list from OSM (or mock data) and caches it for 1 hour.', 'ems-plugin' ); ?></span>
-				</form>
-			</div>
-		</div>
-
-		<?php if ( empty( $available ) ) : ?>
-			<div class="notice notice-info inline"><p>
-				<?php esc_html_e( 'No section list cached yet. Click "Fetch sections from OSM" above to populate this list.', 'ems-plugin' ); ?>
-			</p></div>
-		<?php else :
-			$writeback_id = (int) get_option( 'ems_writeback_section_id', 0 );
-			?>
-			<div class="ems-panel ems-mb-24">
-				<h3 class="ems-panel-title"><?php esc_html_e( 'Configure Managed Sections', 'ems-plugin' ); ?></h3>
-				<div class="ems-panel-content">
-					<form method="post">
-						<?php wp_nonce_field( 'ems_settings_sections' ); ?>
-						<table class="ems-table">
-							<thead>
-								<tr>
-									<th class="ems-col-width-70"><?php esc_html_e( 'Managed', 'ems-plugin' ); ?></th>
-									<th class="ems-col-width-120"><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
-									<th><?php esc_html_e( 'Section Name', 'ems-plugin' ); ?></th>
-									<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
-									<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
-								</tr>
-							</thead>
-							<tbody>
-								<?php
-								foreach ( $available as $id => $data ) :
-									$id            = (int) $id;
-									$checked       = isset( $managed[ $id ] );
-									$radio_checked = ( $writeback_id === $id );
-									$name          = esc_html( $data['name'] ?? '' );
-									$type          = esc_html( $data['type'] ?? '' );
-									?>
-								<tr>
-									<td><input type="checkbox" name="ems_managed_section_ids[]" value="<?php echo $id; ?>" <?php checked( $checked ); ?> /></td>
-									<td><input type="radio" name="ems_writeback_section_id" value="<?php echo $id; ?>" <?php checked( $radio_checked ); ?> /></td>
-									<td><strong><?php echo $name; ?></strong></td>
-									<td><span class="ems-pill"><?php echo $type; ?></span></td>
-									<td><code><?php echo $id; ?></code></td>
-								</tr>
-								<?php endforeach; ?>
-							</tbody>
-						</table>
-						<p class="submit" style="margin-top: 16px; margin-bottom: 0;">
-							<input type="submit" name="ems_save_sections" class="button-primary" value="<?php esc_attr_e( 'Save Managed Sections', 'ems-plugin' ); ?>" />
-						</p>
-					</form>
-				</div>
-			</div>
-		<?php endif; ?>
-
-		<?php if ( ! empty( $managed ) ) :
-			$writeback_id = (int) get_option( 'ems_writeback_section_id', 0 );
-			?>
-			<div class="ems-panel">
-				<h3 class="ems-panel-title"><?php esc_html_e( 'Currently Managed Sections Summary', 'ems-plugin' ); ?></h3>
-				<div class="ems-panel-content">
-					<table class="ems-table">
-						<thead><tr>
-							<th><?php esc_html_e( 'Section ID', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Name', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Write-Back Target', 'ems-plugin' ); ?></th>
-						</tr></thead>
-						<tbody>
-							<?php foreach ( $managed as $id => $data ) :
-								$is_target = ( (int) $id === $writeback_id );
-								?>
-							<tr>
-								<td><code><?php echo (int) $id; ?></code></td>
-								<td><strong><?php echo esc_html( $data['name'] ?? '' ); ?></strong></td>
-								<td><span class="ems-pill"><?php echo esc_html( $data['type'] ?? '' ); ?></span></td>
-								<td><?php echo $is_target ? '<span class="ems-status-badge ems-status-badge--active">' . esc_html__( 'Active Target', 'ems-plugin' ) . '</span>' : esc_html__( 'No', 'ems-plugin' ); ?></td>
-							</tr>
-							<?php endforeach; ?>
-						</tbody>
-					</table>
-				</div>
-			</div>
-		<?php endif; ?>
-		<?php
-	}
-
-	public function save_unit_leaders( array $post_data ): void {
-		$leaders_data = $post_data['unit_leaders'] ?? array();
-
-		foreach ( $leaders_data as $id => $fields ) {
-			$email      = sanitize_text_field( $fields['email'] ?? '' );
-			$first      = sanitize_text_field( $fields['first_name'] ?? '' );
-			$last       = sanitize_text_field( $fields['last_name'] ?? '' );
-			$unit_id    = empty( $fields['unit_id'] ) ? null : (int) $fields['unit_id'];
-			$short_code = sanitize_text_field( $fields['short_code'] ?? '' );
-
-			$data = array(
-				'unit_id'           => $unit_id,
-				'short_code'        => $short_code,
-				'leader_first_name' => $first,
-				'leader_last_name'  => $last,
-				'leader_email'      => $email,
-			);
-
-			try {
-				$this->unit_leaders->update_custom_mappings( (int) $id, $data );
-			} catch ( \InvalidArgumentException $e ) {
-				error_log( '[EMS] Settings save_unit_leaders failed: ' . $e->getMessage() );
-			}
-		}
-	}
-
-	private function render_unit_leaders_tab(): void {
-		$units            = $this->unit_leaders->list_active_units();
-		$managed_sections = get_option( 'ems_managed_sections', array() );
-		?>
-		<style>
-			.ems-unit-leaders-table-container {
-				max-height: calc(100vh - 220px);
-				overflow-y: auto;
-				border: 1px solid #ccd0d4;
-				margin-top: 15px;
-			}
-			.ems-unit-leaders-table-container table {
-				margin-top: 0 !important;
-				border: none !important;
-			}
-			.ems-unit-leaders-table-container thead th {
-				position: sticky;
-				top: 0;
-				background: #f6f7f7;
-				box-shadow: inset 0 -1px 0 #ccd0d4;
-				z-index: 2;
-			}
-			.ems-unit-leaders-table-container input[type="text"],
-			.ems-unit-leaders-table-container input[type="email"],
-			.ems-unit-leaders-table-container input[type="number"] {
-				width: 100%;
-				max-width: 100%;
-				box-sizing: border-box;
-			}
-		</style>
-		<form method="post">
-			<?php wp_nonce_field( 'ems_settings_unit_leaders' ); ?>
-			<div class="ems-unit-leaders-table-container">
-				<table class="ems-table">
-					<thead>
-						<tr>
-							<th style="width: 15%;"><?php esc_html_e( 'OSM Section', 'ems-plugin' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'ESU / Unit Name', 'ems-plugin' ); ?></th>
-							<th style="width: 10%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php if ( empty( $units ) ) : ?>
-							<tr>
-								<td colspan="7"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data first.', 'ems-plugin' ); ?></td>
-							</tr>
-						<?php else : ?>
-							<?php
-							foreach ( $units as $u ) :
-								$sec_id   = $u['section_id'];
-								$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
-								$row_id   = (int) $u['id'];
-								?>
-								<tr>
-									<td><?php echo esc_html( $sec_name ); ?></td>
-									<td><strong><?php echo esc_html( $u['name'] ); ?></strong></td>
-									<td>
-										<input type="number" name="unit_leaders[<?php echo $row_id; ?>][unit_id]" 
-												value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" />
-									</td>
-									<td>
-										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][short_code]" 
-												value="<?php echo esc_attr( $u['short_code'] ?: $u['name'] ); ?>" />
-									</td>
-									<td>
-										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][first_name]" 
-												value="<?php echo esc_attr( $u['leader_first_name'] ?? '' ); ?>" />
-									</td>
-									<td>
-										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][last_name]" 
-												value="<?php echo esc_attr( $u['leader_last_name'] ?? '' ); ?>" />
-									</td>
-									<td>
-										<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
-												value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
-									</td>
-								</tr>
-							<?php endforeach; ?>
-						<?php endif; ?>
-					</tbody>
-				</table>
-			</div>
-			<?php if ( ! empty( $units ) ) : ?>
-				<p class="submit">
-					<input type="submit" name="ems_save_unit_leaders" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Unit Leaders', 'ems-plugin' ); ?>" />
-				</p>
-			<?php endif; ?>
-		</form>
-
-		<div style="display: flex; gap: 20px; margin-top: 30px;">
-			<div class="card" style="flex: 1; min-width: 280px; padding: 20px; margin: 0;">
-				<h3><?php esc_html_e( 'Export Unit Lookup Table', 'ems-plugin' ); ?></h3>
-				<p class="description">
-					<?php esc_html_e( 'Download a JSON file containing only the Unit lookup configurations.', 'ems-plugin' ); ?>
-				</p>
-				<form method="post">
-					<?php wp_nonce_field( 'ems_settings_unit_portability' ); ?>
-					<input type="submit" name="ems_export_units" class="button button-secondary" value="<?php esc_attr_e( 'Export Units (.json)', 'ems-plugin' ); ?>" />
-				</form>
-			</div>
-
-			<div class="card" style="flex: 1; min-width: 280px; padding: 20px; margin: 0;">
-				<h3><?php esc_html_e( 'Import Unit Lookup Table', 'ems-plugin' ); ?></h3>
-				<p class="description">
-					<?php esc_html_e( 'Upload a units-only JSON backup file. Warning: This will truncate current units data and restore it from the file.', 'ems-plugin' ); ?>
-				</p>
-				<form method="post" enctype="multipart/form-data">
-					<?php wp_nonce_field( 'ems_settings_unit_portability' ); ?>
-					<p>
-						<input type="file" name="ems_units_backup_file" accept=".json" required />
-					</p>
-					<input type="submit" name="ems_import_units" class="button button-secondary" value="<?php esc_attr_e( 'Import Units', 'ems-plugin' ); ?>" onclick="return confirm('<?php esc_attr_e( 'Are you sure? This will overwrite the current Unit lookup data.', 'ems-plugin' ); ?>');" />
-				</form>
-			</div>
-		</div>
 		<?php
 	}
 
@@ -1116,65 +819,6 @@ class Settings_Page {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'EMS backup restored and replicated successfully.', 'ems-plugin' ) . '</p></div>';
 		} catch ( \Exception $e ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sprintf( __( 'Restore failed: %s', 'ems-plugin' ), $e->getMessage() ) ) . '</p></div>';
-		}
-	}
-
-	/**
-	 * Exports the Unit lookup configurations as a JSON string file download.
-	 *
-	 * @return void
-	 */
-	private function handle_export_units(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
-		}
-
-		$engine   = new \EMS\Core\Portability_Engine();
-		$json     = $engine->export_units();
-		$filename = 'ems-units-backup-' . current_time( 'Y-md-His' ) . '.json';
-
-		header( 'Content-Type: application/json; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
-		header( 'Pragma: no-cache' );
-		header( 'Expires: 0' );
-
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo $json;
-		exit;
-	}
-
-	/**
-	 * Imports Unit lookup configurations from an uploaded JSON file.
-	 *
-	 * @return void
-	 */
-	private function handle_import_units(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
-		}
-
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		if ( empty( $_FILES['ems_units_backup_file']['tmp_name'] ) ) {
-			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Please upload a unit lookup backup file.', 'ems-plugin' ) . '</p></div>';
-			return;
-		}
-
-		try {
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			$file_path = sanitize_text_field( wp_unslash( $_FILES['ems_units_backup_file']['tmp_name'] ) );
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-			$content = file_get_contents( $file_path );
-			if ( ! $content ) {
-				throw new \Exception( 'Failed to read uploaded file.' );
-			}
-
-			$engine = new \EMS\Core\Portability_Engine();
-			$engine->import_units( $content );
-
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Unit lookup data imported successfully.', 'ems-plugin' ) . '</p></div>';
-		} catch ( \Exception $e ) {
-			// translators: %s: The error message returned when import fails.
-			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sprintf( __( 'Import failed: %s', 'ems-plugin' ), $e->getMessage() ) ) . '</p></div>';
 		}
 	}
 
