@@ -2751,6 +2751,42 @@ input.ems-form-input {
     border-bottom-right-radius: 8px;
 }
 
+.ems-signups-inspector__header--participant {
+    background: #e2eff9 !important;
+    border-bottom: 2px solid #2271b1 !important;
+}
+
+.ems-signups-inspector__header--expedition {
+    background: #e7f6ed !important;
+    border-bottom: 2px solid #00a650 !important;
+}
+
+.ems-signups-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.ems-signups-detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.ems-signups-detail-item--full {
+    grid-column: span 2;
+}
+
+.ems-signups-inspector__section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #1d2327;
+    border-bottom: 1px solid #dcdcde;
+    padding-bottom: 4px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
 /* Missing Layout Utilities */
 .ems-table-cell--top {
     vertical-align: top;
