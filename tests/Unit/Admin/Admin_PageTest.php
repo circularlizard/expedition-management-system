@@ -69,4 +69,208 @@ class Admin_PageTest extends EMSTestCase {
         $this->assertContains( 'Volunteers', $submenu_titles );
         $this->assertContains( 'OSM Sync', $submenu_titles );
     }
+
+	public function test_save_sections_stores_checked_ids_from_available_transient(): void {
+		$stored = [];
+		Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+		Functions\when( 'get_transient' )->alias( static function ( $key ) {
+			if ( $key === 'ems_available_sections' ) {
+				return [ 10001 => [ 'name' => 'Silver ESU' ], 10002 => [ 'name' => 'Gold ESU' ] ];
+			}
+			return false;
+		} );
+		Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+		$page->save_sections( [ 'ems_managed_section_ids' => [ '10001' ] ] );
+
+		$this->assertArrayHasKey( 10001, $stored['ems_managed_sections'] );
+		$this->assertArrayNotHasKey( 10002, $stored['ems_managed_sections'] );
+		$this->assertSame( 'Silver ESU', $stored['ems_managed_sections'][10001]['name'] );
+	}
+
+	public function test_save_sections_ignores_ids_not_in_available_transient(): void {
+		$stored = [];
+		Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+		Functions\when( 'get_transient' )->alias( static function ( $key ) {
+			if ( $key === 'ems_available_sections' ) {
+				return [ 10001 => [ 'name' => 'Silver ESU' ] ];
+			}
+			return false;
+		} );
+		Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+		$page->save_sections( [ 'ems_managed_section_ids' => [ '99999' ] ] );
+
+		$this->assertEmpty( $stored['ems_managed_sections'] );
+	}
+
+	public function test_save_sections_stores_empty_when_none_checked(): void {
+		$stored = [];
+		Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+		Functions\when( 'get_transient' )->alias( static function ( $key ) {
+			if ( $key === 'ems_available_sections' ) {
+				return [ 10001 => [ 'name' => 'Silver ESU' ] ];
+			}
+			return false;
+		} );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+		$page->save_sections( [] );
+
+		$this->assertEmpty( $stored['ems_managed_sections'] );
+	}
+
+	public function test_save_sections_does_not_store_extraid(): void {
+		$stored = [];
+		Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+		Functions\when( 'get_transient' )->alias( static function ( $key ) {
+			if ( $key === 'ems_available_sections' ) {
+				return [ 10001 => [ 'name' => 'Silver ESU', 'extraid' => '73848' ] ];
+			}
+			return false;
+		} );
+		Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+		$page->save_sections( [ 'ems_managed_section_ids' => [ '10001' ] ] );
+
+		$this->assertArrayNotHasKey( 'extraid', $stored['ems_managed_sections'][10001] );
+	}
+
+	public function test_save_sections_stores_writeback_section_id(): void {
+		$stored = [];
+		Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+		Functions\when( 'get_transient' )->alias( static function ( $key ) {
+			if ( $key === 'ems_available_sections' ) {
+				return [ 10001 => [ 'name' => 'Silver ESU' ] ];
+			}
+			return false;
+		} );
+		Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+		$page->save_sections( [
+			'ems_managed_section_ids' => [ '10001' ],
+			'ems_writeback_section_id' => '10001',
+		] );
+
+		$this->assertSame( 10001, $stored['ems_writeback_section_id'] );
+	}
+
+	public function test_save_unit_leaders_saves_mappings(): void {
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'update_custom_mappings' )->with( 12, [
+			'unit_id'           => 4200,
+			'short_code'        => 'ORION-ESU',
+			'leader_first_name' => 'John',
+			'leader_last_name'  => 'Doe',
+			'leader_email'      => 'john.doe@example.com',
+		] )->once()->andReturn( true );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$page->save_unit_leaders( [
+			'unit_leaders' => [
+				12 => [
+					'unit_id'    => 4200,
+					'short_code' => 'ORION-ESU',
+					'first_name' => 'John',
+					'last_name'  => 'Doe',
+					'email'      => 'john.doe@example.com',
+				]
+			]
+		] );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_handle_import_units_unauthorized(): void {
+		Functions\when( 'current_user_can' )->justReturn( false );
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+		
+		$this->expectException( \Exception::class );
+		$this->expectExceptionMessage( 'Unauthorized.' );
+
+		$reflected = new \ReflectionClass(Admin_Page::class);
+		$method = $reflected->getMethod('handle_import_units');
+		$method->setAccessible(true);
+		$method->invoke( $page );
+	}
+
+	public function test_handle_import_units_empty_file(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+
+		unset($_FILES['ems_units_backup_file']);
+
+		$reflected = new \ReflectionClass(Admin_Page::class);
+		$method = $reflected->getMethod('handle_import_units');
+		$method->setAccessible(true);
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Please upload a unit lookup backup file.', $output );
+	}
+
+	public function test_handle_import_units_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		
+		// Create a temporary file to use as the backup file
+		$temp_file = tempnam( sys_get_temp_dir(), 'ems_test' );
+		$backup_data = array(
+			'type'    => 'ems_units_export',
+			'version' => '0.1.x',
+			'units'   => array(
+				array(
+					'id'        => 5,
+					'patrol_id' => 500,
+					'section_id'=> 600,
+					'name'      => 'Falcons',
+					'active'    => 1,
+				)
+			)
+		);
+		file_put_contents( $temp_file, json_encode( $backup_data ) );
+
+		$_FILES['ems_units_backup_file'] = array(
+			'tmp_name' => $temp_file,
+		);
+
+		// Mock wpdb functions called during Portability_Engine->import_units
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'query' )->with( 'TRUNCATE TABLE wp_ems_units' )->once()->andReturn( true );
+		$wpdb->shouldReceive( 'insert' )->with( 'wp_ems_units', $backup_data['units'][0] )->once()->andReturn( true );
+		$GLOBALS['wpdb'] = $wpdb;
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+
+		$reflected = new \ReflectionClass(Admin_Page::class);
+		$method = $reflected->getMethod('handle_import_units');
+		$method->setAccessible(true);
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Unit lookup data imported successfully.', $output );
+
+		unlink( $temp_file );
+		unset( $_FILES['ems_units_backup_file'] );
+	}
 }
