@@ -148,7 +148,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'dofe_org', $participant_sql );
         $this->assertStringContainsString( 'bronze_completion', $participant_sql );
         $this->assertStringContainsString( 'silver_completion', $participant_sql );
-        $this->assertStringContainsString( "DEFAULT 'received'", $participant_sql );
+        $this->assertStringContainsString( "DEFAULT 'submitted'", $participant_sql );
         $this->assertStringContainsString( 'processed_by', $participant_sql );
         $this->assertStringContainsString( 'processed_at', $participant_sql );
     }
@@ -171,7 +171,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'additional_support_needs', $exped_sql );
         $this->assertStringContainsString( 'first_aid_status', $exped_sql );
         $this->assertStringContainsString( 'first_aid_expiry', $exped_sql );
-        $this->assertStringContainsString( "DEFAULT 'pending'", $exped_sql );
+        $this->assertStringContainsString( "DEFAULT 'submitted'", $exped_sql );
     }
 
     public function test_osm_explorers_has_timestamp_columns(): void {
