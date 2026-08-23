@@ -22,30 +22,41 @@ const isSectionCompleted = (completions: any, section: string): boolean => {
     return false;
 };
 
-interface SignupsBoardProps {
-    type: 'participant' | 'expedition';
-}
+const normalize = (str: string): string => {
+    return (str || '').trim().toLowerCase();
+};
 
-export default function SignupsBoard({ type }: SignupsBoardProps) {
+const firstNamesSimilar = (nameA: string, nameB: string): boolean => {
+    const na = normalize(nameA);
+    const nb = normalize(nameB);
+    return na.length >= 3 && nb.length >= 3 && na.substring(0, 3) === nb.substring(0, 3);
+};
+
+export default function SignupsBoard({ type: _ignoredProp }: { type?: string } = {}) {
     const config = window.emsSignupsBoard || { root_url: '', nonce: '' };
 
     const [signups, setSignups] = useState<any[]>([]);
+    const [explorers, setExplorers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Filters
-    const defaultStatus = type === 'participant' ? 'received' : 'pending';
-    const [statusFilter, setStatusFilter] = useState<string>(defaultStatus);
+    const [statusFilter, setStatusFilter] = useState<string>('submitted');
+    const [typeFilter, setTypeFilter] = useState<string>('all');
     const [levelFilter, setLevelFilter] = useState<string>('all');
-    const [expedTypeFilter, setExpedTypeFilter] = useState<string>('all');
+    const [unitFilter, setUnitFilter] = useState<string>('all');
+    const [allocationFilter, setAllocationFilter] = useState<string>('all');
 
-    // Sorting
+    // Grouping & Sorting
+    const [grouping, setGrouping] = useState<'none' | 'unit' | 'level'>('none');
     const [sortKey, setSortKey] = useState<string>('created_at');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-    // Selected signup for Inspector Panel
+    // Selected signup & Inspector Panel
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
     const [editedDofeNumber, setEditedDofeNumber] = useState<string>('');
+    const [reconcileSearch, setReconcileSearch] = useState<string>('');
+    const [unlinkError, setUnlinkError] = useState<string | null>(null);
     const inspectorRef = useRef<HTMLDivElement>(null);
 
     // Pagination
@@ -54,7 +65,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, levelFilter, expedTypeFilter, sortKey, sortOrder]);
+    }, [statusFilter, typeFilter, levelFilter, unitFilter, allocationFilter, sortKey, sortOrder, grouping]);
 
     useEffect(() => {
         if (selectedSignup && inspectorRef.current) {
@@ -62,52 +73,46 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         }
     }, [selectedSignup]);
 
-    const fetchSignups = async () => {
+    const fetchData = async () => {
         setLoading(true);
         setError(null);
         try {
-            const endpoint = type === 'participant' ? 'participants' : 'expeditions';
-            const response = await fetch(`${config.root_url}/signups/${endpoint}?status=${statusFilter}`, {
-                headers: {
-                    'X-WP-Nonce': config.nonce
-                }
+            // Fetch combined signups list
+            const signupsRes = await fetch(`${config.root_url}/signups?status=${statusFilter}`, {
+                headers: { 'X-WP-Nonce': config.nonce }
             });
-            if (response && response.ok) {
-                const data = await response.json();
-                setSignups(data);
-            } else {
+            if (!signupsRes.ok) {
                 throw new Error('Failed to fetch signups');
             }
+            const signupsData = await signupsRes.json();
+            setSignups(signupsData);
+
+            // Fetch synced explorers roster for matches
+            const explorersRes = await fetch(`${config.root_url}/explorers`, {
+                headers: { 'X-WP-Nonce': config.nonce }
+            });
+            if (explorersRes.ok) {
+                const explorersData = await explorersRes.json();
+                setExplorers(explorersData);
+            }
         } catch (err: any) {
-            setError(err.message || 'Error fetching signups');
+            setError(err.message || 'Error fetching data');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const statusParam = params.get('status');
-        if (statusParam) {
-            setStatusFilter(statusParam);
-        } else {
-            setStatusFilter(type === 'participant' ? 'received' : 'pending');
-        }
-        setLevelFilter('all');
-        setExpedTypeFilter('all');
-        setSortKey('created_at');
-        setSortOrder('desc');
+        fetchData();
         setSelectedSignup(null);
-    }, [type]);
-
-    useEffect(() => {
-        fetchSignups();
-        setSelectedSignup(null);
-    }, [type, statusFilter]);
+        setUnlinkError(null);
+    }, [statusFilter]);
 
     useEffect(() => {
         if (selectedSignup) {
             setEditedDofeNumber(selectedSignup.dofe_number || '');
+            setUnlinkError(null);
+            setReconcileSearch('');
         }
     }, [selectedSignup]);
 
@@ -125,6 +130,56 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         }
     }, [loading, signups]);
 
+    const handleReconcile = async (signupId: number, signupType: string, scoutId: number) => {
+        try {
+            const response = await fetch(`${config.root_url}/signups/reconcile`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    signup_id: signupId,
+                    signup_type: signupType,
+                    scout_id: scoutId
+                })
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Failed to confirm match');
+            }
+            setSelectedSignup(null);
+            fetchData();
+        } catch (err: any) {
+            alert(err.message);
+        }
+    };
+
+    const handleUnlink = async (signupId: number, signupType: string) => {
+        setUnlinkError(null);
+        try {
+            const response = await fetch(`${config.root_url}/signups/unlink`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    signup_id: signupId,
+                    signup_type: signupType
+                })
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Failed to unlink matched profile');
+            }
+            setSelectedSignup(null);
+            fetchData();
+        } catch (err: any) {
+            setUnlinkError(err.message);
+        }
+    };
+
     const handleProcessParticipant = async (signupId: number, dofeNumber: string) => {
         try {
             const response = await fetch(`${config.root_url}/signups/participants/${signupId}/process`, {
@@ -137,19 +192,19 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
             });
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.message || 'Failed to allocate place');
+                throw new Error(data.message || 'Failed to allocate slot');
             }
             setSelectedSignup(null);
-            fetchSignups();
+            fetchData();
         } catch (err: any) {
             alert(err.message);
         }
     };
 
-    const handleArchive = async (signupId: number) => {
+    const handleArchive = async (signupId: number, signupType: string) => {
         if (!confirm('Are you sure you want to archive this signup?')) return;
         try {
-            const endpoint = type === 'participant' ? 'participants' : 'expeditions';
+            const endpoint = signupType === 'participant' ? 'participants' : 'expeditions';
             const response = await fetch(`${config.root_url}/signups/${endpoint}/${signupId}/archive`, {
                 method: 'POST',
                 headers: {
@@ -161,25 +216,56 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                 throw new Error(data.message || 'Failed to archive signup');
             }
             setSelectedSignup(null);
-            fetchSignups();
+            fetchData();
         } catch (err: any) {
             alert(err.message);
         }
     };
 
-    // Filter signups in memory by Level and Expedition Type
-    const filteredSignups = signups.filter(s => {
-        if (levelFilter !== 'all' && s.dofe_level !== levelFilter) {
-            return false;
-        }
-        if (expedTypeFilter !== 'all') {
-            const expedType = s.expedition_preferences?.exped_type || '';
-            if (expedType.toLowerCase() !== expedTypeFilter.toLowerCase()) {
-                return false;
+    // Helper: list matching suggestions with Sibling Collision Guard
+    const getMatchSuggestions = (signup: any) => {
+        if (!signup || signup.scout_id !== 0) return [];
+        const sf = normalize(signup.explorer_first_name);
+        const sl = normalize(signup.explorer_last_name);
+        const se = normalize(signup.explorer_email);
+        const sp = normalize(signup.parent_email);
+
+        return explorers.filter(e => {
+            const ef = normalize(e.first_name);
+            const el = normalize(e.last_name);
+            const ee = normalize(e.email);
+            const ep = normalize(e.parent_email);
+
+            // 1. Exact first and last name match
+            if (sf === ef && sl === el) return true;
+
+            // 2. Exact explorer email match (if present)
+            if (se && se === ee) return true;
+
+            // 3. Parent email match AND first name similarity (sibling guard)
+            if (sp && sp === ep && firstNamesSimilar(signup.explorer_first_name, e.first_name)) {
+                return true;
             }
+
+            return false;
+        });
+    };
+
+    // Filter signups in memory
+    const filteredSignups = signups.filter(s => {
+        if (typeFilter !== 'all' && s.type !== typeFilter) return false;
+        if (levelFilter !== 'all' && s.dofe_level !== levelFilter) return false;
+        if (unitFilter !== 'all' && (s.unit_name || 'Unassigned') !== unitFilter) return false;
+        if (allocationFilter !== 'all') {
+            const hasAllocated = !!s.dofe_number;
+            if (allocationFilter === 'allocated' && !hasAllocated) return false;
+            if (allocationFilter === 'unallocated' && hasAllocated) return false;
         }
         return true;
     });
+
+    // Unique units for ESU filter
+    const uniqueUnits = Array.from(new Set(signups.map(s => s.unit_name || 'Unassigned'))).filter(Boolean);
 
     const getSortValue = (item: any, key: string) => {
         if (key === 'explorer_first_name') {
@@ -206,6 +292,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         return val ?? '';
     };
 
+    // Sort signups
     const sortedSignups = [...filteredSignups].sort((a, b) => {
         let valA = getSortValue(a, sortKey);
         let valB = getSortValue(b, sortKey);
@@ -214,11 +301,56 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         return 0;
     });
 
-    const totalPages = Math.ceil(filteredSignups.length / itemsPerPage);
-    const paginatedSignups = sortedSignups.slice(
+    // In-memory Grouping
+    const getGroupedSignups = () => {
+        if (grouping === 'none') {
+            return [{ title: null, items: sortedSignups }];
+        }
+
+        const groupsMap: { [key: string]: any[] } = {};
+        sortedSignups.forEach(s => {
+            let key = '';
+            if (grouping === 'unit') {
+                key = `Unit: ${s.unit_name || 'Unassigned'}`;
+            } else if (grouping === 'level') {
+                key = `Level: ${s.dofe_level || 'Unknown'}`;
+            }
+            if (!groupsMap[key]) {
+                groupsMap[key] = [];
+            }
+            groupsMap[key].push(s);
+        });
+
+        // Sort groups alphabetically by key, with internal items already sorted
+        return Object.keys(groupsMap).sort().map(key => ({
+            title: key,
+            items: groupsMap[key]
+        }));
+    };
+
+    const groupedSignups = getGroupedSignups();
+
+    // Get flat list of current visible items (for pagination across groups if ungrouped, or simple pagination)
+    // Note: To keep standard rendering simple, paginated items apply to the sorted flat list.
+    const totalPages = Math.ceil(sortedSignups.length / itemsPerPage);
+    const paginatedSignupsFlat = sortedSignups.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
+
+    // Reconstruct grouped view restricted to only show paginated items
+    const getGroupedPaginatedSignups = () => {
+        if (grouping === 'none') {
+            return [{ title: null, items: paginatedSignupsFlat }];
+        }
+        const paginatedIds = new Set(paginatedSignupsFlat.map(s => s.id));
+        return groupedSignups.map(g => ({
+            title: g.title,
+            items: g.items.filter(item => paginatedIds.has(item.id))
+        })).filter(g => g.items.length > 0);
+    };
+
+    const paginatedGroupedSignups = getGroupedPaginatedSignups();
 
     const toggleSort = (key: string) => {
         if (sortKey === key) {
@@ -246,35 +378,31 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         );
     };
 
-    // Paging list of unprocessed signups inside the Inspector Panel
-    const unprocessedSignups = sortedSignups.filter(s => s.signup_status === defaultStatus);
-    const currentUnprocessedIndex = selectedSignup ? unprocessedSignups.findIndex(s => s.id === selectedSignup.id) : -1;
+    // Traversal queue inside inspector panel
+    const activeUnprocessedSignups = sortedSignups.filter(s => s.signup_status === 'submitted');
+    const currentUnprocessedIndex = selectedSignup ? activeUnprocessedSignups.findIndex(s => s.id === selectedSignup.id) : -1;
 
     const handlePrevSignup = () => {
         if (currentUnprocessedIndex > 0) {
-            setSelectedSignup(unprocessedSignups[currentUnprocessedIndex - 1]);
+            setSelectedSignup(activeUnprocessedSignups[currentUnprocessedIndex - 1]);
         }
     };
 
     const handleNextSignup = () => {
-        if (currentUnprocessedIndex >= 0 && currentUnprocessedIndex < unprocessedSignups.length - 1) {
-            setSelectedSignup(unprocessedSignups[currentUnprocessedIndex + 1]);
+        if (currentUnprocessedIndex >= 0 && currentUnprocessedIndex < activeUnprocessedSignups.length - 1) {
+            setSelectedSignup(activeUnprocessedSignups[currentUnprocessedIndex + 1]);
         }
     };
 
-    // Helper to render prior completion badges
+    // Helper to render completions badges
     const renderPriorCompletions = (signup: any) => {
         if (signup.dofe_level === 'bronze') {
-            return (
-                <span title="No Prior Award" style={{ fontSize: '16px' }}>❌</span>
-            );
+            return <span title="No Prior Award">❌</span>;
         }
 
         const completions = signup.dofe_level === 'silver' ? signup.bronze_completion : signup.silver_completion;
         if (!completions) {
-            return (
-                <span title="No Prior Award" style={{ fontSize: '16px' }}>❌</span>
-            );
+            return <span title="No Prior Award">❌</span>;
         }
 
         const completedList: JSX.Element[] = [];
@@ -308,9 +436,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         }
 
         if (completedList.length === 0) {
-            return (
-                <span title="No Prior Award" style={{ fontSize: '16px' }}>❌</span>
-            );
+            return <span title="No Prior Award">❌</span>;
         }
 
         return <div className="ems-signups-completed-list">{completedList}</div>;
@@ -324,52 +450,86 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
         );
     }
 
+    // Suggestions matching target
+    const currentSuggestions = selectedSignup ? getMatchSuggestions(selectedSignup) : [];
+
+    // Filtered list of explorers for manual select input
+    const manualExplorerOptions = explorers.filter(e => {
+        if (!reconcileSearch) return true;
+        const s = normalize(reconcileSearch);
+        const name = `${e.first_name} ${e.last_name}`;
+        return normalize(name).includes(s) || String(e.scout_id).includes(s);
+    });
+
     return (
         <div className="ems-signups-container">
             {/* Main Content Area */}
             <div className="ems-signups-main">
-                {error && (
-                    <div className="ems-error-notice">
-                        {error}
-                    </div>
-                )}
+                {error && <div className="ems-error-notice">{error}</div>}
 
                 {/* Filter and Control Bar */}
                 <div className="ems-signups-toolbar">
                     {/* Status Tabs */}
                     <div className="ems-flex-center ems-gap-8">
-                        {type === 'participant' ? (
-                            <>
-                                <label className={`ems-filter-pill ${statusFilter === 'received' ? 'ems-filter-pill--active' : ''}`}>
-                                    <input type="radio" name="statusFilter" value="received" checked={statusFilter === 'received'} onChange={() => setStatusFilter('received')} />
-                                    Received
-                                </label>
-                                <label className={`ems-filter-pill ${statusFilter === 'allocated' ? 'ems-filter-pill--active' : ''}`}>
-                                    <input type="radio" name="statusFilter" value="allocated" checked={statusFilter === 'allocated'} onChange={() => setStatusFilter('allocated')} />
-                                    Allocated
-                                </label>
-                            </>
-                        ) : (
-                            <>
-                                <label className={`ems-filter-pill ${statusFilter === 'pending' ? 'ems-filter-pill--active' : ''}`}>
-                                    <input type="radio" name="statusFilter" value="pending" checked={statusFilter === 'pending'} onChange={() => setStatusFilter('pending')} />
-                                    Active (Pending)
-                                </label>
-                            </>
-                        )}
+                        <label className={`ems-filter-pill ${statusFilter === 'submitted' ? 'ems-filter-pill--active' : ''}`}>
+                            <input 
+                                type="radio" 
+                                name="statusFilter" 
+                                value="submitted" 
+                                checked={statusFilter === 'submitted'} 
+                                onChange={() => setStatusFilter('submitted')} 
+                            />
+                            Submitted
+                        </label>
                         <label className={`ems-filter-pill ${statusFilter === 'archived' ? 'ems-filter-pill--active' : ''}`}>
-                            <input type="radio" name="statusFilter" value="archived" checked={statusFilter === 'archived'} onChange={() => setStatusFilter('archived')} />
+                            <input 
+                                type="radio" 
+                                name="statusFilter" 
+                                value="archived" 
+                                checked={statusFilter === 'archived'} 
+                                onChange={() => setStatusFilter('archived')} 
+                            />
                             Archived
                         </label>
                     </div>
 
-                    {/* Level & Expedition Type Filters */}
-                    <div className="ems-flex-center ems-gap-16">
+                    {/* Filters & Grouping Dropdowns */}
+                    <div className="ems-flex-center ems-gap-16 ems-wrap">
+                        {/* Group By selector */}
+                        <div className="ems-flex-center ems-gap-8">
+                            <label htmlFor="grouping-select" className="ems-toolbar__label">Group By:</label>
+                            <select
+                                id="grouping-select"
+                                value={grouping}
+                                onChange={(e) => setGrouping(e.target.value as any)}
+                                className="ems-select"
+                            >
+                                <option value="none">Ungrouped</option>
+                                <option value="unit">Unit</option>
+                                <option value="level">Level</option>
+                            </select>
+                        </div>
+
+                        {/* Form Type selector */}
+                        <div className="ems-flex-center ems-gap-8">
+                            <label htmlFor="type-filter" className="ems-toolbar__label">Form Type:</label>
+                            <select
+                                id="type-filter"
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value)}
+                                className="ems-select"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="participant">Participant Place</option>
+                                <option value="expedition">Expedition Preference</option>
+                            </select>
+                        </div>
+
+                        {/* Level selector */}
                         <div className="ems-flex-center ems-gap-8">
                             <label htmlFor="level-filter" className="ems-toolbar__label">Filter Level:</label>
                             <select
                                 id="level-filter"
-                                aria-label="Filter Level"
                                 value={levelFilter}
                                 onChange={(e) => setLevelFilter(e.target.value)}
                                 className="ems-select"
@@ -381,19 +541,34 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             </select>
                         </div>
 
+                        {/* Unit selector */}
                         <div className="ems-flex-center ems-gap-8">
-                            <label htmlFor="exped-type-filter" className="ems-toolbar__label">Expedition Type:</label>
+                            <label htmlFor="unit-filter" className="ems-toolbar__label">Unit:</label>
                             <select
-                                id="exped-type-filter"
-                                aria-label="Filter Expedition Type"
-                                value={expedTypeFilter}
-                                onChange={(e) => setExpedTypeFilter(e.target.value)}
+                                id="unit-filter"
+                                value={unitFilter}
+                                onChange={(e) => setUnitFilter(e.target.value)}
                                 className="ems-select"
                             >
-                                <option value="all">All Types</option>
-                                <option value="hillwalking">Hillwalking</option>
-                                <option value="paddling">Paddling</option>
-                                <option value="biking">Biking</option>
+                                <option value="all">All Units</option>
+                                {uniqueUnits.map(u => (
+                                    <option key={u} value={u}>{u}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Allocation selector */}
+                        <div className="ems-flex-center ems-gap-8">
+                            <label htmlFor="allocation-filter" className="ems-toolbar__label">Allocation:</label>
+                            <select
+                                id="allocation-filter"
+                                value={allocationFilter}
+                                onChange={(e) => setAllocationFilter(e.target.value)}
+                                className="ems-select"
+                            >
+                                <option value="all">All Allocations</option>
+                                <option value="allocated">Allocated</option>
+                                <option value="unallocated">Unallocated</option>
                             </select>
                         </div>
 
@@ -420,94 +595,68 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     {renderHeader('Submission Date', 'created_at')}
                                     {renderHeader('Explorer Name', 'explorer_first_name')}
                                     {renderHeader('Level', 'dofe_level')}
-                                    {type === 'expedition' && renderHeader('Expedition', 'expedition')}
                                     {renderHeader('ESU', 'unit_name')}
                                     {renderHeader('Email', 'explorer_email')}
-                                    {type === 'participant' ? (
-                                        <>
-                                            {renderHeader('Prior Level Completed', 'prior_completions')}
-                                            {renderHeader('DofE Number', 'dofe_number')}
-                                            {renderHeader('Status', 'signup_status')}
-                                        </>
-                                    ) : (
-                                        <>
-                                            {renderHeader('First Aid', 'first_aid_status')}
-                                            {renderHeader('DofE Number', 'dofe_number')}
-                                        </>
-                                    )}
+                                    {renderHeader('First Aid', 'first_aid_status')}
+                                    {renderHeader('DofE Number', 'dofe_number')}
                                 </tr>
                             </thead>
                             <tbody>
-                                {paginatedSignups.length === 0 ? (
+                                {paginatedGroupedSignups.length === 0 ? (
                                     <tr>
-                                        <td colSpan={type === 'participant' ? 10 : 9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
+                                        <td colSpan={8} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                             No signup records found for this filter state.
                                         </td>
                                     </tr>
                                 ) : (
-                                    paginatedSignups.map((s) => (
-                                        <tr 
-                                            key={s.id} 
-                                            onClick={() => setSelectedSignup(s)}
-                                            className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id ? 'ems-table-row--selected' : ''}`}
-                                        >
-                                            <td className="ems-table-cell--center">
-                                                {s.is_synced_osm ? (
-                                                    <span title="Synced with OSM" className="ems-fa-full">✓</span>
-                                                ) : null}
-                                            </td>
-                                            <td>
-                                                {s.created_at ? s.created_at.substring(0, 16) : '—'}
-                                            </td>
-                                            <td>
-                                                <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
-                                            </td>
-                                            <td>
-                                                <span className={`ems-pill ems-pill--${s.dofe_level}`}>
-                                                    {s.dofe_level}
-                                                </span>
-                                            </td>
-                                            {type === 'expedition' && (
-                                                <td className="ems-table-cell--small">
-                                                    {s.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : s.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {s.expedition_preferences?.exped_type || '—'}
-                                                </td>
+                                    paginatedGroupedSignups.map(g => (
+                                        <React.Fragment key={g.title || 'flat'}>
+                                            {g.title && (
+                                                <tr className="ems-table-group-header">
+                                                    <td colSpan={8}><strong>{g.title}</strong></td>
+                                                </tr>
                                             )}
-                                            <td>
-                                                {s.unit_name}
-                                            </td>
-                                            <td>
-                                                {s.explorer_email || '—'}
-                                            </td>
-                                            {type === 'participant' ? (
-                                                <>
-                                                     <td>
-                                                         {renderPriorCompletions(s)}
-                                                     </td>
-                                                     <td className="ems-monospace">
-                                                         {s.dofe_number || '—'}
-                                                         {s.dofe_registered === 'y-other' && (
-                                                             <div className="ems-signups-transfer-warning">
-                                                                 ⚠️ Transfer Req.
-                                                             </div>
-                                                         )}
-                                                     </td>
+                                            {g.items.map((s) => (
+                                                <tr 
+                                                    key={s.id} 
+                                                    onClick={() => setSelectedSignup(s)}
+                                                    className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id && selectedSignup.type === s.type ? 'ems-table-row--selected' : ''}`}
+                                                >
+                                                    <td className="ems-table-cell--center">
+                                                        {s.scout_id !== 0 ? (
+                                                            <span title="Synced with OSM" className="ems-fa-full">✓</span>
+                                                        ) : (
+                                                            <span title="Guest Roster / Unmatched" className="ems-fa-warning">⚠️</span>
+                                                        )}
+                                                    </td>
                                                     <td>
-                                                        <span className={`ems-status-badge ems-status-badge--${s.signup_status}`}>
-                                                            {s.signup_status}
+                                                        {s.created_at ? s.created_at.substring(0, 16) : '—'}
+                                                    </td>
+                                                    <td>
+                                                        <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
+                                                        <span className="ems-meta-text ems-small-text ems-ml-8">
+                                                            ({s.type === 'participant' ? 'Place' : 'Pref'})
                                                         </span>
                                                     </td>
-                                                </>
-                                            ) : (
-                                                <>
                                                     <td>
-                                                        {s.first_aid_status}
+                                                        <span className={`ems-pill ems-pill--${s.dofe_level}`}>
+                                                            {s.dofe_level}
+                                                        </span>
                                                     </td>
+                                                    <td>{s.unit_name || 'Unassigned'}</td>
+                                                    <td>{s.explorer_email || '—'}</td>
+                                                    <td>{s.first_aid_status || '—'}</td>
                                                     <td className="ems-monospace">
                                                         {s.dofe_number || '—'}
+                                                        {s.dofe_registered === 'y-other' && (
+                                                            <div className="ems-signups-transfer-warning">
+                                                                ⚠️ Transfer Req.
+                                                            </div>
+                                                        )}
                                                     </td>
-                                                </>
-                                            )}
-                                        </tr>
+                                                </tr>
+                                            ))}
+                                        </React.Fragment>
                                     ))
                                 )}
                             </tbody>
@@ -598,7 +747,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     </button>
                                     <button 
                                         onClick={handleNextSignup} 
-                                        disabled={currentUnprocessedIndex === unprocessedSignups.length - 1}
+                                        disabled={currentUnprocessedIndex === activeUnprocessedSignups.length - 1}
                                         className="button button-secondary button-small"
                                     >
                                         &gt;
@@ -616,6 +765,94 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
 
                     {/* Details Body */}
                     <div className="ems-signups-inspector__body">
+                        {/* Matching Widget */}
+                        <div className="ems-signups-matching-panel ems-mb-16">
+                            <span className="ems-signups-inspector__label">OSM Profile Linkage</span>
+                            {selectedSignup.scout_id !== 0 ? (
+                                <div className="ems-mt-8">
+                                    <div className="ems-flex-between ems-align-center">
+                                        <div className="ems-small-text">
+                                            Linked to Scout ID: <strong>{selectedSignup.scout_id}</strong>
+                                        </div>
+                                        <button 
+                                            type="button"
+                                            className="button button-secondary button-small"
+                                            onClick={() => handleUnlink(selectedSignup.id, selectedSignup.type)}
+                                        >
+                                            Unlink OSM Profile
+                                        </button>
+                                    </div>
+                                    {unlinkError && (
+                                        <div className="ems-error-notice ems-mt-8 ems-small-text">
+                                            {unlinkError}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="ems-mt-8">
+                                    <div className="ems-signups-unmatched-alert">
+                                        ⚠️ Unmatched guest registration.
+                                    </div>
+                                    
+                                    {/* Recommendations */}
+                                    {currentSuggestions.length > 0 && (
+                                        <div className="ems-mt-8">
+                                            <strong className="ems-small-text">Suggested matches:</strong>
+                                            <div className="ems-signups-suggestions-list ems-mt-4">
+                                                {currentSuggestions.map(sugg => (
+                                                    <div key={sugg.scout_id} className="ems-flex-between ems-align-center ems-py-4">
+                                                        <div className="ems-small-text">
+                                                            {sugg.first_name} {sugg.last_name} ({sugg.patrol || 'No Patrol'}) - ID: {sugg.scout_id}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            className="button button-small button-primary"
+                                                            onClick={() => handleReconcile(selectedSignup.id, selectedSignup.type, sugg.scout_id)}
+                                                        >
+                                                            Confirm Match
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Search Dropdown for manual reconciliation */}
+                                    <div className="ems-mt-8">
+                                        <label htmlFor="reconcile-search" className="ems-small-text ems-font-semibold">Search Synced OSM Explorers:</label>
+                                        <input 
+                                            id="reconcile-search"
+                                            type="text" 
+                                            placeholder="Type name or Scout ID..."
+                                            value={reconcileSearch}
+                                            onChange={(e) => setReconcileSearch(e.target.value)}
+                                            className="ems-signups-inspector__input ems-mt-4"
+                                        />
+                                        {reconcileSearch && (
+                                            <div className="ems-signups-search-dropdown ems-mt-4">
+                                                {manualExplorerOptions.length === 0 ? (
+                                                    <div className="ems-p-8 ems-meta-text ems-small-text">No matching explorers.</div>
+                                                ) : (
+                                                    manualExplorerOptions.slice(0, 5).map(e => (
+                                                        <div 
+                                                            key={e.scout_id} 
+                                                            onClick={() => handleReconcile(selectedSignup.id, selectedSignup.type, e.scout_id)}
+                                                            className="ems-search-dropdown-option ems-flex-between ems-align-center ems-p-8 ems-cursor-pointer"
+                                                        >
+                                                            <div className="ems-small-text">
+                                                                {e.first_name} {e.last_name} ({e.patrol || 'No Patrol'})
+                                                            </div>
+                                                            <div className="ems-monospace ems-small-text">ID: {e.scout_id}</div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="ems-flex-between">
                             <div>
                                 <span className="ems-signups-inspector__label">Name</span>
@@ -626,7 +863,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             <div className="ems-table-cell--right">
                                 <span className="ems-signups-inspector__label">Scout ID</span>
                                 <div className="ems-signups-inspector__value ems-monospace ems-font-semibold">
-                                    {selectedSignup.scout_id}
+                                    {selectedSignup.scout_id || 'Unmatched'}
                                 </div>
                             </div>
                         </div>
@@ -648,7 +885,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                                     </span>
                                 </div>
                             </div>
-                            {type === 'expedition' && (
+                            {selectedSignup.type === 'expedition' && (
                                 <div>
                                     <span className="ems-signups-inspector__label">Expedition</span>
                                     <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4 ems-flex-center ems-gap-4">
@@ -658,11 +895,11 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                             )}
                             <div>
                                 <span className="ems-signups-inspector__label">Unit</span>
-                                <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4">{selectedSignup.unit_name}</div>
+                                <div className="ems-signups-inspector__value ems-font-semibold ems-mt-4">{selectedSignup.unit_name || 'Unassigned'}</div>
                             </div>
                         </div>
 
-                        {type === 'participant' && (
+                        {selectedSignup.type === 'participant' && (
                             <>
                                 <div className="ems-flex-between">
                                     <div>
@@ -719,7 +956,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         )}
 
                         {/* Expedition Specific Content */}
-                        {type === 'expedition' && (
+                        {selectedSignup.type === 'expedition' && (
                             <>
                                 <div>
                                     <span className="ems-signups-inspector__label">eDofE Number</span>
@@ -799,7 +1036,7 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         <div>
                             {selectedSignup.signup_status !== 'archived' && (
                                 <button 
-                                    onClick={() => handleArchive(selectedSignup.id)}
+                                    onClick={() => handleArchive(selectedSignup.id, selectedSignup.type)}
                                     className="button button-link-delete"
                                 >
                                     Archive
@@ -808,10 +1045,12 @@ export default function SignupsBoard({ type }: SignupsBoardProps) {
                         </div>
                         <div className="ems-flex-center ems-gap-6">
                             <button onClick={() => setSelectedSignup(null)} className="button">Close</button>
-                            {type === 'participant' && selectedSignup.signup_status === 'received' && (
+                            {selectedSignup.type === 'participant' && !selectedSignup.dofe_number && (
                                 <button 
                                     onClick={() => handleProcessParticipant(selectedSignup.id, editedDofeNumber)}
                                     className="button button-primary"
+                                    disabled={!selectedSignup.scout_id} // Disable slot allocation for unmatched guest signups
+                                    title={!selectedSignup.scout_id ? 'You must match this guest to an OSM profile before allocating a place.' : ''}
                                 >
                                     Allocate Slot
                                 </button>
