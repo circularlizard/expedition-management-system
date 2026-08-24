@@ -83,6 +83,10 @@ class Unit_Repository {
 			$update_data['leader_email'] = $data['leader_email'];
 			$format[]                    = '%s';
 		}
+		if ( isset( $data['name'] ) ) {
+			$update_data['name'] = $data['name'];
+			$format[]            = '%s';
+		}
 
 		$updated = $this->wpdb->update(
 			$this->wpdb->prefix . 'ems_units',
@@ -94,6 +98,82 @@ class Unit_Repository {
 
 		return $updated !== false;
 	}
+
+	/**
+	 * Adds a custom/manual unit (not synced from OSM)
+	 *
+	 * @param array $data The unit data.
+	 * @return int The generated unit database ID.
+	 */
+	public function add_custom_unit( array $data ): int {
+		$name = sanitize_text_field( $data['name'] ?? '' );
+		if ( empty( $name ) ) {
+			throw new \InvalidArgumentException( 'Unit name is required.' );
+		}
+
+		// Find the minimum patrol_id in the database to generate a unique negative patrol_id
+		$min_patrol_id = (int) $this->wpdb->get_var( "SELECT MIN(patrol_id) FROM {$this->wpdb->prefix}ems_units" );
+		$patrol_id = $min_patrol_id < 0 ? $min_patrol_id - 1 : -1;
+
+		$insert_data = array(
+			'patrol_id'         => $patrol_id,
+			'section_id'        => 0, // 0 indicates manual/non-OSM
+			'name'              => $name,
+			'active'            => 1,
+			'synced_at'         => current_time( 'mysql' ),
+			'unit_id'           => empty( $data['unit_id'] ) ? null : (int) $data['unit_id'],
+			'short_code'        => sanitize_text_field( $data['short_code'] ?? $name ),
+			'leader_first_name' => sanitize_text_field( $data['leader_first_name'] ?? '' ),
+			'leader_last_name'  => sanitize_text_field( $data['leader_last_name'] ?? '' ),
+			'leader_email'      => sanitize_text_field( $data['leader_email'] ?? '' ),
+			'updated_at'        => current_time( 'mysql' ),
+		);
+
+		$format = array(
+			'%d', // patrol_id
+			'%d', // section_id
+			'%s', // name
+			'%d', // active
+			'%s', // synced_at
+			$insert_data['unit_id'] === null ? '%d' : '%d', // unit_id
+			'%s', // short_code
+			'%s', // leader_first_name
+			'%s', // leader_last_name
+			'%s', // leader_email
+			'%s', // updated_at
+		);
+
+		$this->wpdb->insert( $this->wpdb->prefix . 'ems_units', $insert_data, $format );
+
+		return (int) $this->wpdb->get_var(
+			$this->wpdb->prepare(
+				"SELECT id FROM {$this->wpdb->prefix}ems_units WHERE patrol_id = %d AND section_id = 0",
+				$patrol_id
+			)
+		);
+	}
+
+	/**
+	 * Deletes a custom/manual unit (not synced from OSM)
+	 *
+	 * @param int $id The unit database ID.
+	 * @return bool True if deleted successfully, false otherwise.
+	 */
+	public function delete_custom_unit( int $id ): bool {
+		$unit = $this->find_by_id( $id );
+		if ( ! $unit || (int) $unit['patrol_id'] >= 0 ) {
+			return false; // Prevent deleting synced units
+		}
+
+		$deleted = $this->wpdb->delete(
+			$this->wpdb->prefix . 'ems_units',
+			array( 'id' => $id ),
+			array( '%d' )
+		);
+
+		return $deleted !== false;
+	}
+
 
 	public function find_by_id( int $id ): ?array {
 		$row = $this->wpdb->get_row(
