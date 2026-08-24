@@ -120,4 +120,115 @@ class Unit_RepositoryTest extends EMSTestCase {
         $this->assertEquals( 12, $row['id'] );
         $this->assertStringContainsString( "short_code = 'ORION-ESU'", $wpdb->last_query );
     }
+
+    public function test_update_custom_mappings_allows_updating_name(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $updated = [];
+
+            public function update( string $table, array $data, array $where, array $format = [], array $where_format = [] ): int {
+                $this->updated[] = [ 'table' => $table, 'data' => $data, 'where' => $where ];
+                return 1;
+            }
+        };
+
+        $repo = new Unit_Repository( $wpdb );
+        $result = $repo->update_custom_mappings( 12, [
+            'name' => 'Updated Custom Unit Name',
+        ] );
+
+        $this->assertTrue( $result );
+        $this->assertCount( 1, $wpdb->updated );
+        $this->assertEquals( 'Updated Custom Unit Name', $wpdb->updated[0]['data']['name'] );
+    }
+
+    public function test_add_custom_unit_creates_unit_with_negative_patrol_id(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $queries = [];
+            public $inserted = [];
+
+            public function get_var( string $sql ) {
+                // If it's querying for MIN(patrol_id)
+                if ( str_contains( $sql, 'MIN(patrol_id)' ) ) {
+                    return -5; // existing min is -5
+                }
+                // Return new insert ID
+                return 99;
+            }
+
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+            }
+
+            public function query( string $sql ) {
+                $this->queries[] = $sql;
+                return 1;
+            }
+
+            public function insert( string $table, array $data, array $format = [] ) {
+                $this->inserted[] = [ 'table' => $table, 'data' => $data ];
+                return 1;
+            }
+        };
+
+        $repo = new Unit_Repository( $wpdb );
+        $new_id = $repo->add_custom_unit( [
+            'name'              => 'Orion ESU',
+            'short_code'        => 'ORION',
+            'unit_id'           => 12345,
+            'leader_first_name' => 'Leader',
+            'leader_last_name'  => 'Name',
+            'leader_email'      => 'leader@example.com',
+        ] );
+
+        $this->assertEquals( 99, $new_id );
+        $this->assertCount( 1, $wpdb->inserted );
+        $this->assertEquals( 'wp_ems_units', $wpdb->inserted[0]['table'] );
+        // min was -5, so next negative patrol_id should be -6
+        $this->assertEquals( -6, $wpdb->inserted[0]['data']['patrol_id'] );
+        $this->assertEquals( 0, $wpdb->inserted[0]['data']['section_id'] );
+        $this->assertEquals( 'Orion ESU', $wpdb->inserted[0]['data']['name'] );
+        $this->assertEquals( 12345, $wpdb->inserted[0]['data']['unit_id'] );
+        $this->assertEquals( 'ORION', $wpdb->inserted[0]['data']['short_code'] );
+    }
+
+    public function test_delete_custom_unit_only_deletes_custom_units(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $deleted = [];
+            public $patrol_id_to_return = -3;
+
+            public function get_row( string $query, string $output = 'OBJECT' ) {
+                return [
+                    'id'        => 5,
+                    'patrol_id' => $this->patrol_id_to_return,
+                ];
+            }
+
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+            }
+
+            public function delete( string $table, array $where, array $where_format = [] ) {
+                $this->deleted[] = [ 'table' => $table, 'where' => $where ];
+                return 1;
+            }
+        };
+
+        // Try deleting a custom unit (patrol_id < 0)
+        $repo = new Unit_Repository( $wpdb );
+        $res = $repo->delete_custom_unit( 5 );
+        $this->assertTrue( $res );
+        $this->assertCount( 1, $wpdb->deleted );
+        $this->assertEquals( 5, $wpdb->deleted[0]['where']['id'] );
+
+        // Try deleting a synced unit (patrol_id > 0)
+        $wpdb->deleted = [];
+        $wpdb->patrol_id_to_return = 101;
+        $res2 = $repo->delete_custom_unit( 5 );
+        $this->assertFalse( $res2 );
+        $this->assertEmpty( $wpdb->deleted );
+    }
 }
+
