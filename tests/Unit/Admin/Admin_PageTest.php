@@ -273,4 +273,89 @@ class Admin_PageTest extends EMSTestCase {
 		unlink( $temp_file );
 		unset( $_FILES['ems_units_backup_file'] );
 	}
+
+	public function test_register_hooks_admin_init_for_export(): void {
+		Functions\stubs( [ '__' ] );
+		Functions\when( 'add_menu_page' )->justReturn( 'hook' );
+		Functions\when( 'add_submenu_page' )->justReturn( 'hook' );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+		$page->register();
+
+		$this->assertTrue( \Brain\Monkey\Actions\has( 'admin_init' ) );
+	}
+
+	public function test_handle_add_custom_unit_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
+
+		$_POST['custom_unit_name'] = 'Orion ESU';
+		$_POST['custom_unit_short_code'] = 'ORION';
+		$_POST['custom_unit_id'] = '12345';
+		$_POST['custom_unit_first_name'] = 'John';
+		$_POST['custom_unit_last_name'] = 'Doe';
+		$_POST['custom_unit_email'] = 'john.doe@example.com';
+
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'add_custom_unit' )
+			->once()
+			->with( [
+				'name'              => 'Orion ESU',
+				'short_code'        => 'ORION',
+				'unit_id'           => 12345,
+				'leader_first_name' => 'John',
+				'leader_last_name'  => 'Doe',
+				'leader_email'      => 'john.doe@example.com',
+			] )
+			->andReturn( 99 );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$reflected = new \ReflectionClass(Admin_Page::class);
+		$method = $reflected->getMethod('handle_add_custom_unit');
+		$method->setAccessible(true);
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Custom unit created successfully.', $output );
+
+		unset( $_POST['custom_unit_name'] );
+		unset( $_POST['custom_unit_short_code'] );
+		unset( $_POST['custom_unit_id'] );
+		unset( $_POST['custom_unit_first_name'] );
+		unset( $_POST['custom_unit_last_name'] );
+		unset( $_POST['custom_unit_email'] );
+	}
+
+	public function test_handle_delete_custom_unit_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'delete_custom_unit' )
+			->once()
+			->with( 99 )
+			->andReturn( true );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$reflected = new \ReflectionClass(Admin_Page::class);
+		$method = $reflected->getMethod('handle_delete_custom_unit');
+		$method->setAccessible(true);
+
+		ob_start();
+		$method->invoke( $page, 99 );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Custom unit deleted.', $output );
+	}
 }
+

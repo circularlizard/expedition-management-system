@@ -279,4 +279,14 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertEquals( [], $stored['ems_page_roles'] );
         $this->assertFalse( $stored['ems_protect_tutor_lms'] );
     }
+
+    public function test_register_hooks_admin_init_for_export(): void {
+        Functions\stubs( [ '__' ] );
+        Functions\when( 'add_submenu_page' )->justReturn( 'hook' );
+
+        $page = new Settings_Page();
+        $page->register();
+
+        $this->assertTrue( \Brain\Monkey\Actions\has( 'admin_init' ) );
+    }
 }

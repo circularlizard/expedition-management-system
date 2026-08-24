@@ -12,6 +12,8 @@ class Settings_Page {
 	}
 
 	public function register(): void {
+		add_action( 'admin_init', array( $this, 'maybe_handle_export' ) );
+
 		$settings_hook = add_submenu_page(
 			'ems',
 			__( 'Settings', 'ems-plugin' ),
@@ -100,6 +102,17 @@ class Settings_Page {
 		}
 	}
 
+	/**
+	 * Checks if a settings backup export request has been made and handles it before headers are sent.
+	 *
+	 * @return void
+	 */
+	public function maybe_handle_export(): void {
+		if ( isset( $_POST['ems_export_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
+			$this->handle_export();
+		}
+	}
+
 	public function render(): void {
 		if ( isset( $_POST['ems_save_general'] ) && check_admin_referer( 'ems_settings_general' ) ) {
 			$this->save_general( $_POST );
@@ -111,8 +124,6 @@ class Settings_Page {
 			$this->save_access_control( $_POST );
 		} elseif ( isset( $_POST['ems_import_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
 			$this->handle_import();
-		} elseif ( isset( $_POST['ems_export_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
-			$this->handle_export();
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';

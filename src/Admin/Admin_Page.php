@@ -10,6 +10,7 @@ class Admin_Page {
 
 	public function register(): void {
 		add_action( 'admin_footer', array( $this, 'render_build_timestamp' ) );
+		add_action( 'admin_init', array( $this, 'maybe_handle_export' ) );
 
 		add_menu_page(
 			'EMS',
@@ -250,8 +251,10 @@ class Admin_Page {
 			$this->save_unit_leaders( $_POST );
 		} elseif ( isset( $_POST['ems_import_units'] ) && check_admin_referer( 'ems_settings_unit_portability' ) ) {
 			$this->handle_import_units();
-		} elseif ( isset( $_POST['ems_export_units'] ) && check_admin_referer( 'ems_settings_unit_portability' ) ) {
-			$this->handle_export_units();
+		} elseif ( isset( $_POST['ems_add_custom_unit'] ) && check_admin_referer( 'ems_add_custom_unit' ) ) {
+			$this->handle_add_custom_unit();
+		} elseif ( isset( $_POST['ems_delete_custom_unit'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
+			$this->handle_delete_custom_unit( (int) $_POST['ems_delete_custom_unit'] );
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'explorers';
@@ -781,6 +784,9 @@ class Admin_Page {
 				'leader_last_name'  => $last,
 				'leader_email'      => $email,
 			);
+			if ( isset( $fields['name'] ) ) {
+				$data['name'] = sanitize_text_field( $fields['name'] );
+			}
 
 			try {
 				$unit_repo->update_custom_mappings( (int) $id, $data );
@@ -790,6 +796,17 @@ class Admin_Page {
 		}
 
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Unit lookup configurations saved.', 'ems-plugin' ) . '</p></div>';
+	}
+
+	/**
+	 * Checks if a unit export request has been made and handles it before headers are sent.
+	 *
+	 * @return void
+	 */
+	public function maybe_handle_export(): void {
+		if ( isset( $_POST['ems_export_units'] ) && check_admin_referer( 'ems_settings_unit_portability' ) ) {
+			$this->handle_export_units();
+		}
 	}
 
 	/**
@@ -814,6 +831,63 @@ class Admin_Page {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $json;
 		exit;
+	}
+
+	/**
+	 * Handles adding a custom/manual unit.
+	 *
+	 * @return void
+	 */
+	private function handle_add_custom_unit(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$name       = sanitize_text_field( $_POST['custom_unit_name'] ?? '' );
+		$short_code = sanitize_text_field( $_POST['custom_unit_short_code'] ?? '' );
+		$unit_id    = empty( $_POST['custom_unit_id'] ) ? null : (int) $_POST['custom_unit_id'];
+		$email      = sanitize_text_field( $_POST['custom_unit_email'] ?? '' );
+		$first      = sanitize_text_field( $_POST['custom_unit_first_name'] ?? '' );
+		$last       = sanitize_text_field( $_POST['custom_unit_last_name'] ?? '' );
+
+		if ( empty( $name ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Unit name is required.', 'ems-plugin' ) . '</p></div>';
+			return;
+		}
+
+		$unit_repo = $this->get_unit_repository();
+		try {
+			$unit_repo->add_custom_unit( array(
+				'name'              => $name,
+				'short_code'        => $short_code,
+				'unit_id'           => $unit_id,
+				'leader_first_name' => $first,
+				'leader_last_name'  => $last,
+				'leader_email'      => $email,
+			) );
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Custom unit created successfully.', 'ems-plugin' ) . '</p></div>';
+		} catch ( \Exception $e ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $e->getMessage() ) . '</p></div>';
+		}
+	}
+
+	/**
+	 * Handles deleting a custom/manual unit.
+	 *
+	 * @param int $id The unit ID.
+	 * @return void
+	 */
+	private function handle_delete_custom_unit( int $id ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$unit_repo = $this->get_unit_repository();
+		if ( $unit_repo->delete_custom_unit( $id ) ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Custom unit deleted.', 'ems-plugin' ) . '</p></div>';
+		} else {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Failed to delete unit or unit is synced from OSM.', 'ems-plugin' ) . '</p></div>';
+		}
 	}
 
 	/**
@@ -1011,23 +1085,31 @@ class Admin_Page {
 							<th><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></th>
 							<th><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></th>
 							<th><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+							<th style="width: 8%;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
 						<?php if ( empty( $units ) ) : ?>
 							<tr>
-								<td colspan="7"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data first.', 'ems-plugin' ); ?></td>
+								<td colspan="8"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data or add a custom unit below.', 'ems-plugin' ); ?></td>
 							</tr>
 						<?php else : ?>
 							<?php
 							foreach ( $units as $u ) :
 								$sec_id   = $u['section_id'];
-								$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
+								$sec_name = empty( $sec_id ) ? __( 'Manual / Non-OSM', 'ems-plugin' ) : ( $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}" );
 								$row_id   = (int) $u['id'];
 								?>
 								<tr>
 									<td><?php echo esc_html( $sec_name ); ?></td>
-									<td><strong><?php echo esc_html( $u['name'] ); ?></strong></td>
+									<td>
+										<?php if ( (int) $u['patrol_id'] < 0 ) : ?>
+											<input type="text" name="unit_leaders[<?php echo $row_id; ?>][name]" 
+													value="<?php echo esc_attr( $u['name'] ); ?>" required />
+										<?php else : ?>
+											<strong><?php echo esc_html( $u['name'] ); ?></strong>
+										<?php endif; ?>
+									</td>
 									<td>
 										<input type="number" name="unit_leaders[<?php echo $row_id; ?>][unit_id]" 
 												value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" />
@@ -1048,6 +1130,15 @@ class Admin_Page {
 										<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
 												value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
 									</td>
+									<td>
+										<?php if ( (int) $u['patrol_id'] < 0 ) : ?>
+											<button type="submit" name="ems_delete_custom_unit" value="<?php echo $row_id; ?>" 
+													class="button button-link-delete" style="color: #b32d2e;"
+													onclick="return confirm('<?php echo esc_attr( __( 'Are you sure you want to delete this custom unit?', 'ems-plugin' ) ); ?>');">
+												<?php esc_html_e( 'Delete', 'ems-plugin' ); ?>
+											</button>
+										<?php endif; ?>
+									</td>
 								</tr>
 							<?php endforeach; ?>
 						<?php endif; ?>
@@ -1060,6 +1151,42 @@ class Admin_Page {
 				</p>
 			<?php endif; ?>
 		</form>
+
+		<div class="card" style="margin-top: 30px; padding: 20px; max-width: 800px;">
+			<h3><?php esc_html_e( 'Add Custom Unit', 'ems-plugin' ); ?></h3>
+			<form method="post">
+				<?php wp_nonce_field( 'ems_add_custom_unit' ); ?>
+				<table class="form-table" role="presentation" style="margin-top: 0;">
+					<tr>
+						<th scope="row"><label for="custom_unit_name"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></label></th>
+						<td><input type="text" name="custom_unit_name" id="custom_unit_name" class="regular-text" required /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="custom_unit_short_code"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></label></th>
+						<td><input type="text" name="custom_unit_short_code" id="custom_unit_short_code" class="regular-text" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="custom_unit_id"><?php esc_html_e( 'Unit ID (numeric)', 'ems-plugin' ); ?></label></th>
+						<td><input type="number" name="custom_unit_id" id="custom_unit_id" class="regular-text" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="custom_unit_first_name"><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></label></th>
+						<td><input type="text" name="custom_unit_first_name" id="custom_unit_first_name" class="regular-text" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="custom_unit_last_name"><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></label></th>
+						<td><input type="text" name="custom_unit_last_name" id="custom_unit_last_name" class="regular-text" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="custom_unit_email"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></label></th>
+						<td><input type="email" name="custom_unit_email" id="custom_unit_email" class="regular-text" /></td>
+					</tr>
+				</table>
+				<p class="submit" style="margin-bottom: 0;">
+					<input type="submit" name="ems_add_custom_unit" class="button button-primary" value="<?php esc_attr_e( 'Add Custom Unit', 'ems-plugin' ); ?>" />
+				</p>
+			</form>
+		</div>
 
 		<div style="display: flex; gap: 20px; margin-top: 30px;">
 			<div class="card" style="flex: 1; min-width: 280px; padding: 20px; margin: 0;">
