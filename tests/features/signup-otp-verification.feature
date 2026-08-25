@@ -55,3 +55,11 @@ Feature: Fluent Forms In-Form OTP Email Verification
       | signup_explorer_otp_code  |                                                      |
     Then the validation check should succeed
     And the verification OTP transient for "family@example.com" should be deleted
+
+  Scenario: Guest parent decides to change a verified email address
+    Given a guest user (logged out)
+    And a parent email "parent@example.com" has been verified with code "123456"
+    When the user requests to change their verified email address
+    Then the parent email field "signup_parent_email" should be editable
+    And the parent email verification status should be invalidated
+    And the parent OTP verification code should be cleared from cached state

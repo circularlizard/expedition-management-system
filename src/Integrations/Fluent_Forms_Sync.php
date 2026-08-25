@@ -1065,6 +1065,7 @@ class Fluent_Forms_Sync {
 								emailInput.setAttribute('readonly', 'readonly');
 								emailInput.classList.add('ff-read-only');
 								sessionStorage.setItem(getCacheKey('verified_' + emailFieldName), 'true');
+								syncFormState();
 								return;
 							}
 						}
@@ -1100,6 +1101,7 @@ class Fluent_Forms_Sync {
 								otpInput.style.borderColor = '#28a745';
 								emailInput.setAttribute('readonly', 'readonly');
 								emailInput.classList.add('ff-read-only');
+								syncFormState();
 							} else {
 								sessionStorage.removeItem(getCacheKey('verified_' + emailFieldName));
 								if (statusEl) {
@@ -1331,7 +1333,8 @@ class Fluent_Forms_Sync {
 							if (!emailInput) return;
 							
 							var isVerified = sessionStorage.getItem(getCacheKey('verified_' + emailFieldName)) === 'true';
-							if (window.emsFields.isLoggedIn && emailFieldName === window.emsFields.parentEmailField) {
+							var isOidcParent = window.emsFields.isLoggedIn && emailFieldName === window.emsFields.parentEmailField;
+							if (isOidcParent) {
 								isVerified = true;
 							}
 
@@ -1363,6 +1366,56 @@ class Fluent_Forms_Sync {
 									if (cachedCode && !otpInput.value) {
 										setInputValue(otpInput, cachedCode);
 									}
+								}
+
+								// Show Change link for non-OIDC verified emails
+								if (!isOidcParent) {
+									var changeLink = emailInput.parentNode.querySelector('.ems-otp-change-link');
+									if (!changeLink) {
+										changeLink = document.createElement('button');
+										changeLink.type = 'button';
+										changeLink.className = 'ems-otp-change-link ff-btn ff-btn-xs btn-link';
+										changeLink.style.marginLeft = '10px';
+										changeLink.style.padding = '0';
+										changeLink.style.fontSize = '0.9em';
+										changeLink.style.textDecoration = 'underline';
+										changeLink.style.color = '#007bff';
+										changeLink.style.cursor = 'pointer';
+										changeLink.style.border = 'none';
+										changeLink.style.background = 'none';
+										changeLink.textContent = 'Change';
+										
+										changeLink.addEventListener('click', function(evt) {
+											evt.preventDefault();
+											
+											sessionStorage.removeItem(getCacheKey('verified_' + emailFieldName));
+											sessionStorage.removeItem(getCacheKey('val_' + otpFieldName));
+											
+											emailInput.removeAttribute('readonly');
+											emailInput.classList.remove('ff-read-only');
+											
+											if (otpInput) {
+												setInputValue(otpInput, '');
+												otpInput.style.borderColor = '';
+												var otpContainer = otpInput.closest('.ff-el-group');
+												var inlineStatus = otpContainer ? otpContainer.querySelector('.ems-inline-otp-status') : null;
+												if (inlineStatus) {
+													inlineStatus.textContent = '';
+												}
+											}
+											
+											changeLink.remove();
+											syncFormState();
+										});
+
+										emailInput.parentNode.insertBefore(changeLink, emailInput.nextSibling);
+									}
+								}
+							} else {
+								// Ensure change link is removed if verification status is false
+								var existingLink = emailInput.parentNode.querySelector('.ems-otp-change-link');
+								if (existingLink) {
+									existingLink.remove();
 								}
 							}
 						});
