@@ -121,46 +121,50 @@ class PluginTest extends EMSTestCase {
         $this->assertStringContainsString( 'Custom Message Text Goes Here', $output );
     }
 
-    public function test_enforce_user_login_role_restrictions_allows_administrator(): void {
-        $user = \Mockery::mock( \WP_User::class );
-        $user->roles = [ 'administrator' ];
+    public function test_is_logged_in_parent_or_network_returns_false_if_logged_out(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
 
         $plugin = new Plugin();
-        $plugin->enforce_user_login_role_restrictions( 'admin_username', $user );
-
-        // If it returns without exception/wp_die, it passed!
-        $this->assertTrue( true );
+        $this->assertFalse( $plugin->is_logged_in_parent_or_network() );
     }
 
-    public function test_enforce_user_login_role_restrictions_allows_parent(): void {
-        $user = \Mockery::mock( \WP_User::class );
-        $user->roles = [ 'ems_parent' ];
-
-        $plugin = new Plugin();
-        $plugin->enforce_user_login_role_restrictions( 'parent_username', $user );
-
-        $this->assertTrue( true );
-    }
-
-    public function test_enforce_user_login_role_restrictions_allows_network_member(): void {
-        $user = \Mockery::mock( \WP_User::class );
-        $user->roles = [ 'ems_network_member' ];
-
-        $plugin = new Plugin();
-        $plugin->enforce_user_login_role_restrictions( 'network_username', $user );
-
-        $this->assertTrue( true );
-    }
-
-    public function test_enforce_user_login_role_restrictions_denies_other_roles(): void {
+    public function test_is_logged_in_parent_or_network_returns_false_for_explorer(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
         $user = \Mockery::mock( \WP_User::class );
         $user->roles = [ 'ems_explorer' ];
-
-        Functions\expect( 'wp_logout' )->once();
+        Functions\when( 'wp_get_current_user' )->justReturn( $user );
 
         $plugin = new Plugin();
+        $this->assertFalse( $plugin->is_logged_in_parent_or_network() );
+    }
 
-        $this->expectException( \Exception::class );
-        $plugin->enforce_user_login_role_restrictions( 'explorer_username', $user );
+    public function test_is_logged_in_parent_or_network_returns_true_for_parent(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'ems_parent' ];
+        Functions\when( 'wp_get_current_user' )->justReturn( $user );
+
+        $plugin = new Plugin();
+        $this->assertTrue( $plugin->is_logged_in_parent_or_network() );
+    }
+
+    public function test_is_logged_in_parent_or_network_returns_true_for_network_member(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'ems_network_member' ];
+        Functions\when( 'wp_get_current_user' )->justReturn( $user );
+
+        $plugin = new Plugin();
+        $this->assertTrue( $plugin->is_logged_in_parent_or_network() );
+    }
+
+    public function test_is_logged_in_parent_or_network_returns_true_for_administrator(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'administrator' ];
+        Functions\when( 'wp_get_current_user' )->justReturn( $user );
+
+        $plugin = new Plugin();
+        $this->assertTrue( $plugin->is_logged_in_parent_or_network() );
     }
 }
