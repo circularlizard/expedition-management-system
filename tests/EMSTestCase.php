@@ -20,6 +20,17 @@ class EMSTestCase extends TestCase {
         Functions\when( 'esc_url_raw' )->alias( fn( $text ) => $text );
         Functions\when( 'current_time' )->justReturn( '2026-06-13 20:00:00' );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'wp_get_current_user' )->alias( function() {
+            $user = \Mockery::mock( \WP_User::class );
+            $user->roles = [ 'ems_parent' ];
+            $user->ID = 1;
+            $user->user_email = 'parent@example.com';
+            $user->user_firstname = 'Parent';
+            $user->user_lastname = 'User';
+            $user->display_name = 'Parent User';
+            $user->exists = true;
+            return $user;
+        } );
         Functions\when( 'wp_get_session_token' )->justReturn( 'mock-session-token' );
         Functions\when( 'wp_die' )->alias( function( $message ) {
             throw new \Exception( $message );
