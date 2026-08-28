@@ -693,7 +693,7 @@ class Fluent_Forms_Sync {
 			'dobField'           => $config['dob_field'] ?? 'signup_dob',
 			'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
 			'nonce'              => wp_create_nonce( 'fluent_otp_nonce' ),
-			'isLoggedIn'         => is_user_logged_in(),
+			'isLoggedIn'         => $this->is_logged_in_parent_or_network(),
 			'formId'             => $form_id,
 		);
 
@@ -1569,7 +1569,7 @@ class Fluent_Forms_Sync {
 			return $errorMessage;
 		}
 
-		if ( $current_field === $parent_email_field && is_user_logged_in() ) {
+		if ( $current_field === $parent_email_field && $this->is_logged_in_parent_or_network() ) {
 			return $errorMessage;
 		}
 
@@ -1581,7 +1581,7 @@ class Fluent_Forms_Sync {
 		if ( $current_field === $explorer_email_field ) {
 			$parent_email = isset( $formData[ $parent_email_field ] ) ? sanitize_email( $formData[ $parent_email_field ] ) : '';
 			if ( $email === $parent_email ) {
-				if ( is_user_logged_in() ) {
+				if ( $this->is_logged_in_parent_or_network() ) {
 					return $errorMessage;
 				}
 				if ( $this->parent_email_verified ) {
@@ -1643,7 +1643,7 @@ class Fluent_Forms_Sync {
 	}
 
 	public function bypass_otp_required_validation( $rules, $form ) {
-		if ( ! is_user_logged_in() ) {
+		if ( ! $this->is_logged_in_parent_or_network() ) {
 			return $rules;
 		}
 
@@ -1668,7 +1668,7 @@ class Fluent_Forms_Sync {
 	}
 
 	public function bypass_otp_frontend_required( array $data, $form ): array {
-		if ( ! is_user_logged_in() ) {
+		if ( ! $this->is_logged_in_parent_or_network() ) {
 			return $data;
 		}
 
@@ -1693,5 +1693,19 @@ class Fluent_Forms_Sync {
 		}
 
 		return $data;
+	}
+
+	private function is_logged_in_parent_or_network(): bool {
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
+		$user = wp_get_current_user();
+		if ( ! $user instanceof \WP_User ) {
+			return false;
+		}
+		$roles = (array) $user->roles;
+		return in_array( 'administrator', $roles, true ) ||
+		       in_array( 'ems_parent', $roles, true ) ||
+		       in_array( 'ems_network_member', $roles, true );
 	}
 }
