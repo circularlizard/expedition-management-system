@@ -277,3 +277,21 @@ Never call OSM endpoints directly. Always use `OSM_API_Client` methods.
 
 - **No Unauthorized Password Resets:** Under no circumstances may an agent reset, update, or overwrite user account passwords (including local WordPress administrator or test accounts) without the user's explicit request and approval.
 - **Ask for Unknown Credentials:** If a workflow, browser automation, or test script requires a password or secret that is not known to the agent, the agent must ask the user directly instead of overriding it or creating a temporary credential.
+
+---
+
+## 18. Static Analysis & Security Rules
+
+All modifications must adhere to these safety and coding conventions:
+
+### PHPStan Analysis
+Before completing any task, run PHPStan to ensure no new errors are introduced:
+```bash
+vendor/bin/phpstan analyse --memory-limit=2G
+```
+Do not "baseline" new errors. Baselines are reserved strictly for legacy code or WordPress core API typing quirks (like hidden submenu pages).
+
+### Request Validation & Redirection
+- Always use `wp_safe_redirect()` instead of raw `wp_redirect()` unless an external redirect is explicitly intended and documented.
+- Always unslash (`wp_unslash()`) and escape/sanitize variables accessed directly from superglobals (`$_POST`, `$_GET`, `$_SERVER`, etc.) before using them.
+
