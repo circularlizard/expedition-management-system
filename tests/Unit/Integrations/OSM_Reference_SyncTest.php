@@ -406,4 +406,34 @@ class OSM_Reference_SyncTest extends EMSTestCase {
 
         $this->addToAssertionCount( 1 );
     }
+
+    public function test_sync_auto_registers_missing_sections(): void {
+        $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( [] );
+        $this->api_client->shouldReceive( 'get_section_events' )->andReturn( [] );
+
+        Functions\when( 'current_time' )->justReturn( '2026-06-15 08:00:00' );
+        Functions\when( 'set_transient' )->justReturn( true );
+
+        $updated_options = [];
+        Functions\when( 'update_option' )->alias( function( $key, $value ) use ( &$updated_options ) {
+            $updated_options[ $key ] = $value;
+            return true;
+        } );
+
+        $payload = $this->make_payload( 43105 );
+        $payload['data']['globals']['roles'] = [
+            [
+                'sectionid' => '43105',
+                'sectionname' => 'Orion Explorers',
+                'section' => 'explorers'
+            ]
+        ];
+
+        $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
+        $sync->sync( [ 43105 ], $payload, 'mock' );
+
+        $this->assertArrayHasKey( 'ems_managed_sections', $updated_options );
+        $this->assertSame( 'Orion Explorers', $updated_options['ems_managed_sections'][43105]['name'] );
+        $this->assertSame( 'explorers', $updated_options['ems_managed_sections'][43105]['type'] );
+    }
 }
