@@ -1049,7 +1049,10 @@ class Admin_Page {
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$unmatched_patrols = $wpdb->get_results(
-			"SELECT * FROM {$wpdb->prefix}ems_unit_patrols WHERE unit_id IS NULL AND active = 1 ORDER BY name",
+			"SELECT p.* FROM {$wpdb->prefix}ems_unit_patrols p
+			 LEFT JOIN {$wpdb->prefix}ems_units u ON p.unit_id = u.unit_id
+			 WHERE (p.unit_id IS NULL OR p.unit_id = 0 OR u.unit_id IS NULL) AND p.active = 1
+			 ORDER BY p.name",
 			ARRAY_A
 		) ?: array();
 		?>
