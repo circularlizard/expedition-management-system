@@ -181,61 +181,23 @@ class Fluent_Forms_Sync {
 	 */
 	private function resolve_unit_for_child( array $child ): array {
 		$scout_id    = (int) ( $child['scout_id'] ?? 0 );
-		$patrol_name = $child['patrol'] ?? '';
 		$section_ids = (array) ( $child['section_ids'] ?? array() );
 
 		if ( $scout_id ) {
 			$explorer = $this->wpdb->get_row(
 				$this->wpdb->prepare(
-					"SELECT section_id, patrol FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
+					"SELECT section_id FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
 					$scout_id
 				),
 				ARRAY_A
 			);
-			if ( ! empty( $explorer ) ) {
-				if ( ! empty( $explorer['section_id'] ) ) {
-					$section_ids[] = (int) $explorer['section_id'];
-				}
-				if ( ! empty( $explorer['patrol'] ) ) {
-					$patrol_name = $explorer['patrol'];
-				}
+			if ( ! empty( $explorer ) && ! empty( $explorer['section_id'] ) ) {
+				$section_ids[] = (int) $explorer['section_id'];
 			}
 		}
 
 		$section_ids = array_unique( array_filter( array_map( 'intval', $section_ids ) ) );
-		$patrol_name = trim( (string) $patrol_name );
 
-		if ( ! empty( $section_ids ) && $patrol_name !== '' ) {
-			foreach ( $section_ids as $sec_id ) {
-				$mapped_patrol = $this->wpdb->get_row(
-					$this->wpdb->prepare(
-						"SELECT unit_id FROM {$this->wpdb->prefix}ems_unit_patrols WHERE section_id = %d AND LOWER(name) = LOWER(%s) LIMIT 1",
-						$sec_id,
-						$patrol_name
-					),
-					ARRAY_A
-				);
-
-				if ( ! empty( $mapped_patrol ) && ! empty( $mapped_patrol['unit_id'] ) ) {
-					$unit = $this->wpdb->get_row(
-						$this->wpdb->prepare(
-							"SELECT short_code, unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d LIMIT 1",
-							$mapped_patrol['unit_id']
-						),
-						ARRAY_A
-					);
-					if ( ! empty( $unit ) ) {
-						return array(
-							'short_code'   => $unit['short_code'] ?: '',
-							'unit_id'      => (int) $unit['unit_id'],
-							'leader_email' => $unit['leader_email'] ?: '',
-						);
-					}
-				}
-			}
-		}
-
-		// Fallback: Check if any of the child's section_ids matches a unit_id directly in ems_units
 		if ( ! empty( $section_ids ) ) {
 			foreach ( $section_ids as $sec_id ) {
 				$unit = $this->wpdb->get_row(
