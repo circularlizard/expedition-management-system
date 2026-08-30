@@ -36,8 +36,7 @@ class Plugin {
 			$u_id = ( $user instanceof \WP_User ) ? $user->ID : null;
 			\EMS\Core\Audit_Logger::log( 'login_success', null, $u_id );
 		}, 10, 2 );
-
-
+		add_action( 'template_redirect', array( $this, 'restrict_signup_page_access' ) );
 
 		add_action( 'wp_login_failed', function( $username ) {
 			\EMS\Core\Audit_Logger::log( 'login_failure' );
@@ -779,6 +778,64 @@ class Plugin {
 		return in_array( 'administrator', $roles, true ) ||
 		       in_array( 'ems_parent', $roles, true ) ||
 		       in_array( 'ems_network_member', $roles, true );
+	}
+
+	public function restrict_signup_page_access(): void {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		$post = get_post();
+		if ( ! $post ) {
+			return;
+		}
+
+		if ( has_shortcode( $post->post_content, 'ems_signup_banner' ) ) {
+			if ( ! $this->is_logged_in_parent_or_network() ) {
+				self::$is_access_denied = true;
+				add_filter( 'the_content', array( $this, 'render_friendly_access_denied_content' ), 999 );
+			}
+		}
+	}
+
+	public function render_friendly_access_denied_content( $content ) {
+		if ( ! self::$is_access_denied ) {
+			return $content;
+		}
+
+		$redirect_url = esc_url( home_url( '/' ) );
+		$logout_url = esc_url( wp_logout_url( get_permalink() ) );
+		ob_start();
+		?>
+		<div class="ems-access-denied-wrap" style="padding: 40px 20px; background: #f7f9fa; display: flex; align-items: center; justify-content: center; min-height: 40vh; margin: 20px 0;">
+			<div class="ems-access-denied-container" style="background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; width: 100%; text-align: center; box-sizing: border-box; margin: 0 auto;">
+				<div class="ems-access-denied-icon">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" style="fill: #dc3232; margin: 0 auto 20px auto; display: block;">
+						<path d="M12 2c-2.76 0-5 2.24-5 5v3H6c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1V7c0-2.76-2.24-5-5-5zm-3 5c0-1.66 1.34-3 3-3s3 1.34 3 3v3H9V7zm3 9c-.83 0-1.5-.67-1.5-1.5S11.17 13 12 13s1.5.67 1.5 1.5S12.83 16 12 16z"/>
+					</svg>
+				</div>
+				<h1 style="font-size: 24px; margin: 0 0 16px 0; color: #23282d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"><?php esc_html_e( 'Access Restricted', 'ems-plugin' ); ?></h1>
+				<p style="font-size: 15px; line-height: 1.6; color: #646970; margin: 0 0 24px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+					<?php esc_html_e( 'To sign up for an expedition or DofE place you need to be either a parent/carer or a network member. If we have not identified your role correctly, please sign up without logging in.', 'ems-plugin' ); ?>
+				</p>
+
+				<div class="ems-access-denied-actions" style="display: flex; flex-direction: column; gap: 12px;">
+					<a href="<?php echo $logout_url; ?>" class="ems-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; background: #007cba; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
+						<?php esc_html_e( 'Log Out to Sign Up', 'ems-plugin' ); ?>
+					</a>
+					<a href="<?php echo $redirect_url; ?>" class="ems-btn-secondary" style="display: inline-block; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 500; font-size: 14px; border: 1px solid #ccc; color: #333; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center;">
+						<?php esc_html_e( 'Home', 'ems-plugin' ); ?>
+					</a>
+				</div>
+			</div>
+		</div>
+		<script type="text/javascript">
+			if (typeof sessionStorage !== 'undefined') {
+				sessionStorage.clear();
+			}
+		</script>
+		<?php
+		return ob_get_clean();
 	}
 
 	public function add_logout_param_to_redirect( $redirect_to, $requested_redirect_to, $user ) {
