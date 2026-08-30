@@ -12,13 +12,11 @@ use EMS\Core\CPT_Registry;
 
 class Expedition_Admin_Controller {
 
-	private Season_Repository $seasons;
 	private Expedition_Repository $expeditions;
 	private Team_Repository $teams;
 	private Team_Member_Repository $team_members;
 	private OSM_Explorer_Repository $explorers;
 	private OSM_Event_Repository $osm_events;
-	private CPT_Registry $cpt_registry;
 	private Signup_Repository $signups;
 
 	public function __construct(
@@ -31,13 +29,11 @@ class Expedition_Admin_Controller {
 		?CPT_Registry $cpt_registry = null,
 		?Signup_Repository $signups = null
 	) {
-		$this->seasons      = $seasons;
 		$this->expeditions  = $expeditions;
 		$this->teams        = $teams;
 		$this->team_members = $team_members;
 		$this->explorers    = $explorers ?: new OSM_Explorer_Repository();
 		$this->osm_events   = $osm_events ?: new OSM_Event_Repository();
-		$this->cpt_registry = $cpt_registry ?: new CPT_Registry();
 		$this->signups      = $signups ?: new Signup_Repository();
 	}
 

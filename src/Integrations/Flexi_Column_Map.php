@@ -20,7 +20,7 @@ class Flexi_Column_Map {
 	 * Saves the mapping to WordPress options.
 	 *
 	 * @param array $map Mapping of EMS field names to OSM column IDs (f_N).
-	 * @return bool|WP_Error True on success, WP_Error on validation failure.
+	 * @return bool|\WP_Error True on success, \WP_Error on validation failure.
 	 */
 	public function save( array $map ) {
 		foreach ( self::REQUIRED_FIELDS as $field ) {
