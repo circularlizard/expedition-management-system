@@ -570,4 +570,45 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 		$this->assertEquals( 'BO-Kelso', $res['short_code'] );
 		$this->assertEquals( 'leader@example.com', $res['leader_email'] );
 	}
+
+	public function test_resolve_unit_for_child_direct_fallback(): void {
+		$wpdb = new class {
+			public $prefix = 'wp_';
+			public $prepare_args = [];
+
+			public function prepare( string $sql, ...$args ): string {
+				$this->prepare_args = $args;
+				return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+			}
+
+			public function get_row( string $sql, string $output = ARRAY_A ) {
+				if ( str_contains( $sql, 'wp_ems_osm_explorers' ) ) {
+					return [ 'section_id' => 201, 'patrol' => '' ];
+				}
+				if ( str_contains( $sql, 'wp_ems_unit_patrols' ) ) {
+					return null;
+				}
+				if ( str_contains( $sql, 'wp_ems_units' ) ) {
+					return [ 'short_code' => 'BO-Direct', 'unit_id' => 201, 'leader_email' => 'direct@example.com' ];
+				}
+				return null;
+			}
+		};
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $wpdb );
+
+		$reflected = new \ReflectionClass( Fluent_Forms_Sync::class );
+		$method = $reflected->getMethod( 'resolve_unit_for_child' );
+		$method->setAccessible( true );
+
+		$res = $method->invoke( $sync, [
+			'scout_id' => 30001,
+			'patrol'   => '',
+			'section_ids' => [ 201 ]
+		] );
+
+		$this->assertEquals( 201, $res['unit_id'] );
+		$this->assertEquals( 'BO-Direct', $res['short_code'] );
+		$this->assertEquals( 'direct@example.com', $res['leader_email'] );
+	}
 }
