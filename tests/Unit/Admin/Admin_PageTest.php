@@ -354,5 +354,102 @@ class Admin_PageTest extends EMSTestCase {
 
 		$this->assertStringContainsString( 'Custom unit deleted.', $output );
 	}
+
+	public function test_handle_link_patrol_to_unit_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$_POST['patrol_id'] = '12345';
+		$_POST['section_id'] = '99001';
+		$_POST['link_unit_id'] = '800';
+
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'update' )
+			->once()
+			->with(
+				'wp_ems_unit_patrols',
+				[ 'unit_id' => 800 ],
+				[ 'patrol_id' => 12345, 'section_id' => 99001 ],
+				[ '%d' ],
+				[ '%d', '%d' ]
+			)
+			->andReturn( 1 );
+
+		$GLOBALS['wpdb'] = $wpdb;
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = new Admin_Page( $diagnostic );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method = $reflected->getMethod( 'handle_link_patrol_to_unit' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Patrol linked to unit successfully.', $output );
+
+		unset( $_POST['patrol_id'] );
+		unset( $_POST['section_id'] );
+		unset( $_POST['link_unit_id'] );
+	}
+
+	public function test_handle_create_unit_from_patrol_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$_POST['patrol_id'] = '12345';
+		$_POST['section_id'] = '99001';
+		$_POST['patrol_name'] = 'CR-Pink Panthers';
+
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'get_var' )
+			->once()
+			->andReturn( '900005' );
+		$wpdb->shouldReceive( 'update' )
+			->once()
+			->with(
+				'wp_ems_unit_patrols',
+				[ 'unit_id' => 900006 ],
+				[ 'patrol_id' => 12345, 'section_id' => 99001 ],
+				[ '%d' ],
+				[ '%d', '%d' ]
+			)
+			->andReturn( 1 );
+
+		$GLOBALS['wpdb'] = $wpdb;
+
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'add_custom_unit' )
+			->once()
+			->with( [
+				'unit_id' => 900006,
+				'district' => 'CR',
+				'name' => 'CR-Pink Panthers',
+				'short_code' => 'CR-Pink Panthers',
+				'leader_email' => '',
+			] )
+			->andReturn( true );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method = $reflected->getMethod( 'handle_create_unit_from_patrol' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Master unit "CR-Pink Panthers" created and linked successfully.', $output );
+
+		unset( $_POST['patrol_id'] );
+		unset( $_POST['section_id'] );
+		unset( $_POST['patrol_name'] );
+	}
 }
 
