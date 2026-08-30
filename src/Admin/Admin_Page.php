@@ -772,17 +772,15 @@ class Admin_Page {
 
 		foreach ( $leaders_data as $id => $fields ) {
 			$email      = sanitize_text_field( $fields['email'] ?? '' );
-			$first      = sanitize_text_field( $fields['first_name'] ?? '' );
-			$last       = sanitize_text_field( $fields['last_name'] ?? '' );
+			$district   = sanitize_text_field( $fields['district'] ?? '' );
 			$unit_id    = empty( $fields['unit_id'] ) ? null : (int) $fields['unit_id'];
 			$short_code = sanitize_text_field( $fields['short_code'] ?? '' );
 
 			$data = array(
-				'unit_id'           => $unit_id,
-				'short_code'        => $short_code,
-				'leader_first_name' => $first,
-				'leader_last_name'  => $last,
-				'leader_email'      => $email,
+				'unit_id'      => $unit_id,
+				'district'     => $district,
+				'short_code'   => $short_code,
+				'leader_email' => $email,
 			);
 			if ( isset( $fields['name'] ) ) {
 				$data['name'] = sanitize_text_field( $fields['name'] );
@@ -844,26 +842,28 @@ class Admin_Page {
 		}
 
 		$name       = sanitize_text_field( $_POST['custom_unit_name'] ?? '' );
+		$district   = sanitize_text_field( $_POST['custom_unit_district'] ?? '' );
 		$short_code = sanitize_text_field( $_POST['custom_unit_short_code'] ?? '' );
 		$unit_id    = empty( $_POST['custom_unit_id'] ) ? null : (int) $_POST['custom_unit_id'];
 		$email      = sanitize_text_field( $_POST['custom_unit_email'] ?? '' );
-		$first      = sanitize_text_field( $_POST['custom_unit_first_name'] ?? '' );
-		$last       = sanitize_text_field( $_POST['custom_unit_last_name'] ?? '' );
 
 		if ( empty( $name ) ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Unit name is required.', 'ems-plugin' ) . '</p></div>';
+			return;
+		}
+		if ( empty( $unit_id ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Unit ID is required.', 'ems-plugin' ) . '</p></div>';
 			return;
 		}
 
 		$unit_repo = $this->get_unit_repository();
 		try {
 			$unit_repo->add_custom_unit( array(
-				'name'              => $name,
-				'short_code'        => $short_code,
-				'unit_id'           => $unit_id,
-				'leader_first_name' => $first,
-				'leader_last_name'  => $last,
-				'leader_email'      => $email,
+				'name'         => $name,
+				'district'     => $district,
+				'short_code'   => $short_code,
+				'unit_id'      => $unit_id,
+				'leader_email' => $email,
 			) );
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Custom unit created successfully.', 'ems-plugin' ) . '</p></div>';
 		} catch ( \Exception $e ) {
@@ -1042,9 +1042,16 @@ class Admin_Page {
 	 * @return void
 	 */
 	private function render_unit_leaders_tab(): void {
+		global $wpdb;
 		$unit_repo        = $this->get_unit_repository();
 		$units            = $unit_repo->list_active_units();
 		$managed_sections = get_option( 'ems_managed_sections', array() );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$unmatched_patrols = $wpdb->get_results(
+			"SELECT * FROM {$wpdb->prefix}ems_unit_patrols WHERE unit_id IS NULL AND active = 1 ORDER BY name",
+			ARRAY_A
+		) ?: array();
 		?>
 		<style>
 			.ems-unit-leaders-table-container {
@@ -1078,66 +1085,70 @@ class Admin_Page {
 				<table class="ems-table">
 					<thead>
 						<tr>
-							<th style="width: 15%;"><?php esc_html_e( 'OSM Section', 'ems-plugin' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'ESU / Unit Name', 'ems-plugin' ); ?></th>
+							<th style="width: 12%;"><?php esc_html_e( 'District', 'ems-plugin' ); ?></th>
+							<th style="width: 15%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
 							<th style="width: 10%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+							<th style="width: 12%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
+							<th style="width: 20%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
 							<th style="width: 8%;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
 						<?php if ( empty( $units ) ) : ?>
 							<tr>
-								<td colspan="8"><?php esc_html_e( 'No ESU/patrol data found. Sync OSM data or add a custom unit below.', 'ems-plugin' ); ?></td>
+								<td colspan="7"><?php esc_html_e( 'No Units found. Add a master unit below.', 'ems-plugin' ); ?></td>
 							</tr>
 						<?php else : ?>
 							<?php
 							foreach ( $units as $u ) :
-								$sec_id   = $u['section_id'];
-								$sec_name = empty( $sec_id ) ? __( 'Manual / Non-OSM', 'ems-plugin' ) : ( $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}" );
-								$row_id   = (int) $u['id'];
+								$row_id = (int) $u['id'];
 								?>
 								<tr>
-									<td><?php echo esc_html( $sec_name ); ?></td>
 									<td>
-										<?php if ( (int) $u['patrol_id'] < 0 ) : ?>
-											<input type="text" name="unit_leaders[<?php echo $row_id; ?>][name]" 
-													value="<?php echo esc_attr( $u['name'] ); ?>" required />
-										<?php else : ?>
-											<strong><?php echo esc_html( $u['name'] ); ?></strong>
-										<?php endif; ?>
+										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][district]" 
+												value="<?php echo esc_attr( $u['district'] ?? '' ); ?>" />
+									</td>
+									<td>
+										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][name]" 
+												value="<?php echo esc_attr( $u['name'] ); ?>" required />
 									</td>
 									<td>
 										<input type="number" name="unit_leaders[<?php echo $row_id; ?>][unit_id]" 
-												value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" />
+												value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" required />
 									</td>
 									<td>
 										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][short_code]" 
 												value="<?php echo esc_attr( $u['short_code'] ?: $u['name'] ); ?>" />
 									</td>
 									<td>
-										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][first_name]" 
-												value="<?php echo esc_attr( $u['leader_first_name'] ?? '' ); ?>" />
-									</td>
-									<td>
-										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][last_name]" 
-												value="<?php echo esc_attr( $u['leader_last_name'] ?? '' ); ?>" />
-									</td>
-									<td>
 										<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
 												value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
 									</td>
 									<td>
-										<?php if ( (int) $u['patrol_id'] < 0 ) : ?>
-											<button type="submit" name="ems_delete_custom_unit" value="<?php echo $row_id; ?>" 
-													class="button button-link-delete" style="color: #b32d2e;"
-													onclick="return confirm('<?php echo esc_attr( __( 'Are you sure you want to delete this custom unit?', 'ems-plugin' ) ); ?>');">
-												<?php esc_html_e( 'Delete', 'ems-plugin' ); ?>
-											</button>
+										<?php if ( ! empty( $u['matched_patrols'] ) ) : ?>
+											<ul style="margin: 0; padding-left: 15px; list-style-type: disc;">
+												<?php foreach ( $u['matched_patrols'] as $patrol ) : 
+													$sec_id = (int) $patrol['section_id'];
+													$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
+													?>
+													<li>
+														<strong><?php echo esc_html( $patrol['name'] ); ?></strong>
+														(<?php echo esc_html( $sec_name ); ?>)
+														<code style="font-size: 11px;">[ID: <?php echo (int) $patrol['patrol_id']; ?>]</code>
+													</li>
+												<?php endforeach; ?>
+											</ul>
+										<?php else : ?>
+											<span class="description"><?php esc_html_e( 'None matched', 'ems-plugin' ); ?></span>
 										<?php endif; ?>
+									</td>
+									<td>
+										<button type="submit" name="ems_delete_custom_unit" value="<?php echo $row_id; ?>" 
+												class="button button-link-delete" style="color: #b32d2e;"
+												onclick="return confirm('<?php echo esc_attr( __( 'Are you sure you want to delete this unit?', 'ems-plugin' ) ); ?>');">
+											<?php esc_html_e( 'Delete', 'ems-plugin' ); ?>
+										</button>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -1147,35 +1158,52 @@ class Admin_Page {
 			</div>
 			<?php if ( ! empty( $units ) ) : ?>
 				<p class="submit">
-					<input type="submit" name="ems_save_unit_leaders" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Unit Leaders', 'ems-plugin' ); ?>" />
+					<input type="submit" name="ems_save_unit_leaders" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Units', 'ems-plugin' ); ?>" />
 				</p>
 			<?php endif; ?>
 		</form>
 
+		<?php if ( ! empty( $unmatched_patrols ) ) : ?>
+			<div class="notice notice-warning inline" style="margin-top: 20px; padding: 15px;">
+				<h4 style="margin: 0 0 8px 0; color: #b58100;"><?php esc_html_e( 'Unmatched Synced Patrols from OSM', 'ems-plugin' ); ?></h4>
+				<p style="margin: 0 0 10px 0;">
+					<?php esc_html_e( 'The following patrols were synced from OSM but could not be automatically matched to any master unit. Please add a master unit with a matching short code or name to link them.', 'ems-plugin' ); ?>
+				</p>
+				<ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+					<?php foreach ( $unmatched_patrols as $patrol ) : 
+						$sec_id = (int) $patrol['section_id'];
+						$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
+						?>
+						<li>
+							<strong><?php echo esc_html( $patrol['name'] ); ?></strong>
+							in section <em><?php echo esc_html( $sec_name ); ?></em>
+							(Patrol ID: <code><?php echo (int) $patrol['patrol_id']; ?></code>)
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		<?php endif; ?>
+
 		<div class="card" style="margin-top: 30px; padding: 20px; max-width: 800px;">
-			<h3><?php esc_html_e( 'Add Custom Unit', 'ems-plugin' ); ?></h3>
+			<h3><?php esc_html_e( 'Add Master Unit', 'ems-plugin' ); ?></h3>
 			<form method="post">
 				<?php wp_nonce_field( 'ems_add_custom_unit' ); ?>
 				<table class="form-table" role="presentation" style="margin-top: 0;">
+					<tr>
+						<th scope="row"><label for="custom_unit_district"><?php esc_html_e( 'District', 'ems-plugin' ); ?></label></th>
+						<td><input type="text" name="custom_unit_district" id="custom_unit_district" class="regular-text" /></td>
+					</tr>
 					<tr>
 						<th scope="row"><label for="custom_unit_name"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></label></th>
 						<td><input type="text" name="custom_unit_name" id="custom_unit_name" class="regular-text" required /></td>
 					</tr>
 					<tr>
+						<th scope="row"><label for="custom_unit_id"><?php esc_html_e( 'Unit ID (numeric)', 'ems-plugin' ); ?></label></th>
+						<td><input type="number" name="custom_unit_id" id="custom_unit_id" class="regular-text" required /></td>
+					</tr>
+					<tr>
 						<th scope="row"><label for="custom_unit_short_code"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></label></th>
 						<td><input type="text" name="custom_unit_short_code" id="custom_unit_short_code" class="regular-text" /></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="custom_unit_id"><?php esc_html_e( 'Unit ID (numeric)', 'ems-plugin' ); ?></label></th>
-						<td><input type="number" name="custom_unit_id" id="custom_unit_id" class="regular-text" /></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="custom_unit_first_name"><?php esc_html_e( 'Leader First Name', 'ems-plugin' ); ?></label></th>
-						<td><input type="text" name="custom_unit_first_name" id="custom_unit_first_name" class="regular-text" /></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="custom_unit_last_name"><?php esc_html_e( 'Leader Last Name', 'ems-plugin' ); ?></label></th>
-						<td><input type="text" name="custom_unit_last_name" id="custom_unit_last_name" class="regular-text" /></td>
 					</tr>
 					<tr>
 						<th scope="row"><label for="custom_unit_email"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></label></th>
@@ -1183,7 +1211,7 @@ class Admin_Page {
 					</tr>
 				</table>
 				<p class="submit" style="margin-bottom: 0;">
-					<input type="submit" name="ems_add_custom_unit" class="button button-primary" value="<?php esc_attr_e( 'Add Custom Unit', 'ems-plugin' ); ?>" />
+					<input type="submit" name="ems_add_custom_unit" class="button button-primary" value="<?php esc_attr_e( 'Add Unit', 'ems-plugin' ); ?>" />
 				</p>
 			</form>
 		</div>

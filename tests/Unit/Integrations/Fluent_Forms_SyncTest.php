@@ -504,4 +504,70 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 
         $this->assertEmpty( $error );
     }
+
+	public function test_populate_unit_dropdown(): void {
+		$wpdb = new class {
+			public $prefix = 'wp_';
+			public function get_results( string $sql, string $output = 'OBJECT' ) {
+				return [
+					[ 'name' => 'Kelso ESU', 'short_code' => 'BO-Kelso', 'unit_id' => 10 ]
+				];
+			}
+		};
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $wpdb );
+		$field_data = [
+			'attributes' => [ 'name' => 'signup_unit' ],
+			'settings'   => [ 'advanced_options' => [] ],
+		];
+		$form = (object) [ 'id' => 6 ];
+
+		$result = $sync->populate_unit_dropdown( $field_data, $form );
+		$options = $result['settings']['advanced_options'];
+
+		$this->assertCount( 1, $options );
+		$this->assertEquals( 'Kelso ESU', $options[0]['label'] );
+		$this->assertEquals( '10', $options[0]['value'] );
+	}
+
+	public function test_resolve_unit_for_child(): void {
+		$wpdb = new class {
+			public $prefix = 'wp_';
+			public $prepare_args = [];
+
+			public function prepare( string $sql, ...$args ): string {
+				$this->prepare_args = $args;
+				return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+			}
+
+			public function get_row( string $sql, string $output = ARRAY_A ) {
+				if ( str_contains( $sql, 'wp_ems_osm_explorers' ) ) {
+					return [ 'section_id' => 201, 'patrol' => 'Kelso' ];
+				}
+				if ( str_contains( $sql, 'wp_ems_unit_patrols' ) ) {
+					return [ 'unit_id' => 10 ];
+				}
+				if ( str_contains( $sql, 'wp_ems_units' ) ) {
+					return [ 'short_code' => 'BO-Kelso', 'unit_id' => 10, 'leader_email' => 'leader@example.com' ];
+				}
+				return null;
+			}
+		};
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $wpdb );
+
+		$reflected = new \ReflectionClass( Fluent_Forms_Sync::class );
+		$method = $reflected->getMethod( 'resolve_unit_for_child' );
+		$method->setAccessible( true );
+
+		$res = $method->invoke( $sync, [
+			'scout_id' => 30001,
+			'patrol'   => 'Kelso',
+			'section_ids' => [ 201 ]
+		] );
+
+		$this->assertEquals( 10, $res['unit_id'] );
+		$this->assertEquals( 'BO-Kelso', $res['short_code'] );
+		$this->assertEquals( 'leader@example.com', $res['leader_email'] );
+	}
 }

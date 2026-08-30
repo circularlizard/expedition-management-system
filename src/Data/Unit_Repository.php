@@ -2,7 +2,7 @@
 namespace EMS\Data;
 
 class Unit_Repository {
-	private object $wpdb;
+	private ?object $wpdb;
 
 	public function __construct( ?object $wpdb = null ) {
 		if ( $wpdb === null ) {
@@ -19,34 +19,96 @@ class Unit_Repository {
 			throw new \InvalidArgumentException( 'patrol_id and section_id are required for syncing' );
 		}
 
-		$now = current_time( 'mysql' );
-		$sql = "INSERT INTO {$this->wpdb->prefix}ems_units 
-            (patrol_id, section_id, name, active, synced_at, short_code) 
-            VALUES (%d, %d, %s, %d, %s, %s) 
+		$now        = current_time( 'mysql' );
+		$patrol_id  = (int) $data['patrol_id'];
+		$section_id = (int) $data['section_id'];
+		$name       = sanitize_text_field( $data['name'] ?? '' );
+		$active     = isset( $data['active'] ) ? (int) $data['active'] : 1;
+		$synced_at  = $data['synced_at'] ?? $now;
+
+		// 1. Find all active units to run matching logic
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$units        = $this->wpdb->get_results( "SELECT * FROM {$this->wpdb->prefix}ems_units", ARRAY_A ) ?: array();
+		$matched_unit = $this->find_matching_unit( $name, $units );
+		$unit_id      = $matched_unit ? (int) $matched_unit['unit_id'] : null;
+
+		// 2. Insert or update the patrol in ems_unit_patrols
+		$sql = "INSERT INTO {$this->wpdb->prefix}ems_unit_patrols 
+            (unit_id, section_id, patrol_id, name, active, synced_at) 
+            VALUES (%d, %d, %d, %s, %d, %s) 
             ON DUPLICATE KEY UPDATE 
+            unit_id = VALUES(unit_id),
             name = VALUES(name), 
             active = VALUES(active), 
             synced_at = VALUES(synced_at)";
 
 		$prepared = $this->wpdb->prepare(
 			$sql,
-			$data['patrol_id'],
-			$data['section_id'],
-			$data['name'] ?? '',
-			isset( $data['active'] ) ? (int) $data['active'] : 1,
-			$data['synced_at'] ?? $now,
-			$data['name'] ?? ''
+			$unit_id,
+			$section_id,
+			$patrol_id,
+			$name,
+			$active,
+			$synced_at
 		);
 
 		$this->wpdb->query( $prepared );
 
 		return (int) $this->wpdb->get_var(
 			$this->wpdb->prepare(
-				"SELECT id FROM {$this->wpdb->prefix}ems_units WHERE patrol_id = %d AND section_id = %d",
-				$data['patrol_id'],
-				$data['section_id']
+				"SELECT id FROM {$this->wpdb->prefix}ems_unit_patrols WHERE patrol_id = %d AND section_id = %d",
+				$patrol_id,
+				$section_id
 			)
 		);
+	}
+
+	/**
+	 * Find a master unit matching a patrol name.
+	 */
+	public function find_matching_unit( string $patrol_name, array $master_units ): ?array {
+		$patrol_clean = strtolower( trim( $patrol_name ) );
+		if ( empty( $patrol_clean ) ) {
+			return null;
+		}
+
+		// 1. Exact match on short_code (case-insensitive)
+		foreach ( $master_units as $unit ) {
+			if ( ! empty( $unit['short_code'] ) && strtolower( trim( $unit['short_code'] ) ) === $patrol_clean ) {
+				return $unit;
+			}
+		}
+
+		// 2. Exact match on unit name (case-insensitive)
+		foreach ( $master_units as $unit ) {
+			if ( ! empty( $unit['name'] ) && strtolower( trim( $unit['name'] ) ) === $patrol_clean ) {
+				return $unit;
+			}
+		}
+
+		// 3. Substring match: unit name contains patrol name, or vice versa
+		foreach ( $master_units as $unit ) {
+			$unit_name_clean  = ! empty( $unit['name'] ) ? strtolower( trim( $unit['name'] ) ) : '';
+			$short_code_clean = ! empty( $unit['short_code'] ) ? strtolower( trim( $unit['short_code'] ) ) : '';
+
+			if ( ( $unit_name_clean !== '' && str_contains( $unit_name_clean, $patrol_clean ) ) ||
+				 ( $short_code_clean !== '' && str_contains( $short_code_clean, $patrol_clean ) ) ) {
+				return $unit;
+			}
+		}
+
+		// 4. Substring match: patrol name contains unit name or short code
+		foreach ( $master_units as $unit ) {
+			$unit_name_clean  = ! empty( $unit['name'] ) ? strtolower( trim( $unit['name'] ) ) : '';
+			$short_code_clean = ! empty( $unit['short_code'] ) ? strtolower( trim( $unit['short_code'] ) ) : '';
+
+			if ( ( $unit_name_clean !== '' && str_contains( $patrol_clean, $unit_name_clean ) ) ||
+				 ( $short_code_clean !== '' && str_contains( $patrol_clean, $short_code_clean ) ) ) {
+				return $unit;
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -65,27 +127,23 @@ class Unit_Repository {
 
 		if ( array_key_exists( 'unit_id', $data ) ) {
 			$update_data['unit_id'] = empty( $data['unit_id'] ) ? null : (int) $data['unit_id'];
-			$format[]               = empty( $data['unit_id'] ) ? '%d' : '%d'; // handles null correctly in wpdb
+			$format[]               = '%d';
 		}
 		if ( isset( $data['short_code'] ) ) {
-			$update_data['short_code'] = $data['short_code'];
+			$update_data['short_code'] = sanitize_text_field( $data['short_code'] );
 			$format[]                  = '%s';
 		}
-		if ( isset( $data['leader_first_name'] ) ) {
-			$update_data['leader_first_name'] = $data['leader_first_name'];
-			$format[]                         = '%s';
+		if ( isset( $data['name'] ) ) {
+			$update_data['name'] = sanitize_text_field( $data['name'] );
+			$format[]            = '%s';
 		}
-		if ( isset( $data['leader_last_name'] ) ) {
-			$update_data['leader_last_name'] = $data['leader_last_name'];
-			$format[]                        = '%s';
+		if ( isset( $data['district'] ) ) {
+			$update_data['district'] = sanitize_text_field( $data['district'] );
+			$format[]                = '%s';
 		}
 		if ( isset( $data['leader_email'] ) ) {
-			$update_data['leader_email'] = $data['leader_email'];
+			$update_data['leader_email'] = sanitize_text_field( $data['leader_email'] );
 			$format[]                    = '%s';
-		}
-		if ( isset( $data['name'] ) ) {
-			$update_data['name'] = $data['name'];
-			$format[]            = '%s';
 		}
 
 		$updated = $this->wpdb->update(
@@ -100,7 +158,7 @@ class Unit_Repository {
 	}
 
 	/**
-	 * Adds a custom/manual unit (not synced from OSM)
+	 * Adds a master unit
 	 *
 	 * @param array $data The unit data.
 	 * @return int The generated unit database ID.
@@ -111,35 +169,28 @@ class Unit_Repository {
 			throw new \InvalidArgumentException( 'Unit name is required.' );
 		}
 
-		// Find the minimum patrol_id in the database to generate a unique negative patrol_id
-		$min_patrol_id = (int) $this->wpdb->get_var( "SELECT MIN(patrol_id) FROM {$this->wpdb->prefix}ems_units" );
-		$patrol_id = $min_patrol_id < 0 ? $min_patrol_id - 1 : -1;
+		$unit_id = isset( $data['unit_id'] ) ? (int) $data['unit_id'] : null;
+		if ( ! $unit_id ) {
+			throw new \InvalidArgumentException( 'Unit ID is required.' );
+		}
 
 		$insert_data = array(
-			'patrol_id'         => $patrol_id,
-			'section_id'        => 0, // 0 indicates manual/non-OSM
-			'name'              => $name,
-			'active'            => 1,
-			'synced_at'         => current_time( 'mysql' ),
-			'unit_id'           => empty( $data['unit_id'] ) ? null : (int) $data['unit_id'],
-			'short_code'        => sanitize_text_field( $data['short_code'] ?? $name ),
-			'leader_first_name' => sanitize_text_field( $data['leader_first_name'] ?? '' ),
-			'leader_last_name'  => sanitize_text_field( $data['leader_last_name'] ?? '' ),
-			'leader_email'      => sanitize_text_field( $data['leader_email'] ?? '' ),
-			'updated_at'        => current_time( 'mysql' ),
+			'unit_id'      => $unit_id,
+			'district'     => sanitize_text_field( $data['district'] ?? '' ),
+			'name'         => $name,
+			'short_code'   => sanitize_text_field( $data['short_code'] ?? $name ),
+			'leader_email' => sanitize_text_field( $data['leader_email'] ?? '' ),
+			'created_at'   => current_time( 'mysql' ),
+			'updated_at'   => current_time( 'mysql' ),
 		);
 
 		$format = array(
-			'%d', // patrol_id
-			'%d', // section_id
+			'%d', // unit_id
+			'%s', // district
 			'%s', // name
-			'%d', // active
-			'%s', // synced_at
-			$insert_data['unit_id'] === null ? '%d' : '%d', // unit_id
 			'%s', // short_code
-			'%s', // leader_first_name
-			'%s', // leader_last_name
 			'%s', // leader_email
+			'%s', // created_at
 			'%s', // updated_at
 		);
 
@@ -147,22 +198,34 @@ class Unit_Repository {
 
 		return (int) $this->wpdb->get_var(
 			$this->wpdb->prepare(
-				"SELECT id FROM {$this->wpdb->prefix}ems_units WHERE patrol_id = %d AND section_id = 0",
-				$patrol_id
+				"SELECT id FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d",
+				$unit_id
 			)
 		);
 	}
 
 	/**
-	 * Deletes a custom/manual unit (not synced from OSM)
+	 * Deletes a master unit
 	 *
 	 * @param int $id The unit database ID.
 	 * @return bool True if deleted successfully, false otherwise.
 	 */
 	public function delete_custom_unit( int $id ): bool {
 		$unit = $this->find_by_id( $id );
-		if ( ! $unit || (int) $unit['patrol_id'] >= 0 ) {
-			return false; // Prevent deleting synced units
+		if ( ! $unit ) {
+			return false;
+		}
+
+		$unit_id = (int) $unit['unit_id'];
+
+		if ( $unit_id ) {
+			$this->wpdb->update(
+				$this->wpdb->prefix . 'ems_unit_patrols',
+				array( 'unit_id' => null ),
+				array( 'unit_id' => $unit_id ),
+				array( '%d' ),
+				array( '%d' )
+			);
 		}
 
 		$deleted = $this->wpdb->delete(
@@ -173,7 +236,6 @@ class Unit_Repository {
 
 		return $deleted !== false;
 	}
-
 
 	public function find_by_id( int $id ): ?array {
 		$row = $this->wpdb->get_row(
@@ -187,29 +249,58 @@ class Unit_Repository {
 	}
 
 	public function find_by_patrol_section( int $patrol_id, int $section_id ): ?array {
-		$row = $this->wpdb->get_row(
+		$patrol = $this->wpdb->get_row(
 			$this->wpdb->prepare(
-				"SELECT * FROM {$this->wpdb->prefix}ems_units WHERE patrol_id = %d AND section_id = %d",
+				"SELECT unit_id FROM {$this->wpdb->prefix}ems_unit_patrols WHERE patrol_id = %d AND section_id = %d LIMIT 1",
 				$patrol_id,
 				$section_id
 			),
 			ARRAY_A
 		);
-		return $row ?: null;
+
+		if ( empty( $patrol ) || empty( $patrol['unit_id'] ) ) {
+			return null;
+		}
+
+		return $this->wpdb->get_row(
+			$this->wpdb->prepare(
+				"SELECT * FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d LIMIT 1",
+				$patrol['unit_id']
+			),
+			ARRAY_A
+		) ?: null;
 	}
 
 	public function list_active_units(): array {
-		$rows = $this->wpdb->get_results(
-			"SELECT * FROM {$this->wpdb->prefix}ems_units WHERE active = 1 ORDER BY name, section_id",
+		/** @var array<int, array<string, mixed>> $units */
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$units = $this->wpdb->get_results(
+			"SELECT * FROM {$this->wpdb->prefix}ems_units ORDER BY name",
 			ARRAY_A
-		);
-		return $rows ?: array();
+		) ?: array();
+
+		foreach ( $units as &$u ) {
+			$u['matched_patrols'] = array();
+			$unit_id              = (int) ( $u['unit_id'] ?? 0 );
+			if ( $unit_id ) {
+				$patrols = $this->wpdb->get_results(
+					$this->wpdb->prepare(
+						"SELECT * FROM {$this->wpdb->prefix}ems_unit_patrols WHERE unit_id = %d AND active = 1",
+						$unit_id
+					),
+					ARRAY_A
+				) ?: array();
+				$u['matched_patrols'] = $patrols;
+			}
+		}
+
+		return $units;
 	}
 
 	public function find_by_short_code( string $short_code ): ?array {
 		$row = $this->wpdb->get_row(
 			$this->wpdb->prepare(
-				"SELECT * FROM {$this->wpdb->prefix}ems_units WHERE short_code = %s AND active = 1 LIMIT 1",
+				"SELECT * FROM {$this->wpdb->prefix}ems_units WHERE short_code = %s LIMIT 1",
 				$short_code
 			),
 			ARRAY_A

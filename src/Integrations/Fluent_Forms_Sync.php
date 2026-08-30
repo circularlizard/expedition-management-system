@@ -21,6 +21,7 @@ class Fluent_Forms_Sync {
 	public function init_hooks(): void {
 		// Dropdown dynamic choices population filter
 		add_filter( 'fluentform/rendering_field_data_select', array( $this, 'populate_child_dropdown' ), 10, 2 );
+		add_filter( 'fluentform/rendering_field_data_select', array( $this, 'populate_unit_dropdown' ), 10, 2 );
 
 		// Validation bypass for dynamically generated dropdown choices
 		add_filter( 'fluentform/validate_input_item_select', array( $this, 'bypass_dropdown_validation' ), 10, 2 );
@@ -109,41 +110,128 @@ class Fluent_Forms_Sync {
 	 * Bypass Fluent Forms dropdown mismatch validation
 	 */
 	public function bypass_dropdown_validation( $errors, $field ) {
-		if ( ( $field['attributes']['name'] ?? '' ) === 'signup_child' ) {
+		$field_name = $field['attributes']['name'] ?? '';
+		if ( $field_name === 'signup_child' || $field_name === 'signup_unit' ) {
 			return '';
 		}
+
+		$participant_config = get_option( 'ems_participant_form_mappings', array() );
+		$expedition_config = get_option( 'ems_expedition_form_mappings', array() );
+		$mapped_fields = array_filter( array(
+			$participant_config['esu_patrol_field'] ?? '',
+			$expedition_config['esu_patrol_field'] ?? '',
+		) );
+
+		if ( in_array( $field_name, $mapped_fields, true ) ) {
+			return '';
+		}
+
 		return $errors;
+	}
+
+	/**
+	 * Dynamically populate unit dropdown select field choices
+	 */
+	public function populate_unit_dropdown( array $data, $form ): array {
+		$form_id             = (int) $form->id;
+		$participant_form_id = (int) get_option( 'ems_fluent_participant_form_id', 0 );
+		$expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 0 );
+
+		if ( $form_id !== $participant_form_id && $form_id !== $expedition_form_id ) {
+			return $data;
+		}
+
+		$config = array();
+		if ( $form_id === $participant_form_id ) {
+			$config = get_option( 'ems_participant_form_mappings', array() );
+		} elseif ( $form_id === $expedition_form_id ) {
+			$config = get_option( 'ems_expedition_form_mappings', array() );
+		}
+
+		$unit_field = $config['esu_patrol_field'] ?? 'signup_unit';
+		if ( ( $data['attributes']['name'] ?? '' ) !== $unit_field ) {
+			return $data;
+		}
+
+		// Fetch active units from master list
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$units = $this->wpdb->get_results( "SELECT name, short_code, unit_id FROM {$this->wpdb->prefix}ems_units ORDER BY name", ARRAY_A ) ?: array();
+
+		$options = array();
+		foreach ( $units as $u ) {
+			if ( empty( $u['short_code'] ) ) {
+				continue;
+			}
+			$options[] = array(
+				'label'      => $u['name'] ?: $u['short_code'],
+				'value'      => (string) $u['unit_id'],
+				'calc_value' => '',
+			);
+		}
+
+		if ( ! empty( $options ) ) {
+			$data['settings']['advanced_options'] = $options;
+		}
+
+		return $data;
 	}
 
 	/**
 	 * Resolve ESU unit mapping details for a child, including leader email.
 	 */
 	private function resolve_unit_for_child( array $child ): array {
+		$scout_id    = (int) ( $child['scout_id'] ?? 0 );
+		$patrol_name = $child['patrol'] ?? '';
 		$section_ids = (array) ( $child['section_ids'] ?? array() );
-		$section_ids = array_unique( array_filter( array_map( 'intval', $section_ids ) ) );
 
-		if ( empty( $section_ids ) ) {
-			return array(
-				'short_code'   => '',
-				'unit_id'      => 0,
-				'leader_email' => '',
-			);
-		}
-
-		foreach ( $section_ids as $sec_id ) {
-			$unit = $this->wpdb->get_row(
+		if ( $scout_id ) {
+			$explorer = $this->wpdb->get_row(
 				$this->wpdb->prepare(
-					"SELECT short_code, unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d AND active = 1 LIMIT 1",
-					$sec_id
+					"SELECT section_id, patrol FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id = %d",
+					$scout_id
 				),
 				ARRAY_A
 			);
-			if ( ! empty( $unit ) ) {
-				return array(
-					'short_code'   => $unit['short_code'] ?: '',
-					'unit_id'      => (int) ( $unit['unit_id'] ?? 0 ),
-					'leader_email' => $unit['leader_email'] ?: '',
+			if ( ! empty( $explorer ) ) {
+				if ( ! empty( $explorer['section_id'] ) ) {
+					$section_ids[] = (int) $explorer['section_id'];
+				}
+				if ( ! empty( $explorer['patrol'] ) ) {
+					$patrol_name = $explorer['patrol'];
+				}
+			}
+		}
+
+		$section_ids = array_unique( array_filter( array_map( 'intval', $section_ids ) ) );
+		$patrol_name = trim( (string) $patrol_name );
+
+		if ( ! empty( $section_ids ) && $patrol_name !== '' ) {
+			foreach ( $section_ids as $sec_id ) {
+				$mapped_patrol = $this->wpdb->get_row(
+					$this->wpdb->prepare(
+						"SELECT unit_id FROM {$this->wpdb->prefix}ems_unit_patrols WHERE section_id = %d AND LOWER(name) = LOWER(%s) LIMIT 1",
+						$sec_id,
+						$patrol_name
+					),
+					ARRAY_A
 				);
+
+				if ( ! empty( $mapped_patrol ) && ! empty( $mapped_patrol['unit_id'] ) ) {
+					$unit = $this->wpdb->get_row(
+						$this->wpdb->prepare(
+							"SELECT short_code, unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d LIMIT 1",
+							$mapped_patrol['unit_id']
+						),
+						ARRAY_A
+					);
+					if ( ! empty( $unit ) ) {
+						return array(
+							'short_code'   => $unit['short_code'] ?: '',
+							'unit_id'      => (int) $unit['unit_id'],
+							'leader_email' => $unit['leader_email'] ?: '',
+						);
+					}
+				}
 			}
 		}
 
@@ -335,10 +423,14 @@ class Fluent_Forms_Sync {
 		$bronze = $formData[ $config['bronze_completion_field'] ] ?? null;
 		$silver = $formData[ $config['silver_completion_field'] ] ?? null;
 
+		$submitted_unit = sanitize_text_field( $formData[ $config['esu_patrol_field'] ] ?? '' );
+		$unit_details   = $this->resolve_submission_unit( $formData, $config, $submitted_unit );
+
 		$insert_data = array(
 			'scout_id'            => $scout_id,
 			'parent_user_id'      => get_current_user_id(),
-			'unit_name'           => sanitize_text_field( $formData[ $config['esu_patrol_field'] ] ?? '' ),
+			'unit_id'             => $unit_details['unit_id'] ?: null,
+			'unit_name'           => $unit_details['unit_name'],
 			'explorer_first_name' => sanitize_text_field( $first_name ),
 			'explorer_last_name'  => sanitize_text_field( $last_name ),
 			'explorer_email'      => sanitize_email( $formData[ $config['explorer_email_field'] ] ?? '' ),
@@ -355,32 +447,8 @@ class Fluent_Forms_Sync {
 			'form_submission_id'  => $entryId,
 		);
 
-		$leader_email          = sanitize_email( $formData[ $config['leader_email_field'] ] ?? '' );
-		$leader_email_resolved = '';
-
-		// Resolve unit_id & leader_email
-		if ( ! empty( $insert_data['unit_name'] ) ) {
-			$unit = $this->wpdb->get_row(
-				$this->wpdb->prepare(
-					"SELECT unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR name = %s) LIMIT 1",
-					$insert_data['unit_name'],
-					$insert_data['unit_name']
-				),
-				ARRAY_A
-			);
-			if ( ! empty( $unit['unit_id'] ) ) {
-				$insert_data['unit_id'] = (int) $unit['unit_id'];
-			}
-			if ( ! empty( $unit['leader_email'] ) ) {
-				$leader_email_resolved = $unit['leader_email'];
-			}
-		}
-
-		if ( empty( $insert_data['unit_id'] ) && ! empty( $formData['signup_unitid'] ) ) {
-			$insert_data['unit_id'] = (int) $formData['signup_unitid'];
-		}
-
-		$insert_data['leader_email'] = ! empty( $leader_email ) ? $leader_email : $leader_email_resolved;
+		$leader_email = sanitize_email( $formData[ $config['leader_email_field'] ] ?? '' );
+		$insert_data['leader_email'] = ! empty( $leader_email ) ? $leader_email : $unit_details['leader_email'];
 
 		$this->signup_repo->create_participant_signup( $insert_data );
 	}
@@ -428,10 +496,14 @@ class Fluent_Forms_Sync {
 			}
 		}
 
+		$submitted_unit = sanitize_text_field( $formData[ $config['esu_patrol_field'] ] ?? '' );
+		$unit_details   = $this->resolve_submission_unit( $formData, $config, $submitted_unit );
+
 		$insert_data = array(
 			'scout_id'                 => $scout_id,
 			'parent_user_id'           => get_current_user_id(),
-			'unit_name'                => sanitize_text_field( $formData[ $config['esu_patrol_field'] ] ?? '' ),
+			'unit_id'                  => $unit_details['unit_id'] ?: null,
+			'unit_name'                => $unit_details['unit_name'],
 			'explorer_first_name'      => sanitize_text_field( $first_name ),
 			'explorer_last_name'       => sanitize_text_field( $last_name ),
 			'explorer_email'           => sanitize_email( $formData[ $config['explorer_email_field'] ] ?? '' ),
@@ -445,32 +517,8 @@ class Fluent_Forms_Sync {
 			'form_submission_id'       => $entryId,
 		);
 
-		$leader_email          = sanitize_email( $formData[ $config['leader_email_field'] ] ?? '' );
-		$leader_email_resolved = '';
-
-		// Resolve unit_id & leader_email
-		if ( ! empty( $insert_data['unit_name'] ) ) {
-			$unit = $this->wpdb->get_row(
-				$this->wpdb->prepare(
-					"SELECT unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR name = %s) LIMIT 1",
-					$insert_data['unit_name'],
-					$insert_data['unit_name']
-				),
-				ARRAY_A
-			);
-			if ( ! empty( $unit['unit_id'] ) ) {
-				$insert_data['unit_id'] = (int) $unit['unit_id'];
-			}
-			if ( ! empty( $unit['leader_email'] ) ) {
-				$leader_email_resolved = $unit['leader_email'];
-			}
-		}
-
-		if ( empty( $insert_data['unit_id'] ) && ! empty( $formData['signup_unitid'] ) ) {
-			$insert_data['unit_id'] = (int) $formData['signup_unitid'];
-		}
-
-		$insert_data['leader_email'] = ! empty( $leader_email ) ? $leader_email : $leader_email_resolved;
+		$leader_email = sanitize_email( $formData[ $config['leader_email_field'] ] ?? '' );
+		$insert_data['leader_email'] = ! empty( $leader_email ) ? $leader_email : $unit_details['leader_email'];
 
 		$this->signup_repo->create_expedition_signup( $insert_data );
 	}
@@ -1691,6 +1739,57 @@ class Fluent_Forms_Sync {
 		}
 
 		return $data;
+	}
+
+	private function resolve_submission_unit( array $formData, array $config, string $submitted_unit_value ): array {
+		$unit_id = 0;
+
+		// 1. Check if signup_unitid is present in form data
+		if ( ! empty( $formData['signup_unitid'] ) ) {
+			$unit_id = (int) $formData['signup_unitid'];
+		}
+
+		// 2. Check if the submitted unit field contains a numeric unit ID
+		if ( ! $unit_id && is_numeric( $submitted_unit_value ) ) {
+			$unit_id = (int) $submitted_unit_value;
+		}
+
+		$unit = null;
+		if ( $unit_id ) {
+			$unit = $this->wpdb->get_row(
+				$this->wpdb->prepare(
+					"SELECT name, short_code, unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d LIMIT 1",
+					$unit_id
+				),
+				ARRAY_A
+			);
+		}
+
+		// 3. Fallback: match by string short_code or name
+		if ( empty( $unit ) && ! empty( $submitted_unit_value ) ) {
+			$unit = $this->wpdb->get_row(
+				$this->wpdb->prepare(
+					"SELECT name, short_code, unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE short_code = %s OR name = %s LIMIT 1",
+					$submitted_unit_value,
+					$submitted_unit_value
+				),
+				ARRAY_A
+			);
+		}
+
+		if ( ! empty( $unit ) ) {
+			return array(
+				'unit_id'      => (int) $unit['unit_id'],
+				'unit_name'    => $unit['short_code'] ?: $unit['name'],
+				'leader_email' => $unit['leader_email'] ?: '',
+			);
+		}
+
+		return array(
+			'unit_id'      => 0,
+			'unit_name'    => $submitted_unit_value,
+			'leader_email' => '',
+		);
 	}
 
 	private function is_logged_in_parent_or_network(): bool {
