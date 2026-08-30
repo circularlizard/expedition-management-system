@@ -37,8 +37,8 @@ class Access_Control_Guard {
 		}
 
 		if ( ! is_user_logged_in() ) {
-			$target_url = esc_url_raw( $_SERVER['REQUEST_URI'] ?? '' );
-			wp_redirect( wp_login_url( $target_url ) );
+			$target_url = esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ?? '' ) );
+			wp_safe_redirect( wp_login_url( $target_url ) );
 			if ( class_exists( '\EMS\Tests\EMSTestCase' ) ) {
 				throw new \Exception( 'Redirect terminated' );
 			}

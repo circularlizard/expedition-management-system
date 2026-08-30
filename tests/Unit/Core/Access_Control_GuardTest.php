@@ -90,7 +90,7 @@ namespace EMS\Tests\Unit\Core {
 
             $_SERVER['REQUEST_URI'] = '/protected-page/';
 
-            Functions\expect( 'wp_redirect' )
+            Functions\expect( 'wp_safe_redirect' )
                 ->once()
                 ->with( 'https://example.com/wp-login.php?redirect_to=' . urlencode( '/protected-page/' ) );
 
@@ -135,7 +135,7 @@ namespace EMS\Tests\Unit\Core {
             Functions\when( 'wp_get_current_user' )->justReturn( $user );
 
             // No exception should be thrown and no redirect should occur
-            Functions\expect( 'wp_redirect' )->never();
+            Functions\expect( 'wp_safe_redirect' )->never();
 
             $guard = new Access_Control_Guard();
             $guard->guard_request();
@@ -166,7 +166,7 @@ namespace EMS\Tests\Unit\Core {
 
             $_SERVER['REQUEST_URI'] = '/courses/dashboard/';
 
-            Functions\expect( 'wp_redirect' )
+            Functions\expect( 'wp_safe_redirect' )
                 ->once()
                 ->with( 'https://example.com/wp-login.php?redirect_to=' . urlencode( '/courses/dashboard/' ) );
 

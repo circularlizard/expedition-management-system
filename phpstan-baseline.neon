@@ -1,0 +1,66 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Parameter \\#1 \\$parent_slug of function add_submenu_page expects string, null given\\.$#"
+			count: 1
+			path: src/Admin/Admin_Page.php
+
+		-
+			message: "#^Constructor of class EMS\\\\Admin\\\\Expedition_Admin_Controller has an unused parameter \\$cpt_registry\\.$#"
+			count: 1
+			path: src/Admin/Expedition_Admin_Controller.php
+
+		-
+			message: "#^Constructor of class EMS\\\\Admin\\\\Expedition_Admin_Controller has an unused parameter \\$seasons\\.$#"
+			count: 1
+			path: src/Admin/Expedition_Admin_Controller.php
+
+		-
+			message: "#^Parameter \\#1 \\$text of function esc_attr expects string, int given\\.$#"
+			count: 7
+			path: src/Admin/Settings_Page.php
+
+		-
+			message: "#^Parameter \\#1 \\$text of function esc_attr expects string, int\\<1, max\\> given\\.$#"
+			count: 2
+			path: src/Admin/Settings_Page.php
+
+		-
+			message: "#^Parameter \\#1 \\$text of function esc_html expects string, int given\\.$#"
+			count: 2
+			path: src/Admin/Settings_Page.php
+
+		-
+			message: "#^Parameter \\#1 \\$parent_slug of function add_submenu_page expects string, null given\\.$#"
+			count: 1
+			path: src/Admin/Training_Report_Page.php
+
+		-
+			message: "#^Strict comparison using \\=\\=\\= between false and string will always evaluate to false\\.$#"
+			count: 1
+			path: src/Core/Encryption.php
+
+		-
+			message: "#^If condition is always true\\.$#"
+			count: 1
+			path: src/Core/Role_Manager.php
+
+		-
+			message: "#^Right side of && is always true\\.$#"
+			count: 3
+			path: src/Integrations/Drivers/Live_Driver.php
+
+		-
+			message: "#^Constructor of class EMS\\\\Integrations\\\\Fluent_Forms_Sync has an unused parameter \\$unit_repo\\.$#"
+			count: 1
+			path: src/Integrations/Fluent_Forms_Sync.php
+
+		-
+			message: "#^Variable \\$assigns in empty\\(\\) always exists and is not falsy\\.$#"
+			count: 1
+			path: src/Integrations/Pushback_Sync_Manager.php
+
+		-
+			message: "#^Variable \\$course_ids in empty\\(\\) always exists and is not falsy\\.$#"
+			count: 1
+			path: src/Integrations/TutorLMS_Client.php

@@ -5,11 +5,6 @@ class Settings_Page {
 
 	private const VALID_MODES = array( 'mock', 'live', 'live-auth-only', 'live-limited' );
 
-	private \EMS\Data\Unit_Repository $unit_leaders;
-
-	public function __construct( ?\EMS\Data\Unit_Repository $unit_leaders = null ) {
-		$this->unit_leaders = $unit_leaders ?: new \EMS\Data\Unit_Repository();
-	}
 
 	public function register(): void {
 		add_action( 'admin_init', array( $this, 'maybe_handle_export' ) );

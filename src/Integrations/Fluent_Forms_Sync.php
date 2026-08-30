@@ -6,7 +6,6 @@ use EMS\Data\Unit_Repository;
 
 class Fluent_Forms_Sync {
 	private Signup_Repository $signup_repo;
-	private Unit_Repository $unit_repo;
 	private object $wpdb;
 	private bool $parent_email_verified = false;
 	private bool $explorer_email_verified = false;
@@ -17,7 +16,6 @@ class Fluent_Forms_Sync {
 		}
 		$this->wpdb        = $wpdb;
 		$this->signup_repo = $signup_repo ?: new Signup_Repository( $wpdb );
-		$this->unit_repo   = $unit_repo ?: new Unit_Repository( $wpdb );
 	}
 
 	public function init_hooks(): void {

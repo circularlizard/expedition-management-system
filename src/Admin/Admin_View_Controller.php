@@ -351,7 +351,7 @@ class Admin_View_Controller {
 			$course_ids = array_map( 'intval', $course_ids );
 		}
 
-		$all_courses = $this->tutor_client->get_all_courses() ?? array();
+		$all_courses = $this->tutor_client->get_all_courses();
 		$courses     = array_map(
 			function ( $course ) {
 				return array(
