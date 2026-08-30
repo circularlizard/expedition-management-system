@@ -132,6 +132,12 @@ class Table_Installer {
 		$wpdb->query( "UPDATE {$wpdb->prefix}ems_participant_signups SET signup_status = 'submitted' WHERE signup_status IN ('received', 'allocated')" );
 		$wpdb->query( "UPDATE {$wpdb->prefix}ems_expedition_signups SET signup_status = 'submitted' WHERE signup_status = 'pending'" );
 
+		$units_table = $wpdb->prefix . 'ems_units';
+		if ( ! $this->column_exists( $wpdb, $units_table, 'created_at' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$units_table} ADD COLUMN created_at DATETIME NOT NULL AFTER leader_email" );
+		}
+
 		$this->migrate_season_deprecation( $wpdb );
 		$this->migrate_units_table( $wpdb );
 	}
@@ -327,6 +333,14 @@ class Table_Installer {
 		}
 
 		// 7. Drop obsolete columns from ems_units
+		// Drop unique key index first if it exists to allow column drops
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$index_exists = $wpdb->get_row( $wpdb->prepare( "SHOW INDEX FROM {$units_table} WHERE Key_name = %s", 'idx_patrol_section' ) );
+		if ( ! empty( $index_exists ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$units_table} DROP INDEX idx_patrol_section" );
+		}
+
 		$cols_to_drop = array( 'patrol_id', 'section_id', 'active', 'synced_at', 'leader_first_name', 'leader_last_name' );
 		foreach ( $cols_to_drop as $col ) {
 			if ( $this->column_exists( $wpdb, $units_table, $col ) ) {
@@ -338,6 +352,10 @@ class Table_Installer {
 				}
 			}
 		}
+
+		// Drop legacy table ems_unit_leaders if it exists
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}ems_unit_leaders" );
 	}
 
 	public function generate_sql( string $prefix = '', string $charset = '' ): array {
