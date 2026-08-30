@@ -32,7 +32,7 @@ class Table_InstallerTest extends EMSTestCase {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( 'wp_', '' );
 
-        $this->assertCount( 11, $sql );
+        $this->assertCount( 12, $sql );
 
         $all_sql = implode( ' ', $sql );
         $this->assertStringContainsString( 'ems_volunteers', $all_sql );
@@ -43,9 +43,24 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'ems_osm_events', $all_sql );
         $this->assertStringContainsString( 'ems_osm_event_attendance', $all_sql );
         $this->assertStringContainsString( 'ems_units', $all_sql );
+        $this->assertStringContainsString( 'ems_unit_patrols', $all_sql );
         $this->assertStringContainsString( 'ems_participant_signups', $all_sql );
         $this->assertStringContainsString( 'ems_expedition_signups', $all_sql );
         $this->assertStringContainsString( 'ems_audit_logs', $all_sql );
+
+        // Verify ems_units has refactored columns
+        $units_sql = null;
+        foreach ( $sql as $statement ) {
+            if ( strpos( $statement, 'ems_units (' ) !== false ) {
+                $units_sql = $statement;
+                break;
+            }
+        }
+        $this->assertNotNull( $units_sql );
+        $this->assertStringContainsString( 'district', $units_sql );
+        $this->assertStringContainsString( 'unit_id', $units_sql );
+        $this->assertStringNotContainsString( 'patrol_id', $units_sql );
+        $this->assertStringNotContainsString( 'leader_first_name', $units_sql );
 
         // Verify ems_volunteers statement contains constraints column
         $vol_sql = null;
@@ -83,6 +98,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertEquals( 'wp_ems_osm_events', $names['osm_events'] );
         $this->assertEquals( 'wp_ems_osm_event_attendance', $names['osm_event_attendance'] );
         $this->assertEquals( 'wp_ems_units', $names['units'] );
+        $this->assertEquals( 'wp_ems_unit_patrols', $names['unit_patrols'] );
         $this->assertEquals( 'wp_ems_participant_signups', $names['participant_signups'] );
         $this->assertEquals( 'wp_ems_expedition_signups', $names['expedition_signups'] );
     }

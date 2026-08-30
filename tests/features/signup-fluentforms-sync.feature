@@ -92,6 +92,23 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
       | explorer_last_name        | Guest                                                |
       | dofe_level                | bronze                                               |
 
+  Scenario: Explorer submits valid signup form with numeric unit ID
+    Given an explorer user is logged in with Scout ID 30001 named "Tom" "Strachan"
+    And ESU patrol mapping exists with short code "BO-Kelso" and unit ID 10
+    And form field mappings exist for form ID 4
+    When a form submission is inserted for form ID 4 with values:
+      | signup_child              | 30001                                                |
+      | signup_unit               | 10                                                   |
+      | signup_level              | Bronze                                               |
+      | exped_type                | Hillwalking                                          |
+    Then a signup record should be created in the database with:
+      | scout_id                  | 30001                                                |
+      | parent_user_id            | 1                                                    |
+      | unit_id                   | 10                                                   |
+      | explorer_first_name       | Tom                                                  |
+      | explorer_last_name        | Strachan                                             |
+      | dofe_level                | bronze                                               |
+
   Scenario: Stripe payment success updates signup record to paid
     Given a signup record exists in the database for submission entry ID 1234
     When a Stripe payment status updated hook is triggered for entry ID 1234 with status "paid"

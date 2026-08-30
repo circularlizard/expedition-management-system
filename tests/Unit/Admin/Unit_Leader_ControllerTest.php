@@ -28,7 +28,7 @@ class Unit_Leader_ControllerTest extends EMSTestCase {
 
     public function test_list_leaders(): void {
         $expected = [
-            [ 'id' => 1, 'patrol_id' => 101, 'name' => 'Orion', 'leader_first_name' => 'John', 'leader_last_name' => 'Doe', 'leader_email' => 'john.doe@example.com' ]
+            [ 'id' => 1, 'unit_id' => 12345, 'district' => 'Braid', 'name' => 'Orion ESU', 'short_code' => 'ORION', 'leader_email' => 'leader@example.com', 'matched_patrols' => [] ]
         ];
 
         $this->repository->shouldReceive( 'list_active_units' )->once()->andReturn( $expected );
@@ -43,11 +43,11 @@ class Unit_Leader_ControllerTest extends EMSTestCase {
 
     public function test_update_leader_success(): void {
         $params = [
-            'unit_id'           => 4200,
-            'short_code'        => 'ORION-ESU',
-            'leader_first_name' => 'Jane',
-            'leader_last_name'  => 'Smith',
-            'leader_email'      => 'jane.smith@example.com',
+            'unit_id'      => 4200,
+            'district'     => 'Braid',
+            'short_code'   => 'ORION-ESU',
+            'name'         => 'Orion ESU',
+            'leader_email' => 'jane.smith@example.com',
         ];
 
         $request = Mockery::mock( \WP_REST_Request::class );
@@ -69,6 +69,6 @@ class Unit_Leader_ControllerTest extends EMSTestCase {
 
         $this->assertInstanceOf( \WP_REST_Response::class, $response );
         $this->assertEquals( 200, $response->get_status() );
-        $this->assertEquals( 'Jane', $response->get_data()['leader_first_name'] );
+        $this->assertEquals( 'jane.smith@example.com', $response->get_data()['leader_email'] );
     }
 }

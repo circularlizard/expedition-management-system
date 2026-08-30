@@ -26,6 +26,7 @@ class Portability_Engine {
 		'ems_osm_events',
 		'ems_osm_event_attendance',
 		'ems_units',
+		'ems_unit_patrols',
 		'ems_signups',
 	);
 
@@ -112,26 +113,30 @@ class Portability_Engine {
 		return true;
 	}
 
-	/**
-	 * Exports only the EMS units lookup table contents as a JSON string.
-	 *
-	 * @return string The JSON encoded backup payload.
-	 */
 	public function export_units(): string {
 		global $wpdb;
 
-		$table = $wpdb->prefix . 'ems_units';
+		$units_table = $wpdb->prefix . 'ems_units';
+		$patrols_table = $wpdb->prefix . 'ems_unit_patrols';
+
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$rows = $wpdb->get_results( "SELECT * FROM {$table}", ARRAY_A );
-		if ( ! is_array( $rows ) ) {
-			$rows = array();
+		$units = $wpdb->get_results( "SELECT * FROM {$units_table}", ARRAY_A );
+		if ( ! is_array( $units ) ) {
+			$units = array();
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$patrols = $wpdb->get_results( "SELECT * FROM {$patrols_table}", ARRAY_A );
+		if ( ! is_array( $patrols ) ) {
+			$patrols = array();
 		}
 
 		$payload = array(
-			'type'        => 'ems_units_export',
-			'version'     => '0.1.x',
-			'exported_at' => current_time( 'mysql' ),
-			'units'       => $rows,
+			'type'         => 'ems_units_export',
+			'version'      => '0.1.x',
+			'exported_at'  => current_time( 'mysql' ),
+			'units'        => $units,
+			'unit_patrols' => $patrols,
 		);
 
 		return (string) wp_json_encode( $payload, JSON_PRETTY_PRINT );
@@ -152,15 +157,109 @@ class Portability_Engine {
 			throw new \Exception( 'Invalid units backup file structure.' );
 		}
 
-		$table = $wpdb->prefix . 'ems_units';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->query( "TRUNCATE TABLE {$table}" );
+		$units_table = $wpdb->prefix . 'ems_units';
+		$patrols_table = $wpdb->prefix . 'ems_unit_patrols';
 
-		$rows = $data['units'];
-		if ( ! empty( $rows ) ) {
-			foreach ( $rows as $row ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( "TRUNCATE TABLE {$units_table}" );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( "TRUNCATE TABLE {$patrols_table}" );
+
+		$units = $data['units'];
+
+		// Check if this is a legacy export (which had patrol_id in the units array)
+		$is_legacy = false;
+		if ( ! empty( $units ) && is_array( $units ) ) {
+			$first_row = reset( $units );
+			if ( isset( $first_row['patrol_id'] ) ) {
+				$is_legacy = true;
+			}
+		}
+
+		if ( $is_legacy ) {
+			// Migrate legacy units array
+			$master_units = array();
+			$patrol_mappings = array();
+			$next_generated_unit_id = 900000;
+
+			foreach ( $units as $row ) {
+				$patrol_id = isset( $row['patrol_id'] ) ? (int) $row['patrol_id'] : 0;
+				$section_id = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
+				$unit_id = ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null;
+
+				$has_unit_info = ! empty( $row['unit_id'] ) || ! empty( $row['short_code'] ) || ! empty( $row['leader_email'] );
+
+				if ( $patrol_id < 0 ) {
+					if ( ! $unit_id ) {
+						$unit_id = $next_generated_unit_id++;
+					}
+					$master_key = (string) $unit_id;
+					$master_units[ $master_key ] = array(
+						'unit_id'      => $unit_id,
+						'district'     => '',
+						'name'         => $row['name'] ?? '',
+						'short_code'   => $row['short_code'] ?: ( $row['name'] ?? '' ),
+						'leader_email' => $row['leader_email'] ?? '',
+						'created_at'   => $row['synced_at'] ?? current_time( 'mysql' ),
+						'updated_at'   => $row['updated_at'] ?? null,
+					);
+				} else {
+					if ( $has_unit_info ) {
+						if ( ! $unit_id ) {
+							$unit_id = $next_generated_unit_id++;
+						}
+						$master_key = (string) $unit_id;
+						if ( ! isset( $master_units[ $master_key ] ) ) {
+							$master_units[ $master_key ] = array(
+								'unit_id'      => $unit_id,
+								'district'     => '',
+								'name'         => $row['name'] ?? '',
+								'short_code'   => $row['short_code'] ?: ( $row['name'] ?? '' ),
+								'leader_email' => $row['leader_email'] ?? '',
+								'created_at'   => current_time( 'mysql' ),
+								'updated_at'   => $row['updated_at'] ?? null,
+							);
+						}
+					}
+
+					$patrol_mappings[] = array(
+						'unit_id'    => $unit_id,
+						'section_id' => $section_id,
+						'patrol_id'  => $patrol_id,
+						'name'       => $row['name'] ?? '',
+						'active'     => isset( $row['active'] ) ? (int) $row['active'] : 1,
+						'synced_at'  => $row['synced_at'] ?? current_time( 'mysql' ),
+					);
+				}
+			}
+
+			// Insert master units
+			foreach ( $master_units as $u ) {
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-				$wpdb->insert( $table, $row );
+				$wpdb->insert( $units_table, $u );
+			}
+
+			// Insert patrol mappings
+			foreach ( $patrol_mappings as $mapping ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+				$wpdb->insert( $patrols_table, $mapping );
+			}
+		} else {
+			// Modern import
+			if ( ! empty( $units ) ) {
+				foreach ( $units as $row ) {
+					unset( $row['patrol_id'], $row['section_id'], $row['active'], $row['synced_at'], $row['leader_first_name'], $row['leader_last_name'] );
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+					$wpdb->insert( $units_table, $row );
+				}
+			}
+
+			$patrols = $data['unit_patrols'] ?? array();
+			if ( ! empty( $patrols ) ) {
+				foreach ( $patrols as $row ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+					$wpdb->insert( $patrols_table, $row );
+				}
 			}
 		}
 
