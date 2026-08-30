@@ -235,6 +235,26 @@ class Fluent_Forms_Sync {
 			}
 		}
 
+		// Fallback: Check if any of the child's section_ids matches a unit_id directly in ems_units
+		if ( ! empty( $section_ids ) ) {
+			foreach ( $section_ids as $sec_id ) {
+				$unit = $this->wpdb->get_row(
+					$this->wpdb->prepare(
+						"SELECT short_code, unit_id, leader_email FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d LIMIT 1",
+						$sec_id
+					),
+					ARRAY_A
+				);
+				if ( ! empty( $unit ) ) {
+					return array(
+						'short_code'   => $unit['short_code'] ?: '',
+						'unit_id'      => (int) $unit['unit_id'],
+						'leader_email' => $unit['leader_email'] ?: '',
+					);
+				}
+			}
+		}
+
 		return array(
 			'short_code'   => '',
 			'unit_id'      => 0,
