@@ -133,6 +133,7 @@ class Table_Installer {
 		$wpdb->query( "UPDATE {$wpdb->prefix}ems_expedition_signups SET signup_status = 'submitted' WHERE signup_status = 'pending'" );
 
 		$this->migrate_season_deprecation( $wpdb );
+		$this->migrate_units_table( $wpdb );
 	}
 
 	private function column_exists( object $wpdb, string $table, string $column ): bool {
@@ -145,7 +146,7 @@ class Table_Installer {
 			)
 		);
 
-		return ! empty( $found );
+		return ! empty( $found ) && strtolower( (string) $found ) === strtolower( $column );
 	}
 
 	private function migrate_season_deprecation( object $wpdb ): void {
@@ -221,6 +222,122 @@ class Table_Installer {
 		}
 
 		update_option( 'ems_season_migration_done', 1 );
+	}
+
+	private function migrate_units_table( object $wpdb ): void {
+		$units_table = $wpdb->prefix . 'ems_units';
+		$patrols_table = $wpdb->prefix . 'ems_unit_patrols';
+
+		if ( ! $this->column_exists( $wpdb, $units_table, 'patrol_id' ) ) {
+			// Already migrated
+			return;
+		}
+
+		// 1. Fetch old rows
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$old_rows = $wpdb->get_results( "SELECT * FROM {$units_table}", ARRAY_A );
+
+		// 2. Separate into master units and patrol mappings
+		$master_units = array();
+		$patrol_mappings = array();
+		$next_generated_unit_id = 900000;
+
+		if ( ! empty( $old_rows ) && is_array( $old_rows ) ) {
+			foreach ( $old_rows as $row ) {
+				$patrol_id = isset( $row['patrol_id'] ) ? (int) $row['patrol_id'] : 0;
+				$section_id = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
+				$unit_id = ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null;
+
+				// Determine if this row contains unit information
+				$has_unit_info = ! empty( $row['unit_id'] ) || ! empty( $row['short_code'] ) || ! empty( $row['leader_email'] );
+
+				if ( $patrol_id < 0 ) {
+					// Custom manual unit
+					if ( ! $unit_id ) {
+						$unit_id = $next_generated_unit_id++;
+					}
+					$master_key = (string) $unit_id;
+					$master_units[ $master_key ] = array(
+						'unit_id'      => $unit_id,
+						'district'     => '',
+						'name'         => $row['name'] ?? '',
+						'short_code'   => $row['short_code'] ?: ( $row['name'] ?? '' ),
+						'leader_email' => $row['leader_email'] ?? '',
+						'created_at'   => $row['synced_at'] ?? current_time( 'mysql' ),
+						'updated_at'   => $row['updated_at'] ?? null,
+					);
+				} else {
+					// Synced patrol
+					if ( $has_unit_info ) {
+						if ( ! $unit_id ) {
+							$unit_id = $next_generated_unit_id++;
+						}
+						$master_key = (string) $unit_id;
+						if ( ! isset( $master_units[ $master_key ] ) ) {
+							$master_units[ $master_key ] = array(
+								'unit_id'      => $unit_id,
+								'district'     => '',
+								'name'         => $row['name'] ?? '',
+								'short_code'   => $row['short_code'] ?: ( $row['name'] ?? '' ),
+								'leader_email' => $row['leader_email'] ?? '',
+								'created_at'   => current_time( 'mysql' ),
+								'updated_at'   => $row['updated_at'] ?? null,
+							);
+						}
+					}
+
+					$patrol_mappings[] = array(
+						'unit_id'    => $unit_id,
+						'section_id' => $section_id,
+						'patrol_id'  => $patrol_id,
+						'name'       => $row['name'] ?? '',
+						'active'     => isset( $row['active'] ) ? (int) $row['active'] : 1,
+						'synced_at'  => $row['synced_at'] ?? current_time( 'mysql' ),
+					);
+				}
+			}
+		}
+
+		// 3. Truncate units table
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "TRUNCATE TABLE {$units_table}" );
+
+		// 4. Temporarily add the district column and make columns nullable/clean so schema alterations can be run safely
+		if ( ! $this->column_exists( $wpdb, $units_table, 'district' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$units_table} ADD COLUMN district VARCHAR(100) NOT NULL DEFAULT '' AFTER unit_id" );
+		}
+
+		// 5. Insert migrated master units
+		foreach ( $master_units as $unit ) {
+			$wpdb->insert(
+				$units_table,
+				$unit,
+				array( '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
+			);
+		}
+
+		// 6. Insert patrol mappings
+		foreach ( $patrol_mappings as $mapping ) {
+			$wpdb->insert(
+				$patrols_table,
+				$mapping,
+				array( '%d', '%d', '%d', '%s', '%d', '%s' )
+			);
+		}
+
+		// 7. Drop obsolete columns from ems_units
+		$cols_to_drop = array( 'patrol_id', 'section_id', 'active', 'synced_at', 'leader_first_name', 'leader_last_name' );
+		foreach ( $cols_to_drop as $col ) {
+			if ( $this->column_exists( $wpdb, $units_table, $col ) ) {
+				try {
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$wpdb->query( "ALTER TABLE {$units_table} DROP COLUMN {$col}" );
+				} catch ( \Exception $e ) {
+					error_log( "[EMS Migration] Failed to drop column {$col}: " . $e->getMessage() );
+				}
+			}
+		}
 	}
 
 	public function generate_sql( string $prefix = '', string $charset = '' ): array {
@@ -362,21 +479,31 @@ class Table_Installer {
 
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_units (
             id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            patrol_id         BIGINT          NOT NULL,
+            unit_id           BIGINT UNSIGNED          DEFAULT NULL,
+            district          VARCHAR(100)    NOT NULL DEFAULT '',
+            name              VARCHAR(100)    NOT NULL DEFAULT '',
+            short_code        VARCHAR(100)             DEFAULT NULL,
+            leader_email      VARCHAR(100)    NOT NULL DEFAULT '',
+            created_at        DATETIME        NOT NULL,
+            updated_at        DATETIME                 DEFAULT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_unit_id (unit_id),
+            UNIQUE KEY idx_short_code (short_code)
+        ) {$charset};";
+
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_patrols (
+            id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            unit_id           BIGINT UNSIGNED          DEFAULT NULL,
             section_id        BIGINT UNSIGNED NOT NULL,
+            patrol_id         BIGINT          NOT NULL,
             name              VARCHAR(100)    NOT NULL DEFAULT '',
             active            TINYINT(1)      NOT NULL DEFAULT 1,
             synced_at         DATETIME        NOT NULL,
-            unit_id           BIGINT UNSIGNED          DEFAULT NULL,
-            short_code        VARCHAR(100)    NOT NULL DEFAULT '',
-            leader_first_name VARCHAR(100)    NOT NULL DEFAULT '',
-            leader_last_name  VARCHAR(100)    NOT NULL DEFAULT '',
-            leader_email      VARCHAR(100)    NOT NULL DEFAULT '',
-            updated_at        DATETIME                 DEFAULT NULL,
             PRIMARY KEY (id),
             UNIQUE KEY idx_patrol_section (patrol_id, section_id),
             KEY idx_unit_id (unit_id)
         ) {$charset};";
+
 
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_participant_signups (
             id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -449,6 +576,7 @@ class Table_Installer {
 			'osm_events'             => $wpdb->prefix . 'ems_osm_events',
 			'osm_event_attendance'   => $wpdb->prefix . 'ems_osm_event_attendance',
 			'units'                  => $wpdb->prefix . 'ems_units',
+			'unit_patrols'           => $wpdb->prefix . 'ems_unit_patrols',
 			'participant_signups'    => $wpdb->prefix . 'ems_participant_signups',
 			'expedition_signups'     => $wpdb->prefix . 'ems_expedition_signups',
 			'audit_logs'             => $wpdb->prefix . 'ems_audit_logs',

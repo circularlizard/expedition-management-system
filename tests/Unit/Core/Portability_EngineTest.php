@@ -94,9 +94,23 @@ class Portability_EngineTest extends EMSTestCase {
 			->andReturn( [
 				[
 					'id' => 1,
-					'patrol_id' => 101,
+					'unit_id' => 10,
+					'district' => 'Braid',
+					'name' => 'Kelso ESU',
+					'short_code' => 'BO-Kelso',
+				]
+			] );
+
+		$this->wpdb->shouldReceive( 'get_results' )
+			->with( 'SELECT * FROM wp_ems_unit_patrols', ARRAY_A )
+			->once()
+			->andReturn( [
+				[
+					'id' => 1,
+					'unit_id' => 10,
 					'section_id' => 201,
-					'name' => 'Kestrels',
+					'patrol_id' => 101,
+					'name' => 'Kelso',
 					'active' => 1,
 				]
 			] );
@@ -112,12 +126,22 @@ class Portability_EngineTest extends EMSTestCase {
 		$this->assertSame( [
 			[
 				'id' => 1,
-				'patrol_id' => 101,
-				'section_id' => 201,
-				'name' => 'Kestrels',
-				'active' => 1,
+				'unit_id' => 10,
+				'district' => 'Braid',
+				'name' => 'Kelso ESU',
+				'short_code' => 'BO-Kelso',
 			]
 		], $data['units'] );
+		$this->assertSame( [
+			[
+				'id' => 1,
+				'unit_id' => 10,
+				'section_id' => 201,
+				'patrol_id' => 101,
+				'name' => 'Kelso',
+				'active' => 1,
+			]
+		], $data['unit_patrols'] );
 	}
 
 	public function test_import_units_restores_only_ems_units(): void {
@@ -127,9 +151,19 @@ class Portability_EngineTest extends EMSTestCase {
 			'units'   => array(
 				array(
 					'id'        => 5,
-					'patrol_id' => 500,
-					'section_id'=> 600,
-					'name'      => 'Falcons',
+					'unit_id'   => 10,
+					'district'  => 'Braid',
+					'name'      => 'Kelso ESU',
+					'short_code'=> 'BO-Kelso',
+				)
+			),
+			'unit_patrols' => array(
+				array(
+					'id'        => 1,
+					'unit_id'   => 10,
+					'section_id'=> 201,
+					'patrol_id' => 101,
+					'name'      => 'Kelso',
 					'active'    => 1,
 				)
 			)
@@ -141,12 +175,29 @@ class Portability_EngineTest extends EMSTestCase {
 			->once()
 			->andReturn( true );
 
+		$this->wpdb->shouldReceive( 'query' )
+			->with( 'TRUNCATE TABLE wp_ems_unit_patrols' )
+			->once()
+			->andReturn( true );
+
 		$this->wpdb->shouldReceive( 'insert' )
 			->with( 'wp_ems_units', [
 				'id'        => 5,
-				'patrol_id' => 500,
-				'section_id'=> 600,
-				'name'      => 'Falcons',
+				'unit_id'   => 10,
+				'district'  => 'Braid',
+				'name'      => 'Kelso ESU',
+				'short_code'=> 'BO-Kelso',
+			] )
+			->once()
+			->andReturn( true );
+
+		$this->wpdb->shouldReceive( 'insert' )
+			->with( 'wp_ems_unit_patrols', [
+				'id'        => 1,
+				'unit_id'   => 10,
+				'section_id'=> 201,
+				'patrol_id' => 101,
+				'name'      => 'Kelso',
 				'active'    => 1,
 			] )
 			->once()

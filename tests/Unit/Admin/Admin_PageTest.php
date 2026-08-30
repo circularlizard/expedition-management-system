@@ -167,11 +167,10 @@ class Admin_PageTest extends EMSTestCase {
 	public function test_save_unit_leaders_saves_mappings(): void {
 		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
 		$repo->shouldReceive( 'update_custom_mappings' )->with( 12, [
-			'unit_id'           => 4200,
-			'short_code'        => 'ORION-ESU',
-			'leader_first_name' => 'John',
-			'leader_last_name'  => 'Doe',
-			'leader_email'      => 'john.doe@example.com',
+			'unit_id'      => 4200,
+			'district'     => 'Braid',
+			'short_code'   => 'ORION-ESU',
+			'leader_email' => 'john.doe@example.com',
 		] )->once()->andReturn( true );
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
@@ -183,9 +182,8 @@ class Admin_PageTest extends EMSTestCase {
 			'unit_leaders' => [
 				12 => [
 					'unit_id'    => 4200,
+					'district'   => 'Braid',
 					'short_code' => 'ORION-ESU',
-					'first_name' => 'John',
-					'last_name'  => 'Doe',
 					'email'      => 'john.doe@example.com',
 				]
 			]
@@ -254,7 +252,9 @@ class Admin_PageTest extends EMSTestCase {
 		$wpdb = Mockery::mock( 'wpdb' );
 		$wpdb->prefix = 'wp_';
 		$wpdb->shouldReceive( 'query' )->with( 'TRUNCATE TABLE wp_ems_units' )->once()->andReturn( true );
-		$wpdb->shouldReceive( 'insert' )->with( 'wp_ems_units', $backup_data['units'][0] )->once()->andReturn( true );
+		$wpdb->shouldReceive( 'query' )->with( 'TRUNCATE TABLE wp_ems_unit_patrols' )->once()->andReturn( true );
+		$wpdb->shouldReceive( 'insert' )->with( 'wp_ems_units', Mockery::any() )->andReturn( true );
+		$wpdb->shouldReceive( 'insert' )->with( 'wp_ems_unit_patrols', Mockery::any() )->andReturn( true );
 		$GLOBALS['wpdb'] = $wpdb;
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
@@ -291,22 +291,20 @@ class Admin_PageTest extends EMSTestCase {
 		Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
 
 		$_POST['custom_unit_name'] = 'Orion ESU';
+		$_POST['custom_unit_district'] = 'Braid';
 		$_POST['custom_unit_short_code'] = 'ORION';
 		$_POST['custom_unit_id'] = '12345';
-		$_POST['custom_unit_first_name'] = 'John';
-		$_POST['custom_unit_last_name'] = 'Doe';
 		$_POST['custom_unit_email'] = 'john.doe@example.com';
 
 		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
 		$repo->shouldReceive( 'add_custom_unit' )
 			->once()
 			->with( [
-				'name'              => 'Orion ESU',
-				'short_code'        => 'ORION',
-				'unit_id'           => 12345,
-				'leader_first_name' => 'John',
-				'leader_last_name'  => 'Doe',
-				'leader_email'      => 'john.doe@example.com',
+				'name'         => 'Orion ESU',
+				'district'     => 'Braid',
+				'short_code'   => 'ORION',
+				'unit_id'      => 12345,
+				'leader_email' => 'john.doe@example.com',
 			] )
 			->andReturn( 99 );
 
@@ -326,10 +324,9 @@ class Admin_PageTest extends EMSTestCase {
 		$this->assertStringContainsString( 'Custom unit created successfully.', $output );
 
 		unset( $_POST['custom_unit_name'] );
+		unset( $_POST['custom_unit_district'] );
 		unset( $_POST['custom_unit_short_code'] );
 		unset( $_POST['custom_unit_id'] );
-		unset( $_POST['custom_unit_first_name'] );
-		unset( $_POST['custom_unit_last_name'] );
 		unset( $_POST['custom_unit_email'] );
 	}
 
