@@ -73,8 +73,8 @@ class Audit_Log_ControllerTest extends EMSTestCase {
         $this->assertSame( 'team_member_add', $data[0]['action'] );
 
         $headers = $response->get_headers();
-        $this->assertSame( 125, $headers['X-WP-Total'] );
-        $this->assertSame( 13, $headers['X-WP-TotalPages'] );
+        $this->assertSame( '125', $headers['X-WP-Total'] );
+        $this->assertSame( '13', $headers['X-WP-TotalPages'] );
     }
 
     public function test_get_audit_logs_applies_filters_correctly(): void {

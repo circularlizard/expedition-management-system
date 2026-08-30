@@ -65,7 +65,7 @@ class OSM_Reference_Page {
 				$pemail   = get_user_meta( $user->ID, 'ems_parent_email', true );
 
 				echo '<tr>';
-				echo '<td>' . esc_html( $scout_id ) . '</td>';
+				echo '<td>' . esc_html( (string) $scout_id ) . '</td>';
 				echo '<td>' . esc_html( $first . ' ' . $last ) . '</td>';
 				echo '<td>' . esc_html( $unit ?: '—' ) . '</td>';
 				echo '<td>' . esc_html( $email ?: '—' ) . '</td>';

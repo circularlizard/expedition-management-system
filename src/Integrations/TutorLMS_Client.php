@@ -27,7 +27,7 @@ class TutorLMS_Client {
 
 		$students = array();
 		foreach ( $enrollments as $enrollment ) {
-			$user = get_userdata( $enrollment->post_author );
+			$user = get_userdata( (int) $enrollment->post_author );
 			if ( $user ) {
 				$students[] = $user;
 			}
@@ -368,9 +368,9 @@ class TutorLMS_Client {
 				$quizzes     = $course_quizzes[ $cid ] ?? array();
 				$assignments = $course_assignments[ $cid ] ?? array();
 				$total       = count( $lessons ) + count( $quizzes ) + count( $assignments );
+				$done        = 0;
 
 				if ( $total > 0 ) {
-					$done = 0;
 					foreach ( $lessons as $lid ) {
 						if ( isset( $lesson_done[ $uid ][ $lid ] ) ) {
 							++$done;

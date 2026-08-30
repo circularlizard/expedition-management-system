@@ -91,8 +91,8 @@ class Audit_Log_Controller {
 		$items = $wpdb->get_results( $results_query, ARRAY_A ) ?: array();
 
 		$response = new \WP_REST_Response( $items, 200 );
-		$response->header( 'X-WP-Total', $total_items );
-		$response->header( 'X-WP-TotalPages', (int) ceil( $total_items / $per_page ) );
+		$response->header( 'X-WP-Total', (string) $total_items );
+		$response->header( 'X-WP-TotalPages', (string) (int) ceil( $total_items / $per_page ) );
 
 		return $response;
 	}
