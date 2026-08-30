@@ -1055,41 +1055,35 @@ class Admin_Page {
 		?>
 		<style>
 			.ems-unit-leaders-table-container {
-				max-height: calc(100vh - 220px);
-				overflow-y: auto;
-				border: 1px solid #ccd0d4;
 				margin-top: 15px;
-			}
-			.ems-unit-leaders-table-container table {
-				margin-top: 0 !important;
-				border: none !important;
-			}
-			.ems-unit-leaders-table-container thead th {
-				position: sticky;
-				top: 0;
-				background: #f6f7f7;
-				box-shadow: inset 0 -1px 0 #ccd0d4;
-				z-index: 2;
+				margin-bottom: 20px;
 			}
 			.ems-unit-leaders-table-container input[type="text"],
 			.ems-unit-leaders-table-container input[type="email"],
 			.ems-unit-leaders-table-container input[type="number"] {
 				width: 100%;
-				max-width: 100%;
 				box-sizing: border-box;
+				padding: 5px 8px;
+				margin: 0;
+				height: auto;
+				min-height: 0;
+			}
+			.ems-unit-leaders-table-container td {
+				padding: 8px 10px !important;
+				vertical-align: middle !important;
 			}
 		</style>
 		<form method="post">
 			<?php wp_nonce_field( 'ems_settings_unit_leaders' ); ?>
 			<div class="ems-unit-leaders-table-container">
-				<table class="ems-table">
+				<table class="wp-list-table widefat striped">
 					<thead>
 						<tr>
-							<th style="width: 12%;"><?php esc_html_e( 'District', 'ems-plugin' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
-							<th style="width: 10%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
+							<th style="width: 8%;"><?php esc_html_e( 'District', 'ems-plugin' ); ?></th>
+							<th style="width: 20%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
+							<th style="width: 8%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
 							<th style="width: 12%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
-							<th style="width: 20%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+							<th style="width: 25%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
 							<th><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
 							<th style="width: 8%;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
 						</tr>

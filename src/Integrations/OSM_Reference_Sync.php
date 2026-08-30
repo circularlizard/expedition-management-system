@@ -47,11 +47,25 @@ class OSM_Reference_Sync {
 		$terms = $this->parser->parse_terms( $payload );
 
 		$managed_sections = (array) get_option( 'ems_managed_sections', array() );
+		$available_sections = $this->parser->parse_section_names( $payload );
+		$updated_managed_sections = $managed_sections;
+		$dirty = false;
 
 		try {
 			foreach ( $section_ids as $section_id ) {
 				$section_id   = (int) $section_id;
-				$section_type = (string) ( $managed_sections[ $section_id ]['type'] ?? 'explorers' );
+
+				if ( ! isset( $updated_managed_sections[ $section_id ] ) ) {
+					$name = $available_sections[ $section_id ]['name'] ?? "Section #{$section_id}";
+					$type = $available_sections[ $section_id ]['type'] ?? 'explorers';
+					$updated_managed_sections[ $section_id ] = array(
+						'name' => $name,
+						'type' => $type,
+					);
+					$dirty = true;
+				}
+
+				$section_type = (string) ( $updated_managed_sections[ $section_id ]['type'] ?? 'explorers' );
 				$term         = $this->parser->find_current_term( $terms, $section_id );
 
 				if ( $term === null ) {
@@ -112,6 +126,10 @@ class OSM_Reference_Sync {
 
 		if ( $logger ) {
 			$logger->persist();
+		}
+
+		if ( $dirty ) {
+			update_option( 'ems_managed_sections', $updated_managed_sections );
 		}
 
 		set_transient( 'ems_last_sync_result', $result->to_array(), DAY_IN_SECONDS );
