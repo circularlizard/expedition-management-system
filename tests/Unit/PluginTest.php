@@ -167,4 +167,73 @@ class PluginTest extends EMSTestCase {
         $plugin = new Plugin();
         $this->assertTrue( $plugin->is_logged_in_parent_or_network() );
     }
+
+    public function test_restrict_signup_page_access_does_nothing_if_logged_out(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
+        Functions\expect( 'get_post' )->never();
+
+        $plugin = new Plugin();
+        $plugin->restrict_signup_page_access();
+        $this->assertTrue( true );
+    }
+
+    public function test_restrict_signup_page_access_does_nothing_if_not_signup_page(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        
+        $post = new \stdClass();
+        $post->post_content = 'Some normal page content';
+        Functions\when( 'get_post' )->justReturn( $post );
+        Functions\when( 'has_shortcode' )->justReturn( false );
+
+        $plugin = new Plugin();
+
+        // Should not add filter
+        Functions\expect( 'add_filter' )->never();
+
+        $plugin->restrict_signup_page_access();
+        $this->assertTrue( true );
+    }
+
+    public function test_restrict_signup_page_access_allows_parent_on_signup_page(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'ems_parent' ];
+        Functions\when( 'wp_get_current_user' )->justReturn( $user );
+
+        $post = new \stdClass();
+        $post->post_content = '[ems_signup_banner]';
+        Functions\when( 'get_post' )->justReturn( $post );
+        Functions\when( 'has_shortcode' )->justReturn( true );
+
+        $plugin = new Plugin();
+
+        // Should not add filter
+        Functions\expect( 'add_filter' )->never();
+
+        $plugin->restrict_signup_page_access();
+        $this->assertTrue( true );
+    }
+
+    public function test_restrict_signup_page_access_hooks_content_rejection_for_explorer(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        
+        $user = \Mockery::mock( \WP_User::class );
+        $user->roles = [ 'ems_explorer' ];
+        Functions\when( 'wp_get_current_user' )->justReturn( $user );
+
+        $post = new \stdClass();
+        $post->post_content = '[ems_signup_banner]';
+        Functions\when( 'get_post' )->justReturn( $post );
+        Functions\when( 'has_shortcode' )->justReturn( true );
+
+        $plugin = new Plugin();
+
+        Functions\expect( 'add_filter' )
+            ->once()
+            ->with( 'the_content', \Mockery::any(), 999 );
+
+        $plugin->restrict_signup_page_access();
+        $this->assertTrue( true );
+    }
 }
