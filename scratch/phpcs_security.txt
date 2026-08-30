@@ -1,0 +1,864 @@
+
+FILE: ...an/Projects/expedition-management-system/src/Core/Access_Control_Guard.php
+--------------------------------------------------------------------------------
+FOUND 1 ERROR AND 1 WARNING AFFECTING 2 LINES
+--------------------------------------------------------------------------------
+ 40 | ERROR   | $_SERVER['REQUEST_URI'] not unslashed before sanitization. Use
+    |         | wp_unslash() or similar
+ 41 | WARNING | wp_redirect() found. Using wp_safe_redirect(), along with the
+    |         | "allowed_redirect_hosts" filter if needed, can help avoid any
+    |         | chances of malicious redirects within code. It is also
+    |         | important to remember to call exit() after a redirect so that
+    |         | no other unwanted code is executed.
+--------------------------------------------------------------------------------
+
+
+FILE: ...vidstrachan/Projects/expedition-management-system/src/Core/Log_Rotator.php
+--------------------------------------------------------------------------------
+FOUND 5 ERRORS AFFECTING 3 LINES
+--------------------------------------------------------------------------------
+ 23 | ERROR | Use placeholders and $wpdb->prepare(); found self
+ 23 | ERROR | Use placeholders and $wpdb->prepare(); found RETENTION_DAYS
+ 32 | ERROR | Use placeholders and $wpdb->prepare(); found self
+ 32 | ERROR | Use placeholders and $wpdb->prepare(); found MAX_ROWS
+ 38 | ERROR | Use placeholders and $wpdb->prepare(); found $delete_sql
+--------------------------------------------------------------------------------
+
+
+FILE: ...trachan/Projects/expedition-management-system/src/Core/Table_Installer.php
+--------------------------------------------------------------------------------
+FOUND 2 ERRORS AFFECTING 2 LINES
+--------------------------------------------------------------------------------
+ 173 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$placeholders} at "DELETE FROM {$wpdb->postmeta} WHERE
+     |       | post_id IN ({$placeholders})"
+ 180 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$placeholders} at "DELETE FROM {$wpdb->posts} WHERE ID
+     |       | IN ({$placeholders})"
+--------------------------------------------------------------------------------
+
+
+FILE: ...idstrachan/Projects/expedition-management-system/src/Core/Audit_Logger.php
+--------------------------------------------------------------------------------
+FOUND 4 ERRORS AFFECTING 2 LINES
+--------------------------------------------------------------------------------
+ 27 | ERROR | $_SERVER['HTTP_X_FORWARDED_FOR'] not unslashed before
+    |       | sanitization. Use wp_unslash() or similar
+ 27 | ERROR | Detected usage of a non-sanitized input variable:
+    |       | $_SERVER['HTTP_X_FORWARDED_FOR']
+ 33 | ERROR | $_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use
+    |       | wp_unslash() or similar
+ 33 | ERROR | Detected usage of a non-sanitized input variable:
+    |       | $_SERVER['REMOTE_ADDR']
+--------------------------------------------------------------------------------
+
+
+FILE: /Users/davidstrachan/Projects/expedition-management-system/src/Plugin.php
+-------------------------------------------------------------------------------
+FOUND 0 ERRORS AND 3 WARNINGS AFFECTING 1 LINE
+-------------------------------------------------------------------------------
+ 846 | WARNING | Processing form data without nonce verification.
+ 846 | WARNING | Processing form data without nonce verification.
+ 846 | WARNING | Processing form data without nonce verification.
+-------------------------------------------------------------------------------
+
+
+FILE: .../Projects/expedition-management-system/src/Admin/Admin_View_Controller.php
+--------------------------------------------------------------------------------
+FOUND 7 ERRORS AFFECTING 7 LINES
+--------------------------------------------------------------------------------
+ 148 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$explorers_table} at "SELECT * FROM
+     |       | {$explorers_table}"
+ 184 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE scout_id =
+     |       | %d"
+ 227 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$explorers_table} at "SELECT * FROM {$explorers_table}
+     |       | WHERE wp_user_id = %d"
+ 272 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE patrol = %s
+     |       | ORDER BY last_name, first_name"
+ 305 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE wp_user_id =
+     |       | %d"
+ 392 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$explorers_table} at                  FROM
+     |       | {$explorers_table} e
+     |       | 
+ 394 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$ids_placeholder} at                  WHERE e.scout_id
+     |       | IN ({$ids_placeholder})"
+--------------------------------------------------------------------------------
+
+
+FILE: ...achan/Projects/expedition-management-system/src/Admin/Diagnostic_Panel.php
+--------------------------------------------------------------------------------
+FOUND 3 ERRORS AFFECTING 3 LINES
+--------------------------------------------------------------------------------
+ 26 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$explorers_table} at "SELECT COUNT(*) FROM
+    |       | {$explorers_table}"
+ 27 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$events_table} at "SELECT COUNT(*) FROM
+    |       | {$events_table}"
+ 28 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$attendance_table} at "SELECT COUNT(*) FROM
+    |       | {$attendance_table}"
+--------------------------------------------------------------------------------
+
+
+FILE: .../Projects/expedition-management-system/src/Admin/OSM_Sync_Auth_Handler.php
+--------------------------------------------------------------------------------
+FOUND 4 ERRORS AFFECTING 2 LINES
+--------------------------------------------------------------------------------
+  74 | ERROR | $_GET['state'] not unslashed before sanitization. Use
+     |       | wp_unslash() or similar
+  74 | ERROR | Detected usage of a non-sanitized input variable: $_GET['state']
+ 104 | ERROR | $_GET['code'] not unslashed before sanitization. Use
+     |       | wp_unslash() or similar
+ 104 | ERROR | Detected usage of a non-sanitized input variable: $_GET['code']
+--------------------------------------------------------------------------------
+
+
+FILE: ...strachan/Projects/expedition-management-system/src/Admin/Settings_Page.php
+--------------------------------------------------------------------------------
+FOUND 4 ERRORS AND 20 WARNINGS AFFECTING 16 LINES
+--------------------------------------------------------------------------------
+ 182 | WARNING | Processing form data without nonce verification.
+ 185 | WARNING | Processing form data without nonce verification.
+ 186 | WARNING | Processing form data without nonce verification.
+ 186 | WARNING | Processing form data without nonce verification.
+ 187 | WARNING | Processing form data without nonce verification.
+ 187 | WARNING | Processing form data without nonce verification.
+ 190 | WARNING | Processing form data without nonce verification.
+ 191 | WARNING | Processing form data without nonce verification.
+ 547 | WARNING | Processing form data without nonce verification.
+ 547 | WARNING | Processing form data without nonce verification.
+ 548 | WARNING | Processing form data without nonce verification.
+ 548 | WARNING | Processing form data without nonce verification.
+ 549 | WARNING | Processing form data without nonce verification.
+ 549 | WARNING | Processing form data without nonce verification.
+ 550 | WARNING | Processing form data without nonce verification.
+ 550 | WARNING | Processing form data without nonce verification.
+ 551 | WARNING | Processing form data without nonce verification.
+ 551 | WARNING | Processing form data without nonce verification.
+ 553 | WARNING | Processing form data without nonce verification.
+ 553 | WARNING | Processing form data without nonce verification.
+ 586 | ERROR   | Use placeholders and $wpdb->prepare(); found $count_sql
+ 594 | ERROR   | Use placeholders and $wpdb->prepare(); found $results_sql
+ 814 | ERROR   | Processing form data without nonce verification.
+ 820 | ERROR   | Processing form data without nonce verification.
+--------------------------------------------------------------------------------
+
+
+FILE: ...vidstrachan/Projects/expedition-management-system/src/Admin/Admin_Page.php
+--------------------------------------------------------------------------------
+FOUND 17 ERRORS AND 10 WARNINGS AFFECTING 17 LINES
+--------------------------------------------------------------------------------
+ 233 | WARNING | Processing form data without nonce verification.
+ 233 | WARNING | Processing form data without nonce verification.
+ 373 | ERROR   | Use placeholders and $wpdb->prepare(); found interpolated
+     |         | variable {$table} at "SELECT patrol, COUNT(*) AS member_count
+     |         | FROM {$table} GROUP BY patrol ORDER BY patrol"
+ 403 | ERROR   | Use placeholders and $wpdb->prepare(); found interpolated
+     |         | variable {$events_table} at              FROM {$events_table}
+     |         | e
+     |         | 
+ 404 | ERROR   | Use placeholders and $wpdb->prepare(); found interpolated
+     |         | variable {$attendance_table} at              LEFT JOIN
+     |         | {$attendance_table} a ON a.event_id = e.event_id
+     |         | 
+ 448 | WARNING | Processing form data without nonce verification.
+ 449 | WARNING | Processing form data without nonce verification.
+ 451 | WARNING | Processing form data without nonce verification.
+ 452 | WARNING | Processing form data without nonce verification.
+ 452 | ERROR   | $_GET['error_msg'] not unslashed before sanitization. Use
+     |         | wp_unslash() or similar
+ 452 | ERROR   | Detected usage of a non-sanitized input variable:
+     |         | $_GET['error_msg']
+ 457 | WARNING | Processing form data without nonce verification.
+ 457 | WARNING | Processing form data without nonce verification.
+ 461 | WARNING | Processing form data without nonce verification.
+ 846 | ERROR   | $_POST['custom_unit_name'] not unslashed before sanitization.
+     |         | Use wp_unslash() or similar
+ 846 | ERROR   | Processing form data without nonce verification.
+ 847 | ERROR   | $_POST['custom_unit_short_code'] not unslashed before
+     |         | sanitization. Use wp_unslash() or similar
+ 847 | ERROR   | Processing form data without nonce verification.
+ 848 | ERROR   | Processing form data without nonce verification.
+ 848 | ERROR   | Processing form data without nonce verification.
+ 849 | ERROR   | $_POST['custom_unit_email'] not unslashed before sanitization.
+     |         | Use wp_unslash() or similar
+ 849 | ERROR   | Processing form data without nonce verification.
+ 850 | ERROR   | $_POST['custom_unit_first_name'] not unslashed before
+     |         | sanitization. Use wp_unslash() or similar
+ 850 | ERROR   | Processing form data without nonce verification.
+ 851 | ERROR   | $_POST['custom_unit_last_name'] not unslashed before
+     |         | sanitization. Use wp_unslash() or similar
+ 851 | ERROR   | Processing form data without nonce verification.
+ 942 | WARNING | Processing form data without nonce verification.
+--------------------------------------------------------------------------------
+
+
+FILE: ...cts/expedition-management-system/src/Admin/Expedition_Admin_Controller.php
+--------------------------------------------------------------------------------
+FOUND 9 ERRORS AFFECTING 7 LINES
+--------------------------------------------------------------------------------
+ 1399 | ERROR | $_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use
+      |       | wp_unslash() or similar
+ 1399 | ERROR | Detected usage of a non-sanitized input variable:
+      |       | $_SERVER['REMOTE_ADDR']
+ 1400 | ERROR | $_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization.
+      |       | Use wp_unslash() or similar
+ 1400 | ERROR | Detected usage of a non-sanitized input variable:
+      |       | $_SERVER['HTTP_USER_AGENT']
+ 1746 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable {$table} at "SELECT team_post_id FROM {$table} WHERE
+      |       | scout_id = %d"
+ 1832 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable $placeholders at                          WHERE
+      |       | tm.team_post_id IN ($placeholders)"
+ 1851 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable $missing_placeholders at "SELECT * FROM
+      |       | {$wpdb->prefix}ems_osm_explorers WHERE scout_id IN
+      |       | ($missing_placeholders)"
+ 1954 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable {$table} at "SELECT team_post_id FROM {$table} WHERE
+      |       | scout_id = %d"
+ 2020 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable $placeholders at "SELECT id FROM
+      |       | {$wpdb->prefix}ems_team_members WHERE team_post_id IN
+      |       | ($placeholders) AND scout_id = %d LIMIT 1"
+--------------------------------------------------------------------------------
+
+
+FILE: ...n/Projects/expedition-management-system/src/Admin/Training_Report_Page.php
+--------------------------------------------------------------------------------
+FOUND 0 ERRORS AND 2 WARNINGS AFFECTING 1 LINE
+--------------------------------------------------------------------------------
+ 50 | WARNING | Processing form data without nonce verification.
+ 50 | WARNING | Processing form data without nonce verification.
+--------------------------------------------------------------------------------
+
+
+FILE: ...n/Projects/expedition-management-system/src/Admin/Audit_Log_Controller.php
+--------------------------------------------------------------------------------
+FOUND 2 ERRORS AFFECTING 2 LINES
+--------------------------------------------------------------------------------
+ 77 | ERROR | Use placeholders and $wpdb->prepare(); found $count_query
+ 85 | ERROR | Use placeholders and $wpdb->prepare(); found $results_query
+--------------------------------------------------------------------------------
+
+
+FILE: ...n/Projects/expedition-management-system/src/Admin/Volunteer_Controller.php
+--------------------------------------------------------------------------------
+FOUND 1 ERROR AFFECTING 1 LINE
+--------------------------------------------------------------------------------
+ 153 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT id FROM {$table} WHERE volunteer_id
+     |       | = %d AND expedition_post_id = %d"
+--------------------------------------------------------------------------------
+
+
+FILE: ...jects/expedition-management-system/src/Integrations/OSM_Reference_Sync.php
+--------------------------------------------------------------------------------
+FOUND 6 ERRORS AFFECTING 4 LINES
+--------------------------------------------------------------------------------
+ 168 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT COUNT(*) FROM {$table} WHERE
+     |       | scout_id = %d"
+ 301 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE section_id IN
+     |       | ({$placeholders})"
+ 301 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$placeholders} at "SELECT * FROM {$table} WHERE
+     |       | section_id IN ({$placeholders})"
+ 323 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE section_id IN
+     |       | ({$placeholders})"
+ 323 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$placeholders} at "SELECT * FROM {$table} WHERE
+     |       | section_id IN ({$placeholders})"
+ 337 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE event_id =
+     |       | %d"
+--------------------------------------------------------------------------------
+
+
+FILE: ...ts/expedition-management-system/src/Integrations/Pushback_Sync_Manager.php
+--------------------------------------------------------------------------------
+FOUND 13 ERRORS AFFECTING 13 LINES
+--------------------------------------------------------------------------------
+ 100 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$posts} at                     FROM {$posts} t
+     |       | 
+ 101 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$posts} at                     JOIN {$posts} exp ON
+     |       | exp.ID = t.post_parent
+     |       | 
+ 102 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$postmeta} at                     JOIN {$postmeta}
+     |       | m_event ON m_event.post_id = exp.ID AND m_event.meta_key =
+     |       | 'ems_osm_event_id'
+     |       | 
+ 123 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$t_members} at                     FROM {$t_members}
+     |       | tm
+     |       | 
+ 124 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$t_explorers} at                     JOIN
+     |       | {$t_explorers} e ON e.scout_id = tm.scout_id
+     |       | 
+ 125 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$posts} at                     JOIN {$posts} t ON t.ID
+     |       | = tm.team_post_id
+     |       | 
+ 126 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$posts} at                     JOIN {$posts} exp ON
+     |       | exp.ID = t.post_parent
+     |       | 
+ 127 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$postmeta} at                     LEFT JOIN
+     |       | {$postmeta} m_code ON m_code.post_id = t.ID AND m_code.meta_key
+     |       | = 'ems_team_code'
+     |       | 
+ 128 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$postmeta} at                     LEFT JOIN
+     |       | {$postmeta} m_event ON m_event.post_id = exp.ID AND
+     |       | m_event.meta_key = 'ems_osm_event_id'
+     |       | 
+ 129 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$postmeta} at                     LEFT JOIN
+     |       | {$postmeta} m_type ON m_type.post_id = exp.ID AND
+     |       | m_type.meta_key = 'ems_type'
+     |       | 
+ 130 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$postmeta} at                     LEFT JOIN
+     |       | {$postmeta} m_date ON m_date.post_id = exp.ID AND
+     |       | m_date.meta_key = 'ems_start_date'
+     |       | 
+ 131 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$postmeta} at                     LEFT JOIN
+     |       | {$postmeta} m_event_code ON m_event_code.post_id = exp.ID AND
+     |       | m_event_code.meta_key = 'ems_event_code'
+     |       | 
+ 132 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$in_clause} at                     WHERE
+     |       | tm.team_post_id IN ({$in_clause}) AND t.post_type = 'team' AND
+     |       | t.post_status = 'publish'"
+--------------------------------------------------------------------------------
+
+
+FILE: ...ojects/expedition-management-system/src/Integrations/Fluent_Forms_Sync.php
+--------------------------------------------------------------------------------
+FOUND 34 ERRORS AFFECTING 21 LINES
+--------------------------------------------------------------------------------
+   84 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+   84 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+   84 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+   85 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable {$this->wpdb->prefix} at "SELECT first_name, last_name
+      |       | FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id =
+      |       | %d"
+   86 | ERROR | Use placeholders and $wpdb->prepare(); found $scout_id
+  137 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  137 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  137 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  138 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable {$this->wpdb->prefix} at "SELECT short_code, unit_id,
+      |       | leader_email FROM {$this->wpdb->prefix}ems_units WHERE unit_id
+      |       | = %d AND active = 1 LIMIT 1"
+  139 | ERROR | Use placeholders and $wpdb->prepare(); found $sec_id
+  192 | ERROR | $_POST[$scout_field] not unslashed before sanitization. Use
+      |       | wp_unslash() or similar
+  192 | ERROR | Detected usage of a non-sanitized input variable:
+      |       | $_POST[$scout_field]
+  192 | ERROR | Processing form data without nonce verification.
+  193 | ERROR | $_POST[$level_field] not unslashed before sanitization. Use
+      |       | wp_unslash() or similar
+  193 | ERROR | Processing form data without nonce verification.
+  289 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  289 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  289 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  290 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable {$this->wpdb->prefix} at "SELECT first_name, last_name
+      |       | FROM {$this->wpdb->prefix}ems_osm_explorers WHERE scout_id =
+      |       | %d"
+  291 | ERROR | Use placeholders and $wpdb->prepare(); found $scout_id
+  366 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  366 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  366 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  367 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable {$this->wpdb->prefix} at "SELECT unit_id, leader_email
+      |       | FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR
+      |       | name = %s) LIMIT 1"
+  368 | ERROR | Use placeholders and $wpdb->prepare(); found $insert_data
+  369 | ERROR | Use placeholders and $wpdb->prepare(); found $insert_data
+  456 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  456 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  456 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  457 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable {$this->wpdb->prefix} at "SELECT unit_id, leader_email
+      |       | FROM {$this->wpdb->prefix}ems_units WHERE (short_code = %s OR
+      |       | name = %s) LIMIT 1"
+  458 | ERROR | Use placeholders and $wpdb->prepare(); found $insert_data
+  459 | ERROR | Use placeholders and $wpdb->prepare(); found $insert_data
+  664 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+      |       | variable {$this->wpdb->prefix} at "SELECT short_code,
+      |       | leader_email FROM {$this->wpdb->prefix}ems_units WHERE active =
+      |       | 1"
+ 1529 | ERROR | Detected usage of a non-sanitized input variable:
+      |       | $_POST['code']
+--------------------------------------------------------------------------------
+
+
+FILE: ...Projects/expedition-management-system/src/Integrations/TutorLMS_Client.php
+--------------------------------------------------------------------------------
+FOUND 23 ERRORS AFFECTING 22 LINES
+--------------------------------------------------------------------------------
+  81 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$placeholders} at              AND   post_parent IN
+     |       | ({$placeholders})
+     |       | 
+ 117 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$u_ph} at              AND   post_author IN ({$u_ph})
+     |       | 
+ 118 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$c_ph} at              AND   post_parent IN ({$c_ph})"
+ 137 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$u_ph} at              WHERE user_id  IN ({$u_ph})
+     |       | 
+ 138 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$em_ph} at              AND   meta_key IN ({$em_ph})
+     |       | 
+ 160 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$c_ph} at              AND   t.post_parent IN
+     |       | ({$c_ph})
+     |       | 
+ 166 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$c_ph} at              AND   c.post_parent IN
+     |       | ({$c_ph})"
+ 207 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$u_ph} at                  WHERE user_id IN ({$u_ph})
+     |       | 
+ 244 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$u_ph} at                  WHERE user_id  IN ({$u_ph})
+     |       | 
+ 245 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$ri_ph} at                  AND   meta_key IN
+     |       | ({$ri_ph})"
+ 276 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$attempts_table} at                  FROM
+     |       | {$attempts_table}
+     |       | 
+ 277 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$u_ph} at                  WHERE user_id IN ({$u_ph})
+     |       | 
+ 278 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$q_ph} at                  AND   quiz_id IN ({$q_ph})
+     |       | 
+ 297 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$a_ph} at                  WHERE post_parent IN
+     |       | ({$a_ph})
+     |       | 
+ 298 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$u_ph} at                  AND   post_author IN
+     |       | ({$u_ph})
+     |       | 
+ 313 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$a_ph} at                  WHERE comment_post_ID IN
+     |       | ({$a_ph})
+     |       | 
+ 314 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$u_ph} at                  AND   user_id IN ({$u_ph})
+     |       | 
+ 334 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$cb_table} at                      FROM {$cb_table}
+     |       | 
+ 335 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$u_ph} at                      WHERE user_id IN
+     |       | ({$u_ph})"
+ 431 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$lp_ph} at                              WHERE ID IN
+     |       | ({$lp_ph})"
+ 448 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$cb_table} at "SELECT * FROM {$cb_table} WHERE
+     |       | content_id IN ({$ca_ph}) LIMIT 10"
+ 448 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$ca_ph} at "SELECT * FROM {$cb_table} WHERE content_id
+     |       | IN ({$ca_ph}) LIMIT 10"
+ 464 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$ad_ph} at                              WHERE
+     |       | post_parent IN ({$ad_ph})
+     |       | 
+--------------------------------------------------------------------------------
+
+
+FILE: ...cts/expedition-management-system/src/Integrations/OSM_Section_Importer.php
+--------------------------------------------------------------------------------
+FOUND 2 ERRORS AFFECTING 2 LINES
+--------------------------------------------------------------------------------
+  55 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT COUNT(*) FROM {$table} WHERE
+     |       | scout_id = %d"
+ 113 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE scout_id = %d
+     |       | LIMIT 1"
+--------------------------------------------------------------------------------
+
+
+FILE: ...ts/expedition-management-system/src/Integrations/Flexi_Record_Importer.php
+--------------------------------------------------------------------------------
+FOUND 1 ERROR AFFECTING 1 LINE
+--------------------------------------------------------------------------------
+ 144 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT id, wp_user_id FROM {$table} WHERE
+     |       | scout_id = %d LIMIT 1"
+--------------------------------------------------------------------------------
+
+
+FILE: ...an/Projects/expedition-management-system/src/Data/Volunteer_Repository.php
+--------------------------------------------------------------------------------
+FOUND 63 ERRORS AFFECTING 29 LINES
+--------------------------------------------------------------------------------
+  30 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  30 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  30 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  30 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE email = %s"
+  30 | ERROR | Use placeholders and $wpdb->prepare(); found $email
+  74 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  74 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  74 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  75 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "DELETE FROM {$table} WHERE volunteer_id =
+     |       | %d AND expedition_post_id = %d"
+  76 | ERROR | Use placeholders and $wpdb->prepare(); found $volunteer_id
+  77 | ERROR | Use placeholders and $wpdb->prepare(); found $expedition_post_id
+ 121 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 121 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 121 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 121 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM {$table} WHERE id = %d"
+ 121 | ERROR | Use placeholders and $wpdb->prepare(); found $id
+ 128 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 128 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 128 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 129 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT DISTINCT date FROM {$table} WHERE
+     |       | volunteer_id = %d AND expedition_post_id = %d AND confirmed = 1"
+ 130 | ERROR | Use placeholders and $wpdb->prepare(); found $row
+ 130 | ERROR | Use placeholders and $wpdb->prepare(); found volunteer_id
+ 131 | ERROR | Use placeholders and $wpdb->prepare(); found $row
+ 131 | ERROR | Use placeholders and $wpdb->prepare(); found expedition_post_id
+ 139 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 139 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 139 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 140 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "UPDATE {$table} SET confirmed = -1 WHERE
+     |       | volunteer_id = %d AND expedition_post_id != %d AND confirmed = 0
+     |       | AND date IN ({$placeholders})"
+ 140 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$placeholders} at "UPDATE {$table} SET confirmed = -1
+     |       | WHERE volunteer_id = %d AND expedition_post_id != %d AND
+     |       | confirmed = 0 AND date IN ({$placeholders})"
+ 141 | ERROR | Use placeholders and $wpdb->prepare(); found $row
+ 141 | ERROR | Use placeholders and $wpdb->prepare(); found volunteer_id
+ 142 | ERROR | Use placeholders and $wpdb->prepare(); found $row
+ 142 | ERROR | Use placeholders and $wpdb->prepare(); found expedition_post_id
+ 143 | ERROR | Use placeholders and $wpdb->prepare(); found ...
+ 143 | ERROR | Use placeholders and $wpdb->prepare(); found $assigned_dates
+ 150 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 150 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 150 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 151 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT DISTINCT date FROM {$table} WHERE
+     |       | volunteer_id = %d AND expedition_post_id = %d AND confirmed = 0"
+ 152 | ERROR | Use placeholders and $wpdb->prepare(); found $row
+ 152 | ERROR | Use placeholders and $wpdb->prepare(); found volunteer_id
+ 153 | ERROR | Use placeholders and $wpdb->prepare(); found $row
+ 153 | ERROR | Use placeholders and $wpdb->prepare(); found expedition_post_id
+ 163 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 163 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 163 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 164 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT COUNT(*) FROM {$table} WHERE
+     |       | volunteer_id = %d AND date = %s AND confirmed = 1"
+ 165 | ERROR | Use placeholders and $wpdb->prepare(); found $row
+ 165 | ERROR | Use placeholders and $wpdb->prepare(); found volunteer_id
+ 166 | ERROR | Use placeholders and $wpdb->prepare(); found $date
+ 171 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 171 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 171 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 172 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "UPDATE {$table} SET confirmed = 0 WHERE
+     |       | volunteer_id = %d AND date = %s AND confirmed = -1"
+ 173 | ERROR | Use placeholders and $wpdb->prepare(); found $row
+ 173 | ERROR | Use placeholders and $wpdb->prepare(); found volunteer_id
+ 174 | ERROR | Use placeholders and $wpdb->prepare(); found $date
+ 190 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$v_table} at "SELECT * FROM {$v_table}"
+ 205 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 205 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 205 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 205 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$a_table} at "SELECT * FROM {$a_table} WHERE
+     |       | volunteer_id = %d"
+ 205 | ERROR | Use placeholders and $wpdb->prepare(); found $v
+--------------------------------------------------------------------------------
+
+
+FILE: ...an/Projects/expedition-management-system/src/Data/OSM_Event_Repository.php
+--------------------------------------------------------------------------------
+FOUND 1 ERROR AFFECTING 1 LINE
+--------------------------------------------------------------------------------
+ 17 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$table} at "SELECT * FROM {$table} ORDER BY start_date
+    |       | DESC, name ASC"
+--------------------------------------------------------------------------------
+
+
+FILE: ...trachan/Projects/expedition-management-system/src/Data/Unit_Repository.php
+--------------------------------------------------------------------------------
+FOUND 31 ERRORS AFFECTING 21 LINES
+--------------------------------------------------------------------------------
+  32 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+  41 | ERROR | Use placeholders and $wpdb->prepare(); found $prepared
+  44 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  44 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  44 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  45 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT id FROM
+     |       | {$this->wpdb->prefix}ems_units WHERE patrol_id = %d AND
+     |       | section_id = %d"
+  46 | ERROR | Use placeholders and $wpdb->prepare(); found $data
+  47 | ERROR | Use placeholders and $wpdb->prepare(); found $data
+ 115 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT MIN(patrol_id) FROM
+     |       | {$this->wpdb->prefix}ems_units"
+ 149 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 149 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 149 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 150 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT id FROM
+     |       | {$this->wpdb->prefix}ems_units WHERE patrol_id = %d AND
+     |       | section_id = 0"
+ 151 | ERROR | Use placeholders and $wpdb->prepare(); found $patrol_id
+ 180 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 180 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 180 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 181 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}ems_units WHERE id = %d"
+ 182 | ERROR | Use placeholders and $wpdb->prepare(); found $id
+ 191 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 191 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 191 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 192 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}ems_units WHERE patrol_id = %d AND
+     |       | section_id = %d"
+ 193 | ERROR | Use placeholders and $wpdb->prepare(); found $patrol_id
+ 194 | ERROR | Use placeholders and $wpdb->prepare(); found $section_id
+ 203 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}ems_units WHERE active = 1 ORDER BY name,
+     |       | section_id"
+ 211 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 211 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 211 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 212 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}ems_units WHERE short_code = %s AND active
+     |       | = 1 LIMIT 1"
+ 213 | ERROR | Use placeholders and $wpdb->prepare(); found $short_code
+--------------------------------------------------------------------------------
+
+
+FILE: ...achan/Projects/expedition-management-system/src/Data/Signup_Repository.php
+--------------------------------------------------------------------------------
+FOUND 42 ERRORS AFFECTING 22 LINES
+--------------------------------------------------------------------------------
+ 147 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 147 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 147 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 147 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+ 147 | ERROR | Use placeholders and $wpdb->prepare(); found $id
+ 168 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 168 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 168 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 168 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+ 168 | ERROR | Use placeholders and $wpdb->prepare(); found $id
+ 199 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+ 212 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 212 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 212 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 212 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+ 212 | ERROR | Use placeholders and $wpdb->prepare(); found $db_status
+ 236 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+ 249 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 249 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 249 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 249 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+ 249 | ERROR | Use placeholders and $wpdb->prepare(); found $db_status
+ 336 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "UPDATE
+     |       | {$this->wpdb->prefix}ems_participant_signups 
+     |       | 
+ 348 | ERROR | Use placeholders and $wpdb->prepare(); found $p_sql
+ 352 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "UPDATE
+     |       | {$this->wpdb->prefix}ems_expedition_signups 
+     |       | 
+ 364 | ERROR | Use placeholders and $wpdb->prepare(); found $e_sql
+ 392 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 392 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 392 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 393 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT COUNT(*) FROM
+     |       | {$this->wpdb->prefix}ems_team_members WHERE scout_id = %d"
+ 394 | ERROR | Use placeholders and $wpdb->prepare(); found $scout_id
+ 405 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "UPDATE
+     |       | {$this->wpdb->prefix}ems_participant_signups 
+     |       | 
+ 417 | ERROR | Use placeholders and $wpdb->prepare(); found $p_sql
+ 421 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "UPDATE
+     |       | {$this->wpdb->prefix}ems_expedition_signups 
+     |       | 
+ 433 | ERROR | Use placeholders and $wpdb->prepare(); found $e_sql
+ 441 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 441 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 441 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 442 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT
+     |       | additional_support_needs FROM
+     |       | {$this->wpdb->prefix}ems_expedition_signups WHERE scout_id = %d
+     |       | AND additional_support_needs != '' LIMIT 1"
+ 443 | ERROR | Use placeholders and $wpdb->prepare(); found $scout_id
+ 481 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+ 484 | ERROR | Use placeholders and $wpdb->prepare(); found $sql
+--------------------------------------------------------------------------------
+
+
+FILE: ...Projects/expedition-management-system/src/Data/OSM_Explorer_Repository.php
+--------------------------------------------------------------------------------
+FOUND 36 ERRORS AFFECTING 21 LINES
+--------------------------------------------------------------------------------
+  18 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  18 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  18 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  19 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}{$table} WHERE scout_id = %d"
+  19 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}{$table} WHERE scout_id = %d"
+  20 | ERROR | Use placeholders and $wpdb->prepare(); found $scout_id
+  31 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  31 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  31 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  32 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}{$table} WHERE wp_user_id = %d"
+  32 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}{$table} WHERE wp_user_id = %d"
+  33 | ERROR | Use placeholders and $wpdb->prepare(); found $user_id
+  43 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$this->wpdb->prefix} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}{$table}"
+  43 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT * FROM
+     |       | {$this->wpdb->prefix}{$table}"
+  60 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  60 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  60 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  61 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT scout_id, wp_user_id FROM {$table}
+     |       | WHERE email = %s"
+  62 | ERROR | Use placeholders and $wpdb->prepare(); found $email
+  91 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+  91 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+  91 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+  92 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "UPDATE {$table} SET wp_user_id = %d WHERE
+     |       | scout_id = %d"
+  93 | ERROR | Use placeholders and $wpdb->prepare(); found $wp_user_id
+  94 | ERROR | Use placeholders and $wpdb->prepare(); found scout_id
+ 110 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 110 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 110 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 111 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "UPDATE {$table} SET first_aid_level = %s,
+     |       | last_local_update_at = NOW() WHERE scout_id = %d"
+ 112 | ERROR | Use placeholders and $wpdb->prepare(); found $level
+ 113 | ERROR | Use placeholders and $wpdb->prepare(); found $scout_id
+ 122 | ERROR | Use placeholders and $wpdb->prepare(); found $this
+ 122 | ERROR | Use placeholders and $wpdb->prepare(); found wpdb
+ 122 | ERROR | Use placeholders and $wpdb->prepare(); found prepare
+ 123 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "UPDATE {$table} SET last_local_update_at =
+     |       | NOW() WHERE scout_id = %d"
+ 124 | ERROR | Use placeholders and $wpdb->prepare(); found $scout_id
+--------------------------------------------------------------------------------
+
+
+FILE: ...trachan/Projects/expedition-management-system/src/Data/Database_Seeder.php
+--------------------------------------------------------------------------------
+FOUND 6 ERRORS AFFECTING 6 LINES
+--------------------------------------------------------------------------------
+ 27 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$participant_table} at "TRUNCATE TABLE
+    |       | {$participant_table}"
+ 28 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$expedition_table} at "TRUNCATE TABLE
+    |       | {$expedition_table}"
+ 29 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$volunteers_table} at "TRUNCATE TABLE
+    |       | {$volunteers_table}"
+ 30 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$avail_table} at "TRUNCATE TABLE {$avail_table}"
+ 51 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$submissions_table} at "DELETE FROM
+    |       | {$submissions_table} WHERE form_id IN (%d, %d)"
+ 83 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+    |       | variable {$explorers_table} at "SELECT scout_id, first_name,
+    |       | last_name, email, parent_email, patrol FROM {$explorers_table}"
+--------------------------------------------------------------------------------
+
+
+FILE: .../Projects/expedition-management-system/src/Data/Team_Member_Repository.php
+--------------------------------------------------------------------------------
+FOUND 7 ERRORS AFFECTING 7 LINES
+--------------------------------------------------------------------------------
+  27 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT id FROM {$table} WHERE team_post_id
+     |       | = %d AND scout_id = %d"
+  66 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "DELETE FROM {$table} WHERE team_post_id =
+     |       | %d AND scout_id = %d"
+ 106 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT id, team_post_id, scout_id,
+     |       | user_id, added_by, added_at FROM {$table} WHERE team_post_id =
+     |       | %d AND scout_id = %d"
+ 121 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT id, team_post_id, scout_id,
+     |       | user_id, added_by, added_at FROM {$table} WHERE team_post_id =
+     |       | %d ORDER BY id"
+ 153 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at              FROM {$table} tm
+     |       | 
+ 154 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$placeholders} at              WHERE tm.team_post_id
+     |       | IN ({$placeholders})
+     |       | 
+ 193 | ERROR | Use placeholders and $wpdb->prepare(); found interpolated
+     |       | variable {$table} at "SELECT id FROM {$table} WHERE team_post_id
+     |       | = %d AND user_id = %d"
+--------------------------------------------------------------------------------
+
+Time: 821ms; Memory: 36MB
+
