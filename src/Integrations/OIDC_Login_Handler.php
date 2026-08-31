@@ -30,12 +30,26 @@ class OIDC_Login_Handler {
 		if ( is_array( $response ) && isset( $response['body'] ) ) {
 			$body = json_decode( $response['body'], true );
 			if ( is_array( $body ) && ! empty( $body['access_token'] ) ) {
-				if ( str_contains( $url, '/oauth/token' ) || str_contains( $url, '/token' ) ) {
-					self::$captured_token = $body['access_token'];
+				$token_url = (string) get_option( 'ems_osm_token_url', 'https://www.onlinescoutmanager.co.uk/oauth/token' );
+				$base_url  = (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' );
+
+				$token_host = (string) wp_parse_url( $token_url, PHP_URL_HOST );
+				$base_host  = (string) wp_parse_url( $base_url, PHP_URL_HOST );
+				$url_host   = (string) wp_parse_url( $url, PHP_URL_HOST );
+
+				$is_osm_host   = ( ! empty( $url_host ) && ( $url_host === $token_host || $url_host === $base_host || str_ends_with( $url_host, 'onlinescoutmanager.co.uk' ) ) );
+				$is_token_path = str_contains( $url, '/oauth/token' ) || str_contains( $url, '/token' );
+
+				if ( $url === $token_url || ( $is_osm_host && $is_token_path ) ) {
+					self::$captured_token = (string) $body['access_token'];
 				}
 			}
 		}
 		return $response;
+	}
+
+	public static function reset_captured_token(): void {
+		self::$captured_token = '';
 	}
 
 	/**

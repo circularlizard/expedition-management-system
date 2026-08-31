@@ -36,6 +36,8 @@ class Portability_EngineTest extends EMSTestCase {
 		$stored_options = array();
 		Functions\when( 'get_option' )->alias( function( $key, $default = null ) use ( &$stored_options ) {
 			if ( $key === 'ems_api_mode' ) return 'live-limited';
+			if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+			if ( $key === 'ems_fluent_expedition_form_id' ) return 7;
 			return $default;
 		} );
 
@@ -48,19 +50,30 @@ class Portability_EngineTest extends EMSTestCase {
 		$data = json_decode( $json, true );
 		$this->assertSame( '0.1.x', $data['version'] );
 		$this->assertSame( 'live-limited', $data['options']['ems_api_mode'] );
+		$this->assertSame( 6, $data['options']['ems_fluent_participant_form_id'] );
+		$this->assertSame( 7, $data['options']['ems_fluent_expedition_form_id'] );
+		$this->assertArrayNotHasKey( 'ems_signups', $data['tables'] );
+		$this->assertArrayHasKey( 'ems_participant_signups', $data['tables'] );
+		$this->assertArrayHasKey( 'ems_expedition_signups', $data['tables'] );
+		$this->assertArrayHasKey( 'ems_volunteers', $data['tables'] );
+		$this->assertArrayHasKey( 'ems_audit_logs', $data['tables'] );
 		$this->assertSame( [ [ 'id' => 1, 'name' => 'Alice' ] ], $data['tables']['ems_team_members'] );
 	}
 
 	public function test_import_data_restores_tables_and_options(): void {
 		$backup_data = array(
 			'options' => array(
-				'ems_api_mode' => 'mock',
-				'ems_sync_limit' => 10,
+				'ems_api_mode'                   => 'mock',
+				'ems_sync_limit'                  => 10,
+				'ems_fluent_participant_form_id' => 6,
 			),
 			'tables' => array(
-				'ems_team_members' => array(
+				'ems_team_members'        => array(
 					array( 'id' => 42, 'scout_id' => 30001 )
-				)
+				),
+				'ems_participant_signups' => array(
+					array( 'id' => 1, 'scout_id' => 30001, 'explorer_first_name' => 'Alice' )
+				),
 			)
 		);
 		$json = json_encode( $backup_data );
@@ -69,6 +82,10 @@ class Portability_EngineTest extends EMSTestCase {
 		$this->wpdb->shouldReceive( 'query' )->andReturn( true );
 		$this->wpdb->shouldReceive( 'insert' )
 			->with( 'wp_ems_team_members', [ 'id' => 42, 'scout_id' => 30001 ] )
+			->once()
+			->andReturn( true );
+		$this->wpdb->shouldReceive( 'insert' )
+			->with( 'wp_ems_participant_signups', [ 'id' => 1, 'scout_id' => 30001, 'explorer_first_name' => 'Alice' ] )
 			->once()
 			->andReturn( true );
 
@@ -83,6 +100,7 @@ class Portability_EngineTest extends EMSTestCase {
 
 		$this->assertSame( 'mock', $updated_options['ems_api_mode'] );
 		$this->assertSame( 10, $updated_options['ems_sync_limit'] );
+		$this->assertSame( 6, $updated_options['ems_fluent_participant_form_id'] );
 
 		$this->assertTrue( $result );
 	}

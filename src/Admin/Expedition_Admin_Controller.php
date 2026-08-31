@@ -1449,8 +1449,9 @@ class Expedition_Admin_Controller {
 		if ( ! empty( $explorer['patrol'] ) ) {
 			$leader_email = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT leader_email FROM {$wpdb->prefix}ems_units 
-                 WHERE name = %s AND section_id = %d AND active = 1 
+					"SELECT u.leader_email FROM {$wpdb->prefix}ems_units u
+                 JOIN {$wpdb->prefix}ems_unit_patrols p ON u.unit_id = p.unit_id
+                 WHERE p.name = %s AND p.section_id = %d AND p.active = 1 
                  LIMIT 1",
 					$explorer['patrol'],
 					(int) $explorer['section_id']
