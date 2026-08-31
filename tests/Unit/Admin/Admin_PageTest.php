@@ -512,5 +512,33 @@ class Admin_PageTest extends EMSTestCase {
 		$this->assertStringContainsString( 'District "Braid" removed.', $output );
 		$this->assertSame( [ 'Pentland' ], $stored_options['ems_districts'] );
 	}
+
+	public function test_handle_consolidate_units_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'consolidate_duplicate_units' )
+			->once()
+			->andReturn( [
+				'merged_count' => 2,
+				'details'      => [ 'BR-ALBATROSS: Merged 1 duplicate(s) into Unit ID 46461' ],
+			] );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page       = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method    = $reflected->getMethod( 'handle_consolidate_units' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Consolidation complete: Merged 2 duplicate unit record(s).', $output );
+		$this->assertStringContainsString( 'BR-ALBATROSS: Merged 1 duplicate(s) into Unit ID 46461', $output );
+	}
 }
 

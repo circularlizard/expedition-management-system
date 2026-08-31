@@ -307,4 +307,88 @@ class Unit_Repository {
 		);
 		return $row ?: null;
 	}
+
+	/**
+	 * Consolidates duplicate master units sharing the same name or short code.
+	 *
+	 * Merges all matched patrols from duplicate units into the primary unit
+	 * and removes duplicate master unit records.
+	 *
+	 * @return array{merged_count: int, details: array<string>}
+	 */
+	public function consolidate_duplicate_units(): array {
+		$units  = $this->list_active_units();
+		$groups = array();
+
+		// Group by normalized name
+		foreach ( $units as $u ) {
+			$norm_name = strtolower( trim( (string) $u['name'] ) );
+			$groups[ $norm_name ][] = $u;
+		}
+
+		$merged_count = 0;
+		$details      = array();
+
+		foreach ( $groups as $norm_name => $unit_list ) {
+			if ( count( $unit_list ) <= 1 ) {
+				continue;
+			}
+
+			// Choose primary unit: prefer one with district / leader_email or lowest ID
+			usort(
+				$unit_list,
+				function( $a, $b ) {
+					$score_a = ( ! empty( $a['district'] ) ? 2 : 0 ) + ( ! empty( $a['leader_email'] ) ? 1 : 0 );
+					$score_b = ( ! empty( $b['district'] ) ? 2 : 0 ) + ( ! empty( $b['leader_email'] ) ? 1 : 0 );
+					if ( $score_a !== $score_b ) {
+						return $score_b <=> $score_a;
+					}
+					return (int) $a['id'] <=> (int) $b['id'];
+				}
+			);
+
+			$primary            = $unit_list[0];
+			$primary_unit_id    = (int) $primary['unit_id'];
+			$duplicates         = array_slice( $unit_list, 1 );
+			$duplicate_ids      = array();
+			$duplicate_unit_ids = array();
+
+			foreach ( $duplicates as $dup ) {
+				$duplicate_ids[] = (int) $dup['id'];
+				if ( ! empty( $dup['unit_id'] ) ) {
+					$duplicate_unit_ids[] = (int) $dup['unit_id'];
+				}
+			}
+
+			// 1. Reassign all patrols pointing to duplicate unit_ids to primary_unit_id
+			if ( ! empty( $duplicate_unit_ids ) ) {
+				$in_unit_ids = implode( ',', array_map( 'intval', $duplicate_unit_ids ) );
+				$this->wpdb->query(
+					$this->wpdb->prepare(
+						"UPDATE {$this->wpdb->prefix}ems_unit_patrols SET unit_id = %d WHERE unit_id IN ({$in_unit_ids})",
+						$primary_unit_id
+					)
+				);
+			}
+
+			// 2. Delete duplicate ems_units rows
+			if ( ! empty( $duplicate_ids ) ) {
+				$in_ids = implode( ',', array_map( 'intval', $duplicate_ids ) );
+				$this->wpdb->query( "DELETE FROM {$this->wpdb->prefix}ems_units WHERE id IN ({$in_ids})" );
+			}
+
+			$merged_count += count( $duplicates );
+			$details[]     = sprintf(
+				'%s: Merged %d duplicate(s) into Unit ID %d',
+				$primary['name'],
+				count( $duplicates ),
+				$primary_unit_id
+			);
+		}
+
+		return array(
+			'merged_count' => $merged_count,
+			'details'      => $details,
+		);
+	}
 }
