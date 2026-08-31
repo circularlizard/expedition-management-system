@@ -1225,15 +1225,29 @@ class Admin_Page {
 			<?php wp_nonce_field( 'ems_settings_unit_leaders' ); ?>
 			<div class="ems-unit-leaders-table-container">
 				<?php if ( empty( $units ) ) : ?>
-					<div class="card" style="padding: 20px;">
-						<p><?php esc_html_e( 'No Units found. Add a master unit below.', 'ems-plugin' ); ?></p>
+					<div class="card" style="padding: 24px; text-align: center; max-width: 100%;">
+						<span class="dashicons dashicons-location-alt" style="font-size: 36px; width: 36px; height: 36px; color: #2271b1; margin-bottom: 8px;"></span>
+						<h3 style="margin-top: 0;"><?php esc_html_e( 'No Districts or Master Units Yet', 'ems-plugin' ); ?></h3>
+						<p class="description" style="max-width: 600px; margin: 0 auto 15px;">
+							<?php esc_html_e( 'Master units are grouped by District. To create your first district, enter the District name (e.g. "Borders", "Braid", "Pentland") in the "Add Master Unit" form below.', 'ems-plugin' ); ?>
+						</p>
+						<button type="button" class="button button-primary" onclick="var el = document.getElementById('custom_unit_district'); if (el) { el.focus(); el.scrollIntoView({behavior: 'smooth', block: 'center'}); }">
+							<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
+							<?php esc_html_e( 'Add Your First District & Unit', 'ems-plugin' ); ?>
+						</button>
 					</div>
 				<?php else : ?>
-					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
 						<p class="description" style="margin: 0;">
-							<?php esc_html_e( 'Units are grouped by District. Edit the district name in any card header to update all units in that district, or use "Move District" on individual rows.', 'ems-plugin' ); ?>
+							<?php esc_html_e( 'Units are grouped by District. Edit the district name in any card header to rename it for all units in that card, or use "Move District" to reassign individual units.', 'ems-plugin' ); ?>
 						</p>
-						<input type="submit" name="ems_save_unit_leaders" class="button button-primary" value="<?php esc_attr_e( 'Save All Units', 'ems-plugin' ); ?>" />
+						<div style="display: flex; gap: 8px; align-items: center;">
+							<button type="button" class="button button-secondary" onclick="var el = document.getElementById('custom_unit_district'); if (el) { el.value = ''; el.focus(); el.scrollIntoView({behavior: 'smooth', block: 'center'}); }">
+								<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
+								<?php esc_html_e( 'Add New District / Unit', 'ems-plugin' ); ?>
+							</button>
+							<input type="submit" name="ems_save_unit_leaders" class="button button-primary" value="<?php esc_attr_e( 'Save All Units', 'ems-plugin' ); ?>" />
+						</div>
 					</div>
 
 					<?php foreach ( $grouped_units as $group_key => $group_units ) : 
@@ -1272,12 +1286,12 @@ class Admin_Page {
 							<table class="wp-list-table widefat striped ems-district-units-table">
 								<thead>
 									<tr>
-										<th style="width: 22%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
-										<th style="width: 10%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
-										<th style="width: 14%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
-										<th style="width: 22%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
-										<th><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
-										<th style="width: 14%;"><?php esc_html_e( 'Move District', 'ems-plugin' ); ?></th>
+										<th style="width: 20%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
+										<th style="width: 8%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
+										<th style="width: 12%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
+										<th style="width: 20%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+										<th style="width: 24%;"><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
+										<th style="width: 10%;"><?php esc_html_e( 'Move District', 'ems-plugin' ); ?></th>
 										<th style="width: 6%; text-align: center;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
 									</tr>
 								</thead>
@@ -1308,25 +1322,26 @@ class Admin_Page {
 											</td>
 											<td>
 												<?php if ( ! empty( $u['matched_patrols'] ) ) : ?>
-													<ul style="margin: 0; padding-left: 15px; list-style-type: disc;">
+													<div style="display: flex; flex-direction: column; gap: 6px;">
 														<?php foreach ( $u['matched_patrols'] as $patrol ) : 
 															$sec_id   = (int) $patrol['section_id'];
 															$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
 															?>
-															<li>
-																<strong><?php echo esc_html( $patrol['name'] ); ?></strong>
-																(<?php echo esc_html( $sec_name ); ?>)
-																<code style="font-size: 11px;">[ID: <?php echo (int) $patrol['patrol_id']; ?>]</code>
-															</li>
+															<div style="background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; padding: 4px 8px; font-size: 12px; line-height: 1.35;">
+																<div style="font-weight: 600; color: #1d2327;"><?php echo esc_html( $patrol['name'] ); ?></div>
+																<div style="color: #646970; font-size: 11px; margin-top: 2px;">
+																	<span><?php echo esc_html( $sec_name ); ?></span> &bull; <code>ID: <?php echo (int) $patrol['patrol_id']; ?></code>
+																</div>
+															</div>
 														<?php endforeach; ?>
-													</ul>
+													</div>
 												<?php else : ?>
-													<span class="description"><?php esc_html_e( 'None matched', 'ems-plugin' ); ?></span>
+													<span class="description" style="color: #8c8f94; font-style: italic;"><?php esc_html_e( 'None matched', 'ems-plugin' ); ?></span>
 												<?php endif; ?>
 											</td>
 											<td>
 												<select class="ems-move-district-select" style="width: 100%; height: 30px; font-size: 12px; line-height: 1; padding: 2px 4px;">
-													<option value=""><?php esc_html_e( '— Keep Current —', 'ems-plugin' ); ?></option>
+													<option value=""><?php esc_html_e( '— Keep —', 'ems-plugin' ); ?></option>
 													<option value="__unassigned__"><?php esc_html_e( '(Unassigned)', 'ems-plugin' ); ?></option>
 													<?php foreach ( $all_districts as $d ) : ?>
 														<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $cur_dist, $d ); ?>>
