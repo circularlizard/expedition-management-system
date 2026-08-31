@@ -84,11 +84,11 @@ graph TD
 
 Reconciled from technical discovery, these architecture design records govern the EMS implementation:
 
-*   **ADR 001: Data Modeling Strategy**: Use a hybrid approach — Custom Post Types (CPTs) for core hierarchical entities (`season`, `expedition`, `team`) to exploit native WP admin view lists, and custom database tables for relational child mapping data to allow high-performance querying.
+*   **ADR 001: Data Modeling Strategy**: Use a hybrid approach — Custom Post Types (CPTs) for core entities (`expedition`, `team`) to exploit native WP admin view lists, and custom database tables for relational child mapping data to allow high-performance querying. (Note: The `season` CPT was deprecated and removed; events/expeditions are now top-level posts).
 *   **ADR 002: OSM Integration & Sync Strategy**: Reference-first data sync using a persistent OSM Scout ID (`scout_id`) as the immutable primary key. WP user accounts are independent and are only generated/hydrated during active OIDC login sessions. Multi-child accounts map children arrays to parent accounts in User Meta.
 *   **ADR 003: Frontend Integration Pattern**: React-based SPAs embedded via shortcodes, styled using Elementor's global CSS custom properties (e.g. `--e-global-color-primary`, `--e-global-typography-primary-font-family`) for design consistency with the marketing theme, bypassing Elementor's asset optimization conflicts.
 *   **ADR 004: Volunteer Availability & Confirmation Logic**: Custom database table `ems_volunteer_availability` for scheduling availability per user per date. This avoids unqueryable serialized strings and enables fast calendar deficit calculations.
-*   **ADR 005: File Management & Security**: Secure route files stored outside public directories (in `/wp-content/uploads/ems-secure/` blocked by `.htaccess`). Downloads are served via a custom REST proxy `/ems/v1/download-route/{id}` that validates explorer, parent, or leader permissions.
+*   **ADR 005: File Management & Security**: Secure route files stored outside public directories (in `/wp-content/uploads/ems-secure/` blocked by `.htaccess`). Downloads will be served via a custom REST proxy `/ems/v1/download-route/{id}` that validates explorer, parent, or leader permissions. *(Note: The database tables have slots for route card version auditing, but secure proxy gating is scheduled for future implementation; files currently map to WordPress Media attachments).*
 *   **ADR 006: Administrative Interface**: Native-looking WordPress administrative views using React bundles enqueued with `@wordpress/components` styling packages (pinned to stable minor versions to avoid breaking changes during core WordPress upgrades).
 *   **ADR 007: Test-Driven Development (TDD) Mandate**: All backend and frontend code follows the strict Red-Green-Refactor development loop. Code is not staged or pushed without verifying associated PHPUnit/Vitest coverage.
 *   **ADR 008: Testing Frameworks**: Brain Monkey stubs for testing isolated PHP code without loading WordPress core, and Vitest + React Testing Library to verify React behavior from the user's perspective.
@@ -109,7 +109,6 @@ EMS implements a hybrid data model defined in [Table_Installer.php](file:///User
 
 ```mermaid
 erDiagram
-    CPT_season ||--o{ CPT_expedition : "parent of"
     CPT_expedition ||--o{ CPT_team : "parent of"
     CPT_team ||--o{ ems_team_members : "contains"
     ems_osm_explorers ||--o{ ems_team_members : "linked by scout_id"
@@ -122,36 +121,37 @@ erDiagram
 
 ### 3.1 Custom Post Types (CPTs)
 ```
-Season (season CPT)
-  └── Event / Expedition (expedition CPT)
-        └── Team (team CPT)
+Event / Expedition (expedition CPT)
+  └── Team (team CPT)
 ```
 
-#### A. Season (`season`)
-Top-level container for a flight of events in an academic year.
-*   **Meta Fields**:
-    *   `ems_season_year` (string, e.g. `2026-27`)
-    *   `ems_season_status` (string: `active` | `archived`)
-
-#### B. Event / Expedition (`expedition`)
+#### A. Event / Expedition (`expedition`)
 Manages individual training events, practice expeditions, and qualifying expeditions.
-*   **Hierarchy**: Belongs to a parent `season` (Post Parent ID).
+*   **Hierarchy**: Top-level CPT post type (parent `season` has been deprecated and detached/deleted).
 *   **Meta Fields**:
-    *   `ems_event_code` (string): Unique event identifier within a season (e.g. `H-SP1`).
+    *   `ems_event_code` (string, required): Unique event identifier within a season (e.g. `H-SP1`).
+    *   `ems_expedition_code` (string): Expedition code.
     *   `ems_type` (string): `training` | `practice` | `qualifying`
     *   `ems_transport` (string): `hillwalking` | `biking` | `paddling`
-    *   `ems_level` (string): `bronze` | `silver` | `gold`
+    *   `ems_level` (string): `bronze` | `silver` | `gold` | `multiple`
     *   `ems_lic_id` (int): WP User ID of the Leader in Charge.
-    *   `ems_lic_name` / `ems_lic_email` / `ems_lic_phone` (strings): Contact details of the LiC.
+    *   `ems_lic_name` / `ems_lic_email` / `ems_lic_phone` / `ems_lic_private_email` / `ems_lic_private_phone` (strings): Contact details of the LiC.
+    *   `ems_expedition_lic_name` / `ems_expedition_lic_email` / `ems_expedition_lic_phone` (strings): Expedition contact details.
+    *   `ems_expedition_whatsapp_explorers` / `ems_expedition_whatsapp_parents` (strings): WhatsApp invite URLs.
     *   `ems_start_date` / `ems_end_date` (ISO 8601 date strings).
     *   `ems_start_time` / `ems_end_time` (time strings).
     *   `ems_start_location` / `ems_end_location` (strings).
+    *   `ems_location_name` / `ems_location_coordinates` (strings): Detailed location information.
     *   `ems_osm_event_id` (int): Links to an Online Scout Manager event.
     *   `ems_route_deadline` (ISO 8601 date).
-    *   `ems_route_info` (HTML string): Routing notes, map links, instructions.
-    *   `ems_status` (string): `planning` | `open` | `confirmed` | `completed`
+    *   `ems_route_info` / `ems_expedition_route_info` (strings): Routing notes, map links, instructions.
+    *   `ems_status` (string): `active` | `archived`
+    *   `ems_route_status` (string): `draft` | `confirmed`
+    *   `ems_route_received` (string): `not_received` | `changes_requested` | `received`
+    *   `ems_route_approved` (string): `pending` | `under_review` | `approved` | `changes_requested`
+    *   `ems_req_assessors` / `ems_req_volunteers` (int): Volunteer staffing requirements.
 
-#### C. Team (`team`)
+#### B. Team (`team`)
 Groups participants within an event.
 *   **Hierarchy**: Belongs to a parent `expedition` (Post Parent ID).
 *   **Meta Fields**:
@@ -161,7 +161,7 @@ Groups participants within an event.
     *   `ems_route_feedback` (string): Most recent feedback from the Leader in Charge.
     *   `ems_gpx_file_id` (int): WP Media ID of the latest GPX file.
     *   `ems_route_card_file_id` (int): WP Media ID of the latest PDF/doc route card.
-*   **Validation**: Team size of 4–7 is the official range. Sizes outside this range generate an admin warning but are not hard-blocked. Teams with zero members are deleted automatically.
+*   **Validation**: Team size of 4–7 is the official range. Sizes outside this range generate an admin warning but are not hard-blocked. Teams with zero members are deleted automatically (except the system 'UNALLOCATED' placeholders).
 
 ---
 
@@ -193,55 +193,71 @@ Maintains the mapping of synced OSM sections and patrols to their master unit.
 
 #### C. Team Members (`ems_team_members`)
 Links Explorers to Teams.
-*   `id` (BIGINT UNSIGNED, Primary Key)
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
 *   `team_post_id` (BIGINT UNSIGNED): Links to the `team` CPT record.
 *   `scout_id` (BIGINT UNSIGNED): Primary identity anchor (OSM `member_id`).
 *   `user_id` (BIGINT UNSIGNED): Link to `wp_users.ID` (0 if the explorer hasn't logged in via OIDC yet).
-*   `added_by` / `added_at`: Tracking attributes.
+*   `added_by` (BIGINT UNSIGNED): WP User ID who added the member.
+*   `added_at` (DATETIME): Add timestamp.
 
 #### D. Volunteer Availability (`ems_volunteer_availability`)
-Tracks volunteer cover for expedition dates.
-*   `id` (BIGINT UNSIGNED, Primary Key)
-*   `user_id` (BIGINT UNSIGNED): Mapped volunteer user.
-*   `expedition_post_id` (BIGINT UNSIGNED): Mapped event.
+Tracks volunteer cover availability for expedition dates.
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
+*   `volunteer_id` (BIGINT UNSIGNED): Foreign key mapping to `ems_volunteers.id`.
+*   `user_id` (BIGINT UNSIGNED, Nullable): Mapped user ID (deprecated for guests, can be NULL).
+*   `expedition_post_id` (BIGINT UNSIGNED): Mapped event CPT ID.
 *   `date` (DATE): Target date.
-*   `overnight` (TINYINT): Mapped overnight availability flag.
-*   `confirmed` (TINYINT) / `confirmed_by` (BIGINT): Sign-off tracking.
+*   `overnight` (TINYINT): Mapped overnight availability flag (0 or 1).
+*   `confirmed` (TINYINT) / `confirmed_by` (BIGINT): Sign-off tracking details.
+*   `updated_at` (DATETIME, Nullable): Last update timestamp.
+*   `signup_type` (VARCHAR): `'part'` (partial cover) or other signup type class.
 
 #### E. Route Submissions (`ems_route_submissions`)
 Maintains a versioned audit trail of route file updates and status changes.
-*   `id` (BIGINT UNSIGNED, Primary Key)
-*   `team_post_id` (BIGINT UNSIGNED): Associated team.
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
+*   `team_post_id` (BIGINT UNSIGNED): Associated team CPT ID.
 *   `version` (INT): Incremental version number.
-*   `file_type` (VARCHAR): `gpx` | `route_card`
+*   `file_type` (VARCHAR): `'gpx'` | `'route_card'`.
 *   `wp_media_id` (BIGINT UNSIGNED): Mapped file in WordPress Media Library.
-*   `status` (VARCHAR): `pending` | `feedback_required` | `approved`
+*   `status` (VARCHAR): `'pending'` | `'feedback_required'` | `'approved'`.
 *   `submitted_by` (BIGINT UNSIGNED): WP User ID of the uploader.
 *   `submitted_at` (DATETIME): Submission timestamp.
 *   `feedback` (TEXT): Feedback text left by the reviewer.
 
 #### F. Synced OSM Explorers (`ems_osm_explorers`)
 Local cache of Online Scout Manager participants. 
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
 *   `scout_id` (BIGINT UNSIGNED, UNIQUE): Mapped OSM member ID.
 *   `wp_user_id` (BIGINT UNSIGNED, Nullable): Mapped WordPress User ID.
 *   `section_id` (BIGINT UNSIGNED): OSM section identifier.
 *   `first_name` / `last_name` / `email` / `parent_email` / `patrol` (VARCHARs).
-*   `first_aid_level` (VARCHAR): Local override for first aid qualifications.
+*   `email1` / `email2` (VARCHAR): Extended sync emails.
+*   `p1_email1` / `p1_email2` / `p2_email1` / `p2_email2` (VARCHAR): Extended parent contact emails.
+*   `first_aid_level` (VARCHAR): Local override for first aid qualifications (defaults to `'none'`).
+*   `dofe_number` (VARCHAR): eDofE ID number.
+*   `additional_support_needs` (TEXT): Additional medical/support needs details.
 *   `last_local_update_at` / `last_ems_push_at` (DATETIME): Used to track dirty fields.
+*   `synced_at` (DATETIME): Last synced timestamp.
 
 #### G. Synced OSM Events (`ems_osm_events`)
 Cached OSM events.
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
 *   `event_id` (BIGINT UNSIGNED): OSM event ID.
 *   `section_id` (BIGINT UNSIGNED): Sync source section.
 *   `name` / `start_date` / `end_date` / `location` (event properties).
+*   `yes_members` / `yes_leaders` / `no` (INT): Counts of RSVPs.
+*   `synced_at` (DATETIME): Cache timestamp.
 
 #### H. Synced OSM Event Attendance (`ems_osm_event_attendance`)
 RSVP statuses for synced events.
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
 *   `event_id` / `scout_id` (BIGINT UNSIGNED, UNIQUE index): Relational link.
 *   `status` (VARCHAR): Member attendance state (e.g. `Attending`, `Declined`).
+*   `synced_at` (DATETIME): Sync timestamp.
 
 #### I. Participant Signups (`ems_participant_signups`)
 DofE Participation Place registrations (Form 6) submitted via Fluent Forms.
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
 *   `scout_id` (BIGINT UNSIGNED): Synced explorer scout ID (link anchor).
 *   `parent_user_id` (BIGINT UNSIGNED): WordPress User ID of parent submitting.
 *   `unit_id` (BIGINT UNSIGNED, Nullable): Mapped Master Unit ID from `ems_units`.
@@ -252,11 +268,15 @@ DofE Participation Place registrations (Form 6) submitted via Fluent Forms.
 *   `dob` (DATE, Nullable): Explorer's date of birth.
 *   `dofe_registered` (VARCHAR): `y`, `y-other`, `n` status.
 *   `dofe_number` / `dofe_org` (VARCHAR): Existing eDofE ID and other transferring organisation name.
+*   `bronze_completion` / `silver_completion` (TEXT, Nullable): JSON structures of prior milestone compliance details.
 *   `signup_status` / `payment_status` (VARCHAR): State flags.
+*   `processed_by` (BIGINT UNSIGNED, Nullable) / `processed_at` (DATETIME, Nullable): Sign-off tracking details.
 *   `form_submission_id` (BIGINT UNSIGNED): Fluent Forms entry ID.
+*   `created_at` / `updated_at` (DATETIME): Timestamp columns.
 
 #### J. Expedition Signups (`ems_expedition_signups`)
 Specific expedition event signup entries (Form 7) submitted via Fluent Forms.
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
 *   `scout_id` (BIGINT UNSIGNED): Synced explorer scout ID (link anchor).
 *   `parent_user_id` (BIGINT UNSIGNED): WordPress User ID of parent submitting.
 *   `unit_id` (BIGINT UNSIGNED, Nullable): Mapped Master Unit ID from `ems_units`.
@@ -265,21 +285,46 @@ Specific expedition event signup entries (Form 7) submitted via Fluent Forms.
 *   `parent_email` / `leader_email` (VARCHAR): Parent and local unit leader emails.
 *   `dofe_level` (VARCHAR): `bronze` | `silver` | `gold`.
 *   `expedition_preferences` (TEXT): JSON string of type (`exped_type`), practice/qualifier dates, teammate list.
+*   `additional_support_needs` (TEXT): Explorer's medical or scheduling needs.
 *   `first_aid_status` / `first_aid_expiry` (DATE): First aid compliance details.
-*   `signup_status` / `payment_status` (VARCHAR): State flags.
+*   `signup_status` (VARCHAR): State flag (e.g. `'submitted'`, `'archived'`). *(Note: Unlike participant signups, expedition signups do not track a separate `payment_status` column).*
 *   `form_submission_id` (BIGINT UNSIGNED): Fluent Forms entry ID.
+*   `created_at` / `updated_at` (DATETIME): Timestamp columns.
+
+#### K. Volunteers (`ems_volunteers`)
+Tracks verified adult helpers, their contact details, and their credentials.
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
+*   `osm_user_id` (BIGINT UNSIGNED, Nullable): Synced OSM user ID.
+*   `user_id` (BIGINT UNSIGNED, Nullable): Mapped WordPress User ID.
+*   `first_name` / `last_name` / `email` / `phone` (VARCHAR): Contact details.
+*   `dbs_number` (VARCHAR): Registered DBS check credentials.
+*   `qualifications` (LONGTEXT): Serialized/JSON list of qualifications.
+*   `preferred_roles` (LONGTEXT): Mapped roles volunteer is interested in.
+*   `constraints` (TEXT): Scheduling constraints/notes.
+*   `created_at` / `updated_at` (DATETIME): Audit timestamps.
+
+#### L. Audit Logs (`ems_audit_logs`)
+Captures key administrative and sync actions for auditing and diagnostics.
+*   `id` (BIGINT UNSIGNED, Primary Key): Autoincrement ID.
+*   `user_id` (BIGINT UNSIGNED): Performing user's ID.
+*   `action` (VARCHAR): Mapped action slug (e.g. `login_success`, `reconcile_signup`).
+*   `target_scout_id` (BIGINT UNSIGNED, Nullable): Affected explorer scout ID.
+*   `ip_address` (VARCHAR): Request IP.
+*   `user_agent` (VARCHAR): Request User Agent.
+*   `timestamp` (DATETIME): Action timestamp.
 
 ---
 
 ### 3.3 WordPress User Roles & Metadata
 EMS registers custom user roles managed via [Role_Manager.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Core/Role_Manager.php):
-*   `ems_explorer`: Custom capabilities for participants (`ESU Explorer` display name).
-*   `ems_parent`: Account representing a parent or guardian (`ESU Parent` display name).
-*   `ems_leader`: Administrative role for local unit leaders (`ESU Leader` display name).
+*   `ems_explorer`: Account role representing active explorer participants (`EMS Explorer` display name).
+*   `ems_network_member`: Account role representing network member participants (`EMS Network Member` display name).
+*   `ems_parent`: Account representing a parent or guardian (`EMS Parent` display name).
+*   `ems_leader`: Administrative role for local unit leaders (`EMS Leader` display name).
 
 During OIDC login, [OIDC_Login_Handler.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/OIDC_Login_Handler.php) hydrates standard WP User accounts with the following metadata:
 *   `ems_osm_id` (int): User's OSM account ID.
-*   `ems_access_type` (string): Account class (`parent` | `member` | `local`).
+*   `ems_access_type` (string): Account class (`parent` | `member` | `network_member` | `local` | `leader`).
 *   `ems_scout_ids` (array): List of OSM member IDs linked to the logged-in user.
 *   `ems_section_ids` (array): List of OSM section IDs the user administers.
 *   `ems_children` (array): Synced child profile details containing:
@@ -288,6 +333,8 @@ During OIDC login, [OIDC_Login_Handler.php](file:///Users/davidstrachan/Projects
     * `last_name` (string)
     * `section_ids` (array of ints)
 *   `ems_unit` (string): Synced patrol/unit name.
+
+*Note: If an OIDC login resolves to a user who is both a leader (has administrative section IDs) and has children linked to their profile, the OIDC handler assigns `ems_leader` as the primary role and programmatically adds `ems_parent` as an additional secondary role.*
 
 ---
 
@@ -337,43 +384,53 @@ Administrators are presented with a responsive table of unmatched synced patrols
 
 ## 6. REST API Specifications
 
-All endpoints are registered under the `/wp-json/ems/v1/` namespace. Endpoints verify standard WordPress REST nonces (`X-WP-Nonce`) and implement role-based security:
+All endpoints are registered under the `/wp-json/ems/v1/` or `/wp-json/ems/v1/admin/` namespaces. Endpoints verify standard WordPress REST nonces (`X-WP-Nonce`) and implement role-based security checking for the `manage_options` capability (via permission callbacks):
 
 | Endpoint | HTTP Method | Access Rules | Description |
 |---|---|---|---|
-| `/expedition-board` | `GET` | `manage_options` | Returns full seasons, events, teams, and member datasets for the Team Builder. |
-| `/seasons` | `GET` | `manage_options` | Lists all seasons. |
-| `/seasons` | `POST` | `manage_options` | Creates a new season. |
-| `/seasons/{id}/archive`| `POST`/`PUT` | `manage_options` | Archives a target season (toggles status). |
-| `/seasons/{id}` | `DELETE` | `manage_options` | Deletes a season (only if it has no events). |
-| `/events` | `POST` | `manage_options` | Creates a new event under a season. |
+| `/expedition-board` | `GET` | `manage_options` | Returns full synthetic seasons structure (events and teams) and explorer roster datasets for the Team Builder. |
+| `/events` | `GET` | `manage_options` | Lists events (active/archived). |
+| `/events` | `POST` | `manage_options` | Creates a new event (top-level expedition CPT post). |
 | `/events/{id}` | `POST`/`PUT` | `manage_options` | Updates event details. |
 | `/events/{id}` | `DELETE` | `manage_options` | Deletes an event (only if it contains no teams). |
+| `/events/{id}/teams` | `GET` | `manage_options` | Lists all teams assigned to a given event. |
 | `/events/{id}/teams` | `POST` | `manage_options` | Creates a new team in the event. |
 | `/events/{src}/populate/{target}` | `POST` | `manage_options` | Bulk-copies team structures from a source event to a target event. |
-| `/teams/{id}` | `DELETE` | `manage_options` | Deletes a team (cascading cleanup). |
-| `/teams/{id}/move` | `POST`/`PUT` | `manage_options` | Moves a team to a different event of the same type. |
+| `/events/{id}/whatsapp` | `GET` | `manage_options` | Retrieves Whatsapp link metadata for explorers and parents. |
+| `/events/{id}/whatsapp` | `POST` | `manage_options` | Updates Whatsapp invite links metadata. |
+| `/teams/{id}` | `DELETE` | `manage_options` | Deletes a team (cascading cleanup of member linkages). |
+| `/teams/{id}/move` | `POST`/`PUT` | `manage_options` | Moves a team to a different event. |
 | `/teams/{id}/duplicate`| `POST` | `manage_options` | Clones a team's configuration to a target event. |
 | `/teams/{id}/members` | `POST` | `manage_options` | Adds an explorer to a team roster. |
 | `/teams/{id}/members/{scout_id}` | `DELETE` | `manage_options` | Removes an explorer from a team roster (triggers auto-cleanup). |
 | `/explorers/{scout_id}/move-team` | `POST`/`PUT` | `manage_options` | Moves a single explorer between teams. |
-| `/explorers/{scout_id}/first-aid` | `POST`/`PUT` | `manage_options` | Updates an explorer's local first aid qualification. |
+| `/explorers/{scout_id}/first-aid` | `POST`/`PUT` | `manage_options` | Updates an explorer's local first aid qualification level in cached records. |
+| `/explorers/{scout_id}/asn` | `GET` | `manage_options` | Retrieves explorer Additional Support Needs (ASN) record text. |
+| `/explorers/{scout_id}/asn` | `POST` | `manage_options` | Updates explorer Additional Support Needs (ASN) record text. |
+| `/explorers/{scout_id}/profile` | `GET` | `manage_options` | Returns full cached explorer profile details. |
 | `/explorer/{scout_id}` | `GET` | `manage_options` | Returns detailed contact and training compliance data for a member. |
 | `/team/{team_id}` | `GET` | `manage_options` | Returns hydrated team roster details and compliance flags. |
 | `/patrol/{patrol}` | `GET` | `manage_options` | Returns list of explorers matching a patrol/unit string. |
 | `/events/{id}/training-requirements` | `GET` | `manage_options` | Lists mapped Tutor LMS course IDs required for the event. |
 | `/events/{id}/training-requirements` | `POST` | `manage_options` | Saves mapped Tutor LMS course requirement IDs for the event. |
 | `/sync-status` | `GET` | `manage_options` | Returns execution status of background OSM sync cron. |
-| `/signups/participants` | `GET` | `manage_options` | Returns DofE Participation Place registrations. |
-| `/signups/participants/{id}/process` | `POST` | `manage_options` | Allocates a Participation Place slot. |
+| `/signups` | `GET` | `manage_options` | Lists all participant and expedition signup forms entries. |
+| `/signups/reconcile` | `POST` | `manage_options` | Reconciles / links a parent signup entry with a cached OSM explorer record. |
+| `/signups/unlink` | `POST` | `manage_options` | Decouples / unlinks a parent signup entry from a cached OSM explorer record. |
+| `/signups/participants` | `GET` | `manage_options` | Returns DofE Participation Place registrations (Form 6). |
+| `/signups/participants/export` | `GET` | `manage_options` | Exports participation signups as CSV. |
+| `/signups/participants/{id}/process` | `POST` | `manage_options` | Allocates a Participation Place slot and locks the record. |
 | `/signups/participants/{id}/archive` | `POST` | `manage_options` | Archives a Participation Place registration. |
-| `/signups/expeditions` | `GET` | `manage_options` | Returns specific expedition signups. |
-| `/signups/expeditions/{id}/process` | `POST` | `manage_options` | Processes an expedition entry. |
-| `/signups/expeditions/{id}/archive` | `POST` | `manage_options` | Archives an expedition entry. |
+| `/signups/expeditions` | `GET` | `manage_options` | Returns specific expedition event preferences entries (Form 7). |
+| `/signups/expeditions/{id}/archive` | `POST` | `manage_options` | Archives an expedition signup entry. |
 | `/flexi-structure` | `GET` | `manage_options` | Returns structure of an OSM flexi-record. |
 | `/flexi-column-map` | `GET` / `POST` | `manage_options` | Configures and saves OSM flexi-record column maps. |
-| `/flexi-review` | `GET` | `manage_options` | Fetches flexi-record rows and buckets them. |
+| `/flexi-review` | `GET` | `manage_options` | Fetches flexi-record rows and buckets them (clean/dirty/invalid). |
 | `/flexi-commit` | `POST` | `manage_options` | Syncs the clean bucketed flexi-record data. |
+| `/audit-logs` | `GET` | `manage_options` | Returns paginated list of audited system operations. |
+| `/admin/sync-preview` | `GET` | `manage_options` | Previews proposed push-back modifications to OSM. |
+| `/admin/sync-push` | `POST` | `manage_options` | Executes dry-run push-back sync changes to OSM. |
+| `/admin/sync-status` | `GET`/`DELETE` | `manage_options` | Checks status of push-back sync lock or clears failed pushback queue. |
 
 ---
 
@@ -385,7 +442,7 @@ OSM acts as the source of truth for membership, patrol configurations, events, a
 *   **API Client and Driver Model**: Managed by [OSM_API_Client.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/OSM_API_Client.php). The client decouples the request structure from the transport layer using [Driver_Interface.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Driver_Interface.php):
     *   [Live_Driver.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Live_Driver.php): Performs HTTPS requests using OAuth2 bearer tokens.
     *   [Mock_Driver.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Drivers/Mock_Driver.php): Emulates OSM API responses using local JSON mock files for development.
-*   **API Rate Limiting**: Client-side token bucket algorithm in [Rate_Limiter.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Rate_Limiter.php) limiting requests to **10 per second**.
+*   **API Rate Limiting**: Client-side token bucket algorithm in [Rate_Limiter.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Rate_Limiter.php) limiting requests to a capacity of **10 tokens**, refilling at **1.0 token per second** (refills at 1 request per second with a burst allowance of up to 10).
 *   **Zero-Persistence Token Policy**: OAuth tokens are captured in memory to fetch context upon login or sync. **Tokens are discarded immediately after configuration updates are written.** No user tokens are stored on the server.
 *   **Persistent Synced Sections**: When a reference sync occurs via [OSM_Reference_Sync.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/OSM_Reference_Sync.php), all successfully synced sections are automatically appended and saved to the `ems_managed_sections` database option. This ensures synced sections do not expire after the 1-hour `ems_available_sections` transient cache dies.
 
@@ -401,7 +458,7 @@ EMS connects with **Fluent Forms** to process parent signups and payments.
 *   **Dropdown Filters**: [Fluent_Forms_Sync.php](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Fluent_Forms_Sync.php) filters the child select dropdown (`signup_child`), dynamically listing children mapped under user meta (`ems_children`).
 *   **Explorer Email Pre-population**: If an explorer email is found, the system pre-populates the input field and appends the `"ff-read-only"` style class to prevent parental modification.
 *   **Leader Email Resolution**: Retrieves and stores the local unit leader's email by performing unit database lookups matching the selected ESU.
-*   **Stripe Webhook Mappings**: Listens to Stripe payment webhook changes. If a payment status completes (`paid` or `succeeded`), the sync engine updates `payment_status` in the custom `ems_participant_signups` or `ems_expedition_signups` table (based on the matching submission type), maintaining an idempotent guard to prevent payment downgrades.
+*   **Stripe Webhook Mappings**: Listens to Stripe payment webhook changes. If a payment status completes (`paid` or `succeeded`), the sync engine updates `payment_status` in the custom `ems_participant_signups` table (maintaining an idempotent guard to prevent payment downgrades). Note: Expedition preferences signups (`ems_expedition_signups`) do not track Stripe payments.
 
 #### Unit Resolution Workflow (Direct Section ID Matching)
 To match the 1-to-1 relationship where each OSM Section represents an ESU Unit, the signup form unit resolution bypasses patrol name matching entirely:
@@ -432,15 +489,40 @@ sequenceDiagram
 
 ---
 
+### 7.4 Mapped WordPress Options
+EMS stores its configuration options in the core WordPress options table. The following options control system behavior:
+
+| Option Key | Data Type | Description |
+|---|---|---|
+| `ems_api_mode` | string | Driver mode: `mock` \| `live` \| `live-auth-only` \| `live-limited`. |
+| `ems_sync_limit` | int | Synchronized explorer capacity limit for the OIDC/sync drivers (defaults to `5`). |
+| `ems_debug_log_guard` | bool | Enables verbose diagnostics logging. |
+| `ems_osm_api_base_url` | string | OSM API base URL (defaults to `https://www.onlinescoutmanager.co.uk`). |
+| `ems_osm_auth_url` | string | OAuth authorize URL endpoints. |
+| `ems_osm_token_url` | string | OAuth token handshake endpoints. |
+| `ems_osm_resource_url` | string | OAuth resource retrieval endpoints. |
+| `ems_osm_client_id` | string | Online Scout Manager registered OAuth Client ID. |
+| `ems_osm_client_secret` | string | AES-256-CBC encrypted OAuth client secret. |
+| `ems_osm_scope` | string | Space-separated list of scopes requested during OIDC / pushback handshake. |
+| `ems_fluent_participant_form_id` | int | Fluent Forms form ID representing Participation Place (Form 6). |
+| `ems_fluent_expedition_form_id` | int | Fluent Forms form ID representing Expedition preferences (Form 7). |
+| `ems_participant_form_mappings` | array | Associative mapping of Form 6 form fields to custom database fields. |
+| `ems_expedition_form_mappings` | array | Associative mapping of Form 7 form fields to custom database fields. |
+| `ems_page_roles` | array | WordPress pages mapped to OIDC access groups. |
+| `ems_protect_tutor_lms` | bool | Gated control option over Tutor LMS pages. |
+| `ems_managed_sections` | array | Mapped array of synced section details. |
+| `ems_writeback_section_id` | int | Targeted section ID utilized for back-syncing. |
+| `ems_failed_pushback_queue` | array | Serialized array logs of unsuccessful push-back sync attempts. |
+| `ems_flexirecord_column_map` | array | Dynamically configured OSM column-to-EMS-field mappings. |
+
+---
+
 ## 8. Frontend Portal Shortcodes
 
 EMS React SPAs are rendered within custom page templates (`ems-page-template.php`) using WordPress shortcodes:
 
-| Shortcode | Portal | Target Audience | Primary Function |
-|---|---|---|---|
-| `[ems-explorer-portal]` | Explorer SPA | Synced Explorers | Display assigned team members, routes, checklists, and Tutor LMS progress checklists. |
-| `[ems-parent-portal]` | Parent SPA | Verified Parents | Select children, view timelines, and launch expedition registration forms. |
-| `[ems-volunteer-dashboard]` | Volunteer Board | Adult Helpers | Submit dates availability and overnight coverage grids. |
-| `[ems-leader-portal]` | Leader Portal | Unit Leaders / LiCs | View allocations, assigned events helper rosters, and download print sheets. |
-| `[ems-route-submit]` | Upload Form | Team Members | Upload `.gpx` maps and `.pdf` route cards (version audited). |
-| `[ems-route-status]` | Status Board | Team Members | View route card review statuses and Leader-in-Charge annotations. |
+| Shortcode | Target Audience | Primary Function |
+|---|---|---|
+| `[ems-portal]` | Parents, Explorers, Leaders | **Unified Portal SPA**: Localizes the script with OIDC user details and access types, rendering either the Parent portal (profile setups, child linkages, Form 6/7 tracking), Explorer portal (roster checklists, tutor training status, GPX and route card submits), or Leader portal (events lists, WhatsApp logs, team assignments builder, helper schedules) dynamically. |
+| `[ems-volunteer-signup]` | Adult Helpers | **Volunteer Portal**: Renders interactive availability Cover Boards, overnight cover checkgrids, and qualification forms. |
+| `[ems_signup_banner]` | Form Registrants | **OIDC Action Banner**: CTA banner rendered at the top of signup forms promoting parents to log in via OIDC to pre-populate their child's details. |
