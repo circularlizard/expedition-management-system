@@ -229,4 +229,46 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$this->assertEquals( 'wp_ems_units', $wpdb->deleted[0]['table'] );
 		$this->assertEquals( 5, $wpdb->deleted[0]['where']['id'] );
 	}
+
+	public function test_consolidate_duplicate_units(): void {
+		$wpdb = new class {
+			public $prefix = 'wp_';
+			public $queries = [];
+
+			public function prepare( string $sql, ...$args ): string {
+				return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
+			}
+
+			public function query( string $sql ) {
+				$this->queries[] = $sql;
+				return 1;
+			}
+
+			public function get_results( string $sql, string $output = 'OBJECT' ) {
+				if ( str_contains( $sql, 'SELECT * FROM wp_ems_units' ) ) {
+					return [
+						[ 'id' => 10, 'unit_id' => 46461, 'district' => 'Braid', 'name' => 'BR-ALBATROSS', 'short_code' => 'BR-Albatross', 'leader_email' => 'shaun@example.com' ],
+						[ 'id' => 11, 'unit_id' => 46502, 'district' => '',      'name' => 'BR-ALBATROSS', 'short_code' => 'BR-Albatross', 'leader_email' => 'shaun@example.com' ],
+						[ 'id' => 20, 'unit_id' => 99201, 'district' => 'Pentland', 'name' => 'PE-Castle', 'short_code' => 'PE-Castle', 'leader_email' => 'jon@example.com' ],
+					];
+				}
+				if ( str_contains( $sql, 'SELECT * FROM wp_ems_unit_patrols' ) ) {
+					return [];
+				}
+				return [];
+			}
+		};
+
+		$repo = new Unit_Repository( $wpdb );
+		$res  = $repo->consolidate_duplicate_units();
+
+		$this->assertSame( 1, $res['merged_count'] );
+		$this->assertCount( 1, $res['details'] );
+		$this->assertStringContainsString( 'BR-ALBATROSS: Merged 1 duplicate(s) into Unit ID 46461', $res['details'][0] );
+
+		// Check that UPDATE and DELETE queries were executed
+		$this->assertCount( 2, $wpdb->queries );
+		$this->assertStringContainsString( 'UPDATE wp_ems_unit_patrols SET unit_id = 46461 WHERE unit_id IN (46502)', $wpdb->queries[0] );
+		$this->assertStringContainsString( 'DELETE FROM wp_ems_units WHERE id IN (11)', $wpdb->queries[1] );
+	}
 }

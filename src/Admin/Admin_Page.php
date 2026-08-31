@@ -259,6 +259,8 @@ class Admin_Page {
 			$this->handle_add_district();
 		} elseif ( isset( $_POST['ems_delete_district'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
 			$this->handle_delete_district( sanitize_text_field( wp_unslash( $_POST['ems_delete_district'] ) ) );
+		} elseif ( isset( $_POST['ems_consolidate_units'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
+			$this->handle_consolidate_units();
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'link_patrol' && check_admin_referer( 'ems_link_patrol' ) ) {
 			$this->handle_link_patrol_to_unit();
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'create_unit_from_patrol' && check_admin_referer( 'ems_create_unit_from_patrol' ) ) {
@@ -868,6 +870,37 @@ class Admin_Page {
 	}
 
 	/**
+	 * Handles consolidating duplicate master units sharing the same name.
+	 *
+	 * @return void
+	 */
+	private function handle_consolidate_units(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$unit_repo = $this->get_unit_repository();
+		$result    = $unit_repo->consolidate_duplicate_units();
+
+		if ( $result['merged_count'] > 0 ) {
+			$details_html = '';
+			if ( ! empty( $result['details'] ) ) {
+				$details_html = '<ul style="margin: 5px 0 0 15px; list-style-type: disc;">';
+				foreach ( $result['details'] as $detail ) {
+					$details_html .= '<li>' . esc_html( $detail ) . '</li>';
+				}
+				$details_html .= '</ul>';
+			}
+
+			echo '<div class="notice notice-success is-dismissible"><p>' .
+				sprintf( esc_html__( 'Consolidation complete: Merged %d duplicate unit record(s). Matched patrols have been combined into the primary units.', 'ems-plugin' ), $result['merged_count'] ) .
+				'</p>' . $details_html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		} else {
+			echo '<div class="notice notice-info is-dismissible"><p>' . esc_html__( 'No duplicate units found. All units have unique names.', 'ems-plugin' ) . '</p></div>';
+		}
+	}
+
+	/**
 	 * Checks if a unit export request has been made and handles it before headers are sent.
 	 *
 	 * @return void
@@ -1342,7 +1375,11 @@ class Admin_Page {
 						<p class="description" style="margin: 0;">
 							<?php esc_html_e( 'Units are grouped by District. Edit the district name in any card header to rename it for all units in that card, or use "Move District" to reassign individual units.', 'ems-plugin' ); ?>
 						</p>
-						<div style="display: flex; gap: 8px; align-items: center;">
+						<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+							<button type="submit" name="ems_consolidate_units" value="1" class="button button-secondary" onclick="return confirm('<?php echo esc_attr( __( 'Consolidate duplicate units? This will merge duplicate master units with the same name, combine all their matched patrols into one unit, and remove duplicate rows.', 'ems-plugin' ) ); ?>');">
+								<span class="dashicons dashicons-randomize" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
+								<?php esc_html_e( 'Consolidate Duplicate Units', 'ems-plugin' ); ?>
+							</button>
 							<button type="button" class="button button-secondary" onclick="var el = document.getElementById('custom_unit_district'); if (el) { el.value = ''; el.focus(); el.scrollIntoView({behavior: 'smooth', block: 'center'}); }">
 								<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
 								<?php esc_html_e( 'Add Master Unit', 'ems-plugin' ); ?>
