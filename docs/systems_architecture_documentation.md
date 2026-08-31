@@ -470,7 +470,7 @@ All endpoints are registered under the `/wp-json/ems/v1/` or `/wp-json/ems/v1/ad
 | `/volunteers/events` | `GET` | `manage_options` | Lists events for volunteer scheduling. |
 | `/volunteers/assign` | `POST` | `manage_options` | Allocates volunteers to specific event checkpoints. |
 | `/volunteers/save` | `POST` | `manage_options` | Saves volunteer qualification and DB records. |
-| `/volunteers/availability` | `POST` | Authenticated | Submits parent/helper availability calendar entries. |
+| `/volunteers/availability` | `POST` | `manage_options` | Saves volunteer availability calendar entries (admin-only). |
 | `/planning-board` | `GET` | `manage_options` | Fetches overall helper and coverage calendar matrix. |
 | `/planning-board/availability/{event_code}` | `GET` | `manage_options` | Retrieves volunteer availability for a specific event. |
 | `/planning-board/allocate` | `POST` | `manage_options` | Persists volunteer scheduling block assignments. |
