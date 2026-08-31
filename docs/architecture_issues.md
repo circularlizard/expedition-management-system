@@ -17,12 +17,12 @@ This document records the architectural discrepancies, bugs, and technical debt 
     LEFT JOIN wp_ems_units u ON e.section_id = u.unit_id
     ```
 
-### 1.2 Backup & Portability Engine Sync Omissions (Data Loss Risk)
-*   **Description**: The backup/export system in [`Portability_Engine.php` (Lines 21-31)](file:///Users/davidstrachan/Projects/expedition-management-system/src/Core/Portability_Engine.php#L21-L31) is out of sync with active database tables:
-    1.  It references the legacy, deleted table `ems_signups`.
-    2.  It completely omits the active tables: `ems_participant_signups`, `ems_expedition_signups`, `ems_volunteers`, and `ems_audit_logs`.
-    *Result*: Importing or exporting settings will fail to preserve any signups, volunteer rosters, or audit log records.
-*   **Action Required**: Update the table registration lists inside `Portability_Engine.php` to include the current tables.
+### 1.2 Backup & Portability Engine Sync Omissions (Data Loss & Option Omissions)
+*   **Description**: The backup/export system in [`Portability_Engine.php` (Lines 21-31)](file:///Users/davidstrachan/Projects/expedition-management-system/src/Core/Portability_Engine.php#L21-L31) is out of sync with active database tables and configuration options:
+    1.  **Table Omissions**: It references the legacy, deleted table `ems_signups` and completely omits the active tables: `ems_participant_signups`, `ems_expedition_signups`, `ems_volunteers`, and `ems_audit_logs`.
+    2.  **Option Omissions**: It exports legacy, dead options (`ems_form_mappings` and `ems_fluent_form_id`), but completely omits key active configuration settings (`ems_fluent_participant_form_id`, `ems_fluent_expedition_form_id`, `ems_participant_form_mappings`, `ems_expedition_form_mappings`, `ems_page_roles`, `ems_protect_tutor_lms`, `ems_osm_auth_url`, `ems_osm_token_url`, `ems_osm_resource_url`).
+    *Result*: Importing or exporting settings will fail to preserve any signups, volunteer rosters, audit logs, form ID configurations, form mappings, page roles, and OIDC API URL configurations.
+*   **Action Required**: Update the table registration lists and `OPTIONS_TO_EXPORT` arrays in `Portability_Engine.php` to include the current tables and active configuration options, while removing the legacy options.
 
 ---
 
@@ -55,3 +55,7 @@ This document records the architectural discrepancies, bugs, and technical debt 
 ### 3.3 Deprecated Season CPT & Repository
 *   **Description**: Even though the `season` CPT was deprecated and deleted (as documented in ADR 003), the repository files are still defined and injected. Furthermore, [`Expedition_Admin_Controller::get_expedition_board()`](file:///Users/davidstrachan/Projects/expedition-management-system/src/Admin/Expedition_Admin_Controller.php#L670) mocks a "synthetic" season to satisfy the React frontend API contract.
 *   **Action Required**: Refactor the React frontend and WP REST controllers to completely remove the synthetic season layer.
+
+### 3.4 REST API Gating & Documentation Mismatch
+*   **Description**: The endpoint `/volunteers/availability` (POST) was documented as publicly authenticated to handle parent/helper availability submissions. However, the code in `Volunteer_Controller.php` (Line 65) restricts this route's callback (`save_availability_admin`) to the `manage_options` capability (Admin only). In contrast, public helpers submit availability dynamically via `/volunteers/signup` (which maps to the public `signup` callback that internally triggers the repository save function).
+*   **Action Required**: Ensure the route remains restricted to admin and update documentation, or refactor the route permissions if helper direct updates are ever intended to use `/volunteers/availability` separately.
