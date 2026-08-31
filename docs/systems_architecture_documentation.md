@@ -466,8 +466,8 @@ All endpoints are registered under the `/wp-json/ems/v1/` or `/wp-json/ems/v1/ad
 | `/unit-leaders` | `GET` | `manage_options` | Lists registered unit leaders. |
 | `/unit-leaders/{id}` | `POST`/`PUT`/`PATCH` | `manage_options` | Updates contact details for a unit leader. |
 | `/volunteers` | `GET` | `manage_options` | Lists registered adult volunteers. |
-| `/volunteers/signup` | `POST` | Authenticated | Handles custom helper signup registrations. |
-| `/volunteers/events` | `GET` | `manage_options` | Lists events for volunteer scheduling. |
+| `/volunteers/signup` | `POST` | Public | Handles custom helper signup registrations. |
+| `/volunteers/events` | `GET` | Public | Lists events for volunteer scheduling. |
 | `/volunteers/assign` | `POST` | `manage_options` | Allocates volunteers to specific event checkpoints. |
 | `/volunteers/save` | `POST` | `manage_options` | Saves volunteer qualification and DB records. |
 | `/volunteers/availability` | `POST` | `manage_options` | Saves volunteer availability calendar entries (admin-only). |
