@@ -165,6 +165,7 @@ class Admin_PageTest extends EMSTestCase {
 	}
 
 	public function test_save_unit_leaders_saves_mappings(): void {
+		Functions\when( 'get_option' )->justReturn( [] );
 		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
 		$repo->shouldReceive( 'update_custom_mappings' )->with( 12, [
 			'unit_id'      => 4200,
@@ -450,6 +451,66 @@ class Admin_PageTest extends EMSTestCase {
 		unset( $_POST['patrol_id'] );
 		unset( $_POST['section_id'] );
 		unset( $_POST['patrol_name'] );
+	}
+
+	public function test_handle_add_district_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$_POST['ems_new_district_name'] = 'Craigalmond';
+
+		$stored_options = [];
+		Functions\when( 'get_option' )->alias( function ( $k, $default = false ) use ( &$stored_options ) {
+			return $stored_options[ $k ] ?? $default;
+		} );
+		Functions\when( 'update_option' )->alias( function ( $k, $v ) use ( &$stored_options ) {
+			$stored_options[ $k ] = $v;
+			return true;
+		} );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page       = new Admin_Page( $diagnostic );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method    = $reflected->getMethod( 'handle_add_district' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'District "Craigalmond" created successfully.', $output );
+		$this->assertSame( [ 'Craigalmond' ], $stored_options['ems_districts'] );
+
+		unset( $_POST['ems_new_district_name'] );
+	}
+
+	public function test_handle_delete_district_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$stored_options = [
+			'ems_districts' => [ 'Braid', 'Pentland' ],
+		];
+		Functions\when( 'get_option' )->alias( function ( $k, $default = false ) use ( &$stored_options ) {
+			return $stored_options[ $k ] ?? $default;
+		} );
+		Functions\when( 'update_option' )->alias( function ( $k, $v ) use ( &$stored_options ) {
+			$stored_options[ $k ] = $v;
+			return true;
+		} );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page       = new Admin_Page( $diagnostic );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method    = $reflected->getMethod( 'handle_delete_district' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page, 'Braid' );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'District "Braid" removed.', $output );
+		$this->assertSame( [ 'Pentland' ], $stored_options['ems_districts'] );
 	}
 }
 
