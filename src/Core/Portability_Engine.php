@@ -22,6 +22,7 @@ class Portability_Engine {
 		'ems_osm_auth_url',
 		'ems_osm_token_url',
 		'ems_osm_resource_url',
+		'ems_districts',
 		'ems_debug_log_guard',
 	);
 
