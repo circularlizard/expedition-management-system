@@ -1147,6 +1147,33 @@ class Admin_Page {
 		$units            = $unit_repo->list_active_units();
 		$managed_sections = get_option( 'ems_managed_sections', array() );
 
+		// Group units by District
+		$grouped_units = array();
+		$all_districts = array();
+		foreach ( $units as $u ) {
+			$dist = trim( $u['district'] ?? '' );
+			if ( $dist !== '' && ! in_array( $dist, $all_districts, true ) ) {
+				$all_districts[] = $dist;
+			}
+			$group_key = $dist !== '' ? $dist : '__unassigned__';
+			$grouped_units[ $group_key ][] = $u;
+		}
+		natcasesort( $all_districts );
+
+		// Sort grouped keys: alphabetical districts first, __unassigned__ last
+		uksort(
+			$grouped_units,
+			function( $a, $b ) {
+				if ( $a === '__unassigned__' ) {
+					return 1;
+				}
+				if ( $b === '__unassigned__' ) {
+					return -1;
+				}
+				return strcasecmp( $a, $b );
+			}
+		);
+
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$unmatched_patrols = $wpdb->get_results(
 			"SELECT p.* FROM {$wpdb->prefix}ems_unit_patrols p
@@ -1160,6 +1187,24 @@ class Admin_Page {
 			.ems-unit-leaders-table-container {
 				margin-top: 15px;
 				margin-bottom: 20px;
+			}
+			.ems-district-card {
+				margin-top: 20px;
+				padding: 16px 20px;
+				max-width: 100%;
+				border-left: 4px solid #2271b1;
+				box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+			}
+			.ems-district-card.ems-unassigned-card {
+				border-left-color: #dcdcde;
+			}
+			.ems-district-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 12px;
+				flex-wrap: wrap;
+				gap: 10px;
 			}
 			.ems-unit-leaders-table-container input[type="text"],
 			.ems-unit-leaders-table-container input[type="email"],
@@ -1179,86 +1224,188 @@ class Admin_Page {
 		<form method="post">
 			<?php wp_nonce_field( 'ems_settings_unit_leaders' ); ?>
 			<div class="ems-unit-leaders-table-container">
-				<table class="wp-list-table widefat striped">
-					<thead>
-						<tr>
-							<th style="width: 8%;"><?php esc_html_e( 'District', 'ems-plugin' ); ?></th>
-							<th style="width: 20%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
-							<th style="width: 8%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
-							<th style="width: 12%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
-							<th style="width: 25%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
-							<th><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
-							<th style="width: 8%;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php if ( empty( $units ) ) : ?>
-							<tr>
-								<td colspan="7"><?php esc_html_e( 'No Units found. Add a master unit below.', 'ems-plugin' ); ?></td>
-							</tr>
-						<?php else : ?>
-							<?php
-							foreach ( $units as $u ) :
-								$row_id = (int) $u['id'];
-								?>
-								<tr>
-									<td>
-										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][district]" 
-												value="<?php echo esc_attr( $u['district'] ?? '' ); ?>" />
-									</td>
-									<td>
-										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][name]" 
-												value="<?php echo esc_attr( $u['name'] ); ?>" required />
-									</td>
-									<td>
-										<input type="number" name="unit_leaders[<?php echo $row_id; ?>][unit_id]" 
-												value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" required />
-									</td>
-									<td>
-										<input type="text" name="unit_leaders[<?php echo $row_id; ?>][short_code]" 
-												value="<?php echo esc_attr( $u['short_code'] ?: $u['name'] ); ?>" />
-									</td>
-									<td>
-										<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
-												value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
-									</td>
-									<td>
-										<?php if ( ! empty( $u['matched_patrols'] ) ) : ?>
-											<ul style="margin: 0; padding-left: 15px; list-style-type: disc;">
-												<?php foreach ( $u['matched_patrols'] as $patrol ) : 
-													$sec_id = (int) $patrol['section_id'];
-													$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
-													?>
-													<li>
-														<strong><?php echo esc_html( $patrol['name'] ); ?></strong>
-														(<?php echo esc_html( $sec_name ); ?>)
-														<code style="font-size: 11px;">[ID: <?php echo (int) $patrol['patrol_id']; ?>]</code>
-													</li>
-												<?php endforeach; ?>
-											</ul>
-										<?php else : ?>
-											<span class="description"><?php esc_html_e( 'None matched', 'ems-plugin' ); ?></span>
-										<?php endif; ?>
-									</td>
-									<td>
-										<button type="submit" name="ems_delete_custom_unit" value="<?php echo $row_id; ?>" 
-												class="button button-link-delete" style="color: #b32d2e;"
-												onclick="return confirm('<?php echo esc_attr( __( 'Are you sure you want to delete this unit?', 'ems-plugin' ) ); ?>');">
-											<?php esc_html_e( 'Delete', 'ems-plugin' ); ?>
+				<?php if ( empty( $units ) ) : ?>
+					<div class="card" style="padding: 20px;">
+						<p><?php esc_html_e( 'No Units found. Add a master unit below.', 'ems-plugin' ); ?></p>
+					</div>
+				<?php else : ?>
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+						<p class="description" style="margin: 0;">
+							<?php esc_html_e( 'Units are grouped by District. Edit the district name in any card header to update all units in that district, or use "Move District" on individual rows.', 'ems-plugin' ); ?>
+						</p>
+						<input type="submit" name="ems_save_unit_leaders" class="button button-primary" value="<?php esc_attr_e( 'Save All Units', 'ems-plugin' ); ?>" />
+					</div>
+
+					<?php foreach ( $grouped_units as $group_key => $group_units ) : 
+						$is_unassigned = ( $group_key === '__unassigned__' );
+						$card_class    = $is_unassigned ? 'card ems-district-card ems-unassigned-card' : 'card ems-district-card';
+						?>
+						<div class="<?php echo esc_attr( $card_class ); ?>" data-district-key="<?php echo esc_attr( $group_key ); ?>">
+							<div class="ems-district-header">
+								<div style="display: flex; align-items: center; gap: 10px;">
+									<span class="dashicons dashicons-location" style="color: <?php echo $is_unassigned ? '#646970' : '#2271b1'; ?>; font-size: 22px; width: 22px; height: 22px;"></span>
+									<?php if ( $is_unassigned ) : ?>
+										<strong style="font-size: 16px; color: #646970;"><?php esc_html_e( 'Unassigned Units (No District)', 'ems-plugin' ); ?></strong>
+									<?php else : ?>
+										<label style="font-size: 15px; font-weight: 600; color: #1d2327;">
+											<?php esc_html_e( 'District:', 'ems-plugin' ); ?>
+											<input type="text" class="ems-district-header-input" 
+													data-original-district="<?php echo esc_attr( $group_key ); ?>"
+													value="<?php echo esc_attr( $group_key ); ?>" 
+													style="font-size: 15px; font-weight: 600; width: 240px; margin-left: 4px; padding: 4px 8px;" />
+										</label>
+									<?php endif; ?>
+									<span class="ems-unit-count-badge" style="background: #f0f0f1; border: 1px solid #c3c4c7; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; color: #50575e;">
+										<?php echo sprintf( _n( '%d Unit', '%d Units', count( $group_units ), 'ems-plugin' ), count( $group_units ) ); ?>
+									</span>
+								</div>
+								<div>
+									<?php if ( ! $is_unassigned ) : ?>
+										<button type="button" class="button button-secondary ems-quick-add-btn" data-district="<?php echo esc_attr( $group_key ); ?>" style="font-size: 12px; height: 28px; line-height: 26px;">
+											<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
+											<?php echo sprintf( esc_html__( 'Add Unit to %s', 'ems-plugin' ), esc_html( $group_key ) ); ?>
 										</button>
-									</td>
-								</tr>
-							<?php endforeach; ?>
-						<?php endif; ?>
-					</tbody>
-				</table>
+									<?php endif; ?>
+								</div>
+							</div>
+
+							<table class="wp-list-table widefat striped ems-district-units-table">
+								<thead>
+									<tr>
+										<th style="width: 22%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
+										<th style="width: 10%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
+										<th style="width: 14%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
+										<th style="width: 22%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+										<th><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
+										<th style="width: 14%;"><?php esc_html_e( 'Move District', 'ems-plugin' ); ?></th>
+										<th style="width: 6%; text-align: center;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ( $group_units as $u ) :
+										$row_id   = (int) $u['id'];
+										$cur_dist = $u['district'] ?? '';
+										?>
+										<tr class="ems-unit-row" data-unit-row-id="<?php echo $row_id; ?>">
+											<input type="hidden" class="ems-unit-district-hidden" 
+													name="unit_leaders[<?php echo $row_id; ?>][district]" 
+													value="<?php echo esc_attr( $cur_dist ); ?>" />
+											<td>
+												<input type="text" name="unit_leaders[<?php echo $row_id; ?>][name]" 
+														value="<?php echo esc_attr( $u['name'] ); ?>" required />
+											</td>
+											<td>
+												<input type="number" name="unit_leaders[<?php echo $row_id; ?>][unit_id]" 
+														value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" required />
+											</td>
+											<td>
+												<input type="text" name="unit_leaders[<?php echo $row_id; ?>][short_code]" 
+														value="<?php echo esc_attr( $u['short_code'] ?: $u['name'] ); ?>" />
+											</td>
+											<td>
+												<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
+														value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
+											</td>
+											<td>
+												<?php if ( ! empty( $u['matched_patrols'] ) ) : ?>
+													<ul style="margin: 0; padding-left: 15px; list-style-type: disc;">
+														<?php foreach ( $u['matched_patrols'] as $patrol ) : 
+															$sec_id   = (int) $patrol['section_id'];
+															$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
+															?>
+															<li>
+																<strong><?php echo esc_html( $patrol['name'] ); ?></strong>
+																(<?php echo esc_html( $sec_name ); ?>)
+																<code style="font-size: 11px;">[ID: <?php echo (int) $patrol['patrol_id']; ?>]</code>
+															</li>
+														<?php endforeach; ?>
+													</ul>
+												<?php else : ?>
+													<span class="description"><?php esc_html_e( 'None matched', 'ems-plugin' ); ?></span>
+												<?php endif; ?>
+											</td>
+											<td>
+												<select class="ems-move-district-select" style="width: 100%; height: 30px; font-size: 12px; line-height: 1; padding: 2px 4px;">
+													<option value=""><?php esc_html_e( '— Keep Current —', 'ems-plugin' ); ?></option>
+													<option value="__unassigned__"><?php esc_html_e( '(Unassigned)', 'ems-plugin' ); ?></option>
+													<?php foreach ( $all_districts as $d ) : ?>
+														<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $cur_dist, $d ); ?>>
+															<?php echo esc_html( $d ); ?>
+														</option>
+													<?php endforeach; ?>
+												</select>
+											</td>
+											<td style="text-align: center;">
+												<button type="submit" name="ems_delete_custom_unit" value="<?php echo $row_id; ?>" 
+														class="button button-link-delete" style="color: #b32d2e;"
+														onclick="return confirm('<?php echo esc_attr( __( 'Are you sure you want to delete this unit?', 'ems-plugin' ) ); ?>');">
+													<?php esc_html_e( 'Delete', 'ems-plugin' ); ?>
+												</button>
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						</div>
+					<?php endforeach; ?>
+				<?php endif; ?>
 			</div>
 			<?php if ( ! empty( $units ) ) : ?>
 				<p class="submit">
-					<input type="submit" name="ems_save_unit_leaders" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Units', 'ems-plugin' ); ?>" />
+					<input type="submit" name="ems_save_unit_leaders" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save All Units', 'ems-plugin' ); ?>" />
 				</p>
 			<?php endif; ?>
 		</form>
+
+		<script type="text/javascript">
+		document.addEventListener('DOMContentLoaded', function() {
+			// 1. Sync district header edits to all units in the card
+			document.querySelectorAll('.ems-district-header-input').forEach(function(input) {
+				input.addEventListener('input', function() {
+					var newDistrict = this.value.trim();
+					var card = this.closest('.ems-district-card');
+					if (card) {
+						card.querySelectorAll('.ems-unit-district-hidden').forEach(function(hidden) {
+							hidden.value = newDistrict;
+						});
+					}
+				});
+			});
+
+			// 2. Handle Move District select
+			document.querySelectorAll('.ems-move-district-select').forEach(function(select) {
+				select.addEventListener('change', function() {
+					var targetDistrict = this.value;
+					if (targetDistrict === '') return;
+					if (targetDistrict === '__unassigned__') targetDistrict = '';
+					var row = this.closest('.ems-unit-row');
+					if (row) {
+						var hidden = row.querySelector('.ems-unit-district-hidden');
+						if (hidden) {
+							hidden.value = targetDistrict;
+						}
+						row.style.backgroundColor = '#fcf8e3'; // Visual cue for pending move
+					}
+				});
+			});
+
+			// 3. Quick Add button pre-fills District and scrolls to Add Master Unit
+			document.querySelectorAll('.ems-quick-add-btn').forEach(function(btn) {
+				btn.addEventListener('click', function() {
+					var dist = this.getAttribute('data-district');
+					var distInput = document.getElementById('custom_unit_district');
+					var nameInput = document.getElementById('custom_unit_name');
+					if (distInput) {
+						distInput.value = dist;
+					}
+					if (nameInput) {
+						nameInput.focus();
+						nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					}
+				});
+			});
+		});
+		</script>
 
 		<?php if ( ! empty( $unmatched_patrols ) ) : ?>
 			<div class="card" style="margin-top: 30px; padding: 20px; max-width: 100%;">
@@ -1329,7 +1476,14 @@ class Admin_Page {
 				<table class="form-table" role="presentation" style="margin-top: 0;">
 					<tr>
 						<th scope="row"><label for="custom_unit_district"><?php esc_html_e( 'District', 'ems-plugin' ); ?></label></th>
-						<td><input type="text" name="custom_unit_district" id="custom_unit_district" class="regular-text" /></td>
+						<td>
+							<input type="text" name="custom_unit_district" id="custom_unit_district" list="ems_existing_districts" class="regular-text" placeholder="<?php esc_attr_e( 'e.g. Borders, Braid, Pentland', 'ems-plugin' ); ?>" />
+							<datalist id="ems_existing_districts">
+								<?php foreach ( $all_districts as $d ) : ?>
+									<option value="<?php echo esc_attr( $d ); ?>"></option>
+								<?php endforeach; ?>
+							</datalist>
+						</td>
 					</tr>
 					<tr>
 						<th scope="row"><label for="custom_unit_name"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></label></th>
