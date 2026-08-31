@@ -13,12 +13,20 @@ class Portability_Engine {
 		'ems_osm_api_base_url',
 		'ems_osm_scope',
 		'ems_flexirecord_column_map',
-		'ems_form_mappings',
-		'ems_fluent_form_id',
+		'ems_fluent_participant_form_id',
+		'ems_fluent_expedition_form_id',
+		'ems_participant_form_mappings',
+		'ems_expedition_form_mappings',
+		'ems_page_roles',
+		'ems_protect_tutor_lms',
+		'ems_osm_auth_url',
+		'ems_osm_token_url',
+		'ems_osm_resource_url',
 		'ems_debug_log_guard',
 	);
 
 	private const TABLES_TO_EXPORT = array(
+		'ems_volunteers',
 		'ems_team_members',
 		'ems_volunteer_availability',
 		'ems_route_submissions',
@@ -27,7 +35,9 @@ class Portability_Engine {
 		'ems_osm_event_attendance',
 		'ems_units',
 		'ems_unit_patrols',
-		'ems_signups',
+		'ems_participant_signups',
+		'ems_expedition_signups',
+		'ems_audit_logs',
 	);
 
 	/**

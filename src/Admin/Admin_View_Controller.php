@@ -388,9 +388,10 @@ class Admin_View_Controller {
 			$ids_placeholder = implode( ',', array_fill( 0, count( $member_ids ), '%d' ) );
 			$rows            = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT e.scout_id, e.wp_user_id, e.first_name, e.last_name, u.name as unit_name 
+					"SELECT e.scout_id, e.wp_user_id, e.first_name, e.last_name, COALESCE(u.name, p.name, e.patrol) as unit_name 
                  FROM {$explorers_table} e
-                 LEFT JOIN {$wpdb->prefix}ems_units u ON e.section_id = u.section_id AND e.patrol = u.name
+                 LEFT JOIN {$wpdb->prefix}ems_unit_patrols p ON e.section_id = p.section_id AND e.patrol = p.name
+                 LEFT JOIN {$wpdb->prefix}ems_units u ON (p.unit_id = u.unit_id OR e.section_id = u.unit_id)
                  WHERE e.scout_id IN ({$ids_placeholder})",
 					...$member_ids
 				),
