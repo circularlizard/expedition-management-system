@@ -21,7 +21,6 @@ class Fluent_Forms_Sync {
 	public function init_hooks(): void {
 		// Dropdown dynamic choices population filter
 		add_filter( 'fluentform/rendering_field_data_select', array( $this, 'populate_child_dropdown' ), 10, 2 );
-		add_filter( 'fluentform/rendering_field_data_select', array( $this, 'populate_unit_dropdown' ), 10, 2 );
 
 		// Validation bypass for dynamically generated dropdown choices
 		add_filter( 'fluentform/validate_input_item_select', array( $this, 'bypass_dropdown_validation' ), 10, 2 );
@@ -127,53 +126,6 @@ class Fluent_Forms_Sync {
 		}
 
 		return $errors;
-	}
-
-	/**
-	 * Dynamically populate unit dropdown select field choices
-	 */
-	public function populate_unit_dropdown( array $data, $form ): array {
-		$form_id             = (int) $form->id;
-		$participant_form_id = (int) get_option( 'ems_fluent_participant_form_id', 0 );
-		$expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 0 );
-
-		if ( $form_id !== $participant_form_id && $form_id !== $expedition_form_id ) {
-			return $data;
-		}
-
-		$config = array();
-		if ( $form_id === $participant_form_id ) {
-			$config = get_option( 'ems_participant_form_mappings', array() );
-		} elseif ( $form_id === $expedition_form_id ) {
-			$config = get_option( 'ems_expedition_form_mappings', array() );
-		}
-
-		$unit_field = $config['esu_patrol_field'] ?? 'signup_unit';
-		if ( ( $data['attributes']['name'] ?? '' ) !== $unit_field ) {
-			return $data;
-		}
-
-		// Fetch active units from master list
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$units = $this->wpdb->get_results( "SELECT name, short_code, unit_id FROM {$this->wpdb->prefix}ems_units ORDER BY name", ARRAY_A ) ?: array();
-
-		$options = array();
-		foreach ( $units as $u ) {
-			if ( empty( $u['short_code'] ) ) {
-				continue;
-			}
-			$options[] = array(
-				'label'      => $u['name'] ?: $u['short_code'],
-				'value'      => (string) $u['unit_id'],
-				'calc_value' => '',
-			);
-		}
-
-		if ( ! empty( $options ) ) {
-			$data['settings']['advanced_options'] = $options;
-		}
-
-		return $data;
 	}
 
 	/**
