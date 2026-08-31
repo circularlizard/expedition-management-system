@@ -1307,11 +1307,12 @@ class Admin_Page {
 				margin-bottom: 20px;
 			}
 			.ems-district-card {
-				margin-top: 20px;
-				padding: 16px 20px;
+				margin-top: 15px;
+				padding: 14px 20px;
 				max-width: 100%;
 				border-left: 4px solid #2271b1;
 				box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+				transition: all 0.15s ease-in-out;
 			}
 			.ems-district-card.ems-unassigned-card {
 				border-left-color: #dcdcde;
@@ -1320,9 +1321,34 @@ class Admin_Page {
 				display: flex;
 				justify-content: space-between;
 				align-items: center;
-				margin-bottom: 12px;
+				padding: 2px 0;
+				cursor: pointer;
+				user-select: none;
 				flex-wrap: wrap;
 				gap: 10px;
+			}
+			.ems-district-header input,
+			.ems-district-header button,
+			.ems-district-header select {
+				cursor: auto;
+			}
+			.ems-district-toggle-icon {
+				transition: transform 0.2s ease-in-out;
+				color: #50575e;
+				font-size: 20px;
+				width: 20px;
+				height: 20px;
+				display: inline-block;
+				vertical-align: middle;
+			}
+			.ems-district-card.is-collapsed {
+				padding-bottom: 14px;
+			}
+			.ems-district-card.is-collapsed .ems-district-toggle-icon {
+				transform: rotate(-90deg);
+			}
+			.ems-district-card.is-collapsed .ems-district-units-table {
+				display: none !important;
 			}
 			.ems-unit-leaders-table-container input[type="text"],
 			.ems-unit-leaders-table-container input[type="email"],
@@ -1373,9 +1399,13 @@ class Admin_Page {
 				<?php else : ?>
 					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
 						<p class="description" style="margin: 0;">
-							<?php esc_html_e( 'Units are grouped by District. Edit the district name in any card header to rename it for all units in that card, or use "Move District" to reassign individual units.', 'ems-plugin' ); ?>
+							<?php esc_html_e( 'Units are grouped by District. Click any district header to collapse or expand it.', 'ems-plugin' ); ?>
 						</p>
 						<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+							<button type="button" class="button" id="ems_toggle_all_districts" style="height: 30px; line-height: 28px;">
+								<span class="dashicons dashicons-editor-expand" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
+								<?php esc_html_e( 'Toggle All', 'ems-plugin' ); ?>
+							</button>
 							<button type="submit" name="ems_consolidate_units" value="1" class="button button-secondary" onclick="return confirm('<?php echo esc_attr( __( 'Consolidate duplicate units? This will merge duplicate master units with the same name, combine all their matched patrols into one unit, and remove duplicate rows.', 'ems-plugin' ) ); ?>');">
 								<span class="dashicons dashicons-randomize" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
 								<?php esc_html_e( 'Consolidate Duplicate Units', 'ems-plugin' ); ?>
@@ -1393,25 +1423,26 @@ class Admin_Page {
 						$card_class    = $is_unassigned ? 'card ems-district-card ems-unassigned-card' : 'card ems-district-card';
 						?>
 						<div class="<?php echo esc_attr( $card_class ); ?>" data-district-key="<?php echo esc_attr( $group_key ); ?>">
-							<div class="ems-district-header">
-								<div style="display: flex; align-items: center; gap: 10px;">
-									<span class="dashicons dashicons-location" style="color: <?php echo $is_unassigned ? '#646970' : '#2271b1'; ?>; font-size: 22px; width: 22px; height: 22px;"></span>
+							<div class="ems-district-header" title="<?php esc_attr_e( 'Click to collapse or expand', 'ems-plugin' ); ?>">
+								<div style="display: flex; align-items: center; gap: 8px;">
+									<span class="dashicons dashicons-arrow-down-alt2 ems-district-toggle-icon"></span>
+									<span class="dashicons dashicons-location" style="color: <?php echo $is_unassigned ? '#646970' : '#2271b1'; ?>; font-size: 20px; width: 20px; height: 20px;"></span>
 									<?php if ( $is_unassigned ) : ?>
-										<strong style="font-size: 16px; color: #646970;"><?php esc_html_e( 'Unassigned Units (No District)', 'ems-plugin' ); ?></strong>
+										<strong style="font-size: 15px; color: #646970;"><?php esc_html_e( 'Unassigned Units (No District)', 'ems-plugin' ); ?></strong>
 									<?php else : ?>
-										<label style="font-size: 15px; font-weight: 600; color: #1d2327;">
+										<label style="font-size: 15px; font-weight: 600; color: #1d2327;" onclick="event.stopPropagation();">
 											<?php esc_html_e( 'District:', 'ems-plugin' ); ?>
 											<input type="text" class="ems-district-header-input" 
 													data-original-district="<?php echo esc_attr( $group_key ); ?>"
 													value="<?php echo esc_attr( $group_key ); ?>" 
-													style="font-size: 15px; font-weight: 600; width: 240px; margin-left: 4px; padding: 4px 8px;" />
+													style="font-size: 15px; font-weight: 600; width: 240px; margin-left: 4px; padding: 3px 8px;" />
 										</label>
 									<?php endif; ?>
 									<span class="ems-unit-count-badge" style="background: #f0f0f1; border: 1px solid #c3c4c7; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; color: #50575e;">
 										<?php echo sprintf( _n( '%d Unit', '%d Units', count( $group_units ), 'ems-plugin' ), count( $group_units ) ); ?>
 									</span>
 								</div>
-								<div style="display: flex; align-items: center; gap: 6px;">
+								<div style="display: flex; align-items: center; gap: 6px;" onclick="event.stopPropagation();">
 									<?php if ( ! $is_unassigned ) : ?>
 										<button type="button" class="button button-secondary ems-quick-add-btn" data-district="<?php echo esc_attr( $group_key ); ?>" style="font-size: 12px; height: 28px; line-height: 26px;">
 											<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
@@ -1428,7 +1459,7 @@ class Admin_Page {
 								</div>
 							</div>
 
-							<table class="wp-list-table widefat striped ems-district-units-table">
+							<table class="wp-list-table widefat striped ems-district-units-table" style="margin-top: 10px;">
 								<thead>
 									<tr>
 										<th style="width: 20%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
@@ -1527,7 +1558,36 @@ class Admin_Page {
 
 		<script type="text/javascript">
 		document.addEventListener('DOMContentLoaded', function() {
-			// 1. Sync district header edits to all units in the card
+			// 1. Click header to collapse / expand (ignore clicks inside input, button, select, label)
+			document.querySelectorAll('.ems-district-header').forEach(function(header) {
+				header.addEventListener('click', function(e) {
+					if (e.target.closest('input, button, a, select')) {
+						return;
+					}
+					var card = this.closest('.ems-district-card');
+					if (card) {
+						card.classList.toggle('is-collapsed');
+					}
+				});
+			});
+
+			// 2. Toggle All button
+			var toggleAllBtn = document.getElementById('ems_toggle_all_districts');
+			if (toggleAllBtn) {
+				var allCollapsed = false;
+				toggleAllBtn.addEventListener('click', function() {
+					allCollapsed = !allCollapsed;
+					document.querySelectorAll('.ems-district-card').forEach(function(card) {
+						if (allCollapsed) {
+							card.classList.add('is-collapsed');
+						} else {
+							card.classList.remove('is-collapsed');
+						}
+					});
+				});
+			}
+
+			// 3. Sync district header edits to all units in the card
 			document.querySelectorAll('.ems-district-header-input').forEach(function(input) {
 				input.addEventListener('input', function() {
 					var newDistrict = this.value.trim();
@@ -1540,7 +1600,7 @@ class Admin_Page {
 				});
 			});
 
-			// 2. Handle Move District select
+			// 4. Handle Move District select
 			document.querySelectorAll('.ems-move-district-select').forEach(function(select) {
 				select.addEventListener('change', function() {
 					var targetDistrict = this.value;
@@ -1557,7 +1617,7 @@ class Admin_Page {
 				});
 			});
 
-			// 3. Quick Add button pre-fills District and scrolls to Add Master Unit
+			// 5. Quick Add button pre-fills District and scrolls to Add Master Unit
 			document.querySelectorAll('.ems-quick-add-btn').forEach(function(btn) {
 				btn.addEventListener('click', function() {
 					var dist = this.getAttribute('data-district');
