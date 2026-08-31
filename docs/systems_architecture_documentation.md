@@ -337,6 +337,24 @@ During OIDC login, [OIDC_Login_Handler.php](file:///Users/davidstrachan/Projects
 
 *Note: If an OIDC login resolves to a user who is both a leader (has administrative section IDs) and has children linked to their profile, the OIDC handler assigns `ems_leader` as the primary role and programmatically adds `ems_parent` as an additional secondary role.*
 
+### 3.4 Page-Level & Form-Level Access Control
+
+To protect parent registration forms and participant dashboards, the plugin implements a double-layered security guard spanning page routing (gating access to pages where form shortcodes are rendered) and submission validation.
+
+#### A. Page-Level Access Guard (`Access_Control_Guard`)
+The class [`Access_Control_Guard`](file:///Users/davidstrachan/Projects/expedition-management-system/src/Core/Access_Control_Guard.php) hooks into the WordPress `template_redirect` action:
+1. **Option Configuration**: Mappings of WordPress Page IDs to permitted role slugs are saved in the `ems_page_roles` option.
+2. **Request Interception**: If the visitor requests a protected Page ID (or any Tutor LMS course/dashboard page, if `ems_protect_tutor_lms` is enabled):
+   * **Guest Redirect**: Unauthenticated visitors are redirected to the standard WordPress login page, returning to their destination upon successful OIDC handshake.
+   * **Role Verification**: Logged-in users are evaluated against the permitted roles for that page. Administrators are implicitly allowed.
+   * **Access Denied**: If the user's role does not intersect with the allowed roles, the system terminates the request, returning a `403 Forbidden` status header and rendering a styled "Access Denied" page. This restricts parent-only registration pages (where shortcodes reside) exclusively to users possessing the `ems_parent` role.
+
+#### B. Form-Level Validation (`Fluent_Forms_Sync`)
+Page-level protection is reinforced at the submission entrypoint to prevent direct API spoofing or form completion bypass:
+* **Validation Gating**: Inside [`Fluent_Forms_Sync::validate_submission()`](file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Fluent_Forms_Sync.php#L248), when a form submission is received, the backend extracts the submitted `signup_child` (Scout ID).
+* **Identity Lock**: It retrieves the parent's authorized children array via `$this->get_allowed_children_for_user( get_current_user_id() )`.
+* **Submission Restriction**: If the submitted Scout ID does not reside in the parent's authorized child array, the submission fails validation, throwing a field error: *"You do not have permission to register this child."*
+
 ---
 
 ## 4. Plugin Core Lifecycle & Installer
@@ -380,6 +398,16 @@ Administrators are presented with a responsive table of unmatched synced patrols
    * **Unit ID Sequence Generation**: Resolves the next available numeric unit ID by selecting `MAX(unit_id)` from `wp_ems_units` and incrementing it (starting at `900000` if no custom units exist).
    * **Smart Prefix Parsing**: Separates string prefixes (e.g., matching `CR-Pink Panthers` $\rightarrow$ parses District: `CR`, Short Code/Name: `Pink Panthers`).
    * Commits the new unit to `wp_ems_units` and automatically runs the linkage update on `wp_ems_unit_patrols` in a single workflow.
+
+### 5.3 Unit Lookup Mapping Workflow
+The unit lookup mapping translates between Online Scout Manager (OSM) entities and our master units. It executes in four distinct phases:
+
+1. **Auto-Matching on Sync**: During a reference sync, as patrols are retrieved from the OSM API, the sync engine queries `wp_ems_units`. It performs a case-insensitive and substring match comparing the synced patrol name against the master unit's `name` or `short_code`. If a match is found, the patrol is automatically linked to that master `unit_id` in `wp_ems_unit_patrols`. Otherwise, it is left unlinked (`unit_id` is set to `NULL` or `0`).
+2. **Manual Admin Gating (Interactive Linking)**: The dashboard displays all unmatched synced patrols using the query detailed in Section 5.1. Administrators can:
+   * Select a master unit from the dropdown and link the patrol.
+   * Click "Create Master Unit" to auto-generate a new ESU record pre-filled with the patrol details and auto-link it immediately.
+3. **Form Resolution (Client-Side Mapping)**: During parent signup form completion, the backend builds a mapping array linking the parent's children (Scout IDs) to their corresponding unit IDs based on their synced `section_id` matching `ems_units.unit_id`. The JavaScript updates the selected unit dropdown choice instantly when a child is selected.
+4. **Data Persistence & Alert Routing**: Upon submission insertion, the system reads the chosen unit ID from the form payload, queries `wp_ems_units` to retrieve the associated **Leader Email**, and saves both the `unit_id`, `unit_name`, and `leader_email` directly into the custom signups tables. This ensures notification/approval emails are dynamically routed to the correct local unit leader.
 
 ---
 
