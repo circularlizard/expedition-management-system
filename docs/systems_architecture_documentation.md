@@ -98,6 +98,7 @@ Reconciled from technical discovery, these architecture design records govern th
 *   **ADR 012: Auth Provider Interface**: Isolation of the concrete `login-with-google` OIDC plugin dependency behind the `EMS\Auth\Auth_Provider` interface.
 *   **ADR 013: Flexirecord Mapper**: Configurable JSON mapping configurations (`ems_flexirecord_column_map`) storing columns (e.g. `f_1`, `f_2`) dynamically per section to avoid breaking on structural changes, bucketing data into clean, partial, or unparseable buckets.
 *   **ADR 014: Direct Section ID Unit Matching (Fluent Forms)**: To match the 1-to-1 relationship where each OSM Section represents an ESU Unit, the parent/child signup form resolution maps the child's `section_id` directly to a `unit_id` in `wp_ems_units` without looking up patrol names.
+*   **ADR 015: Patrols as Local/Transient Labels**: Patrols inside OSM are treated purely as text labels attached to individual explorers for grouping within their managed section. They are not independent units, do not possess section-like authority or validation, and should not be synced as relational database entities. The explorer's `section_id` serves as the primary map to the master `unit_id` in `ems_units`. If patrol assignments are captured during signup, they are to be pushed back to OSM rather than synced downward as mapping constraints.
 
 ---
 
