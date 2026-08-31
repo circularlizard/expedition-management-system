@@ -554,4 +554,26 @@ EMS React SPAs are rendered within custom page templates (`ems-page-template.php
 |---|---|---|
 | `[ems-portal]` | Parents, Explorers, Leaders | **Unified Portal SPA**: Localizes the script with OIDC user details and access types, rendering either the Parent portal (profile setups, child linkages, Form 6/7 tracking), Explorer portal (roster checklists, tutor training status, GPX and route card submits), or Leader portal (events lists, WhatsApp logs, team assignments builder, helper schedules) dynamically. |
 | `[ems-volunteer-signup]` | Adult Helpers | **Volunteer Portal**: Renders interactive availability Cover Boards, overnight cover checkgrids, and qualification forms. |
-| `[ems_signup_banner]` | Form Registrants | **OIDC Action Banner**: CTA banner rendered at the top of signup forms promoting parents to log in via OIDC to pre-populate their child's details. |
+| `[ems_signup_banner]` | Form Registrants | **OIDC Action Banner**: CTA banner rendered at the top of signup forms promoting parents to log in via OIDC to pre-populate their child's details. See [Section 8.1](#81-ems_signup_banner-shortcode-parameters) for parameters and gating logic. |
+
+### 8.1 `[ems_signup_banner]` Shortcode Parameters
+
+The `[ems_signup_banner]` shortcode supports the following configuration attributes to match the target form and field mappings:
+
+| Attribute | Default Value | Description |
+|---|---|---|
+| `form_id` | `6` | The Fluent Forms form ID that this banner is displayed on. |
+| `type` | `participant` | Mapped signup entry type: `participant` (Form 6) \| `expedition` (Form 7). |
+| `scout_field` | `signup_child` | The input field name of the child selector dropdown in Fluent Forms. |
+| `unit_field` | `signup_unit` | The input field name of the unit selector dropdown in Fluent Forms. |
+| `parent_email_field` | `signup_parent_email` | The input field name of the parent email input in Fluent Forms. |
+| `parent_otp_field` | `signup_parent_otp_code` | The input field name of the parent OTP input in Fluent Forms. |
+| `explorer_otp_field` | `signup_explorer_otp_code` | The input field name of the explorer OTP input in Fluent Forms. |
+| `headline` | `Speed up your DofE registration` | Text displayed as the main title header of the OIDC action CTA banner. |
+| `message` | *Log in with Online Scout Manager to auto-fill...* | Subtext explaining the OIDC auto-populate benefits to the visitor. |
+
+#### Shortcode-based Access Control Gating
+The plugin registers a page restriction handler (`restrict_signup_page_access`) hooked to WordPress's page rendering. If the current page contains the `[ems_signup_banner]` shortcode:
+1. The handler checks if the visitor is a logged-in user possessing one of the authorized parent roles (`administrator`, `ems_parent`, `ems_network_member`).
+2. If they are not logged in or lack these roles, the system locks access by setting an access-denied state flag.
+3. The plugin filters `the_content` to replace the standard page content with a friendly "Access Denied" message, ensuring only authorized parents can view or complete forms on pages containing this banner.
