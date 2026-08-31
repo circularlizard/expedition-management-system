@@ -255,6 +255,10 @@ class Admin_Page {
 			$this->handle_add_custom_unit();
 		} elseif ( isset( $_POST['ems_delete_custom_unit'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
 			$this->handle_delete_custom_unit( (int) $_POST['ems_delete_custom_unit'] );
+		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'add_district' && check_admin_referer( 'ems_add_district' ) ) {
+			$this->handle_add_district();
+		} elseif ( isset( $_POST['ems_delete_district'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
+			$this->handle_delete_district( sanitize_text_field( wp_unslash( $_POST['ems_delete_district'] ) ) );
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'link_patrol' && check_admin_referer( 'ems_link_patrol' ) ) {
 			$this->handle_link_patrol_to_unit();
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'create_unit_from_patrol' && check_admin_referer( 'ems_create_unit_from_patrol' ) ) {
@@ -774,11 +778,20 @@ class Admin_Page {
 		$leaders_data = $post_data['unit_leaders'] ?? array();
 		$unit_repo    = $this->get_unit_repository();
 
+		$districts = get_option( 'ems_districts', array() );
+		if ( ! is_array( $districts ) ) {
+			$districts = array();
+		}
+
 		foreach ( $leaders_data as $id => $fields ) {
 			$email      = sanitize_text_field( $fields['email'] ?? '' );
 			$district   = sanitize_text_field( $fields['district'] ?? '' );
 			$unit_id    = empty( $fields['unit_id'] ) ? null : (int) $fields['unit_id'];
 			$short_code = sanitize_text_field( $fields['short_code'] ?? '' );
+
+			if ( $district !== '' && ! in_array( $district, $districts, true ) ) {
+				$districts[] = $district;
+			}
 
 			$data = array(
 				'unit_id'      => $unit_id,
@@ -797,7 +810,61 @@ class Admin_Page {
 			}
 		}
 
+		sort( $districts, SORT_NATURAL | SORT_FLAG_CASE );
+		update_option( 'ems_districts', $districts );
+
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Unit lookup configurations saved.', 'ems-plugin' ) . '</p></div>';
+	}
+
+	/**
+	 * Handles creating a standalone district.
+	 *
+	 * @return void
+	 */
+	private function handle_add_district(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$district = sanitize_text_field( wp_unslash( $_POST['ems_new_district_name'] ?? '' ) );
+		if ( empty( $district ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'District name is required.', 'ems-plugin' ) . '</p></div>';
+			return;
+		}
+
+		$districts = get_option( 'ems_districts', array() );
+		if ( ! is_array( $districts ) ) {
+			$districts = array();
+		}
+
+		if ( ! in_array( $district, $districts, true ) ) {
+			$districts[] = $district;
+			sort( $districts, SORT_NATURAL | SORT_FLAG_CASE );
+			update_option( 'ems_districts', $districts );
+			echo '<div class="notice notice-success is-dismissible"><p>' . sprintf( esc_html__( 'District "%s" created successfully.', 'ems-plugin' ), esc_html( $district ) ) . '</p></div>';
+		} else {
+			echo '<div class="notice notice-warning is-dismissible"><p>' . sprintf( esc_html__( 'District "%s" already exists.', 'ems-plugin' ), esc_html( $district ) ) . '</p></div>';
+		}
+	}
+
+	/**
+	 * Handles deleting a district from the districts option.
+	 *
+	 * @param string $district The district name to delete.
+	 * @return void
+	 */
+	private function handle_delete_district( string $district ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$districts = get_option( 'ems_districts', array() );
+		if ( is_array( $districts ) ) {
+			$districts = array_values( array_diff( $districts, array( $district ) ) );
+			update_option( 'ems_districts', $districts );
+		}
+
+		echo '<div class="notice notice-success is-dismissible"><p>' . sprintf( esc_html__( 'District "%s" removed.', 'ems-plugin' ), esc_html( $district ) ) . '</p></div>';
 	}
 
 	/**
@@ -1148,17 +1215,35 @@ class Admin_Page {
 		$managed_sections = get_option( 'ems_managed_sections', array() );
 
 		// Group units by District
-		$grouped_units = array();
-		$all_districts = array();
+		$districts_option = get_option( 'ems_districts', array() );
+		if ( ! is_array( $districts_option ) ) {
+			$districts_option = array();
+		}
+
+		$all_districts = $districts_option;
 		foreach ( $units as $u ) {
 			$dist = trim( $u['district'] ?? '' );
 			if ( $dist !== '' && ! in_array( $dist, $all_districts, true ) ) {
 				$all_districts[] = $dist;
 			}
-			$group_key = $dist !== '' ? $dist : '__unassigned__';
-			$grouped_units[ $group_key ][] = $u;
 		}
 		natcasesort( $all_districts );
+
+		$grouped_units = array();
+		// Initialize all known districts (even if currently empty)
+		foreach ( $all_districts as $d ) {
+			$grouped_units[ $d ] = array();
+		}
+
+		// Populate units into their district groups
+		foreach ( $units as $u ) {
+			$dist      = trim( $u['district'] ?? '' );
+			$group_key = ( $dist !== '' ) ? $dist : '__unassigned__';
+			if ( ! isset( $grouped_units[ $group_key ] ) ) {
+				$grouped_units[ $group_key ] = array();
+			}
+			$grouped_units[ $group_key ][] = $u;
+		}
 
 		// Sort grouped keys: alphabetical districts first, __unassigned__ last
 		uksort(
@@ -1221,20 +1306,36 @@ class Admin_Page {
 				vertical-align: middle !important;
 			}
 		</style>
+
+		<div class="card" style="padding: 16px 20px; margin-top: 15px; margin-bottom: 20px; max-width: 100%; background: #fcfcfc; border-top: 3px solid #2271b1;">
+			<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+				<div>
+					<h3 style="margin: 0 0 4px 0;"><?php esc_html_e( 'Create New District', 'ems-plugin' ); ?></h3>
+					<p class="description" style="margin: 0;">
+						<?php esc_html_e( 'Create a district group to organize your master units (no unit details required).', 'ems-plugin' ); ?>
+					</p>
+				</div>
+				<form method="post" style="display: inline-flex; align-items: center; gap: 8px; margin: 0;">
+					<?php wp_nonce_field( 'ems_add_district' ); ?>
+					<input type="text" name="ems_new_district_name" placeholder="<?php esc_attr_e( 'District Name (e.g. Borders, Braid, Pentland)', 'ems-plugin' ); ?>" class="regular-text" style="width: 280px; height: 32px;" required />
+					<button type="submit" name="ems_action" value="add_district" class="button button-primary">
+						<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
+						<?php esc_html_e( 'Create District', 'ems-plugin' ); ?>
+					</button>
+				</form>
+			</div>
+		</div>
+
 		<form method="post">
 			<?php wp_nonce_field( 'ems_settings_unit_leaders' ); ?>
 			<div class="ems-unit-leaders-table-container">
-				<?php if ( empty( $units ) ) : ?>
+				<?php if ( empty( $grouped_units ) ) : ?>
 					<div class="card" style="padding: 24px; text-align: center; max-width: 100%;">
 						<span class="dashicons dashicons-location-alt" style="font-size: 36px; width: 36px; height: 36px; color: #2271b1; margin-bottom: 8px;"></span>
-						<h3 style="margin-top: 0;"><?php esc_html_e( 'No Districts or Master Units Yet', 'ems-plugin' ); ?></h3>
+						<h3 style="margin-top: 0;"><?php esc_html_e( 'No Districts Created Yet', 'ems-plugin' ); ?></h3>
 						<p class="description" style="max-width: 600px; margin: 0 auto 15px;">
-							<?php esc_html_e( 'Master units are grouped by District. To create your first district, enter the District name (e.g. "Borders", "Braid", "Pentland") in the "Add Master Unit" form below.', 'ems-plugin' ); ?>
+							<?php esc_html_e( 'Use the "Create New District" box above to create your first district, or add a master unit with a district name below.', 'ems-plugin' ); ?>
 						</p>
-						<button type="button" class="button button-primary" onclick="var el = document.getElementById('custom_unit_district'); if (el) { el.focus(); el.scrollIntoView({behavior: 'smooth', block: 'center'}); }">
-							<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
-							<?php esc_html_e( 'Add Your First District & Unit', 'ems-plugin' ); ?>
-						</button>
 					</div>
 				<?php else : ?>
 					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
@@ -1244,7 +1345,7 @@ class Admin_Page {
 						<div style="display: flex; gap: 8px; align-items: center;">
 							<button type="button" class="button button-secondary" onclick="var el = document.getElementById('custom_unit_district'); if (el) { el.value = ''; el.focus(); el.scrollIntoView({behavior: 'smooth', block: 'center'}); }">
 								<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
-								<?php esc_html_e( 'Add New District / Unit', 'ems-plugin' ); ?>
+								<?php esc_html_e( 'Add Master Unit', 'ems-plugin' ); ?>
 							</button>
 							<input type="submit" name="ems_save_unit_leaders" class="button button-primary" value="<?php esc_attr_e( 'Save All Units', 'ems-plugin' ); ?>" />
 						</div>
@@ -1273,12 +1374,19 @@ class Admin_Page {
 										<?php echo sprintf( _n( '%d Unit', '%d Units', count( $group_units ), 'ems-plugin' ), count( $group_units ) ); ?>
 									</span>
 								</div>
-								<div>
+								<div style="display: flex; align-items: center; gap: 6px;">
 									<?php if ( ! $is_unassigned ) : ?>
 										<button type="button" class="button button-secondary ems-quick-add-btn" data-district="<?php echo esc_attr( $group_key ); ?>" style="font-size: 12px; height: 28px; line-height: 26px;">
 											<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
 											<?php echo sprintf( esc_html__( 'Add Unit to %s', 'ems-plugin' ), esc_html( $group_key ) ); ?>
 										</button>
+										<?php if ( empty( $group_units ) ) : ?>
+											<button type="submit" name="ems_delete_district" value="<?php echo esc_attr( $group_key ); ?>" 
+													class="button button-link-delete" style="color: #b32d2e; font-size: 12px; margin-left: 6px;"
+													onclick="return confirm('<?php echo esc_attr( sprintf( __( 'Are you sure you want to remove the empty district "%s"?', 'ems-plugin' ), $group_key ) ); ?>');">
+												<?php esc_html_e( 'Delete District', 'ems-plugin' ); ?>
+											</button>
+										<?php endif; ?>
 									<?php endif; ?>
 								</div>
 							</div>
@@ -1296,69 +1404,77 @@ class Admin_Page {
 									</tr>
 								</thead>
 								<tbody>
-									<?php foreach ( $group_units as $u ) :
-										$row_id   = (int) $u['id'];
-										$cur_dist = $u['district'] ?? '';
-										?>
-										<tr class="ems-unit-row" data-unit-row-id="<?php echo $row_id; ?>">
-											<input type="hidden" class="ems-unit-district-hidden" 
-													name="unit_leaders[<?php echo $row_id; ?>][district]" 
-													value="<?php echo esc_attr( $cur_dist ); ?>" />
-											<td>
-												<input type="text" name="unit_leaders[<?php echo $row_id; ?>][name]" 
-														value="<?php echo esc_attr( $u['name'] ); ?>" required />
-											</td>
-											<td>
-												<input type="number" name="unit_leaders[<?php echo $row_id; ?>][unit_id]" 
-														value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" required />
-											</td>
-											<td>
-												<input type="text" name="unit_leaders[<?php echo $row_id; ?>][short_code]" 
-														value="<?php echo esc_attr( $u['short_code'] ?: $u['name'] ); ?>" />
-											</td>
-											<td>
-												<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
-														value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
-											</td>
-											<td>
-												<?php if ( ! empty( $u['matched_patrols'] ) ) : ?>
-													<div style="display: flex; flex-direction: column; gap: 6px;">
-														<?php foreach ( $u['matched_patrols'] as $patrol ) : 
-															$sec_id   = (int) $patrol['section_id'];
-															$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
-															?>
-															<div style="background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; padding: 4px 8px; font-size: 12px; line-height: 1.35;">
-																<div style="font-weight: 600; color: #1d2327;"><?php echo esc_html( $patrol['name'] ); ?></div>
-																<div style="color: #646970; font-size: 11px; margin-top: 2px;">
-																	<span><?php echo esc_html( $sec_name ); ?></span> &bull; <code>ID: <?php echo (int) $patrol['patrol_id']; ?></code>
-																</div>
-															</div>
-														<?php endforeach; ?>
-													</div>
-												<?php else : ?>
-													<span class="description" style="color: #8c8f94; font-style: italic;"><?php esc_html_e( 'None matched', 'ems-plugin' ); ?></span>
-												<?php endif; ?>
-											</td>
-											<td>
-												<select class="ems-move-district-select" style="width: 100%; height: 30px; font-size: 12px; line-height: 1; padding: 2px 4px;">
-													<option value=""><?php esc_html_e( '— Keep —', 'ems-plugin' ); ?></option>
-													<option value="__unassigned__"><?php esc_html_e( '(Unassigned)', 'ems-plugin' ); ?></option>
-													<?php foreach ( $all_districts as $d ) : ?>
-														<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $cur_dist, $d ); ?>>
-															<?php echo esc_html( $d ); ?>
-														</option>
-													<?php endforeach; ?>
-												</select>
-											</td>
-											<td style="text-align: center;">
-												<button type="submit" name="ems_delete_custom_unit" value="<?php echo $row_id; ?>" 
-														class="button button-link-delete" style="color: #b32d2e;"
-														onclick="return confirm('<?php echo esc_attr( __( 'Are you sure you want to delete this unit?', 'ems-plugin' ) ); ?>');">
-													<?php esc_html_e( 'Delete', 'ems-plugin' ); ?>
-												</button>
+									<?php if ( empty( $group_units ) ) : ?>
+										<tr>
+											<td colspan="7" style="padding: 16px; text-align: center; color: #646970; font-style: italic;">
+												<?php echo sprintf( esc_html__( 'No units in %s yet. Click "Add Unit to %s" above or use "Move District" on existing units to assign them here.', 'ems-plugin' ), esc_html( $group_key ), esc_html( $group_key ) ); ?>
 											</td>
 										</tr>
-									<?php endforeach; ?>
+									<?php else : ?>
+										<?php foreach ( $group_units as $u ) :
+											$row_id   = (int) $u['id'];
+											$cur_dist = $u['district'] ?? '';
+											?>
+											<tr class="ems-unit-row" data-unit-row-id="<?php echo $row_id; ?>">
+												<input type="hidden" class="ems-unit-district-hidden" 
+														name="unit_leaders[<?php echo $row_id; ?>][district]" 
+														value="<?php echo esc_attr( $cur_dist ); ?>" />
+												<td>
+													<input type="text" name="unit_leaders[<?php echo $row_id; ?>][name]" 
+															value="<?php echo esc_attr( $u['name'] ); ?>" required />
+												</td>
+												<td>
+													<input type="number" name="unit_leaders[<?php echo $row_id; ?>][unit_id]" 
+															value="<?php echo esc_attr( $u['unit_id'] ?? '' ); ?>" required />
+												</td>
+												<td>
+													<input type="text" name="unit_leaders[<?php echo $row_id; ?>][short_code]" 
+															value="<?php echo esc_attr( $u['short_code'] ?: $u['name'] ); ?>" />
+												</td>
+												<td>
+													<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
+															value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
+												</td>
+												<td>
+													<?php if ( ! empty( $u['matched_patrols'] ) ) : ?>
+														<div style="display: flex; flex-direction: column; gap: 6px;">
+															<?php foreach ( $u['matched_patrols'] as $patrol ) : 
+																$sec_id   = (int) $patrol['section_id'];
+																$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
+																?>
+																<div style="background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; padding: 4px 8px; font-size: 12px; line-height: 1.35;">
+																	<div style="font-weight: 600; color: #1d2327;"><?php echo esc_html( $patrol['name'] ); ?></div>
+																	<div style="color: #646970; font-size: 11px; margin-top: 2px;">
+																		<span><?php echo esc_html( $sec_name ); ?></span> &bull; <code>ID: <?php echo (int) $patrol['patrol_id']; ?></code>
+																	</div>
+																</div>
+															<?php endforeach; ?>
+														</div>
+													<?php else : ?>
+														<span class="description" style="color: #8c8f94; font-style: italic;"><?php esc_html_e( 'None matched', 'ems-plugin' ); ?></span>
+													<?php endif; ?>
+												</td>
+												<td>
+													<select class="ems-move-district-select" style="width: 100%; height: 30px; font-size: 12px; line-height: 1; padding: 2px 4px;">
+														<option value=""><?php esc_html_e( '— Keep —', 'ems-plugin' ); ?></option>
+														<option value="__unassigned__"><?php esc_html_e( '(Unassigned)', 'ems-plugin' ); ?></option>
+														<?php foreach ( $all_districts as $d ) : ?>
+															<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $cur_dist, $d ); ?>>
+																<?php echo esc_html( $d ); ?>
+															</option>
+														<?php endforeach; ?>
+													</select>
+												</td>
+												<td style="text-align: center;">
+													<button type="submit" name="ems_delete_custom_unit" value="<?php echo $row_id; ?>" 
+															class="button button-link-delete" style="color: #b32d2e;"
+															onclick="return confirm('<?php echo esc_attr( __( 'Are you sure you want to delete this unit?', 'ems-plugin' ) ); ?>');">
+														<?php esc_html_e( 'Delete', 'ems-plugin' ); ?>
+													</button>
+												</td>
+											</tr>
+										<?php endforeach; ?>
+									<?php endif; ?>
 								</tbody>
 							</table>
 						</div>
