@@ -480,5 +480,59 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
     }
 
+    public function test_capture_token_from_response_captures_for_osm_endpoint(): void {
+        OIDC_Login_Handler::reset_captured_token();
+
+        Functions\when( 'wp_parse_url' )->alias( function ( $url, $component = -1 ) {
+            return parse_url( $url, $component );
+        } );
+        Functions\when( 'get_option' )->alias( function ( $opt, $default = false ) {
+            if ( $opt === 'ems_osm_token_url' ) return 'https://www.onlinescoutmanager.co.uk/oauth/token';
+            if ( $opt === 'ems_osm_api_base_url' ) return 'https://www.onlinescoutmanager.co.uk';
+            return $default;
+        } );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $response    = [
+            'body' => json_encode( [ 'access_token' => 'captured-osm-token' ] ),
+        ];
+
+        $result = $integration->capture_token_from_response( $response, [], 'https://www.onlinescoutmanager.co.uk/oauth/token' );
+        $this->assertSame( $response, $result );
+
+        // Now test handle_osm_login without data access_token; it should use captured token
+        $this->api_client->shouldReceive( 'set_access_token' )->once()->with( 'captured-osm-token' );
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( [] );
+
+        $integration->handle_osm_login( $this->user, [] );
+    }
+
+    public function test_capture_token_from_response_ignores_third_party_oauth_endpoint(): void {
+        OIDC_Login_Handler::reset_captured_token();
+
+        Functions\when( 'wp_parse_url' )->alias( function ( $url, $component = -1 ) {
+            return parse_url( $url, $component );
+        } );
+        Functions\when( 'get_option' )->alias( function ( $opt, $default = false ) {
+            if ( $opt === 'ems_osm_token_url' ) return 'https://www.onlinescoutmanager.co.uk/oauth/token';
+            if ( $opt === 'ems_osm_api_base_url' ) return 'https://www.onlinescoutmanager.co.uk';
+            return $default;
+        } );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $response    = [
+            'body' => json_encode( [ 'access_token' => 'google-oauth-token' ] ),
+        ];
+
+        // Third-party token URL
+        $integration->capture_token_from_response( $response, [], 'https://oauth2.googleapis.com/token' );
+
+        // Should not call api_client because captured token remains empty
+        $this->api_client->shouldReceive( 'set_access_token' )->never();
+        $this->api_client->shouldReceive( 'get_data_payload' )->never();
+
+        $integration->handle_osm_login( $this->user, [] );
+        $this->addToAssertionCount( 1 );
+    }
 }
 

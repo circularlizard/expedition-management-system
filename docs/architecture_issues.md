@@ -6,17 +6,17 @@ This document records the architectural discrepancies, bugs, and technical debt 
 
 ## 1. Signup Go-Live Triage Matrix
 
-| ID | Issue | Urgency for Live Signups | Impact on Signup Launch & Operational Rationale |
-|---|---|---|---|
-| **1.2** | **Backup & Portability Engine Sync Omissions** | **🔴 Must Fix Before Live** | Omits active signup tables (`ems_participant_signups`, `ems_expedition_signups`, `ems_volunteers`, `ems_audit_logs`) and active form mapping options. Any migration or backup will cause **silent data loss of live participant submissions**. |
-| **3.1** | **Fragile OIDC Token Capture Interceptor** | **🟡 Highly Recommended (Pre-Launch)** | Broad `/token` URL matching can overwrite the captured OSM OAuth token if any other HTTP token exchange occurs, failing to hydrate the "Select Child" dropdown for logged-in parents. |
-| **2.3** | **Fragmented First Aid Columns** | **🟡 High Value (Reconciliation)** | First Aid captured via Form 7 is saved to `ems_expedition_signups.first_aid_status`, but is not synced to `ems_osm_explorers.first_aid_level` upon reconciliation, causing master roster discrepancies. |
-| **1.1** | **Tutor LMS Database Query Join Failure** | **🟡 Quick Fix (Admin Safety)** | Query joins on deprecated columns `section_id` and `patrol` on `ems_units`. Triggers fatal SQL crashes when viewing Training Compliance reports in the admin dashboard. |
-| **2.1** | **Hardcoded OSM Flexi-Record Schemas** | **🟢 Can Defer (Post-Launch)** | Pushback to OSM occurs downstream after signups close and teams are allocated. The hardcoded `"2026 Expeditions"` schema is valid for the current season. |
-| **2.2** | **Tutor LMS Version Divergence (Free vs. Pro)** | **🟢 Can Defer (Post-Launch)** | Internal LMS quiz/lesson query divergence; has no runtime dependency on signup submission or reconciliation. |
-| **3.2** | **Unused Auth Provider Abstractions (ADR 012)** | **🟢 Can Defer (Post-Launch)** | Dead interface files (`Auth_Provider.php`, `Mock_Auth_Provider.php`); zero runtime impact. |
-| **3.3** | **Deprecated Season CPT & Synthetic Layer** | **🟢 Can Defer (Post-Launch)** | Synthetic season object in expedition board controller; does not affect signup forms. |
-| **3.4** | **REST API Gating & Documentation Mismatch** | **🟢 Can Defer (Doc Update)** | Public volunteer wizard uses `/ems/v1/volunteers/signup` (public and functioning). `/volunteers/availability` is intentionally restricted to admins. |
+| ID | Issue | Urgency for Live Signups | Status | Impact on Signup Launch & Operational Rationale |
+|---|---|---|---|---|
+| **1.2** | **Backup & Portability Engine Sync Omissions** | **🔴 Must Fix Before Live** | ✅ **Resolved** | Updated `Portability_Engine.php` with all active split signup tables (`ems_participant_signups`, `ems_expedition_signups`, `ems_volunteers`, `ems_audit_logs`) and active form configuration options. Full test coverage added. |
+| **3.1** | **Fragile OIDC Token Capture Interceptor** | **🟡 Highly Recommended (Pre-Launch)** | ✅ **Resolved** | Hardened `OIDC_Login_Handler::capture_token_from_response` to restrict token capture to verified OSM OAuth endpoints/hosts, ignoring third-party OAuth token traffic. |
+| **2.3** | **Fragmented First Aid Columns** | **🟡 High Value (Reconciliation)** | ⏳ Pending Redesign | First aid capture will be simplified to yes/no. Synchronization will be implemented in accordance with simplified model. |
+| **1.1** | **Tutor LMS Database Query Join Failure** | **🟡 Quick Fix (Admin Safety)** | ✅ **Resolved** | Fixed queries in `Admin_View_Controller.php` and `Expedition_Admin_Controller.php` to correctly join `ems_unit_patrols` and `ems_units`. |
+| **2.1** | **Hardcoded OSM Flexi-Record Schemas** | **🟢 Can Defer (Post-Launch)** | Open | Pushback to OSM occurs downstream after signups close and teams are allocated. The hardcoded `"2026 Expeditions"` schema is valid for the current season. |
+| **2.2** | **Tutor LMS Version Divergence (Free vs. Pro)** | **🟢 Can Defer (Post-Launch)** | Open | Internal LMS quiz/lesson query divergence; has no runtime dependency on signup submission or reconciliation. |
+| **3.2** | **Unused Auth Provider Abstractions (ADR 012)** | **🟢 Can Defer (Post-Launch)** | Open | Dead interface files (`Auth_Provider.php`, `Mock_Auth_Provider.php`); zero runtime impact. |
+| **3.3** | **Deprecated Season CPT & Synthetic Layer** | **🟢 Can Defer (Post-Launch)** | Open | Synthetic season object in expedition board controller; does not affect signup forms. |
+| **3.4** | **REST API Gating & Documentation Mismatch** | **🟢 Can Defer (Doc Update)** | Open | Public volunteer wizard uses `/ems/v1/volunteers/signup` (public and functioning). `/volunteers/availability` is intentionally restricted to admins. |
 
 ---
 
