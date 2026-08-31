@@ -287,7 +287,8 @@ Specific expedition event signup entries (Form 7) submitted via Fluent Forms.
 *   `dofe_level` (VARCHAR): `bronze` | `silver` | `gold`.
 *   `expedition_preferences` (TEXT): JSON string of type (`exped_type`), practice/qualifier dates, teammate list.
 *   `additional_support_needs` (TEXT): Explorer's medical or scheduling needs.
-*   `first_aid_status` / `first_aid_expiry` (DATE): First aid compliance details.
+*   `first_aid_status` (VARCHAR): First aid compliance status level (e.g. `'none'`).
+*   `first_aid_expiry` (DATE): Expiration date of the explorer's first aid compliance.
 *   `signup_status` (VARCHAR): State flag (e.g. `'submitted'`, `'archived'`). *(Note: Unlike participant signups, expedition signups do not track a separate `payment_status` column).*
 *   `form_submission_id` (BIGINT UNSIGNED): Fluent Forms entry ID.
 *   `created_at` / `updated_at` (DATETIME): Timestamp columns.
@@ -460,6 +461,23 @@ All endpoints are registered under the `/wp-json/ems/v1/` or `/wp-json/ems/v1/ad
 | `/admin/sync-preview` | `GET` | `manage_options` | Previews proposed push-back modifications to OSM. |
 | `/admin/sync-push` | `POST` | `manage_options` | Executes dry-run push-back sync changes to OSM. |
 | `/admin/sync-status` | `GET`/`DELETE` | `manage_options` | Checks status of push-back sync lock or clears failed pushback queue. |
+| `/portal/me` | `GET` | Authenticated | Retrieves current logged-in user profile details and roles. |
+| `/portal/explorer/{scout_id}` | `GET` | Authenticated | Fetches explorer contact, medical, and Tutor training status for the portal. |
+| `/unit-leaders` | `GET` | `manage_options` | Lists registered unit leaders. |
+| `/unit-leaders/{id}` | `POST`/`PUT`/`PATCH` | `manage_options` | Updates contact details for a unit leader. |
+| `/volunteers` | `GET` | `manage_options` | Lists registered adult volunteers. |
+| `/volunteers/signup` | `POST` | Authenticated | Handles custom helper signup registrations. |
+| `/volunteers/events` | `GET` | `manage_options` | Lists events for volunteer scheduling. |
+| `/volunteers/assign` | `POST` | `manage_options` | Allocates volunteers to specific event checkpoints. |
+| `/volunteers/save` | `POST` | `manage_options` | Saves volunteer qualification and DB records. |
+| `/volunteers/availability` | `POST` | Authenticated | Submits parent/helper availability calendar entries. |
+| `/planning-board` | `GET` | `manage_options` | Fetches overall helper and coverage calendar matrix. |
+| `/planning-board/availability/{event_code}` | `GET` | `manage_options` | Retrieves volunteer availability for a specific event. |
+| `/planning-board/allocate` | `POST` | `manage_options` | Persists volunteer scheduling block assignments. |
+| `/planning-board/add-explorer` | `POST` | `manage_options` | Manually/dynamically inserts explorer rows to the planning board. |
+| `/planning-board/synced-explorers` | `GET` | `manage_options` | Retrieves list of cached synced explorers. |
+| `/osm-events` | `GET` | `manage_options` | Returns cached events pulled from Online Scout Manager. |
+| `/explorers` | `GET` | `manage_options` | Returns all active cached explorer contact profiles. |
 
 ---
 
@@ -524,7 +542,9 @@ EMS stores its configuration options in the core WordPress options table. The fo
 | Option Key | Data Type | Description |
 |---|---|---|
 | `ems_api_mode` | string | Driver mode: `mock` \| `live` \| `live-auth-only` \| `live-limited`. |
+| `ems_api_blocked` | bool | Temporary block flag set when OSM API calls fail due to token auth errors. |
 | `ems_sync_limit` | int | Synchronized explorer capacity limit for the OIDC/sync drivers (defaults to `5`). |
+| `ems_db_version` | string | Tracks the active custom schema database version for migrations. |
 | `ems_debug_log_guard` | bool | Enables verbose diagnostics logging. |
 | `ems_osm_api_base_url` | string | OSM API base URL (defaults to `https://www.onlinescoutmanager.co.uk`). |
 | `ems_osm_auth_url` | string | OAuth authorize URL endpoints. |
@@ -533,6 +553,11 @@ EMS stores its configuration options in the core WordPress options table. The fo
 | `ems_osm_client_id` | string | Online Scout Manager registered OAuth Client ID. |
 | `ems_osm_client_secret` | string | AES-256-CBC encrypted OAuth client secret. |
 | `ems_osm_scope` | string | Space-separated list of scopes requested during OIDC / pushback handshake. |
+| `ems_osm_flexi_record_{section_id}` | int | Dynamically cached flexi-record IDs mapped per active OSM Section ID. |
+| `ems_osm_writeback_flexi_record_id` | int | Caches the master flexi-record ID utilized for pushback sync. |
+| `ems_osm_last_sync` | string | Caches the ISO datetime string representing the last successful sync run. |
+| `ems_season_migration_done` | bool | Internal migration flag indicating that the season post-deprecation cleanup has run. |
+| `ems_unallocated_migration_done` | bool | Internal migration flag indicating that the placeholder team ("Unallocated") has been seeded. |
 | `ems_fluent_participant_form_id` | int | Fluent Forms form ID representing Participation Place (Form 6). |
 | `ems_fluent_expedition_form_id` | int | Fluent Forms form ID representing Expedition preferences (Form 7). |
 | `ems_participant_form_mappings` | array | Associative mapping of Form 6 form fields to custom database fields. |
