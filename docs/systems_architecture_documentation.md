@@ -16,38 +16,38 @@ The EMS is a WordPress plugin ([ems-plugin.php](file:///Users/davidstrachan/Proj
 
 ```mermaid
 graph TD
-    subgraph WordPress Admin Dashboard (React SPA)
-        ExpeditionBoard[Expedition Board / Team Builder]
-        ExplorerList[Explorer List / Ref Grid]
-        ColumnMapperUI[Flexi-Record Column Mapper]
+    subgraph admin_dashboard ["WordPress Admin Dashboard (React SPA)"]
+        ExpeditionBoard["Expedition Board / Team Builder"]
+        ExplorerList["Explorer List / Ref Grid"]
+        ColumnMapperUI["Flexi-Record Column Mapper"]
     end
 
-    subgraph WordPress Admin Views (PHP Rendered & Forms)
-        TrainingReport[Tutor LMS Training Report]
-        SettingsPage[Plugin Configuration Page & Tabs]
-        SignupsPage[Fluent Forms Signups View]
-        UnitLookupTab[Unit Lookup / Interactive Mapping UI]
+    subgraph admin_views ["WordPress Admin Views (PHP Rendered & Forms)"]
+        TrainingReport["Tutor LMS Training Report"]
+        SettingsPage["Plugin Configuration Page & Tabs"]
+        SignupsPage["Fluent Forms Signups View"]
+        UnitLookupTab["Unit Lookup / Interactive Mapping UI"]
     end
 
-    subgraph EMS Plugin Core
-        PluginInit[Plugin Core Hook Registry]
-        OSMClient[OSM API Client]
-        OSMReferenceSync[OSM Reference Sync Manager]
-        FluentSync[Fluent Forms Sync Handler]
-        TutorClient[Tutor LMS client]
-        RESTControllers[WP REST API Controllers]
-        DataModel[CPT Registry & Repository Layer]
+    subgraph core ["EMS Plugin Core"]
+        PluginInit["Plugin Core Hook Registry"]
+        OSMClient["OSM API Client"]
+        OSMReferenceSync["OSM Reference Sync Manager"]
+        FluentSync["Fluent Forms Sync Handler"]
+        TutorClient["Tutor LMS client"]
+        RESTControllers["WP REST API Controllers"]
+        DataModel["CPT Registry & Repository Layer"]
     end
 
-    subgraph Database (MySQL)
-        WPCpt[(WP Post Meta & CPTs)]
-        CustomTables[(Custom Relational SQL Tables)]
+    subgraph db ["Database (MySQL)"]
+        WPCpt[("WP Post Meta & CPTs")]
+        CustomTables[("Custom Relational SQL Tables")]
     end
 
-    subgraph External Systems
-        OSM[(Online Scout Manager API)]
-        TutorLMSPlugin[(Tutor LMS Database)]
-        FluentFormsPlugin[(Fluent Forms Database)]
+    subgraph ext ["External Systems"]
+        OSM[("Online Scout Manager API")]
+        TutorLMSPlugin[("Tutor LMS Database")]
+        FluentFormsPlugin[("Fluent Forms Database")]
     end
 
     %% Frontend Interactions
@@ -65,7 +65,7 @@ graph TD
 
     %% Integration Handlers to External Systems & DB
     OSMReferenceSync -->|OAuth2 / REST| OSMClient
-    OSMClient <--> OSM
+    OSMClient --- OSM
     FluentSync -->|Hooks / Submissions| FluentFormsPlugin
     FluentSync --> CustomTables
     TutorClient --> TutorLMSPlugin
