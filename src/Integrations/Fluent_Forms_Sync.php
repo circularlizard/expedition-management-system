@@ -641,14 +641,23 @@ class Fluent_Forms_Sync {
 		}
 
 		$units = $this->wpdb->get_results(
-			"SELECT short_code, leader_email FROM {$this->wpdb->prefix}ems_units WHERE active = 1",
+			"SELECT unit_id, short_code, name, leader_email FROM {$this->wpdb->prefix}ems_units",
 			ARRAY_A
 		);
 		$unit_mappings = array();
 		if ( is_array( $units ) ) {
 			foreach ( $units as $u ) {
+				$email = $u['leader_email'] ?: '';
 				if ( ! empty( $u['short_code'] ) ) {
-					$unit_mappings[ $u['short_code'] ] = $u['leader_email'] ?: '';
+					$unit_mappings[ $u['short_code'] ]                = $email;
+					$unit_mappings[ strtolower( $u['short_code'] ) ] = $email;
+				}
+				if ( ! empty( $u['name'] ) ) {
+					$unit_mappings[ $u['name'] ]                = $email;
+					$unit_mappings[ strtolower( $u['name'] ) ] = $email;
+				}
+				if ( ! empty( $u['unit_id'] ) ) {
+					$unit_mappings[ (string) $u['unit_id'] ] = $email;
 				}
 			}
 		}
@@ -726,7 +735,7 @@ class Fluent_Forms_Sync {
 						if (!unitSelect) return;
 						var unitVal = unitSelect.value;
 						if (!unitVal) return;
-						var leaderEmail = window.emsUnitMappings[unitVal] || '';
+						var leaderEmail = window.emsUnitMappings[unitVal] || window.emsUnitMappings[unitVal.toLowerCase()] || '';
 
 						(function trySetLeader(deadline) {
 							var leaderEmailInput = document.querySelector('input[name="' + window.emsFields.leaderEmailField + '"]');
