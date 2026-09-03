@@ -132,3 +132,9 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
       | form_id | 6          |
     Then the option "ems_fluent_participant_form_id" should remain 6
     And the option "ems_fluent_expedition_form_id" should remain 3
+
+  Scenario: Dynamic leader email mapping is prepared for frontend unit changes
+    Given master units exist in the unit table with short codes, names, unit IDs, and leader emails
+    When the form interaction script is enqueued
+    Then the unit mappings map should include entries for short codes, names, and unit IDs pointing to their respective leader emails
+
