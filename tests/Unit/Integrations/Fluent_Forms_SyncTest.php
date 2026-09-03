@@ -541,4 +541,56 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 		$this->assertEquals( 'BO-Direct', $res['short_code'] );
 		$this->assertEquals( 'direct@example.com', $res['leader_email'] );
 	}
+
+	public function test_enqueue_form_script_generates_unit_mappings_without_active_clause(): void {
+		$wpdb = new class {
+			public $prefix = 'wp_';
+			public string $last_query = '';
+
+			public function get_results( string $sql, string $output = ARRAY_A ) {
+				$this->last_query = $sql;
+				if ( str_contains( $sql, 'active =' ) || str_contains( $sql, 'active=' ) ) {
+					throw new \RuntimeException( "Unknown column 'active' in 'where clause'" );
+				}
+				if ( str_contains( $sql, 'wp_ems_units' ) ) {
+					return [
+						[
+							'unit_id'      => 10,
+							'name'         => 'Kelso ESU',
+							'short_code'   => 'BO-Kelso',
+							'leader_email' => 'leader@kelso.org',
+						],
+					];
+				}
+				return [];
+			}
+		};
+
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_fluent_participant_form_id' ) {
+				return 6;
+			}
+			return $default;
+		} );
+		Functions\when( 'get_current_user_id' )->justReturn( 0 );
+		Functions\when( 'is_user_logged_in' )->justReturn( false );
+		Functions\when( 'admin_url' )->justReturn( 'http://example.com/wp-admin/admin-ajax.php' );
+		Functions\when( 'wp_create_nonce' )->justReturn( 'nonce123' );
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $wpdb );
+
+		ob_start();
+		$sync->enqueue_form_script( (object) [ 'id' => 6 ] );
+		$output = ob_get_clean();
+
+		$this->assertNotEmpty( $output );
+		// Query must not contain 'WHERE active = 1'
+		$this->assertStringNotContainsString( 'active', $wpdb->last_query );
+		// Script output must include short code, name, and unit ID mappings
+		$this->assertStringContainsString( 'BO-Kelso', $output );
+		$this->assertStringContainsString( 'Kelso ESU', $output );
+		$this->assertStringContainsString( '10', $output );
+		$this->assertStringContainsString( 'leader@kelso.org', $output );
+	}
 }
+
