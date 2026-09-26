@@ -1,10 +1,11 @@
 # Explorer Task Management, Configurable Registration Kanban & Email Template Specification
 
-This document details the architectural specification and implementation plan for three integrated core enhancements to the Expedition Management System (EMS):
+This document details the architectural specification and implementation plan for four integrated core enhancements to the Expedition Management System (EMS):
 1. **Configurable Expedition Lifecycle & Explorer Task Management System**
 2. **Configurable DofE Registration Processing Kanban Board**
 3. **EMS Email Template Engine & Notification Triggers**
 4. **WordPress Admin Menu Integration Architecture**
+5. **Participant & Parent Portal Integration Architecture**
 
 ---
 
@@ -75,26 +76,6 @@ Registered under **EMS Admin** → **Explorer Tasks** (`ems-tasks`):
 * **Task Table & Filter Bar**:
   * Filter by Status (`Pending`, `Overdue`, `Completed`), Expedition, Team, or Unit.
   * Bulk actions: Mark Complete, Re-assign Due Date, Send Immediate Reminder Email, Delete.
-
----
-
-### 1.4 Explorer & Parent Portal Integration
-
-Inside `[ems-portal]`, a **"My Tasks"** checklist component renders on both Explorer and Parent views:
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│  📋 Required Tasks for David Strachan                     (2 Pending)  │
-├────────────────────────────────────────────────────────────────────────┤
-│  [ ] Complete First Aid Refresher Course                 Due: 15 Oct   │
-│      Action: [ Go to Course ]  Status: Pending                         │
-├────────────────────────────────────────────────────────────────────────┤
-│  [ ] Submit Route Card for Mourne Practice               Due: 20 Oct   │
-│      Action: [ Upload GPX/PDF ]  Status: Action Required               │
-├────────────────────────────────────────────────────────────────────────┤
-│  [✓] Complete Navigation Quiz                            Completed 5 Sep│
-└────────────────────────────────────────────────────────────────────────┘
-```
 
 ---
 
@@ -216,15 +197,6 @@ The email rendering engine parses smart tags dynamically before sending:
 
 ---
 
-### 3.4 Email Template Management UI
-
-Accessible via **EMS Admin** → **Email Templates** (`ems-email-templates`):
-* **Visual Rich Text / HTML Editor**: Live preview mode showing parsed smart tags.
-* **Send Test Email Button**: Test template rendering to admin inbox.
-* **Notification History Log**: Real-time log tracking sent emails, recipients, delivery timestamps, and trigger sources.
-
----
-
 ## 4. WordPress Admin Menu Integration Architecture
 
 All new management screens and tools are integrated into the existing WordPress Admin sidebar hierarchy under the parent **EMS** menu.
@@ -245,59 +217,96 @@ WordPress Admin Sidebar
     └── ⚙️ Settings              (slug: ems-settings)        -> PHP Admin: API modes, Flexi-map & Auth Rules
 ```
 
-### 4.2 PHP Submenu Registration Specification
+---
 
-Registered in `EMS\Admin\Admin_Menu`:
+## 5. Participant & Parent Portal Integration Architecture
 
-```php
-// Signups & Kanban Board
-add_submenu_page(
-    'ems-dashboard',
-    __( 'Signups & Kanban', 'ems' ),
-    __( 'Signups & Kanban', 'ems' ),
-    'manage_options',
-    'ems-signups',
-    array( $this, 'render_signups_kanban_page' )
-);
+Inside `[ems-portal]`, these new features surface across **three unified top-level navigation tabs**:
 
-// Explorer Tasks & Lifecycle Workflows
-add_submenu_page(
-    'ems-dashboard',
-    __( 'Explorer Tasks', 'ems' ),
-    __( 'Explorer Tasks', 'ems' ),
-    'manage_options',
-    'ems-tasks',
-    array( $this, 'render_explorer_tasks_page' )
-);
-
-// Email Templates Engine
-add_submenu_page(
-    'ems-dashboard',
-    __( 'Email Templates', 'ems' ),
-    __( 'Email Templates', 'ems' ),
-    'manage_options',
-    'ems-email-templates',
-    array( $this, 'render_email_templates_page' )
-);
+```
+ ┌───────────────────────┬───────────────────────┬───────────────────────┐
+ │ Expeditions & Events  │   My Tasks & Actions  │     Sign up forms     │
+ └───────────────────────┴───────────────────────┴───────────────────────┘
 ```
 
 ---
 
-## 5. Summary Technical Implementation Roadmap
+### 5.1 "My Tasks & Actions" Portal Center
+
+Explorers and parents get a dedicated **Task Center** to view and complete assigned requirements:
+
+#### A. Task Filter Pills
+Users can filter tasks by status:
+* **`Pending Actions`** (Active tasks requiring explorer/parent completion).
+* **`Upcoming Due`** (Tasks due within 7 days).
+* **`Completed Tasks`** (Historical log of finished tasks).
+
+#### B. Dynamic Action Handlers
+Task cards render interactive action controls tailored to the `action_type`:
+
+| Action Type (`action_type`) | Portal UI Component / Action |
+| :--- | :--- |
+| `complete_course` | Primary **"Go to Course"** button linking directly to the Tutor LMS course permalink. |
+| `submit_route` | Primary **"Upload Route Card / GPX"** button launching an inline upload modal directly in the portal. |
+| `verify_edofe` | Primary **"Enter eDofE ID"** button opening a inline input field to update the 7-digit eDofE number. |
+| `external_url` | Primary **"Open Link"** button opening specified target URL in a new tab. |
+| `custom_check` | Interactive checkbox allowing the explorer/parent to mark the requirement complete directly. |
+
+#### C. Parent View Scoping
+When a parent selects a child using the top child-selector drawer, the Task Center filters strictly to tasks assigned to that child (`scout_id`). Badges distinguish tasks for the explorer vs tasks requiring parent sign-off.
+
+---
+
+### 5.2 Real-Time Registration Progress Stepper (Kanban Stage Tracker)
+
+Inside the **"Sign up forms"** view in the portal:
+
+1. **Live Stepper Bar**: Each participant application renders a **visual horizontal progress stepper bar** reflecting the active Kanban workflow stage configured in admin:
+   ```
+   [ 1. Submitted ] ───► [ 2. Payment Verified ] ───► ( 3. eDofE Setup ) ───► [ 4. Unit Allocated ] ───► [ 5. Complete ]
+   ```
+2. **Contextual Status Callout**:
+   A human-readable callout box describes current progress:
+   > *"Status Update: Your application is at Step 3 (eDofE Account Setup). Our team is verifying your eDofE registration number."*
+
+---
+
+### 5.3 Deep-Linking & Email Notification Integration
+
+Every email sent by the **Email Template Engine** includes smart-tagged deep links:
+* `https://see-expeditions.org.uk/portal?tab=tasks&task_id=42`
+* `https://see-expeditions.org.uk/portal?tab=signups&signup_id=104`
+
+#### SPA Deep-Link Behavior:
+When an explorer or parent clicks a link in an email:
+1. The portal React SPA loads session state via OIDC authentication.
+2. The router automatically activates the target top-level tab (`tasks` or `signups`).
+3. The targeted task card or registration application card is automatically scrolled into view and highlighted with a 3-second animated pulse border.
+
+---
+
+### 5.4 REST API Extensions for Portal (`/ems/v1/portal/`)
+
+* `GET /ems/v1/portal/explorer/{scout_id}/tasks` — Retrieves pending and completed tasks for the authorized scout ID.
+* `POST /ems/v1/portal/task/{task_id}/complete` — Marks task as complete or submits action payload (e.g. route file upload or eDofE ID).
+
+---
+
+## 6. Summary Technical Implementation Roadmap
 
 ```mermaid
 flowchart TD
     A[Phase 1: DB Migrations & CPTs] --> B[Phase 2: Email Template Engine & REST APIs]
     B --> C[Phase 3: Configurable Registration Kanban SPA]
     B --> D[Phase 4: Explorer Task Manager CRUD & Cron Notifications]
-    C --> E[Phase 5: Portal Task Checklist Integration]
+    C --> E[Phase 5: Portal Integration - Tasks & Stepper Bar]
     D --> E
-    E --> F[Phase 6: Menu Integration & End-to-End Testing]
+    E --> F[Phase 6: Admin Menu Integration & End-to-End Testing]
 ```
 
 1. **Phase 1: DB & CPT Foundations**: Migrate `wp_ems_explorer_tasks` table and register `ems_lifecycle_stage` & `ems_email_template` CPTs.
 2. **Phase 2: Email Engine**: Build `EMS\Core\Email_Engine` parser, smart tag replacement, and REST endpoints (`/ems/v1/email-templates`).
 3. **Phase 3: Configurable Kanban SPA**: Build React Kanban board with drag-and-drop, stage configuration tab, and automated trigger bindings.
 4. **Phase 4: Task Manager & Cron**: Build Task Manager React SPA, WP-Cron scheduled notification runner, and task assignment APIs.
-5. **Phase 5: Portal Integration**: Embed "My Tasks" checklist widget into `[ems-portal]` React app.
-6. **Phase 6: Menu Alignment**: Wire WP Admin submenu entries (`ems-signups`, `ems-tasks`, `ems-email-templates`) and run PHPUnit/Vitest test suites.
+5. **Phase 5: Portal Integration**: Build "My Tasks & Actions" tab, dynamic action handlers, live Kanban stage stepper bar, and deep-link router in `[ems-portal]` React SPA.
+6. **Phase 6: Menu Alignment & Testing**: Wire WP Admin submenus (`ems-signups`, `ems-tasks`, `ems-email-templates`) and run complete PHPUnit/Vitest test suite.
