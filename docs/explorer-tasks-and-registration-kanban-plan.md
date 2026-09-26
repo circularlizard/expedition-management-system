@@ -1,8 +1,10 @@
-# Explorer Task Management & DofE Registration Kanban Specification
+# Explorer Task Management, Configurable Registration Kanban & Email Template Specification
 
-This document details the architectural specification and implementation plan for two core enhancements to the Expedition Management System (EMS):
+This document details the architectural specification and implementation plan for three integrated core enhancements to the Expedition Management System (EMS):
 1. **Configurable Expedition Lifecycle & Explorer Task Management System**
-2. **DofE Registration Processing Kanban Board**
+2. **Configurable DofE Registration Processing Kanban Board**
+3. **EMS Email Template Engine & Notification Triggers**
+4. **WordPress Admin Menu Integration Architecture**
 
 ---
 
@@ -12,7 +14,7 @@ This document details the architectural specification and implementation plan fo
 
 The Expedition Lifecycle is decoupled from hardcoded steppers and driven by **configurable workflow templates** (`ems_lifecycle_stage` custom post type or database schema).
 
-Explorers will be assigned actionable, trackable tasks with automated email notifications triggered on task assignment, approaching due dates, and overdue states.
+Explorers are assigned actionable, trackable tasks with automated email notifications triggered on task assignment, approaching due dates, and overdue states.
 
 ```mermaid
 graph TD
@@ -20,9 +22,10 @@ graph TD
     C[Admin / Leader Manual Creation] -->|Assigns task| B
     B -->|Inserts rows| D[(ems_explorer_tasks DB Table)]
     D -->|Schedule Check| E[WP-Cron Notification Engine]
-    E -->|Sends Email| F[Explorer / Parent Email Inbox]
-    D -->|Serves REST API| G[Explorer / Parent Portal Task Checklist]
-    G -->|Marks Complete / Action| D
+    E -->|Fetch Template| F[EMS Email Template Engine]
+    F -->|Sends Email| G[Explorer / Parent Email Inbox]
+    D -->|Serves REST API| H[Explorer / Parent Portal Task Checklist]
+    H -->|Marks Complete / Action| D
 ```
 
 ---
@@ -62,25 +65,9 @@ Created via `EMS\Core\Table_Installer` on plugin update:
 
 ---
 
-### 1.3 Automated Email Notification Engine
+### 1.3 Admin Task Manager (Full CRUD)
 
-Notifications are processed via a recurring WP-Cron task (`ems_task_notification_cron`):
-
-1. **Assignment Email**: Fired immediately upon task creation if `notify_on_assign = 1`.
-2. **Upcoming Due Reminder**: Fired when `due_date - CURRENT_TIME = reminder_days_before`.
-3. **Overdue Notice**: Fired when `CURRENT_TIME > due_date` and `status != 'completed'`.
-
-#### Smart Tags for Templates:
-* `{explorer_first_name}`, `{explorer_last_name}`
-* `{task_title}`, `{task_description}`, `{due_date}`
-* `{action_button_url}` (Direct link into portal task view)
-* `{assigned_by_name}`
-
----
-
-### 1.4 Admin Task Manager (Full CRUD)
-
-Registered under **EMS Admin** → **Tasks & Workflows** (`ems-tasks`):
+Registered under **EMS Admin** → **Explorer Tasks** (`ems-tasks`):
 * **Task Creation Wizard**:
   * **Scope Selector**: Assign to Single Explorer, Team, Expedition Cohort, or Entire Unit.
   * **Due Date Picker** & **Reminder Schedule Configuration**.
@@ -91,9 +78,9 @@ Registered under **EMS Admin** → **Tasks & Workflows** (`ems-tasks`):
 
 ---
 
-### 1.5 Explorer & Parent Portal Task Checklist
+### 1.4 Explorer & Parent Portal Integration
 
-Inside `[ems-portal]`, a new **"My Tasks"** checklist component renders on both Explorer and Parent views:
+Inside `[ems-portal]`, a **"My Tasks"** checklist component renders on both Explorer and Parent views:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -111,54 +98,45 @@ Inside `[ems-portal]`, a new **"My Tasks"** checklist component renders on both 
 
 ---
 
-## 2. DofE Registration Processing Kanban Board
+## 2. Configurable DofE Registration Processing Kanban Board
 
 ### 2.1 Problem Statement & Objectives
 
-Replaces manual spreadsheet processing of participant applications and expedition sign-ups with a **real-time visual Kanban Board** inside WordPress Admin (**EMS Admin** → **Registration Processing**).
+Replaces manual spreadsheet processing of participant applications and expedition sign-ups with a **configurable real-time Kanban Board** inside WordPress Admin (**EMS Admin** → **Signups & Kanban**).
 
 ---
 
-### 2.2 Kanban Workflow & Column Architecture
+### 2.2 Configurable Registration Workflow Stages
 
-The board categorizes participant sign-ups into **5 operational lifecycle columns**:
+Registration workflows are **fully configurable by administrators** via a dedicated "Stage Settings" tab inside the Signups Board. Admins can add, reorder, edit, or disable stage columns.
 
 ```mermaid
 kanban
   column-1["1. New Submissions"]
     item-1["Unreconciled form entries"]
-    item-2["Pending OSM scout match"]
+    item-2["Auto-triggers: New Signup Alert Email"]
   column-2["2. Payment & Verification"]
     item-3["Payment status check"]
-    item-4["DOB / Age verification"]
+    item-4["Auto-triggers: Payment Verified Email"]
   column-3["3. eDofE Setup & Transfer"]
-    item-5["Create eDofE account"]
-    item-6["Transfer existing eDofE ID"]
+    item-5["Create / Transfer eDofE ID"]
+    item-6["Auto-triggers: eDofE Account Ready Email"]
   column-4["4. Unit & Level Allocated"]
     item-7["Unit allocation confirmed"]
-    item-8["Cohort assigned"]
+    item-8["Auto-assigns: Level Welcome Tasks"]
   column-5["5. Welcome Sent & Complete"]
     item-9["Welcome pack dispatched"]
-    item-10["Portal access verified"]
+    item-10["Auto-triggers: Portal Welcome Email"]
 ```
 
-#### Column Definitions & Automated State Transitions:
-
-1. **`1. New Submissions`**:
-   * *Entry Condition*: Participant or Expedition form submitted via Fluent Forms.
-   * *Indicators*: Yellow badge if `scout_id` is unreconciled / unlinked.
-2. **`2. Payment & Verification`**:
-   * *Entry Condition*: Reconciled to an OSM explorer record.
-   * *Indicators*: Stripe payment badge (`Paid` green, `Pending` red).
-3. **`3. eDofE Setup & Transfer`**:
-   * *Entry Condition*: Payment verified.
-   * *Indicators*: eDofE status (`Registered`, `Needs Transfer`, `No eDofE ID`).
-4. **`4. Unit & Level Allocated`**:
-   * *Entry Condition*: eDofE account set up or transferred.
-   * *Indicators*: ESU Unit badge and DofE Level badge (Bronze/Silver/Gold).
-5. **`5. Welcome Sent & Complete`**:
-   * *Entry Condition*: Admin clicks "Send Welcome Pack" or drags card to final column.
-   * *Action*: Auto-triggers welcome email with portal login instructions.
+#### Stage Configuration Properties:
+For each workflow stage, administrators configure:
+* **Stage Name & Slug**: e.g., `New Submissions` (`new_submission`), `eDofE Setup` (`edofe_setup`).
+* **Column Order & Badge Color**: e.g. `#ff9800` (Orange for verification), `#4caf50` (Green for complete).
+* **Automated Action Triggers on Card Entry**:
+  1. **Send Email Template**: Select an email template from the Email Template Engine to automatically dispatch when a card enters this stage.
+  2. **Auto-Assign Default Tasks**: Automatically assign a suite of Explorer Tasks when a participant transitions to this stage.
+  3. **Update Status Meta**: Automatically sync internal statuses (`signup_status`, `payment_status`).
 
 ---
 
@@ -177,7 +155,7 @@ kanban
 │ └────────────────────────────────────────────────────────────────────┘ │
 │                                                                        │
 │ Quick Actions:                                                         │
-│ [ Match Explorer ]   [ Edit eDofE ID ]   [ 👁️ Quick View ]           │
+│ [ Match Explorer ]   [ Edit eDofE ID ]   [ ✉️ Send Email ]   [ 👁️ View ] │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -185,30 +163,141 @@ kanban
 * **DofE Level Badges**: Bronze (`#cd7f32`), Silver (`#c0c0c0`), Gold (`#ffd700`).
 * **Payment Badges**: Green pill (`Paid`), Red pill (`Unpaid / Pending`).
 * **Reconciliation Alert**: Red indicator for submissions not yet linked to an OSM scout ID.
-* **Inline Quick-Edit Fields**: Double-click eDofE Number or Unit to edit inline without opening modals.
+* **1-Click Manual Email Trigger**: Button on card to manually send any configured email template.
+* **Inline Quick-Edit Fields**: Double-click eDofE Number or Unit to edit inline.
 
 ---
 
 ### 2.4 Inspector Drawer & Batch Operations
 
-* **Slide-Out Inspector Drawer**: Clicking a card opens full submission details, match reconciliation controls, and audit history.
-* **Bulk Operations**: Multi-select cards to advance stages in bulk, send batch welcome emails, or export to CSV.
+* **Slide-Out Inspector Drawer**: Clicking a card opens full submission details, match reconciliation controls, email dispatch log, and audit history.
+* **Bulk Operations**: Multi-select cards to advance stages in bulk, send batch emails, or export to CSV.
 * **View Toggle**: Switch between **Kanban Columns View** and **Excel-Style Spreadsheet Grid View**.
 
 ---
 
-### 2.5 Technical Implementation Roadmap
+## 3. EMS Email Template Engine & Notification Triggers
 
-```mermaid
-flowchart LR
-    A[React Signups Kanban SPA] -->|Drag & Drop Event| B[Optimistic UI Update]
-    B -->|POST /ems/v1/signups/stage| C[REST API Controller]
-    C -->|Update DB| D[(ems_participant_signups / ems_expedition_signups)]
-    C -->|Trigger Hooks| E[Audit Logger & Notification Dispatch]
+### 3.1 Overview
+
+A centralized **Email Template Engine** enables administrators to create, customize, and manage all automated and manual email communications sent by the Expedition Management System.
+
+### 3.2 Data Schema & Storage
+
+Stored via Custom Post Type `ems_email_template` or option schema:
+* **Post Title**: Template Name (e.g., `Registration Welcome Pack`, `eDofE ID Verified`, `Task Assignment Alert`, `Task Overdue Reminder`).
+* **Meta Fields**:
+  * `ems_email_subject` *(string)*: Subject line supporting smart tags (e.g., `Welcome to {dofe_level} DofE, {explorer_first_name}!`).
+  * `ems_email_recipient` *(string)*: `parent` | `explorer` | `both` | `unit_leader` | `custom`.
+  * `ems_trigger_event` *(string)*: `kanban_stage_entry` | `task_assigned` | `task_reminder` | `task_overdue` | `manual_only`.
+  * `ems_stage_slug` *(string)*: Optional target stage slug for automatic trigger.
+  * `ems_html_body` *(longtext)*: HTML email template with rich text styling and smart tags.
+
+---
+
+### 3.3 Smart Tags / Merge Tags Reference
+
+The email rendering engine parses smart tags dynamically before sending:
+
+| Smart Tag | Description | Example Output |
+| :--- | :--- | :--- |
+| `{explorer_first_name}` | Participant's first name | David |
+| `{explorer_last_name}` | Participant's last name | Strachan |
+| `{parent_name}` | Parent/Carer full name | Sarah Strachan |
+| `{dofe_level}` | Award level | Silver |
+| `{unit_name}` | ESU Patrol / Unit name | Falcons ESU |
+| `{edofe_number}` | 7-digit eDofE ID | 7894123 |
+| `{payment_status}` | Status of award/expedition payment | Paid |
+| `{portal_login_url}` | Direct magic-link to EMS portal | `https://see-expeditions.org.uk/portal` |
+| `{task_title}` | Name of assigned task | Complete Navigation Quiz |
+| `{task_due_date}` | Task deadline | 15 Oct 2026 |
+| `{task_action_url}` | Direct link to task action | `https://see-expeditions.org.uk/portal#task-42` |
+| `{leader_in_charge_name}`| Leader name for expedition | John Doe |
+
+---
+
+### 3.4 Email Template Management UI
+
+Accessible via **EMS Admin** → **Email Templates** (`ems-email-templates`):
+* **Visual Rich Text / HTML Editor**: Live preview mode showing parsed smart tags.
+* **Send Test Email Button**: Test template rendering to admin inbox.
+* **Notification History Log**: Real-time log tracking sent emails, recipients, delivery timestamps, and trigger sources.
+
+---
+
+## 4. WordPress Admin Menu Integration Architecture
+
+All new management screens and tools are integrated into the existing WordPress Admin sidebar hierarchy under the parent **EMS** menu.
+
+### 4.1 Menu Map & Routing Architecture
+
+```
+WordPress Admin Sidebar
+└── 🏆 EMS (Parent Menu: ems-dashboard)
+    ├── 🗺️ Expedition Board       (slug: ems-expeditions)     -> React SPA: Event & Team Planner
+    ├── 📋 Signups & Kanban      (slug: ems-signups)         -> React SPA: Registration Kanban, Spreadsheet & Stage Config
+    ├── 📌 Explorer Tasks        (slug: ems-tasks)           -> React SPA: Task Manager CRUD & Lifecycle Stages
+    ├── ✉️ Email Templates       (slug: ems-email-templates) -> React SPA: Email Template Editor & Delivery Logs
+    ├── 👤 Explorers Roster      (slug: ems-explorers)       -> React SPA: Sync Roster & Explorer Profiles
+    ├── 🙋 Volunteers            (slug: ems-volunteers)      -> React SPA: Volunteer Roster & Availability Grid
+    ├── 🏰 Unit Manager          (slug: ems-unit-leaders)    -> React SPA: District Cards & ESU Unit Mapping
+    ├── 🔄 OSM Sync              (slug: ems-osm-sync)        -> React SPA: OAuth 2.0 Manual Sync & Preview
+    └── ⚙️ Settings              (slug: ems-settings)        -> PHP Admin: API modes, Flexi-map & Auth Rules
 ```
 
-* **Frontend Stack**: Built with React & `@hello-pangea/dnd` inside `resources/js/admin/signups-board/`.
-* **REST API Endpoints**:
-  * `GET /ems/v1/signups/kanban` — Returns signups grouped by Kanban stage.
-  * `POST /ems/v1/signups/update-stage` — Updates signup `kanban_stage` and logs audit entry.
-  * `POST /ems/v1/tasks` — Task CRUD & bulk assignment endpoint.
+### 4.2 PHP Submenu Registration Specification
+
+Registered in `EMS\Admin\Admin_Menu`:
+
+```php
+// Signups & Kanban Board
+add_submenu_page(
+    'ems-dashboard',
+    __( 'Signups & Kanban', 'ems' ),
+    __( 'Signups & Kanban', 'ems' ),
+    'manage_options',
+    'ems-signups',
+    array( $this, 'render_signups_kanban_page' )
+);
+
+// Explorer Tasks & Lifecycle Workflows
+add_submenu_page(
+    'ems-dashboard',
+    __( 'Explorer Tasks', 'ems' ),
+    __( 'Explorer Tasks', 'ems' ),
+    'manage_options',
+    'ems-tasks',
+    array( $this, 'render_explorer_tasks_page' )
+);
+
+// Email Templates Engine
+add_submenu_page(
+    'ems-dashboard',
+    __( 'Email Templates', 'ems' ),
+    __( 'Email Templates', 'ems' ),
+    'manage_options',
+    'ems-email-templates',
+    array( $this, 'render_email_templates_page' )
+);
+```
+
+---
+
+## 5. Summary Technical Implementation Roadmap
+
+```mermaid
+flowchart TD
+    A[Phase 1: DB Migrations & CPTs] --> B[Phase 2: Email Template Engine & REST APIs]
+    B --> C[Phase 3: Configurable Registration Kanban SPA]
+    B --> D[Phase 4: Explorer Task Manager CRUD & Cron Notifications]
+    C --> E[Phase 5: Portal Task Checklist Integration]
+    D --> E
+    E --> F[Phase 6: Menu Integration & End-to-End Testing]
+```
+
+1. **Phase 1: DB & CPT Foundations**: Migrate `wp_ems_explorer_tasks` table and register `ems_lifecycle_stage` & `ems_email_template` CPTs.
+2. **Phase 2: Email Engine**: Build `EMS\Core\Email_Engine` parser, smart tag replacement, and REST endpoints (`/ems/v1/email-templates`).
+3. **Phase 3: Configurable Kanban SPA**: Build React Kanban board with drag-and-drop, stage configuration tab, and automated trigger bindings.
+4. **Phase 4: Task Manager & Cron**: Build Task Manager React SPA, WP-Cron scheduled notification runner, and task assignment APIs.
+5. **Phase 5: Portal Integration**: Embed "My Tasks" checklist widget into `[ems-portal]` React app.
+6. **Phase 6: Menu Alignment**: Wire WP Admin submenu entries (`ems-signups`, `ems-tasks`, `ems-email-templates`) and run PHPUnit/Vitest test suites.
