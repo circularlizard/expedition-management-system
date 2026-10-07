@@ -41,6 +41,10 @@ class Training_Report_Page {
 			return;
 		}
 
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ), '', array( 'response' => 403 ) );
+		}
+
 		check_admin_referer( 'ems_csv_export' );
 		$this->output_csv();
 		exit;
@@ -429,7 +433,7 @@ class Training_Report_Page {
 
 		$header = array( 'Student Name', 'Email' );
 		foreach ( $courses as $course ) {
-			$header[] = $course->post_title;
+			$header[] = self::escape_csv_cell( $course->post_title );
 		}
 		$rows = array( $header );
 
@@ -438,15 +442,32 @@ class Training_Report_Page {
 			if ( ! $user ) {
 				continue;
 			}
-			$row = array( $user->display_name, $user->user_email );
+			$row = array(
+				self::escape_csv_cell( $user->display_name ),
+				self::escape_csv_cell( $user->user_email ),
+			);
 			foreach ( $courses as $course ) {
 				$status = $matrix[ $uid ][ $course->ID ] ?? 'not_enrolled';
-				$row[]  = self::STATUS_LABELS[ $status ] ?? $status;
+				$label  = self::STATUS_LABELS[ $status ] ?? $status;
+				$row[]  = self::escape_csv_cell( $label );
 			}
 			$rows[] = $row;
 		}
 
 		return $rows;
+	}
+
+	public static function escape_csv_cell( mixed $value ): mixed {
+		if ( ! is_string( $value ) || $value === '' ) {
+			return $value;
+		}
+
+		$first = $value[0];
+		if ( in_array( $first, array( '=', '+', '-', '@', "\t", "\r" ), true ) ) {
+			return "'" . $value;
+		}
+
+		return $value;
 	}
 
 	private function output_csv(): void {
@@ -457,7 +478,7 @@ class Training_Report_Page {
 
 		$output = fopen( 'php://output', 'w' );
 		foreach ( $this->generate_csv_rows() as $row ) {
-			fputcsv( $output, $row );
+			fputcsv( $output, $row, ',', '"', "\\" );
 		}
 		fclose( $output );
 	}
