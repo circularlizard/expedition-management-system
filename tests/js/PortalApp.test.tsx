@@ -16,6 +16,12 @@ const mockConfig = {
     login_url: 'https://example.com/wp-login.php'
 };
 
+declare global {
+    interface Window {
+        emsPortal?: any;
+    }
+}
+
 global.window.emsPortal = mockConfig;
 
 describe('PortalApp', () => {
