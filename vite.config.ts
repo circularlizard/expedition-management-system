@@ -20,7 +20,7 @@ export default defineConfig({
     plugins: [react(), buildManifestPlugin()],
     build: {
         outDir: 'assets/js',
-        emptyOutDir: false,
+        emptyOutDir: true,
         rollupOptions: {
             input: {
                 'column-mapper':    resolve( __dirname, 'resources/js/admin/column-mapper/index.tsx' ),
