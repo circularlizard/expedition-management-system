@@ -112,15 +112,6 @@ export interface OSMEvent {
 declare global {
     interface Window {
         emsExpeditionBoard: BoardConfig;
-        wp: {
-            components: typeof import('@wordpress/components');
-            element:    typeof import('@wordpress/element');
-            i18n:       typeof import('@wordpress/i18n');
-            apiFetch:   unknown;
-            hooks:      unknown;
-            compose:    unknown;
-            data:       unknown;
-        };
     }
 }
 
