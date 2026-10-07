@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.31">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>architecture_issues</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="architecture_issues_files/libs/clipboard/clipboard.min.js"></script>
+<script src="architecture_issues_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="architecture_issues_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="architecture_issues_files/libs/quarto-html/popper.min.js"></script>
+<script src="architecture_issues_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="architecture_issues_files/libs/quarto-html/anchor.min.js"></script>
+<link href="architecture_issues_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="architecture_issues_files/libs/quarto-html/quarto-syntax-highlighting-7c69b197886ae2a34062761d21e44731.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="architecture_issues_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="architecture_issues_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="architecture_issues_files/libs/bootstrap/bootstrap-138a6193a3bd40baf1e627da441a4734.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<section id="outstanding-architectural-code-issues-signup-go-live-plan" class="level1">
+<h1>Outstanding Architectural &amp; Code Issues &amp; Signup Go-Live Plan</h1>
+<p>This document records the architectural discrepancies, bugs, and technical debt identified during the audit of the <strong>Expedition Management System (EMS)</strong> codebase, along with a prioritized triage and remediation plan for the public signup forms launch (Participant Form 6, Expedition Form 7, and Volunteer Signup).</p>
+<hr>
+<section id="signup-go-live-triage-matrix" class="level2">
+<h2 class="anchored" data-anchor-id="signup-go-live-triage-matrix">1. Signup Go-Live Triage Matrix</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ID</th>
+<th>Issue</th>
+<th>Urgency for Live Signups</th>
+<th>Status</th>
+<th>Impact on Signup Launch &amp; Operational Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>1.2</strong></td>
+<td><strong>Backup &amp; Portability Engine Sync Omissions</strong></td>
+<td><strong>🔴 Must Fix Before Live</strong></td>
+<td>✅ <strong>Resolved</strong></td>
+<td>Updated <code>Portability_Engine.php</code> with all active split signup tables (<code>ems_participant_signups</code>, <code>ems_expedition_signups</code>, <code>ems_volunteers</code>, <code>ems_audit_logs</code>) and active form configuration options. Full test coverage added.</td>
+</tr>
+<tr class="even">
+<td><strong>3.1</strong></td>
+<td><strong>Fragile OIDC Token Capture Interceptor</strong></td>
+<td><strong>🟡 Highly Recommended (Pre-Launch)</strong></td>
+<td>✅ <strong>Resolved</strong></td>
+<td>Hardened <code>OIDC_Login_Handler::capture_token_from_response</code> to restrict token capture to verified OSM OAuth endpoints/hosts, ignoring third-party OAuth token traffic.</td>
+</tr>
+<tr class="odd">
+<td><strong>2.3</strong></td>
+<td><strong>Fragmented First Aid Columns</strong></td>
+<td><strong>🟡 High Value (Reconciliation)</strong></td>
+<td>⏳ Pending Redesign</td>
+<td>First aid capture will be simplified to yes/no. Synchronization will be implemented in accordance with simplified model.</td>
+</tr>
+<tr class="even">
+<td><strong>1.1</strong></td>
+<td><strong>Tutor LMS Database Query Join Failure</strong></td>
+<td><strong>🟡 Quick Fix (Admin Safety)</strong></td>
+<td>✅ <strong>Resolved</strong></td>
+<td>Fixed queries in <code>Admin_View_Controller.php</code> and <code>Expedition_Admin_Controller.php</code> to correctly join <code>ems_unit_patrols</code> and <code>ems_units</code>.</td>
+</tr>
+<tr class="odd">
+<td><strong>2.1</strong></td>
+<td><strong>Hardcoded OSM Flexi-Record Schemas</strong></td>
+<td><strong>🟢 Can Defer (Post-Launch)</strong></td>
+<td>Open</td>
+<td>Pushback to OSM occurs downstream after signups close and teams are allocated. The hardcoded <code>"2026 Expeditions"</code> schema is valid for the current season.</td>
+</tr>
+<tr class="even">
+<td><strong>2.2</strong></td>
+<td><strong>Tutor LMS Version Divergence (Free vs.&nbsp;Pro)</strong></td>
+<td><strong>🟢 Can Defer (Post-Launch)</strong></td>
+<td>Open</td>
+<td>Internal LMS quiz/lesson query divergence; has no runtime dependency on signup submission or reconciliation.</td>
+</tr>
+<tr class="odd">
+<td><strong>3.2</strong></td>
+<td><strong>Unused Auth Provider Abstractions (ADR 012)</strong></td>
+<td><strong>🟢 Can Defer (Post-Launch)</strong></td>
+<td>Open</td>
+<td>Dead interface files (<code>Auth_Provider.php</code>, <code>Mock_Auth_Provider.php</code>); zero runtime impact.</td>
+</tr>
+<tr class="even">
+<td><strong>3.3</strong></td>
+<td><strong>Deprecated Season CPT &amp; Synthetic Layer</strong></td>
+<td><strong>🟢 Can Defer (Post-Launch)</strong></td>
+<td>Open</td>
+<td>Synthetic season object in expedition board controller; does not affect signup forms.</td>
+</tr>
+<tr class="odd">
+<td><strong>3.4</strong></td>
+<td><strong>REST API Gating &amp; Documentation Mismatch</strong></td>
+<td><strong>🟢 Can Defer (Doc Update)</strong></td>
+<td>Open</td>
+<td>Public volunteer wizard uses <code>/ems/v1/volunteers/signup</code> (public and functioning). <code>/volunteers/availability</code> is intentionally restricted to admins.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="issue-details-launch-impact" class="level2">
+<h2 class="anchored" data-anchor-id="issue-details-launch-impact">2. Issue Details &amp; Launch Impact</h2>
+<section id="database-schema-issues" class="level3">
+<h3 class="anchored" data-anchor-id="database-schema-issues">2.1 Database &amp; Schema Issues</h3>
+<section id="tutor-lms-database-query-join-failure-code-bug" class="level4">
+<h4 class="anchored" data-anchor-id="tutor-lms-database-query-join-failure-code-bug">1.1 Tutor LMS Database Query Join Failure (Code Bug)</h4>
+<ul>
+<li><p><strong>Location</strong>: <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Admin/Admin_View_Controller.php#L393"><code>Admin_View_Controller.php</code> (Line 393)</a></p></li>
+<li><p><strong>Description</strong>: The training compliance query joins cached explorers to master units:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">LEFT</span> <span class="kw">JOIN</span> wp_ems_units u <span class="kw">ON</span> e.section_id <span class="op">=</span> u.section_id <span class="kw">AND</span> e.patrol <span class="op">=</span> u.name</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>However, during table refactoring, the columns <code>section_id</code> and <code>patrol</code> were deprecated and deleted from <code>wp_ems_units</code> (moved to <code>wp_ems_unit_patrols</code>). <strong>Viewing the training report causes a fatal SQL error in production.</strong></p></li>
+<li><p><strong>Launch Impact</strong>: Does not block public form submissions directly, but crashes the Training Compliance dashboard when administrators or unit leaders review participant training progress.</p></li>
+<li><p><strong>Action Required</strong>: Refactor the query to join on the unit identifier:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">LEFT</span> <span class="kw">JOIN</span> wp_ems_units u <span class="kw">ON</span> e.section_id <span class="op">=</span> u.unit_id</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+</ul>
+</section>
+<section id="backup-portability-engine-sync-omissions-data-loss-option-omissions" class="level4">
+<h4 class="anchored" data-anchor-id="backup-portability-engine-sync-omissions-data-loss-option-omissions">1.2 Backup &amp; Portability Engine Sync Omissions (Data Loss &amp; Option Omissions)</h4>
+<ul>
+<li><strong>Location</strong>: <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Core/Portability_Engine.php#L21-L31"><code>Portability_Engine.php</code> (Lines 21-31)</a></li>
+<li><strong>Description</strong>: The backup/export system is out of sync with active database tables and configuration options:
+<ol type="1">
+<li><strong>Table Omissions</strong>: References legacy <code>ems_signups</code> and omits active tables: <code>ems_participant_signups</code>, <code>ems_expedition_signups</code>, <code>ems_volunteers</code>, and <code>ems_audit_logs</code>.</li>
+<li><strong>Option Omissions</strong>: Exports legacy options (<code>ems_form_mappings</code>, <code>ems_fluent_form_id</code>) while omitting active configuration settings (<code>ems_fluent_participant_form_id</code>, <code>ems_fluent_expedition_form_id</code>, <code>ems_participant_form_mappings</code>, <code>ems_expedition_form_mappings</code>, <code>ems_page_roles</code>, <code>ems_protect_tutor_lms</code>, <code>ems_osm_auth_url</code>, <code>ems_osm_token_url</code>, <code>ems_osm_resource_url</code>).</li>
+</ol></li>
+<li><strong>Launch Impact</strong>: <strong>CRITICAL BLOCKER FOR LIVE OPERATIONS.</strong>
+<ul>
+<li>Migrating configuration from staging to production via Portability Engine will drop form mappings and form IDs.</li>
+<li>Any backup taken after launch will completely omit all live participant signups, expedition signups, and volunteer rosters.</li>
+</ul></li>
+<li><strong>Action Required</strong>: Update <code>TABLES_TO_EXPORT</code> and <code>OPTIONS_TO_EXPORT</code> arrays in <code>Portability_Engine.php</code> to include current split tables and active configuration options.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="integration-config-coupling-issues" class="level3">
+<h3 class="anchored" data-anchor-id="integration-config-coupling-issues">2.2 Integration &amp; Config Coupling Issues</h3>
+<section id="hardcoded-online-scout-manager-osm-flexi-record-schemas" class="level4">
+<h4 class="anchored" data-anchor-id="hardcoded-online-scout-manager-osm-flexi-record-schemas">2.1 Hardcoded Online Scout Manager (OSM) Flexi-Record Schemas</h4>
+<ul>
+<li><strong>Location</strong>: <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Pushback_Sync_Manager.php#L394"><code>Pushback_Sync_Manager.php</code> (Lines 394, 423)</a></li>
+<li><strong>Description</strong>: Pushback sync logic relies on a hardcoded flexi-record name of <code>"2026 Expeditions"</code> and expects six hardcoded columns (<code>PRACTICE GROUPS</code>, <code>PRACTICE ACCEPTED</code>, <code>QUALIFIER GROUPS</code>, <code>QUALIFIER ACCEPTED</code>, <code>TRAINING DAY</code>, <code>FIRST AID</code>).</li>
+<li><strong>Launch Impact</strong>: None for signup launch. Pushback runs downstream after team allocations. The hardcoded 2026 schema is valid for the current season.</li>
+<li><strong>Action Required</strong>: Centralize schema strings as class constants or database settings (can be deferred).</li>
+</ul>
+</section>
+<section id="tutor-lms-version-divergence-free-vs.-pro" class="level4">
+<h4 class="anchored" data-anchor-id="tutor-lms-version-divergence-free-vs.-pro">2.2 Tutor LMS Version Divergence (Free vs.&nbsp;Pro)</h4>
+<ul>
+<li><strong>Location</strong>: <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/TutorLMS_Client.php#L234"><code>TutorLMS_Client.php</code> (Lines 234-300)</a></li>
+<li><strong>Description</strong>: Divergent check logic for Tutor LMS Free (direct SQL on <code>wp_posts</code> and <code>tutor_quiz_attempts</code>) vs Pro (serialized meta <code>_tutor_reading_info_{course_id}</code>).</li>
+<li><strong>Launch Impact</strong>: None for signup launch.</li>
+<li><strong>Action Required</strong>: Abstract version-specific check paths behind an adapter interface (can be deferred).</li>
+</ul>
+</section>
+<section id="fragmented-first-aid-columns" class="level4">
+<h4 class="anchored" data-anchor-id="fragmented-first-aid-columns">2.3 Fragmented First Aid Columns</h4>
+<ul>
+<li><strong>Location</strong>: <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Data/Signup_Repository.php"><code>Signup_Repository.php</code></a> &amp; <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/Fluent_Forms_Sync.php"><code>Fluent_Forms_Sync.php</code></a></li>
+<li><strong>Description</strong>: First Aid status captured during Form 7 submission is written to <code>ems_expedition_signups.first_aid_status</code>, while the admin panel and team planner use <code>ems_osm_explorers.first_aid_level</code>. Reconciling a signup does not currently propagate first aid status to the explorer record.</li>
+<li><strong>Launch Impact</strong>: Form submissions succeed, but manual or automatic reconciliation does not populate first aid on the master roster, requiring duplicate entry.</li>
+<li><strong>Action Required</strong>: Propagate first aid status to <code>ems_osm_explorers</code> during signup reconciliation / approval.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="security-code-hygiene-issues" class="level3">
+<h3 class="anchored" data-anchor-id="security-code-hygiene-issues">2.3 Security &amp; Code Hygiene Issues</h3>
+<section id="fragile-oidc-token-capture-interceptor" class="level4">
+<h4 class="anchored" data-anchor-id="fragile-oidc-token-capture-interceptor">3.1 Fragile OIDC Token Capture Interceptor</h4>
+<ul>
+<li><strong>Location</strong>: <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Integrations/OIDC_Login_Handler.php#L29"><code>OIDC_Login_Handler.php</code> (Lines 29-39)</a></li>
+<li><strong>Description</strong>: Intercepts outgoing requests via <code>http_response</code> filter, checking if destination URL contains <code>/token</code> or <code>/oauth/token</code>. Any third-party plugin running a token handshake on a URL containing these strings can overwrite <code>$captured_token</code>.</li>
+<li><strong>Launch Impact</strong>: High risk for parents logging in via OSM OIDC to complete signup forms. If the captured token is lost/corrupted, EMS cannot fetch the parent’s children from OSM, resulting in an empty “Select Child” dropdown.</li>
+<li><strong>Action Required</strong>: Restrict URL matching to target only the configured OSM OAuth endpoint (<code>ems_osm_token_url</code> or <code>ems_osm_api_base_url</code>).</li>
+</ul>
+</section>
+<section id="unused-auth-provider-abstractions-adr-012-dead-code" class="level4">
+<h4 class="anchored" data-anchor-id="unused-auth-provider-abstractions-adr-012-dead-code">3.2 Unused Auth Provider Abstractions (ADR 012 Dead Code)</h4>
+<ul>
+<li><strong>Location</strong>: <code>src/Auth/</code></li>
+<li><strong>Description</strong>: Unused dead interface files (<code>Auth_Provider.php</code>, <code>LoginWithGoogle_Auth_Provider.php</code>, <code>Mock_Auth_Provider.php</code>).</li>
+<li><strong>Launch Impact</strong>: None (no runtime impact).</li>
+<li><strong>Action Required</strong>: Remove dead interfaces or refactor handler (can be deferred).</li>
+</ul>
+</section>
+<section id="deprecated-season-cpt-repository" class="level4">
+<h4 class="anchored" data-anchor-id="deprecated-season-cpt-repository">3.3 Deprecated Season CPT &amp; Repository</h4>
+<ul>
+<li><strong>Location</strong>: <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Admin/Expedition_Admin_Controller.php#L670"><code>Expedition_Admin_Controller.php</code> (Line 670)</a></li>
+<li><strong>Description</strong>: Synthetic season layer remains to support legacy React frontend expectations.</li>
+<li><strong>Launch Impact</strong>: None for signup forms.</li>
+<li><strong>Action Required</strong>: Remove synthetic season layer and cleanup repository (can be deferred).</li>
+</ul>
+</section>
+<section id="rest-api-gating-documentation-mismatch" class="level4">
+<h4 class="anchored" data-anchor-id="rest-api-gating-documentation-mismatch">3.4 REST API Gating &amp; Documentation Mismatch</h4>
+<ul>
+<li><strong>Location</strong>: <a href="file:///Users/davidstrachan/Projects/expedition-management-system/src/Admin/Volunteer_Controller.php#L65"><code>Volunteer_Controller.php</code> (Line 65)</a></li>
+<li><strong>Description</strong>: <code>/volunteers/availability</code> (POST) is restricted to <code>manage_options</code> (Admin only), whereas the public volunteer signup form uses <code>/volunteers/signup</code> (public).</li>
+<li><strong>Launch Impact</strong>: None. The public form already uses the correct endpoint.</li>
+<li><strong>Action Required</strong>: Align documentation with code permissions.</li>
+</ul>
+<hr>
+</section>
+</section>
+</section>
+<section id="pre-launch-action-plan" class="level2">
+<h2 class="anchored" data-anchor-id="pre-launch-action-plan">3. Pre-Launch Action Plan</h2>
+<p>To ensure seamless public signup operations and data safety, implement the following steps before opening the signup forms:</p>
+<ol type="1">
+<li><strong>Step 1: Fix Portability Engine Table &amp; Option Lists (Issue 1.2)</strong>
+<ul>
+<li>Update <code>Portability_Engine.php</code> to register <code>ems_participant_signups</code>, <code>ems_expedition_signups</code>, <code>ems_volunteers</code>, and <code>ems_audit_logs</code>.</li>
+<li>Update <code>OPTIONS_TO_EXPORT</code> to include all active Fluent Forms mapping and ID options.</li>
+<li>Add PHPUnit test coverage for export/import integrity.</li>
+</ul></li>
+<li><strong>Step 2: Harden OIDC Token Capture (Issue 3.1)</strong>
+<ul>
+<li>Update <code>OIDC_Login_Handler::capture_token_from_response</code> to validate destination URLs against configured OSM endpoints.</li>
+<li>Verify parent OIDC login test cases pass.</li>
+</ul></li>
+<li><strong>Step 3: Fix Tutor LMS Training Query (Issue 1.1)</strong>
+<ul>
+<li>Update SQL join in <code>Admin_View_Controller.php</code> to reference <code>u.unit_id</code>.</li>
+<li>Verify Training Compliance report loads cleanly without database errors.</li>
+</ul></li>
+<li><strong>Step 4: Connect First Aid Synchronization on Reconciliation (Issue 2.3)</strong>
+<ul>
+<li>Ensure <code>Signup_Repository::reconcile_signup</code> updates <code>ems_osm_explorers.first_aid_level</code> when matching expedition signups.</li>
+</ul></li>
+</ol>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
