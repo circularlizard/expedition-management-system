@@ -1522,15 +1522,29 @@ class Fluent_Forms_Sync {
 		}
 
 		$transient_key = 'fluent_otp_' . md5( $email . '_' . $field_name );
+		$attempts_key  = 'fluent_otp_att_' . md5( $email . '_' . $field_name );
 		$stored_hash   = get_transient( $transient_key );
 
 		if ( ! $stored_hash ) {
 			wp_send_json_error( array( 'message' => __( 'Verification code has expired or not requested.', 'ems-plugin' ) ) );
 		}
 
-		if ( hash_equals( $stored_hash, hash( 'sha256', $code ) ) ) {
+		$attempts = (int) get_transient( $attempts_key );
+		if ( $attempts >= 5 ) {
+			delete_transient( $transient_key );
+			delete_transient( $attempts_key );
+			wp_send_json_error( array( 'message' => __( 'Too many incorrect attempts. Please request a new verification code.', 'ems-plugin' ) ) );
+		}
+
+		$ttl           = defined( 'MINUTE_IN_SECONDS' ) ? 15 * MINUTE_IN_SECONDS : 900;
+		$expected_hash = hash( 'sha256', $code );
+
+		if ( hash_equals( $stored_hash, $expected_hash ) || hash_equals( $stored_hash, 'VERIFIED_' . $expected_hash ) ) {
+			delete_transient( $attempts_key );
+			set_transient( $transient_key, 'VERIFIED_' . $expected_hash, $ttl );
 			wp_send_json_success( array( 'message' => __( 'Email verified!', 'ems-plugin' ) ) );
 		} else {
+			set_transient( $attempts_key, $attempts + 1, $ttl );
 			wp_send_json_error( array( 'message' => __( 'Incorrect verification code.', 'ems-plugin' ) ) );
 		}
 	}
@@ -1616,7 +1630,8 @@ class Fluent_Forms_Sync {
 			return __( 'The verification code has expired or was not requested.', 'ems-plugin' );
 		}
 
-		if ( ! hash_equals( $stored_hash, hash( 'sha256', $user_otp ) ) ) {
+		$expected_hash = hash( 'sha256', $user_otp );
+		if ( ! hash_equals( $stored_hash, $expected_hash ) && ! hash_equals( $stored_hash, 'VERIFIED_' . $expected_hash ) ) {
 			return __( 'The verification code is incorrect.', 'ems-plugin' );
 		}
 
@@ -1627,6 +1642,7 @@ class Fluent_Forms_Sync {
 		}
 
 		delete_transient( $transient_key );
+		delete_transient( 'fluent_otp_att_' . md5( $email . '_' . $current_field ) );
 
 		return $errorMessage;
 	}
