@@ -13,6 +13,8 @@ interface Expedition {
     ems_event_code: string;
     ems_start_date: string;
     ems_end_date: string;
+    ems_start_time?: string;
+    ems_end_time?: string;
 }
 
 function VolunteerSignupWizard() {

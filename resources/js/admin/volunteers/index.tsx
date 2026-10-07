@@ -1,7 +1,7 @@
 import '../../../css/ems-admin.css';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { EventRosterPanel } from './EventRosterPanel';
+import { EventRosterPanel, Expedition } from './EventRosterPanel';
 
 interface Shift {
     id: number;
@@ -10,7 +10,7 @@ interface Shift {
     date: string;
     overnight: number;
     confirmed: number;
-    signup_type?: string;
+    signup_type?: 'whole' | 'part';
 }
 
 interface Volunteer {
@@ -30,16 +30,6 @@ interface Volunteer {
         max_total?: number;
     };
     availability: Shift[];
-}
-
-interface Expedition {
-    ID: number;
-    post_title: string;
-    ems_event_code: string;
-    ems_start_date: string;
-    ems_end_date: string;
-    ems_type?: 'training' | 'practice' | 'qualifying';
-    ems_level?: 'bronze' | 'silver' | 'gold' | 'multiple';
 }
 
 function formatHeaderDate(startStr: string, endStr: string): string {
@@ -70,7 +60,7 @@ function VolunteersDashboard() {
     const [selectedVolunteerId, setSelectedVolunteerId] = useState<number | null>(null);
     
     // Staffing filter state
-    const [coverageFilter, setCoverageFilter] = useState<'all' | 'needs' | 'partial' | 'full' | 'has_pending'>('all');
+    const [coverageFilter, setCoverageFilter] = useState<'all' | 'no_volunteers' | 'pending' | 'under_staffed' | 'fully_staffed' | 'has_pending'>('all');
     
     // Registry Search/Filter state
     const [searchTerm, setSearchTerm] = useState('');

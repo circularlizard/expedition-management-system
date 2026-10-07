@@ -50,7 +50,7 @@ const mockPreviewData = {
 describe('PushbackDashboard', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
-		global.fetch = vi.fn((url: string) => {
+		global.fetch = vi.fn(((url: string) => {
 			if (url.includes('/admin/sync-status')) {
 				return Promise.resolve({
 					ok: true,
@@ -61,7 +61,7 @@ describe('PushbackDashboard', () => {
 				ok: true,
 				json: async () => mockPreviewData
 			});
-		});
+		}) as any);
 	});
 
 	it('renders section selector and fetches preview automatically', async () => {
@@ -80,7 +80,7 @@ describe('PushbackDashboard', () => {
 	});
 
 	it('shows error notice when preview fetch fails', async () => {
-		global.fetch = vi.fn((url: string) => {
+		global.fetch = vi.fn(((url: string) => {
 			if (url.includes('/admin/sync-status')) {
 				return Promise.resolve({
 					ok: true,
@@ -91,7 +91,7 @@ describe('PushbackDashboard', () => {
 				ok: false,
 				json: async () => ({ message: 'Preview fetch rejected.' })
 			});
-		});
+		}) as any);
 
 		render(<PushbackDashboard />);
 
@@ -102,7 +102,7 @@ describe('PushbackDashboard', () => {
 
 	it('triggers refresh fetch when refresh button is clicked', async () => {
 		let previewCallCount = 0;
-		global.fetch = vi.fn((url: string) => {
+		global.fetch = vi.fn(((url: string) => {
 			if (url.includes('/admin/sync-status')) {
 				return Promise.resolve({
 					ok: true,
@@ -115,7 +115,7 @@ describe('PushbackDashboard', () => {
 				ok: true,
 				json: async () => ({ ...mockPreviewData, errors })
 			});
-		});
+		}) as any);
 
 		render(<PushbackDashboard />);
 
@@ -132,7 +132,7 @@ describe('PushbackDashboard', () => {
 	});
 
 	it('executes push-back sync and refreshes preview', async () => {
-		global.fetch = vi.fn((url: string) => {
+		global.fetch = vi.fn(((url: string) => {
 			if (url.includes('/admin/sync-status')) {
 				return Promise.resolve({
 					ok: true,
@@ -149,7 +149,7 @@ describe('PushbackDashboard', () => {
 				ok: true,
 				json: async () => mockPreviewData
 			});
-		});
+		}) as any);
 
 		render(<PushbackDashboard />);
 

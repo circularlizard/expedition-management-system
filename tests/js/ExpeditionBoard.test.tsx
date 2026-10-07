@@ -52,7 +52,7 @@ const mockEventsData = { events: mockBoardData.seasons[0].events };
 describe('ExpeditionBoard', () => {
     beforeEach(() => {
         vi.resetAllMocks();
-        global.fetch = vi.fn((url: string) => {
+        global.fetch = vi.fn(((url: string) => {
             if (url.includes('/expedition-board')) {
                 return Promise.resolve({ ok: true, json: async () => mockBoardData });
             }
@@ -63,7 +63,7 @@ describe('ExpeditionBoard', () => {
                 return Promise.resolve({ ok: true, json: async () => mockEventsData });
             }
             return Promise.reject(new Error('Unknown request: ' + url));
-        });
+        }) as any);
     });
 
     it('shows loading state initially', () => {

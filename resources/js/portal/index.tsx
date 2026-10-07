@@ -67,6 +67,7 @@ interface ExplorerDetail {
         first_name: string;
         last_name: string;
         first_aid_level: string;
+        additional_support_needs?: string;
     };
     signups: Signup[];
     events: {
@@ -215,7 +216,7 @@ export function PortalApp() {
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'training' | 'practice' | 'qualifying'>('training');
     const [activeEventId, setActiveEventId] = useState<number | null>(null);
-    const [activeSubTab, setActiveSubTab] = useState<'overview' | 'team' | 'training' | 'resources'>('overview');
+    const [activeSubTab, setActiveSubTab] = useState<'overview' | 'team' | 'training' | 'resources' | 'route'>('overview');
     const [currentPage, setCurrentPage] = useState<'signups' | 'expeditions'>('expeditions');
     const [selectedSignupId, setSelectedSignupId] = useState<number | null>(null);
 
