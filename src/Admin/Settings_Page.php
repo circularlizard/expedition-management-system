@@ -121,7 +121,7 @@ class Settings_Page {
 			$this->handle_import();
 		}
 
-		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
 		$page_url   = admin_url( 'admin.php?page=ems-settings' );
 		?>
 		<div class="wrap">
