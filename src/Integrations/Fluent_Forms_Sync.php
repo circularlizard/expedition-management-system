@@ -2,15 +2,13 @@
 namespace EMS\Integrations;
 
 use EMS\Data\Signup_Repository;
-use EMS\Data\Unit_Repository;
-
 class Fluent_Forms_Sync {
 	private Signup_Repository $signup_repo;
 	private object $wpdb;
 	private bool $parent_email_verified = false;
 	private bool $explorer_email_verified = false;
 
-	public function __construct( ?Signup_Repository $signup_repo = null, ?Unit_Repository $unit_repo = null, ?object $wpdb = null ) {
+	public function __construct( ?Signup_Repository $signup_repo = null, ?object $wpdb = null ) {
 		if ( $wpdb === null ) {
 			global $wpdb;
 		}
