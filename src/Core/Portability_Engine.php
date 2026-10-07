@@ -9,7 +9,6 @@ class Portability_Engine {
 		'ems_api_mode',
 		'ems_sync_limit',
 		'ems_osm_client_id',
-		'ems_osm_client_secret',
 		'ems_osm_api_base_url',
 		'ems_osm_scope',
 		'ems_flexirecord_column_map',
