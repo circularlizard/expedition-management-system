@@ -2,6 +2,7 @@
 namespace EMS\Tests\Unit\Data;
 
 use EMS\Data\Team_Member_Repository;
+use EMS\Data\Team_Repository;
 use EMS\Tests\EMSTestCase;
 use Brain\Monkey\Functions;
 
@@ -128,5 +129,83 @@ class Team_Member_RepositoryTest extends EMSTestCase {
 
         $this->assertCount( 1, $unassigned );
         $this->assertEquals( 51, $unassigned[0]['ID'] );
+    }
+
+    public function test_remove_deletes_team_when_last_member_removed(): void {
+        $wpdb = $this->mock_wpdb();
+        // Deletion query succeeds with 1 row deleted
+        $wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+        // list_by_team query returns empty array
+        $wpdb->shouldReceive( 'get_results' )->once()->andReturn( [] );
+
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key, $single ) {
+                if ( $key === 'ems_team_code' ) {
+                    return 'H-SP1-1';
+                }
+                return '';
+            }
+        );
+
+        $team_repo = \Mockery::mock( Team_Repository::class );
+        $team_repo->shouldReceive( 'delete' )->with( 20 )->once()->andReturn( true );
+
+        $repo = new Team_Member_Repository( $wpdb, $team_repo );
+        $result = $repo->remove( 20, 1001 );
+
+        $this->assertTrue( $result );
+    }
+
+    public function test_remove_does_not_delete_team_when_remaining_members_exist(): void {
+        $wpdb = $this->mock_wpdb();
+        $wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+        // list_by_team returns remaining member
+        $wpdb->shouldReceive( 'get_results' )->once()->andReturn( [
+            [ 'id' => 2, 'team_post_id' => 20, 'scout_id' => 1002, 'user_id' => 0, 'added_by' => 1, 'added_at' => '2026-06-13 12:00:00' ],
+        ] );
+
+        $team_repo = \Mockery::mock( Team_Repository::class );
+        $team_repo->shouldNotReceive( 'delete' );
+
+        $repo = new Team_Member_Repository( $wpdb, $team_repo );
+        $result = $repo->remove( 20, 1001 );
+
+        $this->assertTrue( $result );
+    }
+
+    public function test_remove_does_not_delete_unallocated_team_when_empty(): void {
+        $wpdb = $this->mock_wpdb();
+        $wpdb->shouldReceive( 'query' )->once()->andReturn( 1 );
+        $wpdb->shouldReceive( 'get_results' )->once()->andReturn( [] );
+
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key, $single ) {
+                if ( $key === 'ems_team_code' ) {
+                    return 'UNALLOCATED';
+                }
+                return '';
+            }
+        );
+
+        $team_repo = \Mockery::mock( Team_Repository::class );
+        $team_repo->shouldNotReceive( 'delete' );
+
+        $repo = new Team_Member_Repository( $wpdb, $team_repo );
+        $result = $repo->remove( 20, 1001 );
+
+        $this->assertTrue( $result );
+    }
+
+    public function test_remove_returns_false_when_deletion_fails(): void {
+        $wpdb = $this->mock_wpdb();
+        $wpdb->shouldReceive( 'query' )->once()->andReturn( 0 );
+
+        $team_repo = \Mockery::mock( Team_Repository::class );
+        $team_repo->shouldNotReceive( 'delete' );
+
+        $repo = new Team_Member_Repository( $wpdb, $team_repo );
+        $result = $repo->remove( 20, 1001 );
+
+        $this->assertFalse( $result );
     }
 }
