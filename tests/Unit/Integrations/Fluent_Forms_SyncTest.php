@@ -54,7 +54,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
     }
 
     public function test_init_hooks_adds_filters_and_actions(): void {
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
         $sync->init_hooks();
 
         $this->assertTrue( Filters\has( 'fluentform/rendering_field_data_select' ) );
@@ -79,7 +79,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             'last_name'  => 'Smith',
         ];
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
         
         $field_data = [
             'attributes' => [ 'name' => 'signup_child' ],
@@ -107,7 +107,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             } ) )
             ->andReturn( 123 );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
         $sync->handle_submission( 999, [
             'signup_child'          => '30001',
             'signup_level'          => 'Bronze',
@@ -130,7 +130,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             } ) )
             ->andReturn( 456 );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
         $sync->handle_submission( 999, [
             'signup_child' => '30001',
             'signup_level' => 'Silver',
@@ -167,7 +167,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             } ) )
             ->andReturn( 789 );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
         $sync->handle_submission( 999, [
             'signup_child' => '30001',
             'signup_level' => 'Silver',
@@ -200,7 +200,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             'last_name'  => 'Strachan',
         ];
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
         
         $field_data = [
             'attributes' => [ 'name' => 'signup_child' ],
@@ -228,7 +228,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $user = (object) [ 'first_name' => 'Tom', 'last_name' => 'Strachan' ];
         Functions\when( 'get_userdata' )->justReturn( $user );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 
         $_POST['signup_child'] = '30001';
         $errors = $sync->validate_submission( [], (object) [ 'id' => 6 ] );
@@ -252,7 +252,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             return '';
         } );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
         
         $field_data = [
             'attributes' => [ 'name' => 'signup_child' ],
@@ -279,7 +279,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $mock_user = (object) [ 'user_email' => 'parent@example.com' ];
         Functions\when( 'get_userdata' )->justReturn( $mock_user );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 
         $field_data = [
             'attributes' => [ 'name' => 'custom_parent_email', 'class' => 'existing-class' ],
@@ -305,7 +305,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         Functions\when( 'get_current_user_id' )->justReturn( 0 );
         Functions\when( 'get_userdata' )->justReturn( null );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 
         $field_data = [
             'attributes' => [ 'name' => 'custom_parent_email', 'class' => 'existing-class' ],
@@ -346,7 +346,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             return true;
         } );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 
         $field = [ 'name' => 'signup_parent_email' ];
         $formData = [
@@ -383,7 +383,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $transients = [ $transient_key => hash('sha256', $otp) ];
         Functions\when( 'get_transient' )->alias( fn($key) => $transients[$key] ?? null );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 
         $field = [ 'name' => 'signup_parent_email' ];
         $formData = [
@@ -413,7 +413,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         Functions\when( 'get_current_user_id' )->justReturn( 42 );
         Functions\when( 'is_user_logged_in' )->justReturn( true );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 
         $field = [ 'name' => 'signup_parent_email' ];
         $formData = [
@@ -451,7 +451,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $transients = [ $parent_transient_key => hash('sha256', $otp) ];
         Functions\when( 'get_transient' )->alias( fn($key) => $transients[$key] ?? null );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 
         $field = [ 'name' => 'signup_explorer_email' ];
         $formData = [
@@ -491,7 +491,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         $transients = [ $explorer_transient_key => hash('sha256', $otp) ];
         Functions\when( 'get_transient' )->alias( fn($key) => $transients[$key] ?? null );
 
-        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+        $sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 
         $field = [ 'name' => 'signup_parent_email' ];
         $formData = [
@@ -528,7 +528,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 			}
 		};
 
-		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $wpdb );
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $wpdb );
 
 		$reflected = new \ReflectionClass( Fluent_Forms_Sync::class );
 		$method = $reflected->getMethod( 'resolve_unit_for_child' );
@@ -579,7 +579,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 		Functions\when( 'admin_url' )->justReturn( 'http://example.com/wp-admin/admin-ajax.php' );
 		Functions\when( 'wp_create_nonce' )->justReturn( 'nonce123' );
 
-		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $wpdb );
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $wpdb );
 
 		ob_start();
 		$sync->enqueue_form_script( (object) [ 'id' => 6 ] );
@@ -621,7 +621,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 			->once()
 			->with( [ 'message' => 'Email verified!' ] );
 
-		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 		$sync->handle_verify_fluent_otp();
 
 		$this->assertSame( 'VERIFIED_' . $stored_hash, $saved_transients[ $transient_key ] );
@@ -654,7 +654,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 			->once()
 			->with( \Mockery::on( fn( $arg ) => strpos( $arg['message'], 'Too many' ) !== false ) );
 
-		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 		$sync->handle_verify_fluent_otp();
 
 		$this->assertContains( $transient_key, $deleted_transients );
@@ -676,7 +676,7 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 			return true;
 		} );
 
-		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
 		$result = $sync->validate_email_otp(
 			'',
 			[ 'name' => 'signup_parent_email' ],

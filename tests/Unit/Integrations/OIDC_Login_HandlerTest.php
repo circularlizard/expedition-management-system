@@ -1,5 +1,5 @@
 <?php
-namespace EMS\Tests\Unit\Auth;
+namespace EMS\Tests\Unit\Integrations;
 
 use EMS\Integrations\OIDC_Login_Handler;
 use EMS\Integrations\OSM_API_Client;

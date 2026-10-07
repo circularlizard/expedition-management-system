@@ -28,13 +28,11 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
             $signups->shouldReceive( 'has_additional_support_needs' )->byDefault()->andReturn( false );
         }
         return new Expedition_Admin_Controller(
-            $seasons ?: \Mockery::mock( Season_Repository::class ),
             $expeditions ?: \Mockery::mock( Expedition_Repository::class ),
             $teams ?: \Mockery::mock( Team_Repository::class ),
             $team_members ?: \Mockery::mock( Team_Member_Repository::class ),
             $explorers ?: \Mockery::mock( OSM_Explorer_Repository::class ),
             $osm_events ?: \Mockery::mock( OSM_Event_Repository::class ),
-            null,
             $signups
         );
     }

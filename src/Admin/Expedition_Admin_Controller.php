@@ -20,13 +20,11 @@ class Expedition_Admin_Controller {
 	private Signup_Repository $signups;
 
 	public function __construct(
-		Season_Repository $seasons,
 		Expedition_Repository $expeditions,
 		Team_Repository $teams,
 		Team_Member_Repository $team_members,
 		?OSM_Explorer_Repository $explorers = null,
 		?OSM_Event_Repository $osm_events = null,
-		?CPT_Registry $cpt_registry = null,
 		?Signup_Repository $signups = null
 	) {
 		$this->expeditions  = $expeditions;

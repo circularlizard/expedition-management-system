@@ -110,7 +110,6 @@ class Plugin {
 				$sync_preview_controller->register_routes();
 
 				$view_controller = new \EMS\Admin\Admin_View_Controller(
-					new \EMS\Data\Expedition_Repository(),
 					new \EMS\Data\Team_Repository(),
 					new \EMS\Data\Team_Member_Repository(),
 					new \EMS\Integrations\TutorLMS_Client()
@@ -118,11 +117,9 @@ class Plugin {
 				$view_controller->register_routes();
 
 				$expedition_controller = new \EMS\Admin\Expedition_Admin_Controller(
-					new \EMS\Data\Season_Repository(),
 					new \EMS\Data\Expedition_Repository(),
 					new \EMS\Data\Team_Repository(),
 					new \EMS\Data\Team_Member_Repository(),
-					null,
 					null,
 					null,
 					new \EMS\Data\Signup_Repository()
