@@ -192,4 +192,36 @@ class Training_Report_PageTest extends EMSTestCase {
 
         $this->assertCount( 1, $rows );
     }
+
+    public function test_maybe_export_csv_denies_unauthorized_user(): void {
+        $_GET['page']   = 'ems-training-report';
+        $_GET['export'] = 'csv';
+
+        Functions\when( 'current_user_can' )->justReturn( false );
+        $this->expectException( \Exception::class );
+
+        $client = $this->make_client();
+        $page   = new Training_Report_Page( $client );
+        $page->maybe_export_csv();
+    }
+
+    public function test_generate_csv_rows_escapes_formula_characters(): void {
+        $client = $this->make_client();
+        $user   = $this->make_user( 1, '=SUM(1+1)', '+attacker@example.com' );
+
+        $client->shouldReceive( 'get_all_courses' )->andReturn( [
+            $this->make_course( 1, '@Course' ),
+        ] );
+        $client->shouldReceive( 'get_all_enrolled_user_ids' )->andReturn( [ 1 ] );
+        $client->shouldReceive( 'get_enrollment_matrix' )->andReturn( [ 1 => [ 1 => 'complete' ] ] );
+
+        Functions\expect( 'get_userdata' )->once()->andReturn( $user );
+
+        $page = new Training_Report_Page( $client );
+        $rows = $page->generate_csv_rows();
+
+        $this->assertEquals( "'@Course", $rows[0][2] );
+        $this->assertEquals( "'=SUM(1+1)", $rows[1][0] );
+        $this->assertEquals( "'+attacker@example.com", $rows[1][1] );
+    }
 }
