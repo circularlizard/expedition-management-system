@@ -35,6 +35,8 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
         };
 
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'is_user_logged_in' )->justReturn( false );
+        Functions\when( 'sanitize_key' )->alias( fn( $k ) => $k );
         Functions\when( 'get_option' )->alias( function( $key, $default = null ) {
             if ( $key === 'ems_fluent_participant_form_id' ) return 6;
             if ( $key === 'ems_fluent_expedition_form_id' ) return 7;
@@ -591,6 +593,100 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 		$this->assertStringContainsString( 'Kelso ESU', $output );
 		$this->assertStringContainsString( '10', $output );
 		$this->assertStringContainsString( 'leader@kelso.org', $output );
+	}
+
+	public function test_handle_verify_fluent_otp_success_transitions_to_verified_state(): void {
+		$_POST['email']      = 'parent@test.com';
+		$_POST['field_name'] = 'signup_parent_email';
+		$_POST['code']       = '123456';
+
+		Functions\when( 'check_ajax_referer' )->justReturn( true );
+		Functions\when( 'is_email' )->justReturn( true );
+
+		$transient_key = 'fluent_otp_' . md5( 'parent@test.com_signup_parent_email' );
+		$stored_hash   = hash( 'sha256', '123456' );
+
+		Functions\when( 'get_transient' )->alias( function( $k ) use ( $transient_key, $stored_hash ) {
+			if ( $k === $transient_key ) return $stored_hash;
+			return false;
+		} );
+
+		$saved_transients = array();
+		Functions\when( 'set_transient' )->alias( function( $k, $v, $ttl ) use ( &$saved_transients ) {
+			$saved_transients[ $k ] = $v;
+			return true;
+		} );
+
+		Functions\expect( 'wp_send_json_success' )
+			->once()
+			->with( [ 'message' => 'Email verified!' ] );
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+		$sync->handle_verify_fluent_otp();
+
+		$this->assertSame( 'VERIFIED_' . $stored_hash, $saved_transients[ $transient_key ] );
+	}
+
+	public function test_handle_verify_fluent_otp_locks_out_after_5_attempts(): void {
+		$_POST['email']      = 'parent@test.com';
+		$_POST['field_name'] = 'signup_parent_email';
+		$_POST['code']       = 'wrongcode';
+
+		Functions\when( 'check_ajax_referer' )->justReturn( true );
+		Functions\when( 'is_email' )->justReturn( true );
+
+		$transient_key = 'fluent_otp_' . md5( 'parent@test.com_signup_parent_email' );
+		$attempts_key  = 'fluent_otp_att_' . md5( 'parent@test.com_signup_parent_email' );
+
+		Functions\when( 'get_transient' )->alias( function( $k ) use ( $transient_key, $attempts_key ) {
+			if ( $k === $transient_key ) return hash( 'sha256', '123456' );
+			if ( $k === $attempts_key ) return 5;
+			return false;
+		} );
+
+		$deleted_transients = array();
+		Functions\when( 'delete_transient' )->alias( function( $k ) use ( &$deleted_transients ) {
+			$deleted_transients[] = $k;
+			return true;
+		} );
+
+		Functions\expect( 'wp_send_json_error' )
+			->once()
+			->with( \Mockery::on( fn( $arg ) => strpos( $arg['message'], 'Too many' ) !== false ) );
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+		$sync->handle_verify_fluent_otp();
+
+		$this->assertContains( $transient_key, $deleted_transients );
+		$this->assertContains( $attempts_key, $deleted_transients );
+	}
+
+	public function test_validate_email_otp_accepts_verified_token_and_deletes_it(): void {
+		$transient_key = 'fluent_otp_' . md5( 'parent@test.com_signup_parent_email' );
+		$expected_hash = hash( 'sha256', '123456' );
+
+		Functions\when( 'get_transient' )->alias( function( $k ) use ( $transient_key, $expected_hash ) {
+			if ( $k === $transient_key ) return 'VERIFIED_' . $expected_hash;
+			return false;
+		} );
+
+		$deleted = array();
+		Functions\when( 'delete_transient' )->alias( function( $k ) use ( &$deleted ) {
+			$deleted[] = $k;
+			return true;
+		} );
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->unit_repo, $this->wpdb );
+		$result = $sync->validate_email_otp(
+			'',
+			[ 'name' => 'signup_parent_email' ],
+			[ 'signup_parent_email' => 'parent@test.com', 'signup_parent_otp_code' => '123456' ],
+			[],
+			[ 'id' => 6 ]
+		);
+
+		$this->assertSame( '', $result );
+		$this->assertContains( $transient_key, $deleted );
 	}
 }
 
