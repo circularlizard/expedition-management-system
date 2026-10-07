@@ -71,7 +71,7 @@ class OSM_Sync_Auth_Handler {
 	 * @param callable $on_success Callback function to invoke with the access token and flow mode.
 	 */
 	public function handle_callback( callable $on_success ): void {
-		$state_param = $_GET['state'] ?? '';
+		$state_param = isset( $_GET['state'] ) ? sanitize_text_field( wp_unslash( $_GET['state'] ) ) : '';
 		$parts       = explode( ':', $state_param );
 		$state_nonce = $parts[0] ?? '';
 		$mode        = $parts[1] ?? 'sync';
@@ -89,7 +89,7 @@ class OSM_Sync_Auth_Handler {
 		}
 
 		if ( ! empty( $_GET['error'] ) ) {
-			$osm_error     = sanitize_key( $_GET['error'] );
+			$osm_error     = sanitize_key( wp_unslash( $_GET['error'] ) );
 			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=osm_' . $osm_error : 'admin.php?page=ems-reference&error=osm_' . $osm_error;
 			wp_safe_redirect( admin_url( $redirect_page ) );
 			return;
@@ -101,7 +101,7 @@ class OSM_Sync_Auth_Handler {
 			return;
 		}
 
-		$code = $_GET['code'] ?? '';
+		$code = isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : '';
 		if ( empty( $code ) ) {
 			$redirect_page = $mode === 'pushback' ? 'admin.php?page=ems-reference&tab=pushback&error=missing_code' : 'admin.php?page=ems-reference&error=missing_code';
 			wp_safe_redirect( admin_url( $redirect_page ) );
