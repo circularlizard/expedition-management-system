@@ -2078,7 +2078,10 @@ class Expedition_Admin_Controller {
 				'Reconciled By',
 				'Reconciled At',
 				'Created At',
-			)
+			),
+			',',
+			'"',
+			"\\"
 		);
 
 		foreach ( $signups as $signup ) {
@@ -2087,28 +2090,33 @@ class Expedition_Admin_Controller {
 				$linkage_status = ! empty( $signup['osm_wp_user_id'] ) ? 'linked' : 'proposed';
 			}
 
+			$row = array(
+				$signup['id'],
+				$signup['scout_id'],
+				$signup['explorer_first_name'],
+				$signup['explorer_last_name'],
+				$signup['explorer_email'],
+				$signup['parent_email'] ?: '',
+				ucfirst( $signup['dofe_level'] ),
+				$signup['dofe_number'] ?: '',
+				'', // First Aid Status is not on participant signups, output empty
+				$signup['unit_name'] ?: 'Unassigned',
+				ucfirst( $signup['payment_status'] ),
+				ucfirst( $signup['signup_status'] ),
+				$linkage_status,
+				$signup['processed_by_name'] ?: '',
+				$signup['processed_at'] ?: '',
+				'', // Reconciled By
+				'', // Reconciled At
+				$signup['created_at'],
+			);
+
 			fputcsv(
 				$output,
-				array(
-					$signup['id'],
-					$signup['scout_id'],
-					$signup['explorer_first_name'],
-					$signup['explorer_last_name'],
-					$signup['explorer_email'],
-					$signup['parent_email'] ?: '',
-					ucfirst( $signup['dofe_level'] ),
-					$signup['dofe_number'] ?: '',
-					'', // First Aid Status is not on participant signups, output empty
-					$signup['unit_name'] ?: 'Unassigned',
-					ucfirst( $signup['payment_status'] ),
-					ucfirst( $signup['signup_status'] ),
-					$linkage_status,
-					$signup['processed_by_name'] ?: '',
-					$signup['processed_at'] ?: '',
-					'', // Reconciled By
-					'', // Reconciled At
-					$signup['created_at'],
-				)
+				array_map( array( self::class, 'escape_csv_cell' ), $row ),
+				',',
+				'"',
+				"\\"
 			);
 		}
 
@@ -2116,5 +2124,18 @@ class Expedition_Admin_Controller {
 		if ( ! defined( 'EMS_UNIT_TESTS' ) ) {
 			exit;
 		}
+	}
+
+	public static function escape_csv_cell( mixed $value ): mixed {
+		if ( ! is_string( $value ) || $value === '' ) {
+			return $value;
+		}
+
+		$first = $value[0];
+		if ( in_array( $first, array( '=', '+', '-', '@', "\t", "\r" ), true ) ) {
+			return "'" . $value;
+		}
+
+		return $value;
 	}
 }
