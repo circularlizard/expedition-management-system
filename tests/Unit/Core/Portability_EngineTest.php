@@ -52,6 +52,7 @@ class Portability_EngineTest extends EMSTestCase {
 		$this->assertSame( 'live-limited', $data['options']['ems_api_mode'] );
 		$this->assertSame( 6, $data['options']['ems_fluent_participant_form_id'] );
 		$this->assertSame( 7, $data['options']['ems_fluent_expedition_form_id'] );
+		$this->assertArrayNotHasKey( 'ems_osm_client_secret', $data['options'] );
 		$this->assertArrayNotHasKey( 'ems_signups', $data['tables'] );
 		$this->assertArrayHasKey( 'ems_participant_signups', $data['tables'] );
 		$this->assertArrayHasKey( 'ems_expedition_signups', $data['tables'] );
@@ -66,6 +67,7 @@ class Portability_EngineTest extends EMSTestCase {
 				'ems_api_mode'                   => 'mock',
 				'ems_sync_limit'                  => 10,
 				'ems_fluent_participant_form_id' => 6,
+				'ems_osm_client_secret'          => 'stale_encrypted_secret',
 			),
 			'tables' => array(
 				'ems_team_members'        => array(
@@ -101,6 +103,7 @@ class Portability_EngineTest extends EMSTestCase {
 		$this->assertSame( 'mock', $updated_options['ems_api_mode'] );
 		$this->assertSame( 10, $updated_options['ems_sync_limit'] );
 		$this->assertSame( 6, $updated_options['ems_fluent_participant_form_id'] );
+		$this->assertArrayNotHasKey( 'ems_osm_client_secret', $updated_options );
 
 		$this->assertTrue( $result );
 	}
