@@ -11,18 +11,15 @@ use EMS\Integrations\TutorLMS_Client;
  */
 class Admin_View_Controller {
 
-	private Expedition_Repository $expeditions;
 	private Team_Repository $teams;
 	private Team_Member_Repository $team_members;
 	private TutorLMS_Client $tutor_client;
 
 	public function __construct(
-		Expedition_Repository $expeditions,
 		Team_Repository $teams,
 		Team_Member_Repository $team_members,
 		TutorLMS_Client $tutor_client
 	) {
-		$this->expeditions  = $expeditions;
 		$this->teams        = $teams;
 		$this->team_members = $team_members;
 		$this->tutor_client = $tutor_client;
@@ -115,61 +112,6 @@ class Admin_View_Controller {
 		);
 	}
 
-	/**
-	 * Gets the full data set for the expedition board.
-	 */
-	public function get_board_data(): \WP_REST_Response {
-		$expeditions = $this->expeditions->list_all();
-		$all_teams   = array();
-		$all_members = array();
-
-		foreach ( $expeditions as $exp ) {
-			$teams                   = $this->teams->list_by_expedition( $exp['ID'] );
-			$all_teams[ $exp['ID'] ] = $teams;
-
-			foreach ( $teams as $team ) {
-				$members = $this->team_members->list_by_team( $team['ID'] );
-
-				// Hydrate member data
-				foreach ( $members as &$member ) {
-					$user_id = isset( $member['user_id'] ) ? (int) $member['user_id'] : 0;
-					if ( $user_id > 0 ) {
-						$this->hydrate_member_data( $member, $user_id );
-					}
-				}
-
-				$all_members[ $team['ID'] ] = $members;
-			}
-		}
-
-		// Fetch ALL explorers from the OSM reference table
-		global $wpdb;
-		$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
-		$explorer_rows   = $wpdb->get_results( "SELECT * FROM {$explorers_table}", ARRAY_A ) ?? array();
-
-		$all_explorers = array();
-		foreach ( $explorer_rows as $row ) {
-			$explorer        = array(
-				'user_id'    => (int) ( $row['wp_user_id'] ?? 0 ),
-				'first_name' => $row['first_name'] ?? '',
-				'last_name'  => $row['last_name'] ?? '',
-				'scout_id'   => (int) $row['scout_id'],
-				'unit'       => $row['patrol'] ?? '',
-				'training'   => $row['wp_user_id'] ? $this->get_user_training_summary( (int) $row['wp_user_id'] ) : array(),
-			);
-			$all_explorers[] = $explorer;
-		}
-
-		return new \WP_REST_Response(
-			array(
-				'expeditions' => $expeditions,
-				'teams'       => $all_teams,
-				'members'     => $all_members,
-				'explorers'   => $all_explorers,
-				'last_sync'   => get_option( 'ems_osm_last_sync' ),
-			)
-		);
-	}
 
 	/**
 	 * GET ems/v1/explorer/{scout_id}
@@ -297,23 +239,6 @@ class Admin_View_Controller {
 		);
 	}
 
-	private function hydrate_member_data( array &$member, int $user_id ): void {
-		global $wpdb;
-		$table = $wpdb->prefix . 'ems_osm_explorers';
-		$row   = $wpdb->get_row(
-			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE wp_user_id = %d",
-				$user_id
-			),
-			ARRAY_A
-		);
-
-		$member['first_name'] = $row['first_name'] ?? '';
-		$member['last_name']  = $row['last_name'] ?? '';
-		$member['scout_id']   = $row ? (int) $row['scout_id'] : 0;
-		$member['unit']       = $row['patrol'] ?? '';
-		$member['training']   = $this->get_user_training_summary( $user_id );
-	}
 
 	/**
 	 * Returns a simple training status summary for a user.
