@@ -209,8 +209,8 @@ class Fluent_Forms_Sync {
 		$scout_field = $config['scout_id_field'] ?? 'signup_child';
 		$level_field = $config['dofe_level_field'] ?? 'signup_level';
 
-		$submitted_child = $_POST[ $scout_field ] ?? '';
-		$submitted_level = strtolower( sanitize_text_field( $_POST[ $level_field ] ?? '' ) );
+		$submitted_child = isset( $_POST[ $scout_field ] ) ? sanitize_text_field( wp_unslash( $_POST[ $scout_field ] ) ) : '';
+		$submitted_level = isset( $_POST[ $level_field ] ) ? strtolower( sanitize_text_field( wp_unslash( $_POST[ $level_field ] ) ) ) : '';
 
 		if ( ! empty( $submitted_child ) ) {
 			$scout_id = (int) $submitted_child;

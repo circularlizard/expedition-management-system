@@ -267,7 +267,7 @@ class Admin_Page {
 			$this->handle_create_unit_from_patrol();
 		}
 
-		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'explorers';
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'explorers';
 		$valid_tabs = array( 'explorers', 'patrols', 'events', 'sections', 'unit_mapping', 'diagnostics', 'pushback' );
 		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 			$active_tab = 'explorers';
@@ -456,10 +456,10 @@ class Admin_Page {
 		);
 
 		if ( isset( $_GET['error'] ) ) {
-			$slug = sanitize_key( $_GET['error'] );
+			$slug = sanitize_key( wp_unslash( $_GET['error'] ) );
 			$msg  = $error_map[ $slug ] ?? sprintf( __( 'OSM authorization error: %s', 'ems-plugin' ), $slug );
 			if ( isset( $_GET['error_msg'] ) ) {
-				$msg .= ' ' . esc_html( sanitize_text_field( urldecode( $_GET['error_msg'] ) ) );
+				$msg .= ' ' . esc_html( sanitize_text_field( wp_unslash( urldecode( (string) $_GET['error_msg'] ) ) ) );
 			}
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
 		}
@@ -945,11 +945,11 @@ class Admin_Page {
 			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
 		}
 
-		$name       = sanitize_text_field( $_POST['custom_unit_name'] ?? '' );
-		$district   = sanitize_text_field( $_POST['custom_unit_district'] ?? '' );
-		$short_code = sanitize_text_field( $_POST['custom_unit_short_code'] ?? '' );
+		$name       = sanitize_text_field( wp_unslash( $_POST['custom_unit_name'] ?? '' ) );
+		$district   = sanitize_text_field( wp_unslash( $_POST['custom_unit_district'] ?? '' ) );
+		$short_code = sanitize_text_field( wp_unslash( $_POST['custom_unit_short_code'] ?? '' ) );
 		$unit_id    = empty( $_POST['custom_unit_id'] ) ? null : (int) $_POST['custom_unit_id'];
-		$email      = sanitize_text_field( $_POST['custom_unit_email'] ?? '' );
+		$email      = sanitize_email( wp_unslash( $_POST['custom_unit_email'] ?? '' ) );
 
 		if ( empty( $name ) ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Unit name is required.', 'ems-plugin' ) . '</p></div>';
@@ -1042,7 +1042,7 @@ class Admin_Page {
 
 		$patrol_id   = (int) ( $_POST['patrol_id'] ?? 0 );
 		$section_id  = (int) ( $_POST['section_id'] ?? 0 );
-		$patrol_name = sanitize_text_field( $_POST['patrol_name'] ?? '' );
+		$patrol_name = sanitize_text_field( wp_unslash( $_POST['patrol_name'] ?? '' ) );
 
 		if ( ! $patrol_id || ! $section_id || empty( $patrol_name ) ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Invalid request parameters.', 'ems-plugin' ) . '</p></div>';
