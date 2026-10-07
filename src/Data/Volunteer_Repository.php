@@ -19,7 +19,7 @@ class Volunteer_Repository {
 		return $this->wpdb->prefix . 'ems_volunteer_availability';
 	}
 
-	public function save_volunteer( array $data ): array {
+	public function save_volunteer( array $data, bool $is_admin = false ): array {
 		$email = sanitize_email( $data['email'] ?? '' );
 		if ( empty( $email ) ) {
 			throw new \Exception( 'Email is required for volunteer signup.' );
@@ -43,14 +43,30 @@ class Volunteer_Repository {
 			'updated_at'      => $now,
 		);
 
-		if ( isset( $data['osm_user_id'] ) ) {
-			$fields['osm_user_id'] = (int) $data['osm_user_id'];
-		}
-		if ( isset( $data['user_id'] ) ) {
-			$fields['user_id'] = (int) $data['user_id'];
+		if ( $is_admin ) {
+			if ( isset( $data['osm_user_id'] ) ) {
+				$fields['osm_user_id'] = (int) $data['osm_user_id'];
+			}
+			if ( isset( $data['user_id'] ) ) {
+				$fields['user_id'] = (int) $data['user_id'];
+			}
 		}
 
 		if ( $existing ) {
+			if ( ! $is_admin ) {
+				// Prevent unauthenticated overwrite of DBS number if empty in new submission
+				if ( ! empty( $existing->dbs_number ) && empty( $fields['dbs_number'] ) ) {
+					$fields['dbs_number'] = $existing->dbs_number;
+				}
+				// Preserve existing user_id and osm_user_id linkages
+				if ( isset( $existing->user_id ) && $existing->user_id !== null ) {
+					$fields['user_id'] = (int) $existing->user_id;
+				}
+				if ( isset( $existing->osm_user_id ) && $existing->osm_user_id !== null ) {
+					$fields['osm_user_id'] = (int) $existing->osm_user_id;
+				}
+			}
+
 			$this->wpdb->update(
 				$table,
 				$fields,

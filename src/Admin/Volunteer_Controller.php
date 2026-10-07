@@ -100,8 +100,11 @@ class Volunteer_Controller {
 	public function signup( \WP_REST_Request $request ): \WP_REST_Response {
 		$params = $request->get_json_params() ?: array();
 
+		// Prevent privilege escalation: never trust client-supplied user_id or osm_user_id on public signup
+		unset( $params['user_id'], $params['osm_user_id'] );
+
 		try {
-			$volunteer = $this->repo->save_volunteer( $params );
+			$volunteer = $this->repo->save_volunteer( $params, false );
 
 			$expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
 			$shifts             = isset( $params['shifts'] ) ? (array) $params['shifts'] : array();
@@ -172,7 +175,7 @@ class Volunteer_Controller {
 	public function save_volunteer_admin( \WP_REST_Request $request ): \WP_REST_Response {
 		$params = $request->get_json_params() ?: array();
 		try {
-			$volunteer = $this->repo->save_volunteer( $params );
+			$volunteer = $this->repo->save_volunteer( $params, true );
 			return new \WP_REST_Response(
 				array(
 					'success'   => true,

@@ -64,6 +64,35 @@ class Volunteer_ControllerTest extends EMSTestCase {
         $this->assertTrue( $response->get_data()['success'] );
     }
 
+    public function test_public_signup_strips_user_id_and_osm_user_id(): void {
+        $this->repo->shouldReceive('save_volunteer')->once()->with(
+            \Mockery::on(function ($data) {
+                return !isset($data['user_id']) && !isset($data['osm_user_id']) && $data['email'] === 'test@example.com';
+            }),
+            false
+        )->andReturn([
+            'id' => 10,
+            'email' => 'test@example.com'
+        ]);
+
+        $controller = new Volunteer_Controller( $this->repo );
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'first_name'  => 'Jane',
+            'last_name'   => 'Doe',
+            'email'       => 'test@example.com',
+            'user_id'     => 1,
+            'osm_user_id' => 99999,
+        ]);
+
+        $response = $controller->signup( $request );
+
+        $this->assertEquals( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['success'] );
+    }
+
     public function test_assign_availability_confirms_shift(): void {
         $this->repo->shouldReceive('get_availability_table')->once()->andReturn('wp_ems_volunteer_availability');
         global $wpdb;
