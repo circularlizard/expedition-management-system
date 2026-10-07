@@ -3,7 +3,8 @@
     "private": true,
     "scripts": {
         "build": "vite build",
-        "test": "vitest run --passWithNoTests"
+        "typecheck": "tsc --noEmit",
+        "test": "tsc --noEmit && vitest run --passWithNoTests"
     },
     "devDependencies": {
         "@testing-library/jest-dom": "^6.6.0",

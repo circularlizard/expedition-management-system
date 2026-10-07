@@ -38,7 +38,7 @@ export interface Expedition {
     ems_expedition_code?: string;
     ems_type: 'training' | 'practice' | 'qualifying';
     ems_transport?: 'hillwalking' | 'biking' | 'paddling';
-    ems_level: 'bronze' | 'silver' | 'gold';
+    ems_level: 'bronze' | 'silver' | 'gold' | 'multiple';
     ems_start_date: string;
     ems_end_date: string;
     ems_start_time?: string;
@@ -84,6 +84,7 @@ export interface BoardConfig {
     root_url: string;
     nonce: string;
     admin_url?: string;
+    plugin_url?: string;
 }
 
 export interface Explorer {
@@ -111,8 +112,6 @@ export interface OSMEvent {
 declare global {
     interface Window {
         emsExpeditionBoard: BoardConfig;
-        emsSignupsBoard:    BoardConfig;
-        emsColumnMapper:    BoardConfig & { sections?: Record<string, { name: string; type: string }> };
         wp: {
             components: typeof import('@wordpress/components');
             element:    typeof import('@wordpress/element');

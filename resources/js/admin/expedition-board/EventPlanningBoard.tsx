@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
 
 interface PlanningEvent {
-  id:              number;
-  event_code:      string;
-  title:           string;
-  level:           string;
-  type:            string;
-  status:          string;
-  start_date:      string;
-  end_date:        string;
-  available_count: number;
-  allocated_count: number;
+  id:               number;
+  event_code:       string;
+  title:            string;
+  level?:           string;
+  type?:            string;
+  status?:          string;
+  start_date?:      string;
+  end_date?:        string;
+  available_count:  number;
+  allocated_count?: number;
+  first_aid_level?: string;
 }
 
 interface PlanningExplorer {
@@ -22,6 +23,9 @@ interface PlanningExplorer {
   allocated_team_code?:  string;
   allocated_event_code?: string;
   team_preferences?:     string;
+  has_asn?:              boolean;
+  first_aid_level?:      string;
+  other_events?:         string[];
 }
 
 interface EventTeam {

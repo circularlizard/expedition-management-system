@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
-import { Expedition } from '../expedition-board/types';
+export interface Expedition {
+    ID: number;
+    post_title: string;
+    ems_event_code: string;
+    ems_start_date: string;
+    ems_end_date: string;
+    ems_type?: 'training' | 'practice' | 'qualifying';
+    ems_level?: 'bronze' | 'silver' | 'gold' | 'multiple';
+    ems_lic_name?: string;
+    ems_lic_email?: string;
+    ems_lic_phone?: string;
+    ems_req_assessors?: number | string;
+    ems_req_volunteers?: number | string;
+}
 
 export interface Volunteer {
     id: number;

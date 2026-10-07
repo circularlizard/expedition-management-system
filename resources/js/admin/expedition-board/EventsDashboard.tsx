@@ -192,7 +192,7 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                         <button
                             type="button"
                             className="button-link"
-                            onClick={() => setShowCreateForm(true)}
+                            onClick={onCreateEvent}
                         >
                             Create one now.
                         </button>

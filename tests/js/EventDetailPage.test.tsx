@@ -26,8 +26,8 @@ const mockEvent: Expedition = {
             ems_team_number: 1,
             event_id: 10,
             members: [
-                { scout_id: 30001, first_name: 'Alice', last_name: 'Brown', first_aid_level: 'full_first_aid' },
-                { scout_id: 30002, first_name: 'Charlie', last_name: 'Green', first_aid_level: 'none' }
+                { scout_id: 30001, user_id: 0, first_name: 'Alice', last_name: 'Brown', first_aid_level: 'full_first_aid' },
+                { scout_id: 30002, user_id: 0, first_name: 'Charlie', last_name: 'Green', first_aid_level: 'none' }
             ]
         },
         {
