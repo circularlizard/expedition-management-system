@@ -69,6 +69,74 @@ class Volunteer_RepositoryTest extends EMSTestCase {
         $this->assertEquals(10, $result['id']);
     }
 
+    public function test_save_volunteer_ignores_user_id_and_osm_user_id_when_not_admin(): void {
+        $this->wpdb->shouldReceive('get_row')->once()->andReturn(null);
+        $this->wpdb->shouldReceive('insert')->once()->andReturnUsing(function($table, $data) {
+            $this->assertArrayNotHasKey('user_id', $data);
+            $this->assertArrayNotHasKey('osm_user_id', $data);
+            return 1;
+        });
+        $this->wpdb->insert_id = 42;
+
+        $repo = new Volunteer_Repository($this->wpdb);
+        $result = $repo->save_volunteer([
+            'first_name'  => 'John',
+            'email'       => 'john@example.com',
+            'user_id'     => 1,
+            'osm_user_id' => 99999,
+        ], false);
+
+        $this->assertEquals(42, $result['id']);
+    }
+
+    public function test_save_volunteer_allows_user_id_and_osm_user_id_when_admin(): void {
+        $this->wpdb->shouldReceive('get_row')->once()->andReturn(null);
+        $this->wpdb->shouldReceive('insert')->once()->andReturnUsing(function($table, $data) {
+            $this->assertEquals(5, $data['user_id']);
+            $this->assertEquals(99999, $data['osm_user_id']);
+            return 1;
+        });
+        $this->wpdb->insert_id = 42;
+
+        $repo = new Volunteer_Repository($this->wpdb);
+        $result = $repo->save_volunteer([
+            'first_name'  => 'John',
+            'email'       => 'john@example.com',
+            'user_id'     => 5,
+            'osm_user_id' => 99999,
+        ], true);
+
+        $this->assertEquals(42, $result['id']);
+    }
+
+    public function test_save_volunteer_preserves_existing_user_id_and_dbs_when_public_update(): void {
+        $existing = (object)[
+            'id'          => 10,
+            'email'       => 'john@example.com',
+            'user_id'     => 99,
+            'osm_user_id' => 88,
+            'dbs_number'  => 'DBS-ORIGINAL',
+        ];
+        $this->wpdb->shouldReceive('get_row')->once()->andReturn($existing);
+        $this->wpdb->shouldReceive('update')->once()->andReturnUsing(function($table, $data, $where) {
+            $this->assertEquals(99, $data['user_id']);
+            $this->assertEquals(88, $data['osm_user_id']);
+            $this->assertEquals('DBS-ORIGINAL', $data['dbs_number']);
+            return 1;
+        });
+
+        $repo = new Volunteer_Repository($this->wpdb);
+        $result = $repo->save_volunteer([
+            'first_name'  => 'John Modified',
+            'email'       => 'john@example.com',
+            'user_id'     => 1,
+            'osm_user_id' => 2,
+            'dbs_number'  => '',
+        ], false);
+
+        $this->assertEquals(10, $result['id']);
+    }
+
     public function test_save_availability_inserts_records(): void {
         $this->wpdb->shouldReceive('query')->once(); // Delete previous query
         $this->wpdb->shouldReceive('insert')->times(2)->andReturn(1);
