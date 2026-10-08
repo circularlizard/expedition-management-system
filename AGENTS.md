@@ -98,23 +98,27 @@ All created by `Table_Installer` on plugin activation. Tables are created and qu
 | Table | Key columns |
 |---|---|
 | `ems_team_members` | `id, team_post_id, scout_id, user_id (nullable/0), added_by, added_at` |
-| `ems_volunteer_availability` | `id, user_id, expedition_post_id, date, overnight, confirmed, confirmed_by` |
+| `ems_volunteers` | `id, osm_user_id, user_id, first_name, last_name, email, phone, dbs_number, qualifications, preferred_roles, constraints, created_at, updated_at` |
+| `ems_volunteer_availability` | `id, volunteer_id, user_id (nullable), expedition_post_id, date, overnight, confirmed, confirmed_by, updated_at, signup_type` |
 | `ems_route_submissions` | `id, team_post_id, version, file_type, wp_media_id, submitted_by, submitted_at, feedback, status` |
-| `ems_osm_explorers` | `id, scout_id (UNIQUE), wp_user_id (nullable), section_id, first_name, last_name, email, parent_email, patrol, synced_at` |
-| `ems_osm_events` | `id, event_id, section_id, name, start_date, end_date, location, synced_at` |
+| `ems_osm_explorers` | `id, scout_id (UNIQUE), wp_user_id (nullable), section_id, first_name, last_name, email, parent_email, email1, email2, p1_email1, p1_email2, p2_email1, p2_email2, patrol, first_aid_level, dofe_number, additional_support_needs, last_local_update_at, last_ems_push_at, synced_at` |
+| `ems_audit_logs` | `id, user_id, action, target_scout_id, ip_address, user_agent, timestamp` |
+| `ems_osm_events` | `id, event_id, section_id, name, start_date, end_date, location, yes_members, yes_leaders, no, synced_at` |
 | `ems_osm_event_attendance` | `id, event_id, scout_id, status, synced_at` |
-| `ems_units` | `id, patrol_id, section_id, name, active, unit_id (nullable), short_code, leader_first_name, leader_last_name, leader_email, updated_at, synced_at` |
-| `ems_signups` | `id, scout_id (nullable), parent_user_id, dofe_level, expedition_preferences, first_aid_status, signup_status, payment_status, form_submission_id, created_at, updated_at` |
+| `ems_units` | `id, unit_id (UNIQUE), district, name, short_code (UNIQUE), leader_email, created_at, updated_at` |
+| `ems_unit_patrols` | `id, unit_id, section_id, patrol_id, name, active, synced_at` |
+| `ems_participant_signups` | `id, scout_id, parent_user_id, unit_id, unit_name, explorer_first_name, explorer_last_name, explorer_email, parent_email, leader_email, dofe_level, dob, dofe_registered, dofe_number, dofe_org, bronze_completion, silver_completion, signup_status, payment_status, processed_by, processed_at, form_submission_id, created_at, updated_at` |
+| `ems_expedition_signups` | `id, scout_id, parent_user_id, unit_id, unit_name, explorer_first_name, explorer_last_name, explorer_email, parent_email, leader_email, dofe_level, expedition_preferences, additional_support_needs, first_aid_status, first_aid_expiry, signup_status, form_submission_id, created_at, updated_at` |
 
 ---
 
 ## 7. Custom Post Types
 
-| CPT slug | Admin label | Post parent |
-|---|---|---|
-| `season` | Season | — |
-| `expedition` | Event | `season` post ID |
-| `team` | Team | `expedition` post ID |
+| CPT slug | Admin label | Post parent | Status |
+|---|---|---|---|
+| `season` | Season | — | **Retired** (migrated to post_parent = 0 on expeditions) |
+| `expedition` | Event | 0 (top-level) | Active |
+| `team` | Team | `expedition` post ID | Active |
 
 ### `expedition` meta fields
 `ems_event_code`, `ems_type` (`training`\|`practice`\|`qualifying`), `ems_transport` (`hillwalking`\|`biking`\|`paddling`), `ems_level` (`bronze`\|`silver`\|`gold`), `ems_lic_name`, `ems_lic_email`, `ems_lic_phone`, `ems_lic_id`, `ems_start_location`, `ems_end_location`, `ems_start_date`, `ems_start_time`, `ems_end_date`, `ems_end_time`, `ems_osm_event_id`, `ems_route_info`, `ems_route_deadline`, `ems_status`
@@ -130,8 +134,10 @@ Team size 4–7 is the official range — outside this range flag a warning (not
 
 - All endpoints: `ems/v1/` namespace
 - All admin endpoints: `'permission_callback' => fn() => current_user_can('manage_options')`
-- Error responses: `new WP_Error('ems_error_code', 'Human message', ['status' => 4xx])`
-- Success responses: `new WP_REST_Response($data, 200)`
+- Error responses: Always return native `\WP_Error` objects: `return new \WP_Error('ems_error_code', 'Human message', ['status' => 4xx]);`. Never return `WP_REST_Response` with an error dictionary payload.
+- Success responses: `return new \WP_REST_Response($data, 200);`
+- Method signatures: Controller methods must declare return types as `: \WP_REST_Response|\WP_Error`.
+- Frontend error handling: Verify both HTTP response failure (`!response.ok`) and WordPress REST error objects (`data.code && data.message` or `data.error`).
 - Test with `WP_REST_Request` — do not make real HTTP calls in tests
 
 ---
