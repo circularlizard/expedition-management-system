@@ -139,16 +139,15 @@ class Flexi_Mapper_Controller {
 	/**
 	 * Saves the column mapping.
 	 */
-	public function save_map( \WP_REST_Request $request ): \WP_REST_Response {
+	public function save_map( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$map    = $request->get_json_params() ?: array();
 		$result = $this->column_map->save( $map );
 
 		if ( is_wp_error( $result ) ) {
-			return new \WP_REST_Response(
-				array(
-					'error' => $result->get_error_message(),
-				),
-				400
+			return new \WP_Error(
+				$result->get_error_code(),
+				$result->get_error_message(),
+				array( 'status' => 400 )
 			);
 		}
 

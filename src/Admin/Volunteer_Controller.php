@@ -97,7 +97,7 @@ class Volunteer_Controller {
 		return new \WP_REST_Response( $data, 200 );
 	}
 
-	public function signup( \WP_REST_Request $request ): \WP_REST_Response {
+	public function signup( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$params = $request->get_json_params() ?: array();
 
 		// Prevent privilege escalation: never trust client-supplied user_id or osm_user_id on public signup
@@ -122,29 +122,25 @@ class Volunteer_Controller {
 				200
 			);
 		} catch ( \Exception $e ) {
-			return new \WP_REST_Response(
-				array(
-					'success' => false,
-					'message' => $e->getMessage(),
-				),
-				400
+			return new \WP_Error(
+				'ems_volunteer_signup_failed',
+				$e->getMessage(),
+				array( 'status' => 400 )
 			);
 		}
 	}
 
-	public function assign( \WP_REST_Request $request ): \WP_REST_Response {
+	public function assign( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$params             = $request->get_json_params() ?: array();
 		$volunteer_id       = isset( $params['volunteer_id'] ) ? (int) $params['volunteer_id'] : 0;
 		$expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
 		$confirmed          = isset( $params['confirmed'] ) ? (int) $params['confirmed'] : 0;
 
 		if ( $volunteer_id <= 0 || $expedition_post_id <= 0 ) {
-			return new \WP_REST_Response(
-				array(
-					'success' => false,
-					'message' => 'Invalid volunteer or expedition ID.',
-				),
-				400
+			return new \WP_Error(
+				'ems_invalid_params',
+				'Invalid volunteer or expedition ID.',
+				array( 'status' => 400 )
 			);
 		}
 
@@ -164,15 +160,23 @@ class Volunteer_Controller {
 			$success = $this->repo->confirm_availability( (int) $row->id, $confirmed );
 		}
 
+		if ( ! $success ) {
+			return new \WP_Error(
+				'ems_volunteer_assign_failed',
+				'Failed to assign volunteer availability.',
+				array( 'status' => 400 )
+			);
+		}
+
 		return new \WP_REST_Response(
 			array(
-				'success' => $success,
+				'success' => true,
 			),
-			$success ? 200 : 400
+			200
 		);
 	}
 
-	public function save_volunteer_admin( \WP_REST_Request $request ): \WP_REST_Response {
+	public function save_volunteer_admin( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$params = $request->get_json_params() ?: array();
 		try {
 			$volunteer = $this->repo->save_volunteer( $params, true );
@@ -184,17 +188,15 @@ class Volunteer_Controller {
 				200
 			);
 		} catch ( \Exception $e ) {
-			return new \WP_REST_Response(
-				array(
-					'success' => false,
-					'message' => $e->getMessage(),
-				),
-				400
+			return new \WP_Error(
+				'ems_volunteer_save_failed',
+				$e->getMessage(),
+				array( 'status' => 400 )
 			);
 		}
 	}
 
-	public function save_availability_admin( \WP_REST_Request $request ): \WP_REST_Response {
+	public function save_availability_admin( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$params             = $request->get_json_params() ?: array();
 		$volunteer_id       = isset( $params['volunteer_id'] ) ? (int) $params['volunteer_id'] : 0;
 		$expedition_post_id = isset( $params['expedition_post_id'] ) ? (int) $params['expedition_post_id'] : 0;
@@ -202,12 +204,10 @@ class Volunteer_Controller {
 		$signup_type        = isset( $params['signup_type'] ) ? sanitize_text_field( $params['signup_type'] ) : 'part';
 
 		if ( $volunteer_id <= 0 || $expedition_post_id <= 0 ) {
-			return new \WP_REST_Response(
-				array(
-					'success' => false,
-					'message' => 'Invalid volunteer or expedition ID.',
-				),
-				400
+			return new \WP_Error(
+				'ems_invalid_params',
+				'Invalid volunteer or expedition ID.',
+				array( 'status' => 400 )
 			);
 		}
 
@@ -220,12 +220,10 @@ class Volunteer_Controller {
 				200
 			);
 		} catch ( \Exception $e ) {
-			return new \WP_REST_Response(
-				array(
-					'success' => false,
-					'message' => $e->getMessage(),
-				),
-				400
+			return new \WP_Error(
+				'ems_volunteer_availability_failed',
+				$e->getMessage(),
+				array( 'status' => 400 )
 			);
 		}
 	}

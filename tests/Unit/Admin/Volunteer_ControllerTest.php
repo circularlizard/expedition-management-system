@@ -167,4 +167,112 @@ class Volunteer_ControllerTest extends EMSTestCase {
         $this->assertEquals( 200, $response->get_status() );
         $this->assertTrue( $response->get_data()['success'] );
     }
+
+    public function test_signup_failure_returns_wp_error(): void {
+        $this->repo->shouldReceive('save_volunteer')->once()->andThrow( new \Exception('Database write failure') );
+
+        $controller = new Volunteer_Controller( $this->repo );
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'first_name' => 'Jane',
+            'email'      => 'jane@example.com',
+        ]);
+
+        $response = $controller->signup( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_volunteer_signup_failed', $response->get_error_code() );
+        $this->assertSame( 'Database write failure', $response->get_error_message() );
+    }
+
+    public function test_assign_invalid_params_returns_wp_error(): void {
+        $controller = new Volunteer_Controller( $this->repo );
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'volunteer_id'       => 0,
+            'expedition_post_id' => 10,
+        ]);
+
+        $response = $controller->assign( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_invalid_params', $response->get_error_code() );
+    }
+
+    public function test_assign_failure_returns_wp_error(): void {
+        $this->repo->shouldReceive('get_availability_table')->once()->andReturn('wp_ems_volunteer_availability');
+        global $wpdb;
+        $wpdb = \Mockery::mock('stdClass');
+        $wpdb->shouldReceive('prepare')->andReturn('SELECT id FROM wp_ems_volunteer_availability WHERE volunteer_id = 42 AND expedition_post_id = 10');
+        $wpdb->shouldReceive('get_results')->once()->andReturn([
+            (object)['id' => 100]
+        ]);
+
+        $this->repo->shouldReceive('confirm_availability')->once()->with(100, 1)->andReturn(false);
+
+        $controller = new Volunteer_Controller( $this->repo );
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'volunteer_id'       => 42,
+            'expedition_post_id' => 10,
+            'confirmed'          => 1,
+        ]);
+
+        $response = $controller->assign( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_volunteer_assign_failed', $response->get_error_code() );
+    }
+
+    public function test_save_volunteer_admin_error_returns_wp_error(): void {
+        $this->repo->shouldReceive('save_volunteer')->once()->andThrow( new \Exception('Validation error') );
+
+        $controller = new Volunteer_Controller( $this->repo );
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'first_name' => 'Jane',
+        ]);
+
+        $response = $controller->save_volunteer_admin( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_volunteer_save_failed', $response->get_error_code() );
+    }
+
+    public function test_save_availability_admin_invalid_params_returns_wp_error(): void {
+        $controller = new Volunteer_Controller( $this->repo );
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'volunteer_id'       => 0,
+            'expedition_post_id' => 5,
+        ]);
+
+        $response = $controller->save_availability_admin( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_invalid_params', $response->get_error_code() );
+    }
+
+    public function test_save_availability_admin_failure_returns_wp_error(): void {
+        $this->repo->shouldReceive('save_availability')->once()->andThrow( new \Exception('DB error') );
+
+        $controller = new Volunteer_Controller( $this->repo );
+        $request = \Mockery::mock( \WP_REST_Request::class );
+        $request->shouldReceive('get_json_params')->once()->andReturn([
+            'volunteer_id'       => 10,
+            'expedition_post_id' => 5,
+            'shifts'             => [],
+        ]);
+
+        $response = $controller->save_availability_admin( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_volunteer_availability_failed', $response->get_error_code() );
+    }
 }
