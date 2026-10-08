@@ -94,7 +94,7 @@ class Portal_Controller {
 		);
 	}
 
-	public function get_explorer_detail( \WP_REST_Request $request ): \WP_REST_Response {
+	public function get_explorer_detail( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id = (int) $request->get_param( 'scout_id' );
 		$user_id  = get_current_user_id();
 
@@ -124,12 +124,10 @@ class Portal_Controller {
 		}
 
 		if ( ! $authorized ) {
-			return new \WP_REST_Response(
-				array(
-					'code'    => 'forbidden',
-					'message' => 'You do not have permission to access this explorer record.',
-				),
-				403
+			return new \WP_Error(
+				'ems_forbidden',
+				'You do not have permission to access this explorer record.',
+				array( 'status' => 403 )
 			);
 		}
 

@@ -101,7 +101,9 @@ class Portal_ControllerTest extends EMSTestCase {
         $request->set_param( 'scout_id', 99999 );
 
         $response = $controller->get_explorer_detail( $request );
-        $this->assertEquals( 403, $response->get_status() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 403, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_forbidden', $response->get_error_code() );
     }
 
     public function test_get_explorer_detail_authorized_returns_payload(): void {

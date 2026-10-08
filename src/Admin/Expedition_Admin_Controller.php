@@ -365,7 +365,7 @@ class Expedition_Admin_Controller {
 		return current_user_can( 'manage_options' );
 	}
 
-	public function create_event( \WP_REST_Request $request ): \WP_REST_Response {
+	public function create_event( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$body  = $request->get_json_params() ?: array();
 		$valid = $this->validate_event( $body );
 		if ( is_wp_error( $valid ) ) {
@@ -381,7 +381,7 @@ class Expedition_Admin_Controller {
 		}
 	}
 
-	public function update_event( \WP_REST_Request $request ): \WP_REST_Response {
+	public function update_event( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id   = (int) $request->get_param( 'id' );
 		$body = $request->get_json_params() ?: array();
 
@@ -398,7 +398,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $this->expeditions->get_by_id( $id ) );
 	}
 
-	public function delete_event( \WP_REST_Request $request ): \WP_REST_Response {
+	public function delete_event( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id = (int) $request->get_param( 'id' );
 
 		if ( ! $this->expeditions->get_by_id( $id ) ) {
@@ -413,7 +413,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( array( 'deleted' => true ) );
 	}
 
-	public function create_team( \WP_REST_Request $request ): \WP_REST_Response {
+	public function create_team( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$event_id = (int) $request->get_param( 'event_id' );
 		$event    = $this->expeditions->get_by_id( $event_id );
 
@@ -435,7 +435,7 @@ class Expedition_Admin_Controller {
 		}
 	}
 
-	public function delete_team( \WP_REST_Request $request ): \WP_REST_Response {
+	public function delete_team( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id = (int) $request->get_param( 'id' );
 
 		$team = $this->teams->get_by_id( $id );
@@ -454,7 +454,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( array( 'deleted' => true ) );
 	}
 
-	public function move_team( \WP_REST_Request $request ): \WP_REST_Response {
+	public function move_team( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id        = (int) $request->get_param( 'id' );
 		$body      = $request->get_json_params() ?: array();
 		$target_id = (int) ( $body['target_event_id'] ?? 0 );
@@ -481,7 +481,7 @@ class Expedition_Admin_Controller {
 		}
 	}
 
-	public function duplicate_team( \WP_REST_Request $request ): \WP_REST_Response {
+	public function duplicate_team( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id        = (int) $request->get_param( 'id' );
 		$body      = $request->get_json_params() ?: array();
 		$target_id = (int) ( $body['target_event_id'] ?? 0 );
@@ -508,7 +508,7 @@ class Expedition_Admin_Controller {
 		}
 	}
 
-	public function populate_event( \WP_REST_Request $request ): \WP_REST_Response {
+	public function populate_event( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$source_id = (int) $request->get_param( 'source_id' );
 		$target_id = (int) $request->get_param( 'target_id' );
 
@@ -533,7 +533,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $this->teams->list_by_expedition( $target_id ), 201 );
 	}
 
-	public function add_member( \WP_REST_Request $request ): \WP_REST_Response {
+	public function add_member( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$team_id  = (int) $request->get_param( 'team_id' );
 		$body     = $request->get_json_params() ?: array();
 		$scout_id = (int) ( $body['scout_id'] ?? 0 );
@@ -566,7 +566,7 @@ class Expedition_Admin_Controller {
 		}
 	}
 
-	public function remove_member( \WP_REST_Request $request ): \WP_REST_Response {
+	public function remove_member( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$team_id  = (int) $request->get_param( 'team_id' );
 		$scout_id = (int) $request->get_param( 'scout_id' );
 
@@ -587,7 +587,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $team_id ) ) );
 	}
 
-	public function move_explorer( \WP_REST_Request $request ): \WP_REST_Response {
+	public function move_explorer( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id       = (int) $request->get_param( 'scout_id' );
 		$body           = $request->get_json_params() ?: array();
 		$target_team_id = (int) ( $body['target_team_id'] ?? 0 );
@@ -620,7 +620,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $target_team_id ) ) );
 	}
 
-	public function update_first_aid_level( \WP_REST_Request $request ): \WP_REST_Response {
+	public function update_first_aid_level( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id = (int) $request->get_param( 'scout_id' );
 		$body     = $request->get_json_params() ?: array();
 		$level    = $body['first_aid_level'] ?? '';
@@ -738,7 +738,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( array( 'events' => $events ) );
 	}
 
-	public function get_whatsapp_links( \WP_REST_Request $request ): \WP_REST_Response {
+	public function get_whatsapp_links( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id = (int) $request->get_param( 'id' );
 
 		if ( ! $this->expeditions->get_by_id( $id ) ) {
@@ -753,7 +753,7 @@ class Expedition_Admin_Controller {
 		);
 	}
 
-	public function update_whatsapp_links( \WP_REST_Request $request ): \WP_REST_Response {
+	public function update_whatsapp_links( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id   = (int) $request->get_param( 'id' );
 		$body = $request->get_json_params() ?: array();
 
@@ -904,8 +904,8 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $explorers );
 	}
 
-	private function error( string $code, string $message, int $status ): \WP_REST_Response {
-		return new \WP_REST_Response( new \WP_Error( $code, $message, array( 'status' => $status ) ), $status );
+	private function error( string $code, string $message, int $status ): \WP_Error {
+		return new \WP_Error( $code, $message, array( 'status' => $status ) );
 	}
 
 	private function register_whatsapp_routes(): void {
@@ -1198,7 +1198,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $response_data );
 	}
 
-	public function process_participant_signup( \WP_REST_Request $request ): \WP_REST_Response {
+	public function process_participant_signup( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id          = (int) $request->get_param( 'id' );
 		$body        = $request->get_json_params() ?: array();
 		$dofe_number = isset( $body['dofe_number'] ) ? sanitize_text_field( $body['dofe_number'] ) : null;
@@ -1217,7 +1217,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( array( 'processed' => true ) );
 	}
 
-	public function archive_participant_signup( \WP_REST_Request $request ): \WP_REST_Response {
+	public function archive_participant_signup( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id = (int) $request->get_param( 'id' );
 
 		$signup = $this->signups->get_participant_signup( $id );
@@ -1266,7 +1266,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $response_data );
 	}
 
-	public function archive_expedition_signup( \WP_REST_Request $request ): \WP_REST_Response {
+	public function archive_expedition_signup( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$id = (int) $request->get_param( 'id' );
 
 		$signup = $this->signups->get_expedition_signup( $id );
@@ -1279,7 +1279,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( array( 'archived' => true ) );
 	}
 
-	public function reconcile_signup( \WP_REST_Request $request ): \WP_REST_Response {
+	public function reconcile_signup( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$body        = $request->get_json_params() ?: array();
 		$signup_id   = isset( $body['signup_id'] ) ? (int) $body['signup_id'] : 0;
 		$signup_type = isset( $body['signup_type'] ) ? sanitize_text_field( $body['signup_type'] ) : '';
@@ -1297,7 +1297,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( array( 'reconciled' => true ) );
 	}
 
-	public function unlink_signup( \WP_REST_Request $request ): \WP_REST_Response {
+	public function unlink_signup( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$body        = $request->get_json_params() ?: array();
 		$signup_id   = isset( $body['signup_id'] ) ? (int) $body['signup_id'] : 0;
 		$signup_type = isset( $body['signup_type'] ) ? sanitize_text_field( $body['signup_type'] ) : '';
@@ -1368,7 +1368,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( $teams );
 	}
 
-	public function get_explorer_asn( \WP_REST_Request $request ): \WP_REST_Response {
+	public function get_explorer_asn( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id = (int) $request->get_param( 'scout_id' );
 
 		$explorer = $this->explorers->find_by_scout_id( $scout_id );
@@ -1407,7 +1407,7 @@ class Expedition_Admin_Controller {
 		);
 	}
 
-	public function update_explorer_asn( \WP_REST_Request $request ): \WP_REST_Response {
+	public function update_explorer_asn( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id = (int) $request->get_param( 'scout_id' );
 		$body     = $request->get_json_params() ?: array();
 		$notes    = isset( $body['organiser_notes'] ) ? sanitize_textarea_field( $body['organiser_notes'] ) : '';
@@ -1432,7 +1432,7 @@ class Expedition_Admin_Controller {
 		);
 	}
 
-	public function get_explorer_profile( \WP_REST_Request $request ): \WP_REST_Response {
+	public function get_explorer_profile( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id = (int) $request->get_param( 'scout_id' );
 
 		$explorer = $this->explorers->find_by_scout_id( $scout_id );
@@ -1886,7 +1886,7 @@ class Expedition_Admin_Controller {
 		);
 	}
 
-	public function allocate_planning_explorers( \WP_REST_Request $request ): \WP_REST_Response {
+	public function allocate_planning_explorers( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_ids      = $request->get_param( 'scout_ids' ) ?? array();
 		$event_code     = (string) ( $request->get_param( 'event_code' ) ?? '' );
 		$mode           = (string) ( $request->get_param( 'mode' ) ?? 'unallocated' );
@@ -1978,7 +1978,7 @@ class Expedition_Admin_Controller {
 		return new \WP_REST_Response( array( 'success' => true ) );
 	}
 
-	public function add_planning_explorer( \WP_REST_Request $request ): \WP_REST_Response {
+	public function add_planning_explorer( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id   = (int) $request->get_param( 'scout_id' );
 		$event_code = (string) $request->get_param( 'event_code' );
 

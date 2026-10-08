@@ -116,7 +116,7 @@ class Admin_View_Controller {
 	/**
 	 * GET ems/v1/explorer/{scout_id}
 	 */
-	public function get_explorer_detail( \WP_REST_Request $request ): \WP_REST_Response {
+	public function get_explorer_detail( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id = (int) $request->get_param( 'scout_id' );
 
 		global $wpdb;
@@ -130,7 +130,7 @@ class Admin_View_Controller {
 		);
 
 		if ( ! $row ) {
-			return new \WP_REST_Response( array( 'error' => 'Explorer not found' ), 404 );
+			return new \WP_Error( 'ems_explorer_not_found', 'Explorer not found.', array( 'status' => 404 ) );
 		}
 
 		$wp_user_id = (int) ( $row['wp_user_id'] ?? 0 );
@@ -372,12 +372,12 @@ class Admin_View_Controller {
 	/**
 	 * POST ems/v1/events/{id}/training-requirements
 	 */
-	public function update_event_training_requirements( \WP_REST_Request $request ): \WP_REST_Response {
+	public function update_event_training_requirements( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$event_id = (int) $request->get_param( 'id' );
 		$params   = $request->get_json_params();
 
 		if ( ! is_array( $params ) || ! isset( $params['course_ids'] ) || ! is_array( $params['course_ids'] ) ) {
-			return new \WP_REST_Response( array( 'error' => 'Invalid parameters' ), 400 );
+			return new \WP_Error( 'ems_invalid_parameters', 'Invalid parameters.', array( 'status' => 400 ) );
 		}
 
 		$course_ids = array_map( 'intval', $params['course_ids'] );
