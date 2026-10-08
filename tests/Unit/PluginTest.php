@@ -173,8 +173,7 @@ class PluginTest extends EMSTestCase {
         Functions\expect( 'get_post' )->never();
 
         $plugin = new Plugin();
-        $plugin->restrict_signup_page_access();
-        $this->assertTrue( true );
+        $this->assertNull( $plugin->restrict_signup_page_access() );
     }
 
     public function test_restrict_signup_page_access_does_nothing_if_not_signup_page(): void {
@@ -190,8 +189,7 @@ class PluginTest extends EMSTestCase {
         // Should not add filter
         Functions\expect( 'add_filter' )->never();
 
-        $plugin->restrict_signup_page_access();
-        $this->assertTrue( true );
+        $this->assertNull( $plugin->restrict_signup_page_access() );
     }
 
     public function test_restrict_signup_page_access_allows_parent_on_signup_page(): void {
@@ -211,8 +209,7 @@ class PluginTest extends EMSTestCase {
         // Should not add filter
         Functions\expect( 'add_filter' )->never();
 
-        $plugin->restrict_signup_page_access();
-        $this->assertTrue( true );
+        $this->assertNull( $plugin->restrict_signup_page_access() );
     }
 
     public function test_restrict_signup_page_access_hooks_content_rejection_for_explorer(): void {
@@ -233,7 +230,6 @@ class PluginTest extends EMSTestCase {
             ->once()
             ->with( 'the_content', \Mockery::any(), 999 );
 
-        $plugin->restrict_signup_page_access();
-        $this->assertTrue( true );
+        $this->assertNull( $plugin->restrict_signup_page_access() );
     }
 }
