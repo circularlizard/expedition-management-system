@@ -98,5 +98,5 @@ if ( ! defined( 'EMS_PLUGIN_FILE' ) ) {
 }
 
 if ( ! defined( 'EMS_VERSION' ) ) {
-    define( 'EMS_VERSION', '0.1.90' );
+    define( 'EMS_VERSION', '0.1.91' );
 }
