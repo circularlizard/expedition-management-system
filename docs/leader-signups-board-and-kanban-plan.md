@@ -68,20 +68,31 @@ The **Cumulative Signups Dashboard** appears as the primary analytical view with
 │ └───────────────────────┘ └───────────────────────┘ └───────────────────────┘ └───────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 📈 CUMULATIVE SIGNUPS OVER TIME (Starting 1st August)                                                       │
+│ Combined View: Stacked Bars (Participant Places) + Trend Lines (Expedition Bookings)                        │
 │                                                                                                             │
 │ Count                                                                                                       │
-│  200 ┤                                                                                 • Participant Total  │
-│  180 ┤                                                                    •---•---•    o Expedition Total   │
-│  160 ┤                                                            •---•---             ▲ Bronze Combined    │
-│  140 ┤                                                    •---•---o---o---o            ■ Silver Combined    │
-│  120 ┤                                            o---o---o                            ◆ Gold Combined      │
-│  100 ┤                                    •---•---o                                                         │
-│   80 ┤                            •---•---o                                                                 │
-│   60 ┤                    •---•---o                                                                         │
-│   40 ┤            •---o---o                                                                                 │
-│   20 ┤    •---o---o                                                                                         │
-│    0 └───┴───────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┴──────────────    │
-│        01 Aug  15 Aug  01 Sep  15 Sep  01 Oct  15 Oct  01 Nov  15 Nov  01 Dec  15 Dec  01 Jan               │
+│  200 ┤                                                                [G]      ■ Stacked Bars (Places):     │
+│  180 ┤                                                       [G]      [S]        [G] Gold Participants      │
+│  160 ┤                                              [G]      [S]      [S]        [S] Silver Participants    │
+│  140 ┤                                     [G]      [S]      [S]  --▲-[S]        [B] Bronze Participants    │
+│  120 ┤                            [G]      [S]  --▲-[S]  --▲-[S]                 ───────────────────────    │
+│  100 ┤                   [G]      [S]  --▲-[S]       [B]      [B]      [B]     Overlaid Trend Lines:      │
+│   80 ┤          [G]  --▲-[S]  --▲-[S]       [B]  --■--■   --■--■   --■--■      ▲---▲ Bronze Expeditions   │
+│   60 ┤      --▲-[S]       [B]  --■--■   --■--■                                ■---■ Silver Expeditions   │
+│   40 ┤  --▲-[S]  [B]  --■--■                                 --◆--◆   --◆--◆      ◆---◆ Gold Expeditions     │
+│   20 ┤   [B] [B]                                    --◆--◆                                                  │
+│    0 └───┴───┴───────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┴─────────────          │
+│        01 Aug  15 Aug   01 Sep   15 Sep   01 Oct   15 Oct   01 Nov   15 Nov   01 Dec   15 Dec               │
+│                                                                                                             │
+│  Hover Tooltip (Week 42 - 15 Oct):                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐                          │
+│  │ 📅 Week of 15 Oct 2026:                                                      │                          │
+│  │ 📊 Cumulative Places (Bars): 142 (🥉 Bronze: 70 | 🥈 Silver: 48 | 🥇 Gold: 24) │                          │
+│  │ 🧗 Cumulative Expeditions:   110 (77.5% total conversion)                    │                          │
+│  │   • 🥉 Bronze Expeditions:    60 / 70 places  (85.7% converted)  [+10 gap]   │                          │
+│  │   • 🥈 Silver Expeditions:    36 / 48 places  (75.0% converted)  [+12 gap]   │                          │
+│  │   • 🥇 Gold Expeditions:      14 / 24 places  (58.3% converted)  [+10 gap]   │                          │
+│  └──────────────────────────────────────────────────────────────────────────────┘                          │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 📊 BREAKDOWN BY AWARD LEVEL (Participant Places vs Expeditions)                                             │
 │ ┌───────────────────────────────┐ ┌───────────────────────────────┐ ┌─────────────────────────────────────┐ │
@@ -109,17 +120,42 @@ The **Cumulative Signups Dashboard** appears as the primary analytical view with
 
 ---
 
-### 2.4 Cumulative Time-Series Curves & Aggregation
+### 2.4 Cumulative Time-Series Combo Chart Specification
 
-#### Time Filtering Rules:
-* **Season Start Anchor**: Defaults to **1st August** of the active season year (`YYYY-08-01 00:00:00`).
-* **Time Bucketing**: Aggregated by day or week (calendar week Monday–Sunday).
-* **Cumulative Accumulation**: For each time bucket $t_k$, the value represents:
-  $$C(t_k) = \sum_{i=1}^{k} \text{Count}(t_i)$$
-* **Breakdown Dimensions**:
-  * **By Signup Type**: Participant Places (Form 6) vs Expedition Preferences (Form 7).
-  * **By Award Level**: Bronze, Silver, Gold.
-  * **Combined Comparison**: Both lines displayed on the same axis with distinct strokes to clearly show the lagging gap between award enrollment and expedition booking.
+#### A. Analytical Value of the Combo Architecture
+Combining **Stacked Bars** and **Overlay Trend Lines** into a single coordinate plane delivers decisive analytical advantages over separate charts or multiple overlapping lines:
+1. **Capacity vs. Activation**:
+   - The **stacked bar** represents the *enrolled participant capacity* (the intake pool established via Form 6).
+   - The **trend lines** represent *event activation* (the actual expedition bookings committed via Form 7).
+2. **Zero Visual Collision**:
+   - Six lines on one axis frequently criss-cross and create visual clutter.
+   - By rendering participant places as solid stacked columns and expedition signups as continuous lines, the two datasets use distinct visual primitives (rectangles vs. paths) that never obscure each other.
+3. **Immediate Cohort-Level Gap Diagnosis**:
+   - Leaders can visually compare each expedition line directly against its corresponding segment or award total:
+     - **Bronze Pace**: If the Bronze expedition line tracks just below the Bronze bar height, Bronze recruitment is healthy.
+     - **Gold Lag Alert**: If the Gold expedition line flattens out while Gold participant places continue to climb, leaders immediately spot that Gold candidates are stalling on expedition bookings and can trigger targeted reminder emails.
+
+#### B. Visual Encoding & Color Hierarchy
+* **Time Anchor (X-Axis)**: Begins **1st August** of the active season year (`YYYY-08-01 00:00:00`). Bucketed weekly or daily.
+* **Vertical Scale (Y-Axis)**: Cumulative headcount running total ($0$ to max season intake).
+* **Stacked Bars (Participant Places - Form 6)**:
+  * 🥉 **Bronze Segment (Base)**: Warm amber / copper (`#cd7f32`, opacity 0.85).
+  * 🥈 **Silver Segment (Middle)**: Clean slate / steel (`#94a3b8`, opacity 0.85).
+  * 🥇 **Gold Segment (Top)**: Warm gold (`#f59e0b`, opacity 0.85).
+  * **Bar Total Height**: Cumulative sum of all participant place registrations.
+* **Overlaid Lines (Expedition Bookings - Form 7)**:
+  * 🥉 **Bronze Expeditions Line**: Deep bronze stroke (`#92400e`, 2.5px), marked with circular data points (`circle`).
+  * 🥈 **Silver Expeditions Line**: Dark slate stroke (`#334155`, 2.5px), marked with square data points (`rect`).
+  * 🥇 **Gold Expeditions Line**: Vibrant gold/amber stroke (`#d97706`, 2.5px), marked with diamond data points (`polygon`).
+* **Interactive Tooltip**:
+  * Hovering any time bucket reveals exact cumulative totals, level-by-level conversion percentages, and the outstanding participant gap for each award level.
+
+#### C. React Implementation: Native Lightweight SVG
+To avoid heavy third-party graphing dependencies in `package.json`, the chart is implemented as a lightweight, fully responsive React SVG component (`SignupComboChart.tsx`):
+* Computes SVG viewBox scaling based on container dimensions.
+* Renders `<rect>` elements for stacked bar segments with rounded tops on the uppermost segment.
+* Renders smooth SVG `<path>` bezier curves for the three expedition trend lines with SVG markers.
+* Emits zero runtime external dependencies and tests cleanly in Vitest without jsdom canvas stubbing.
 
 ---
 
