@@ -9,7 +9,8 @@ class EMSTestCase extends TestCase {
     protected function setUp(): void {
         parent::setUp();
         Monkey\setUp();
-        Functions\stubs( [ 'delete_transient', 'get_transient', 'set_transient', 'esc_html', 'esc_attr', 'esc_html__', 'esc_html_e', '__', 'esc_attr_e', 'esc_attr__', 'admin_url', 'sanitize_text_field', 'sanitize_email', 'sanitize_textarea_field', 'esc_url_raw', 'update_option', 'delete_option', 'current_time', 'get_current_user_id', 'get_users', 'wp_unslash' ] );
+        Functions\stubs( [ 'delete_transient', 'get_transient', 'set_transient', 'esc_html', 'esc_attr', 'esc_html__', 'esc_html_e', '__', 'esc_attr_e', 'esc_attr__', 'admin_url', 'sanitize_text_field', 'sanitize_email', 'sanitize_textarea_field', 'esc_url_raw', 'update_option', 'delete_option', 'current_time', 'get_current_user_id', 'get_users', 'wp_unslash', 'wp_enqueue_script', 'plugin_dir_url' ] );
+        Functions\when( 'plugin_dir_url' )->justReturn( 'http://example.com/wp-content/plugins/ems-plugin/' );
         Functions\when( 'wp_unslash' )->alias( fn( $text ) => $text );
         Functions\when( 'esc_html' )->alias( fn( $text ) => $text );
         Functions\when( 'esc_attr' )->alias( fn( $text ) => $text );
