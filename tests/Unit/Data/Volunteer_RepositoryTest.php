@@ -142,7 +142,7 @@ class Volunteer_RepositoryTest extends EMSTestCase {
         $this->wpdb->shouldReceive('insert')->times(2)->andReturn(1);
 
         $repo = new Volunteer_Repository($this->wpdb);
-        $repo->save_availability(42, 10, [
+        $this->assertNull( $repo->save_availability(42, 10, [
             [
                 'date' => '2026-08-14',
                 'overnight' => 0,
@@ -151,8 +151,7 @@ class Volunteer_RepositoryTest extends EMSTestCase {
                 'date' => '2026-08-15',
                 'overnight' => 1,
             ]
-        ]);
-        $this->assertTrue(true);
+        ]) );
     }
 
     public function test_confirm_overlapping_event_locks_out_alternatives(): void {
@@ -187,8 +186,7 @@ class Volunteer_RepositoryTest extends EMSTestCase {
             });
 
         $repo = new Volunteer_Repository($this->wpdb);
-        $repo->confirm_availability(100, 1);
-        $this->assertTrue(true);
+        $this->assertTrue( $repo->confirm_availability(100, 1) );
     }
 
     public function test_unassigning_event_releases_conflict_lock(): void {
@@ -226,8 +224,7 @@ class Volunteer_RepositoryTest extends EMSTestCase {
             });
 
         $repo = new Volunteer_Repository($this->wpdb);
-        $repo->confirm_availability(100, 0);
-        $this->assertTrue(true);
+        $this->assertTrue( $repo->confirm_availability(100, 0) );
     }
 
     public function test_save_volunteer_includes_constraints(): void {

@@ -47,7 +47,7 @@ class Role_ManagerTest extends EMSTestCase {
         Functions\when( 'get_role' )->justReturn( $wp_role );
         Functions\expect( 'add_role' )->never();
 
-        ( new Role_Manager() )->register_roles();
-        $this->addToAssertionCount( 1 );
+        $manager = new Role_Manager();
+        $this->assertNull( $manager->register_roles() );
     }
 }

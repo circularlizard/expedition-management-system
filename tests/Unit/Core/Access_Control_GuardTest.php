@@ -65,8 +65,8 @@ namespace EMS\Tests\Unit\Core {
                 ->once()
                 ->with( 'template_redirect', Mockery::any() );
 
-            new Access_Control_Guard();
-            $this->addToAssertionCount( 1 );
+            $guard = new Access_Control_Guard();
+            $this->assertInstanceOf( Access_Control_Guard::class, $guard );
         }
 
         public function test_guard_returns_early_if_page_is_not_protected(): void {
@@ -77,8 +77,7 @@ namespace EMS\Tests\Unit\Core {
             Functions\expect( 'wp_redirect' )->never();
 
             $guard = new Access_Control_Guard();
-            $guard->guard_request();
-            $this->addToAssertionCount( 1 );
+            $this->assertNull( $guard->guard_request() );
         }
 
         public function test_guard_redirects_unauthenticated_user_to_login(): void {
@@ -138,8 +137,7 @@ namespace EMS\Tests\Unit\Core {
             Functions\expect( 'wp_safe_redirect' )->never();
 
             $guard = new Access_Control_Guard();
-            $guard->guard_request();
-            $this->addToAssertionCount( 1 );
+            $this->assertNull( $guard->guard_request() );
         }
 
         public function test_guard_allows_administrators_implicitly(): void {
@@ -154,8 +152,7 @@ namespace EMS\Tests\Unit\Core {
             Functions\when( 'wp_get_current_user' )->justReturn( $user );
 
             $guard = new Access_Control_Guard();
-            $guard->guard_request();
-            $this->addToAssertionCount( 1 );
+            $this->assertNull( $guard->guard_request() );
         }
 
         public function test_guard_protects_tutor_lms_pages_if_enabled(): void {
@@ -195,8 +192,7 @@ namespace EMS\Tests\Unit\Core {
             Functions\expect( 'wp_redirect' )->never();
 
             $guard = new Access_Control_Guard();
-            $guard->guard_request();
-            $this->addToAssertionCount( 1 );
+            $this->assertNull( $guard->guard_request() );
         }
     }
 }

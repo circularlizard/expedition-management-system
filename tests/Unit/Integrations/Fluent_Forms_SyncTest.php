@@ -96,9 +96,11 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
     }
 
     public function test_handle_submission_creates_participant_signup_record(): void {
+        $captured = null;
         $this->signup_repo->shouldReceive( 'create_participant_signup' )
             ->once()
-            ->with( Mockery::on( function( $data ) {
+            ->with( Mockery::on( function( $data ) use ( &$captured ) {
+                $captured = $data;
                 return $data['scout_id'] === 30001 &&
                        $data['explorer_first_name'] === 'Mary' &&
                        $data['explorer_last_name'] === 'Smith' &&
@@ -115,13 +117,17 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             'signup_dofe_registered'=> 'n',
         ], (object) [ 'id' => 6 ] );
 
-        $this->assertTrue( true );
+        $this->assertNotNull( $captured );
+        $this->assertSame( 30001, $captured['scout_id'] );
+        $this->assertSame( 'bronze', $captured['dofe_level'] );
     }
 
     public function test_handle_submission_creates_expedition_signup_record(): void {
+        $captured = null;
         $this->signup_repo->shouldReceive( 'create_expedition_signup' )
             ->once()
-            ->with( Mockery::on( function( $data ) {
+            ->with( Mockery::on( function( $data ) use ( &$captured ) {
+                $captured = $data;
                 return $data['scout_id'] === 30001 &&
                        $data['explorer_first_name'] === 'Mary' &&
                        $data['explorer_last_name'] === 'Smith' &&
@@ -138,7 +144,9 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             'input_radio'  => 'first-response',
         ], (object) [ 'id' => 7 ] );
 
-        $this->assertTrue( true );
+        $this->assertNotNull( $captured );
+        $this->assertSame( 30001, $captured['scout_id'] );
+        $this->assertSame( 'silver', $captured['dofe_level'] );
     }
 
     public function test_handle_submission_resolves_level_specific_date_fields(): void {
@@ -156,9 +164,11 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             return $default ?? [];
         } );
 
+        $captured = null;
         $this->signup_repo->shouldReceive( 'create_expedition_signup' )
             ->once()
-            ->with( Mockery::on( function( $data ) {
+            ->with( Mockery::on( function( $data ) use ( &$captured ) {
+                $captured = $data;
                 $prefs = $data['expedition_preferences'];
                 return $data['scout_id'] === 30001 &&
                        $data['dofe_level'] === 'silver' &&
@@ -178,7 +188,9 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
             'exped-gold-qualifier-dates' => [ 'Q-GOLD-1' ],
         ], (object) [ 'id' => 7 ] );
 
-        $this->assertTrue( true );
+        $this->assertNotNull( $captured );
+        $this->assertSame( [ 'P-SILVER-1' ], $captured['expedition_preferences']['exped_practice_dates'] );
+        $this->assertSame( [ 'Q-SILVER-1' ], $captured['expedition_preferences']['exped_qualifier_dates'] );
     }
 
     public function test_populate_child_dropdown_synthesizes_self_for_member_access(): void {

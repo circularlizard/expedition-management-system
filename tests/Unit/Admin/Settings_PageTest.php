@@ -29,7 +29,7 @@ class Settings_PageTest extends EMSTestCase {
             ->with( 'ems', \Mockery::any(), \Mockery::any(), 'manage_options', 'ems-settings', \Mockery::any() );
 
         ( new Settings_Page() )->register();
-        $this->addToAssertionCount( 1 );
+        $this->assertTrue( \Brain\Monkey\Actions\has( 'admin_init' ) );
     }
 
     // -------------------------------------------------------------------------
@@ -203,11 +203,14 @@ class Settings_PageTest extends EMSTestCase {
         $method = $reflected->getMethod('save_form_mappings');
         $method->setAccessible(true);
         
+        ob_start();
         $method->invoke( $page, [
             'ems_fluent_participant_form_id' => '8',
             'ems_fluent_expedition_form_id'  => '9',
         ] );
+        $output = ob_get_clean();
 
+        $this->assertStringContainsString( 'Form configurations saved.', (string) $output );
         $this->assertEquals( 8, $stored['ems_fluent_participant_form_id'] );
         $this->assertEquals( 9, $stored['ems_fluent_expedition_form_id'] );
     }
@@ -222,6 +225,7 @@ class Settings_PageTest extends EMSTestCase {
         $method = $reflected->getMethod('save_form_mappings');
         $method->setAccessible(true);
         
+        ob_start();
         $method->invoke( $page, [
             'ems_fluent_participant_form_id' => '8',
             'ems_fluent_expedition_form_id'  => '9',
@@ -232,7 +236,9 @@ class Settings_PageTest extends EMSTestCase {
                 'silver_practice_dates_field' => 'custom_practice_field_e',
             ],
         ] );
+        $output = ob_get_clean();
 
+        $this->assertStringContainsString( 'Form configurations saved.', (string) $output );
         $this->assertEquals( 8, $stored['ems_fluent_participant_form_id'] );
         $this->assertEquals( 9, $stored['ems_fluent_expedition_form_id'] );
         $this->assertEquals( [ 'scout_id_field' => 'custom_scout_field_p' ], $stored['ems_participant_form_mappings'] );
@@ -249,6 +255,7 @@ class Settings_PageTest extends EMSTestCase {
         $method = $reflected->getMethod('save_access_control');
         $method->setAccessible(true);
         
+        ob_start();
         $method->invoke( $page, [
             'ems_page_roles'        => [
                 '42' => [ 'ems_explorer' ],
@@ -256,7 +263,9 @@ class Settings_PageTest extends EMSTestCase {
             ],
             'ems_protect_tutor_lms' => '1',
         ] );
+        $output = ob_get_clean();
 
+        $this->assertStringContainsString( 'Access control settings saved.', (string) $output );
         $this->assertEquals( [
             42 => [ 'ems_explorer' ],
             43 => [ 'ems_leader' ],
@@ -274,8 +283,11 @@ class Settings_PageTest extends EMSTestCase {
         $method = $reflected->getMethod('save_access_control');
         $method->setAccessible(true);
         
+        ob_start();
         $method->invoke( $page, [] );
+        $output = ob_get_clean();
 
+        $this->assertStringContainsString( 'Access control settings saved.', (string) $output );
         $this->assertEquals( [], $stored['ems_page_roles'] );
         $this->assertFalse( $stored['ems_protect_tutor_lms'] );
     }

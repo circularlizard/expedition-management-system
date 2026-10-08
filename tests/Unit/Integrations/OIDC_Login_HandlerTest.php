@@ -172,8 +172,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'get_data_payload' )->never();
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->handle_osm_login( $this->user, [] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [] ) );
     }
 
     public function test_local_user_without_access_token_throws_no_exception(): void {
@@ -197,8 +196,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
             ->andReturn( 1 );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
-        $integration->handle_osm_login( $this->user, [] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [] ) );
     }
 
     public function test_handle_osm_login_skips_link_when_user_email_is_empty(): void {
@@ -210,8 +208,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $explorer_repo->shouldReceive( 'link_wp_user_by_email' )->never();
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
-        $integration->handle_osm_login( $this->user, [] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [] ) );
     }
 
     public function test_handle_user_created_calls_link_wp_user_by_email(): void {
@@ -227,8 +224,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
             ->andReturn( 1 );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
-        $integration->handle_user_created( 42, new \stdClass() );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_user_created( 42, new \stdClass() ) );
     }
 
     public function test_handle_user_created_skips_link_when_user_not_found(): void {
@@ -238,8 +234,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $explorer_repo->shouldReceive( 'link_wp_user_by_email' )->never();
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser, $explorer_repo );
-        $integration->handle_user_created( 99, new \stdClass() );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_user_created( 99, new \stdClass() ) );
     }
 
     public function test_handle_osm_login_assigns_ems_parent_role_for_parent_payload(): void {
@@ -263,8 +258,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_parent' );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
     }
 
     public function test_handle_osm_login_assigns_ems_explorer_role_for_member_payload(): void {
@@ -288,8 +282,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_explorer' );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
     }
 
     public function test_handle_osm_login_assigns_ems_leader_role_for_local_payload(): void {
@@ -313,8 +306,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_leader' );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
     }
 
     public function test_handle_osm_login_aborts_role_assignment_on_malformed_payload(): void {
@@ -331,8 +323,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user->shouldReceive( 'set_role' )->never();
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
     }
 
     public function test_handle_osm_login_updates_user_profile_first_last_name(): void {
@@ -392,8 +383,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_leader' );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
     }
 
     public function test_handle_osm_login_network_member_assigns_network_member_role(): void {
@@ -417,8 +407,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_network_member' );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
     }
 
     public function test_handle_osm_login_parent_and_leader_assigns_dual_roles(): void {
@@ -450,8 +439,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->user->shouldReceive( 'add_role' )->once()->with( 'ems_parent' );
 
         $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
-        $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
     }
 
     public function test_handle_osm_login_unknown_role_graceful_wp_die(): void {
@@ -531,8 +519,7 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->api_client->shouldReceive( 'set_access_token' )->never();
         $this->api_client->shouldReceive( 'get_data_payload' )->never();
 
-        $integration->handle_osm_login( $this->user, [] );
-        $this->addToAssertionCount( 1 );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [] ) );
     }
 }
 
