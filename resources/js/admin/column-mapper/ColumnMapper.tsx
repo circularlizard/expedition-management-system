@@ -69,8 +69,8 @@ const ColumnMapper: React.FC = () => {
                 body: JSON.stringify(mapping)
             });
             const data = await response.json();
-            if (data.error) {
-                setError(data.error);
+            if (response.ok === false || data.error || (data.code && data.message)) {
+                setError(data.message || data.error || 'Failed to save mapping');
             } else {
                 setSuccess(true);
             }

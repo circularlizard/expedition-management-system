@@ -75,8 +75,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $controller = $this->create_controller();
         $response   = $controller->create_event( $this->json_request( [ 'ems_event_code' => 'H-SP1' ] ) );
 
-        $this->assertSame( 400, $response->get_status() );
-        $this->assertSame( 'ems_missing_required_field', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_missing_required_field', $response->get_error_code() );
     }
 
     public function test_create_event_invalid_enum_returns_400(): void {
@@ -93,8 +94,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
             'ems_end_date'   => '2027-06-03',
         ] ) );
 
-        $this->assertSame( 400, $response->get_status() );
-        $this->assertSame( 'ems_invalid_field_value', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_invalid_field_value', $response->get_error_code() );
     }
 
     public function test_update_event_success(): void {
@@ -124,8 +126,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $request->set_param( 'id', 20 );
         $response   = $controller->update_event( $request );
 
-        $this->assertSame( 400, $response->get_status() );
-        $this->assertSame( 'ems_invalid_field_value', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_invalid_field_value', $response->get_error_code() );
     }
 
 
@@ -141,8 +144,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $request->set_param( 'id', 20 );
         $response   = $controller->delete_event( $request );
 
-        $this->assertSame( 409, $response->get_status() );
-        $this->assertSame( 'ems_event_has_teams', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 409, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_event_has_teams', $response->get_error_code() );
     }
 
     public function test_create_team_returns_201(): void {
@@ -178,8 +182,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $request->set_param( 'id', 30 );
         $response   = $controller->delete_team( $request );
 
-        $this->assertSame( 409, $response->get_status() );
-        $this->assertSame( 'ems_team_has_members', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 409, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_team_has_members', $response->get_error_code() );
     }
 
     public function test_move_team_to_different_type_returns_422(): void {
@@ -198,8 +203,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $request->set_param( 'id', 30 );
         $response   = $controller->move_team( $request );
 
-        $this->assertSame( 422, $response->get_status() );
-        $this->assertSame( 'ems_incompatible_event_type', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 422, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_incompatible_event_type', $response->get_error_code() );
     }
 
     public function test_add_member_explorer_not_found_returns_404(): void {
@@ -216,8 +222,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $request->set_param( 'team_id', 30 );
         $response   = $controller->add_member( $request );
 
-        $this->assertSame( 404, $response->get_status() );
-        $this->assertSame( 'ems_explorer_not_found', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 404, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_explorer_not_found', $response->get_error_code() );
     }
 
     public function test_add_member_zero_scout_id_returns_400(): void {
@@ -228,8 +235,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $request->set_param( 'team_id', 30 );
         $response   = $controller->add_member( $request );
 
-        $this->assertSame( 400, $response->get_status() );
-        $this->assertSame( 'ems_invalid_scout_id', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_invalid_scout_id', $response->get_error_code() );
     }
 
     public function test_get_board_returns_season_event_team_hierarchy(): void {
@@ -379,7 +387,8 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $request->set_param( 'scout_id', 30001 );
         $response   = $controller->update_first_aid_level( $request );
 
-        $this->assertSame( 500, $response->get_status() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 500, $response->get_error_data()['status'] );
     }
 
     public function test_update_first_aid_level_rejects_invalid_value(): void {
@@ -393,7 +402,8 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $request->set_param( 'scout_id', 30001 );
         $response   = $controller->update_first_aid_level( $request );
 
-        $this->assertSame( 400, $response->get_status() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
     }
 
     public function test_get_explorer_profile_returns_joined_data(): void {
@@ -598,7 +608,8 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
         $response   = $controller->get_explorer_profile( $request );
 
-        $this->assertSame( 404, $response->get_status() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 404, $response->get_error_data()['status'] );
     }
 
     public function test_list_participant_signups_success(): void {
@@ -862,8 +873,9 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         ] );
         $response = $controller->unlink_signup( $request );
 
-        $this->assertSame( 409, $response->get_status() );
-        $this->assertSame( 'ems_unlink_conflict', $response->get_data()->get_error_code() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 409, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_unlink_conflict', $response->get_error_code() );
     }
 
     public function test_list_all_signups_returns_combined_active_list(): void {

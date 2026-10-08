@@ -82,7 +82,9 @@ class Admin_View_ControllerTest extends EMSTestCase {
 
         $response = $this->make_controller()->get_explorer_detail( $request );
 
-        $this->assertEquals( 404, $response->get_status() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 404, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_explorer_not_found', $response->get_error_code() );
     }
 
     public function test_get_team_detail_returns_members_and_first_aid_flag(): void {
@@ -278,7 +280,9 @@ class Admin_View_ControllerTest extends EMSTestCase {
         
         $response = $this->make_controller()->update_event_training_requirements( $request );
         
-        $this->assertSame( 400, $response->get_status() );
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+        $this->assertSame( 'ems_invalid_parameters', $response->get_error_code() );
     }
 }
 
