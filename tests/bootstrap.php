@@ -92,3 +92,11 @@ if ( ! class_exists( 'WP_Error' ) ) {
         }
     }
 }
+
+if ( ! defined( 'EMS_PLUGIN_FILE' ) ) {
+    define( 'EMS_PLUGIN_FILE', dirname( __DIR__ ) . '/ems-plugin.php' );
+}
+
+if ( ! defined( 'EMS_VERSION' ) ) {
+    define( 'EMS_VERSION', '0.1.89' );
+}

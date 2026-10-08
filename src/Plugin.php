@@ -624,6 +624,15 @@ class Plugin {
 			true
 		);
 
+		$fluent_sync_js = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/fluent-forms-sync.js';
+		wp_register_script(
+			'ems-fluent-forms-sync',
+			$fluent_sync_js,
+			array( 'jquery' ),
+			EMS_VERSION,
+			true
+		);
+
 		global $post;
 		if ( is_a( $post, 'WP_Post' ) ) {
 			if ( has_shortcode( $post->post_content, 'ems-volunteer-signup' ) ) {

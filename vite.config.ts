@@ -27,8 +27,9 @@ export default defineConfig({
                 'expedition-board': resolve( __dirname, 'resources/js/admin/expedition-board/index.tsx' ),
                 'signups-board':    resolve( __dirname, 'resources/js/admin/signups-board/index.tsx' ),
                 'volunteers':       resolve( __dirname, 'resources/js/admin/volunteers/index.tsx' ),
-                'volunteer-signup': resolve( __dirname, 'resources/js/admin/volunteers/signup-wizard.tsx' ),
-                'ems-portal':       resolve( __dirname, 'resources/js/portal/index.tsx' ),
+                'volunteer-signup':  resolve( __dirname, 'resources/js/admin/volunteers/signup-wizard.tsx' ),
+                'ems-portal':        resolve( __dirname, 'resources/js/portal/index.tsx' ),
+                'fluent-forms-sync': resolve( __dirname, 'resources/js/fluent-forms/index.ts' ),
             },
             output: {
                 entryFileNames: '[name].js',
