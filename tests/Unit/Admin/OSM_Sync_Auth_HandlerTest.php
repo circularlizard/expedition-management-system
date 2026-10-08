@@ -55,9 +55,7 @@ class OSM_Sync_Auth_HandlerTest extends EMSTestCase {
         } ) )->once();
 
         $handler = new OSM_Sync_Auth_Handler();
-        $handler->initiate();
-        
-        $this->assertTrue( true ); // Avoid risky test
+        $this->assertNull( $handler->initiate() );
     }
 
     public function test_handle_callback_validates_nonce_and_exchanges_token(): void {

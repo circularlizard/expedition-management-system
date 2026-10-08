@@ -162,8 +162,7 @@ class OSM_API_ClientTest extends EMSTestCase {
             ->with( 'test-token' );
 
         $client = new OSM_API_Client( $this->driver, $this->parser );
-        $client->set_access_token( 'test-token' );
-        $this->assertTrue( true );
+        $this->assertNull( $client->set_access_token( 'test-token' ) );
     }
 
     public function test_get_section_events_returns_parsed_events(): void {

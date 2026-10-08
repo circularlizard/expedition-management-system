@@ -235,9 +235,9 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         Functions\when( 'set_transient' )->justReturn( true );
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
-        $sync->sync( [ 43105 ], $this->make_payload() );
+        $result = $sync->sync( [ 43105 ], $this->make_payload() );
 
-        $this->assertTrue( true );
+        $this->assertInstanceOf( \EMS\Integrations\Sync_Result::class, $result );
     }
 
     public function test_sync_writes_last_sync_result_transient(): void {
@@ -272,9 +272,10 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $empty_payload = [ 'data' => [ 'globals' => [ 'terms' => [] ] ] ];
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
-        $sync->sync( [ 43105 ], $empty_payload );
+        $result = $sync->sync( [ 43105 ], $empty_payload );
 
-        $this->assertTrue( true );
+        $this->assertInstanceOf( \EMS\Integrations\Sync_Result::class, $result );
+        $this->assertSame( 0, $result->members_upserted );
     }
 
     // -------------------------------------------------------------------
@@ -402,9 +403,10 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $logger->shouldReceive( 'persist' )->once();
 
         $sync = new OSM_Reference_Sync( $this->api_client, $this->parser );
-        $sync->sync( [ 43105 ], $this->make_payload(), 'mock', 0, $logger );
+        $result = $sync->sync( [ 43105 ], $this->make_payload(), 'mock', 0, $logger );
 
-        $this->addToAssertionCount( 1 );
+        $this->assertInstanceOf( \EMS\Integrations\Sync_Result::class, $result );
+        $this->assertEmpty( $result->errors );
     }
 
     public function test_sync_auto_registers_missing_sections(): void {

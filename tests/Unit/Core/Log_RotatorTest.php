@@ -29,8 +29,7 @@ class Log_RotatorTest extends EMSTestCase {
             }))
             ->andReturn(20000); // 20,000 rows
 
-        Log_Rotator::purge_old_logs();
-        $this->addToAssertionCount(1);
+        $this->assertNull( Log_Rotator::purge_old_logs() );
     }
 
     public function test_purge_old_logs_caps_table_rows_if_exceeding_limit(): void {
@@ -78,7 +77,6 @@ class Log_RotatorTest extends EMSTestCase {
             ->with('PREPARED_DELETE_SQL')
             ->andReturn(5000);
 
-        Log_Rotator::purge_old_logs();
-        $this->addToAssertionCount(1);
+        $this->assertNull( Log_Rotator::purge_old_logs() );
     }
 }

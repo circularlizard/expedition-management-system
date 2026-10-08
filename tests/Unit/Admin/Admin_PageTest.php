@@ -83,8 +83,11 @@ class Admin_PageTest extends EMSTestCase {
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
 		$page = new Admin_Page( $diagnostic );
+		ob_start();
 		$page->save_sections( [ 'ems_managed_section_ids' => [ '10001' ] ] );
+		$output = ob_get_clean();
 
+		$this->assertStringContainsString( 'Managed sections updated.', (string) $output );
 		$this->assertArrayHasKey( 10001, $stored['ems_managed_sections'] );
 		$this->assertArrayNotHasKey( 10002, $stored['ems_managed_sections'] );
 		$this->assertSame( 'Silver ESU', $stored['ems_managed_sections'][10001]['name'] );
@@ -103,8 +106,11 @@ class Admin_PageTest extends EMSTestCase {
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
 		$page = new Admin_Page( $diagnostic );
+		ob_start();
 		$page->save_sections( [ 'ems_managed_section_ids' => [ '99999' ] ] );
+		$output = ob_get_clean();
 
+		$this->assertStringContainsString( 'Managed sections updated.', (string) $output );
 		$this->assertEmpty( $stored['ems_managed_sections'] );
 	}
 
@@ -120,8 +126,11 @@ class Admin_PageTest extends EMSTestCase {
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
 		$page = new Admin_Page( $diagnostic );
+		ob_start();
 		$page->save_sections( [] );
+		$output = ob_get_clean();
 
+		$this->assertStringContainsString( 'Managed sections updated.', (string) $output );
 		$this->assertEmpty( $stored['ems_managed_sections'] );
 	}
 
@@ -138,8 +147,11 @@ class Admin_PageTest extends EMSTestCase {
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
 		$page = new Admin_Page( $diagnostic );
+		ob_start();
 		$page->save_sections( [ 'ems_managed_section_ids' => [ '10001' ] ] );
+		$output = ob_get_clean();
 
+		$this->assertStringContainsString( 'Managed sections updated.', (string) $output );
 		$this->assertArrayNotHasKey( 'extraid', $stored['ems_managed_sections'][10001] );
 	}
 
@@ -156,11 +168,14 @@ class Admin_PageTest extends EMSTestCase {
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
 		$page = new Admin_Page( $diagnostic );
+		ob_start();
 		$page->save_sections( [
 			'ems_managed_section_ids' => [ '10001' ],
 			'ems_writeback_section_id' => '10001',
 		] );
+		$output = ob_get_clean();
 
+		$this->assertStringContainsString( 'Managed sections updated.', (string) $output );
 		$this->assertSame( 10001, $stored['ems_writeback_section_id'] );
 	}
 
@@ -179,6 +194,7 @@ class Admin_PageTest extends EMSTestCase {
 		$page->shouldAllowMockingProtectedMethods();
 		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
 
+		ob_start();
 		$page->save_unit_leaders( [
 			'unit_leaders' => [
 				12 => [
@@ -189,8 +205,9 @@ class Admin_PageTest extends EMSTestCase {
 				]
 			]
 		] );
+		$output = ob_get_clean();
 
-		$this->addToAssertionCount( 1 );
+		$this->assertStringContainsString( 'Unit lookup configurations saved.', (string) $output );
 	}
 
 	public function test_handle_import_units_unauthorized(): void {
