@@ -54,7 +54,6 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     signups,
     onNavigateToTable,
 }) => {
-    const [chartTypeFilter, setChartTypeFilter] = useState<string>('all');
     const [chartLevelFilter, setChartLevelFilter] = useState<string>('all');
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<number | undefined>(undefined);
     const [hoveredWeekIdx, setHoveredWeekIdx] = useState<number | null>(null);
@@ -64,11 +63,10 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     const cumulativeSeries = useMemo(
         () =>
             computeWeeklyCumulativeSeries(signups, {
-                typeFilter: chartTypeFilter,
                 levelFilter: chartLevelFilter,
                 schoolYearStart: selectedSchoolYear,
             }),
-        [signups, chartTypeFilter, chartLevelFilter, selectedSchoolYear]
+        [signups, chartLevelFilter, selectedSchoolYear]
     );
 
     const totalSignups = metrics.byType.total;
@@ -87,7 +85,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     const weeks = cumulativeSeries.weeks;
     const maxCumulative = Math.max(
         5,
-        ...weeks.map((w) => w.cumulativeCount)
+        ...weeks.map((w) => Math.max(w.participantCumulativeCount, w.expeditionCumulativeCount))
     );
 
     const yTicks = useMemo(() => {
@@ -110,15 +108,28 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
         return padTop + plotHeight - (val / yMaxTick) * plotHeight;
     };
 
-    const linePoints = weeks
-        .map((w, idx) => `${getX(idx).toFixed(1)},${getY(w.cumulativeCount).toFixed(1)}`)
+    const participantLinePoints = weeks
+        .map((w, idx) => `${getX(idx).toFixed(1)},${getY(w.participantCumulativeCount).toFixed(1)}`)
         .join(' ');
 
-    const areaPath =
+    const participantAreaPath =
         weeks.length > 0
             ? `M ${getX(0).toFixed(1)} ${(padTop + plotHeight).toFixed(1)} ` +
               weeks
-                  .map((w, idx) => `L ${getX(idx).toFixed(1)} ${getY(w.cumulativeCount).toFixed(1)}`)
+                  .map((w, idx) => `L ${getX(idx).toFixed(1)} ${getY(w.participantCumulativeCount).toFixed(1)}`)
+                  .join(' ') +
+              ` L ${getX(weeks.length - 1).toFixed(1)} ${(padTop + plotHeight).toFixed(1)} Z`
+            : '';
+
+    const expeditionLinePoints = weeks
+        .map((w, idx) => `${getX(idx).toFixed(1)},${getY(w.expeditionCumulativeCount).toFixed(1)}`)
+        .join(' ');
+
+    const expeditionAreaPath =
+        weeks.length > 0
+            ? `M ${getX(0).toFixed(1)} ${(padTop + plotHeight).toFixed(1)} ` +
+              weeks
+                  .map((w, idx) => `L ${getX(idx).toFixed(1)} ${getY(w.expeditionCumulativeCount).toFixed(1)}`)
                   .join(' ') +
               ` L ${getX(weeks.length - 1).toFixed(1)} ${(padTop + plotHeight).toFixed(1)} Z`
             : '';
@@ -606,10 +617,27 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             📈 Cumulative Signups by Week
                         </h3>
                         <div className="ems-meta-text ems-mt-4">
-                            School year {cumulativeSeries.schoolYearLabel} · Cumulative total:{' '}
-                            <strong data-testid="chart-cumulative-total">
-                                {cumulativeSeries.totalMatching}
-                            </strong>
+                            School year {cumulativeSeries.schoolYearLabel}
+                        </div>
+                        <div className="ems-flex-center ems-gap-16 ems-mt-8 ems-wrap">
+                            <span className="ems-flex-center ems-gap-6 ems-small-text">
+                                <span className="ems-status-badge ems-status-badge--participant">
+                                    Place
+                                </span>
+                                Participant Place:{' '}
+                                <strong data-testid="chart-cumulative-participant">
+                                    {cumulativeSeries.totalParticipant}
+                                </strong>
+                            </span>
+                            <span className="ems-flex-center ems-gap-6 ems-small-text">
+                                <span className="ems-status-badge ems-status-badge--expedition">
+                                    Exped
+                                </span>
+                                Expedition Preference:{' '}
+                                <strong data-testid="chart-cumulative-expedition">
+                                    {cumulativeSeries.totalExpedition}
+                                </strong>
+                            </span>
                         </div>
                     </div>
 
@@ -642,26 +670,6 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
 
                         <div className="ems-flex-center ems-gap-6">
                             <label
-                                htmlFor="chart-type-filter"
-                                className="ems-toolbar__label"
-                            >
-                                Chart Signup Type:
-                            </label>
-                            <select
-                                id="chart-type-filter"
-                                aria-label="Chart Signup Type"
-                                className="ems-select-sm"
-                                value={chartTypeFilter}
-                                onChange={(e) => setChartTypeFilter(e.target.value)}
-                            >
-                                <option value="all">All Types</option>
-                                <option value="participant">Participant Place</option>
-                                <option value="expedition">Expedition Preference</option>
-                            </select>
-                        </div>
-
-                        <div className="ems-flex-center ems-gap-6">
-                            <label
                                 htmlFor="chart-level-filter"
                                 className="ems-toolbar__label"
                             >
@@ -690,16 +698,20 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             Week {activeHoverWeek.weekNumber} ({activeHoverWeek.rangeLabel}):
                         </span>{' '}
                         <span>
-                            <strong>+{activeHoverWeek.weeklyCount}</strong> new in week
+                            Participant Place:{' '}
+                            <strong>{activeHoverWeek.participantCumulativeCount}</strong> cumulative (
+                            +{activeHoverWeek.participantWeeklyCount} new)
                         </span>{' '}
                         ·{' '}
                         <span>
-                            <strong>{activeHoverWeek.cumulativeCount}</strong> cumulative signups
+                            Expedition Preference:{' '}
+                            <strong>{activeHoverWeek.expeditionCumulativeCount}</strong> cumulative (
+                            +{activeHoverWeek.expeditionWeeklyCount} new)
                         </span>
                     </div>
                 )}
 
-                {/* Native SVG Cumulative Chart */}
+                {/* Native SVG Cumulative Chart (2 Lines) */}
                 <div className="ems-dashboard-chart-wrap">
                     <svg
                         className="ems-dashboard-chart-svg"
@@ -708,8 +720,12 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                         aria-label="Cumulative signups by week chart"
                     >
                         <defs>
-                            <linearGradient id="emsCumulativeAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#15803D" stopOpacity="0.28" />
+                            <linearGradient id="emsParticipantAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#2271b1" stopOpacity="0.22" />
+                                <stop offset="100%" stopColor="#2271b1" stopOpacity="0.02" />
+                            </linearGradient>
+                            <linearGradient id="emsExpeditionAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#15803D" stopOpacity="0.22" />
                                 <stop offset="100%" stopColor="#15803D" stopOpacity="0.02" />
                             </linearGradient>
                         </defs>
@@ -741,42 +757,39 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             );
                         })}
 
-                        {/* Weekly New Signups Bars (subtle background bars) */}
-                        {weeks.map((w, idx) => {
-                            if (w.weeklyCount <= 0) return null;
-                            const x = getX(idx);
-                            const barWidth = Math.max(4, Math.min(14, plotWidth / (weeks.length * 1.6)));
-                            const barTop = getY(w.weeklyCount);
-                            const barH = padTop + plotHeight - barTop;
-                            return (
-                                <rect
-                                    key={`bar_${w.weekNumber}`}
-                                    x={x - barWidth / 2}
-                                    y={barTop}
-                                    width={barWidth}
-                                    height={barH}
-                                    rx="2"
-                                    fill="#cbd5e1"
-                                    opacity="0.55"
-                                />
-                            );
-                        })}
-
-                        {/* Cumulative Area & Line */}
-                        {areaPath && <path d={areaPath} fill="url(#emsCumulativeAreaGrad)" />}
-                        {linePoints && (
+                        {/* Participant Place Cumulative Area & Line (Blue) */}
+                        {participantAreaPath && (
+                            <path d={participantAreaPath} fill="url(#emsParticipantAreaGrad)" />
+                        )}
+                        {participantLinePoints && (
                             <polyline
+                                data-testid="chart-line-participant"
+                                fill="none"
+                                stroke="#2271b1"
+                                strokeWidth="2.5"
+                                points={participantLinePoints}
+                            />
+                        )}
+
+                        {/* Expedition Preference Cumulative Area & Line (Green) */}
+                        {expeditionAreaPath && (
+                            <path d={expeditionAreaPath} fill="url(#emsExpeditionAreaGrad)" />
+                        )}
+                        {expeditionLinePoints && (
+                            <polyline
+                                data-testid="chart-line-expedition"
                                 fill="none"
                                 stroke="#15803D"
                                 strokeWidth="2.5"
-                                points={linePoints}
+                                points={expeditionLinePoints}
                             />
                         )}
 
                         {/* Data Points & X-Axis Labels */}
                         {weeks.map((w, idx) => {
                             const x = getX(idx);
-                            const y = getY(w.cumulativeCount);
+                            const yParticipant = getY(w.participantCumulativeCount);
+                            const yExpedition = getY(w.expeditionCumulativeCount);
                             const isHovered = hoveredWeekIdx === idx;
                             const showLabel = idx === 0 || idx === weeks.length - 1 || idx % labelStep === 0;
 
@@ -789,14 +802,26 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                 >
                                     <circle
                                         cx={x}
-                                        cy={y}
-                                        r={isHovered ? 5.5 : 3.5}
+                                        cy={yParticipant}
+                                        r={isHovered ? 5 : 3.2}
+                                        fill={isHovered ? '#2271b1' : '#ffffff'}
+                                        stroke="#2271b1"
+                                        strokeWidth="2"
+                                    >
+                                        <title>
+                                            {`Week ${w.weekNumber} (${w.rangeLabel}) — Participant Place: +${w.participantWeeklyCount} new, ${w.participantCumulativeCount} cumulative`}
+                                        </title>
+                                    </circle>
+                                    <circle
+                                        cx={x}
+                                        cy={yExpedition}
+                                        r={isHovered ? 5 : 3.2}
                                         fill={isHovered ? '#15803D' : '#ffffff'}
                                         stroke="#15803D"
                                         strokeWidth="2"
                                     >
                                         <title>
-                                            {`Week ${w.weekNumber} (${w.rangeLabel}): +${w.weeklyCount} new, ${w.cumulativeCount} cumulative`}
+                                            {`Week ${w.weekNumber} (${w.rangeLabel}) — Expedition Preference: +${w.expeditionWeeklyCount} new, ${w.expeditionCumulativeCount} cumulative`}
                                         </title>
                                     </circle>
                                     {showLabel && (
