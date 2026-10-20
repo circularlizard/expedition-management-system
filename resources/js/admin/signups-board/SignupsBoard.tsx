@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
+import { computeSignupsDashboardMetrics, getSignupRecordKey } from './dashboardMetrics';
 
 interface SignupsConfig {
     root_url: string;
@@ -35,6 +37,7 @@ const firstNamesSimilar = (nameA: string, nameB: string): boolean => {
 export default function SignupsBoard({ type: _ignoredProp }: { type?: string } = {}) {
     const config = window.emsSignupsBoard || { root_url: '', nonce: '' };
 
+    const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'table'>('dashboard');
     const [signups, setSignups] = useState<any[]>([]);
     const [explorers, setExplorers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,7 +47,9 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     const [statusFilter, setStatusFilter] = useState<string>('submitted');
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [levelFilter, setLevelFilter] = useState<string>('all');
+    const [expeditionTypeFilter, setExpeditionTypeFilter] = useState<string>('all');
     const [unitFilter, setUnitFilter] = useState<string>('all');
+    const [anomalyFilter, setAnomalyFilter] = useState<'all' | 'no_expedition' | 'duplicate' | 'unmatched_osm'>('all');
 
     // Grouping & Sorting
     const [grouping, setGrouping] = useState<'none' | 'unit' | 'level' | 'explorer' | 'parent'>('none');
@@ -64,7 +69,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, typeFilter, levelFilter, unitFilter, sortKey, sortOrder, grouping]);
+    }, [statusFilter, typeFilter, levelFilter, expeditionTypeFilter, unitFilter, anomalyFilter, sortKey, sortOrder, grouping]);
 
     useEffect(() => {
         if (selectedSignup && inspectorRef.current) {
@@ -123,11 +128,23 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                 const targetId = parseInt(idParam, 10);
                 const found = signups.find(s => s.id === targetId);
                 if (found) {
+                    setActiveViewTab('table');
                     setSelectedSignup(found);
                 }
             }
         }
     }, [loading, signups]);
+
+    const handleNavigateToTable = (filters: TableDrilldownFilters) => {
+        setStatusFilter('submitted');
+        setTypeFilter(filters.typeFilter ?? 'all');
+        setLevelFilter(filters.levelFilter ?? 'all');
+        setExpeditionTypeFilter(filters.expeditionTypeFilter ?? 'all');
+        setAnomalyFilter(filters.anomalyFilter ?? 'all');
+        setGrouping(filters.grouping ?? 'none');
+        setSelectedSignup(null);
+        setActiveViewTab('table');
+    };
 
     const handleReconcile = async (signupId: number, signupType: string, scoutId: number) => {
         try {
@@ -250,11 +267,23 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         });
     };
 
+    const dashboardMetrics = useMemo(() => computeSignupsDashboardMetrics(signups), [signups]);
+
     // Filter signups in memory
     const filteredSignups = signups.filter(s => {
         if (typeFilter !== 'all' && s.type !== typeFilter) return false;
         if (levelFilter !== 'all' && (s.dofe_level || '').toLowerCase() !== levelFilter.toLowerCase()) return false;
+        if (expeditionTypeFilter !== 'all') {
+            const expedType = normalize(s.expedition_preferences?.exped_type || '');
+            if (expedType !== normalize(expeditionTypeFilter)) return false;
+        }
         if (unitFilter !== 'all' && (s.unit_name || 'Unassigned') !== unitFilter) return false;
+        if (anomalyFilter !== 'all') {
+            const key = getSignupRecordKey(s);
+            if (anomalyFilter === 'no_expedition' && !dashboardMetrics.participantWithoutExpedition.signupKeys.has(key)) return false;
+            if (anomalyFilter === 'duplicate' && !dashboardMetrics.duplicates.signupKeys.has(key)) return false;
+            if (anomalyFilter === 'unmatched_osm' && !dashboardMetrics.unmatchedOsm.signupKeys.has(key)) return false;
+        }
         return true;
     });
 
@@ -550,254 +579,331 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
             <div className="ems-signups-main">
                 {error && <div className="ems-error-notice">{error}</div>}
 
-                {/* Filter and Control Bar */}
-                <div className="ems-signups-toolbar">
-                    {/* Status Tabs */}
-                    <div className="ems-flex-center ems-gap-8">
-                        <label className={`ems-filter-pill ${statusFilter === 'submitted' ? 'ems-filter-pill--active' : ''}`}>
-                            <input 
-                                type="radio" 
-                                name="statusFilter" 
-                                value="submitted" 
-                                checked={statusFilter === 'submitted'} 
-                                onChange={() => setStatusFilter('submitted')} 
-                            />
-                            Submitted
-                        </label>
-                        <label className={`ems-filter-pill ${statusFilter === 'archived' ? 'ems-filter-pill--active' : ''}`}>
-                            <input 
-                                type="radio" 
-                                name="statusFilter" 
-                                value="archived" 
-                                checked={statusFilter === 'archived'} 
-                                onChange={() => setStatusFilter('archived')} 
-                            />
-                            Archived
-                        </label>
-                    </div>
-
-                    {/* Filters & Grouping Dropdowns */}
-                    <div className="ems-flex-center ems-gap-16 ems-wrap">
-                        {/* Group By selector */}
-                        <div className="ems-flex-center ems-gap-8">
-                            <label htmlFor="grouping-select" className="ems-toolbar__label">Group By:</label>
-                            <select
-                                id="grouping-select"
-                                value={grouping}
-                                onChange={(e) => setGrouping(e.target.value as any)}
-                                className="ems-select"
-                            >
-                                <option value="none">Ungrouped</option>
-                                <option value="explorer">Explorer</option>
-                                <option value="parent">Parent</option>
-                                <option value="unit">Unit</option>
-                                <option value="level">Level</option>
-                            </select>
-                        </div>
-
-                        {/* Form Type selector */}
-                        <div className="ems-flex-center ems-gap-8">
-                            <label htmlFor="type-filter" className="ems-toolbar__label">Form Type:</label>
-                            <select
-                                id="type-filter"
-                                value={typeFilter}
-                                onChange={(e) => setTypeFilter(e.target.value)}
-                                className="ems-select"
-                            >
-                                <option value="all">All Types</option>
-                                <option value="participant">Participant Place</option>
-                                <option value="expedition">Expedition Preference</option>
-                            </select>
-                        </div>
-
-                        {/* Level selector */}
-                        <div className="ems-flex-center ems-gap-8">
-                            <label htmlFor="level-filter" className="ems-toolbar__label">Filter Level:</label>
-                            <select
-                                id="level-filter"
-                                value={levelFilter}
-                                onChange={(e) => setLevelFilter(e.target.value)}
-                                className="ems-select"
-                            >
-                                <option value="all">All Levels</option>
-                                <option value="bronze">Bronze</option>
-                                <option value="silver">Silver</option>
-                                <option value="gold">Gold</option>
-                            </select>
-                        </div>
-
-                        {/* Unit selector */}
-                        <div className="ems-flex-center ems-gap-8">
-                            <label htmlFor="unit-filter" className="ems-toolbar__label">Unit:</label>
-                            <select
-                                id="unit-filter"
-                                value={unitFilter}
-                                onChange={(e) => setUnitFilter(e.target.value)}
-                                className="ems-select"
-                            >
-                                <option value="all">All Units</option>
-                                {uniqueUnits.map(u => (
-                                    <option key={u} value={u}>{u}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <button
-                            type="button"
-                            className="button button-secondary"
-                            onClick={() => {
-                                const exportUrl = `${config.root_url}/signups/participants/export?status=${statusFilter}&level=${levelFilter}&_wpnonce=${config.nonce}`;
-                                window.location.href = exportUrl;
-                            }}
-                        >
-                            Export CSV
-                        </button>
-                    </div>
+                {/* Top View Tab Navigation */}
+                <div className="ems-tab-nav">
+                    <button
+                        type="button"
+                        className={`ems-tab-nav__button ${activeViewTab === 'dashboard' ? 'ems-tab-nav__button--active' : ''}`}
+                        onClick={() => {
+                            setSelectedSignup(null);
+                            setActiveViewTab('dashboard');
+                        }}
+                    >
+                        Dashboard
+                    </button>
+                    <button
+                        type="button"
+                        className={`ems-tab-nav__button ${activeViewTab === 'table' ? 'ems-tab-nav__button--active' : ''}`}
+                        onClick={() => setActiveViewTab('table')}
+                    >
+                        Signups Table ({filteredSignups.length})
+                    </button>
                 </div>
 
-                {/* Table Grid */}
-                <div className="ems-panel">
-                    <div className="ems-signups-table-wrap">
-                        <table className="ems-table">
-                            <thead>
-                                <tr>
-                                    <th className="ems-table-cell--center ems-m-0"></th>
-                                    {renderHeader('Form Type', 'type')}
-                                    {renderHeader('Submission Date', 'created_at')}
-                                    {renderHeader('Explorer Name', 'explorer_first_name')}
-                                    {renderHeader('Level', 'dofe_level')}
-                                    {renderHeader('ESU', 'unit_name')}
-                                    {renderHeader('Email', 'explorer_email')}
-                                    {renderHeader('DofE Number', 'dofe_number')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedGroupedSignups.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={8} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
-                                            No signup records found for this filter state.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    paginatedGroupedSignups.map(g => (
-                                        <React.Fragment key={g.title || 'flat'}>
-                                            {g.title && (
-                                                <tr className="ems-table-group-header">
-                                                    <td colSpan={8}><strong>{g.title}</strong></td>
-                                                </tr>
-                                            )}
-                                            {g.items.map((s) => (
-                                                <tr 
-                                                    key={`${s.type}_${s.id}`} 
-                                                    onClick={() => setSelectedSignup(s)}
-                                                    className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id && selectedSignup.type === s.type ? 'ems-table-row--selected' : ''}`}
-                                                >
-                                                    <td className="ems-table-cell--center">
-                                                        {s.scout_id !== 0 ? (
-                                                            <span title="Synced with OSM" className="ems-fa-full">✓</span>
-                                                        ) : (
-                                                            <span title="Guest Roster / Unmatched" className="ems-fa-warning">⚠️</span>
-                                                        )}
-                                                    </td>
-                                                    <td>
-                                                        <span className={`ems-status-badge ems-status-badge--${s.type}`}>
-                                                            {s.type === 'participant' ? 'Place' : 'Exped'}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        {s.created_at ? s.created_at.substring(0, 16) : '—'}
-                                                    </td>
-                                                    <td>
-                                                        <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
-                                                    </td>
-                                                    <td>
-                                                        <span className={`ems-pill ems-pill--${s.dofe_level}`}>
-                                                            {s.dofe_level}
-                                                        </span>
-                                                    </td>
-                                                    <td>{s.unit_name || 'Unassigned'}</td>
-                                                    <td>{s.explorer_email || '—'}</td>
-                                                    <td className="ems-monospace">
-                                                        {s.dofe_number || '—'}
-                                                        {s.dofe_registered === 'y-other' && (
-                                                            <div className="ems-signups-transfer-warning">
-                                                                ⚠️ Transfer Req.
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </React.Fragment>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-
-                        {/* Pagination Bar */}
-                        {totalItems > 0 && (
-                            <div className="ems-table-pagination">
-                                <div className="ems-meta-text">
-                                    Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} {grouping === 'none' ? 'records' : (grouping === 'explorer' ? 'explorers' : 'groups')}
-                                </div>
-                                <div className="ems-flex-center ems-gap-8">
-                                    <label htmlFor="items-per-page" className="ems-toolbar__label">Items per page:</label>
-                                    <select
-                                        id="items-per-page"
-                                        className="ems-select-sm"
-                                        value={itemsPerPage}
-                                        onChange={(e) => {
-                                            setItemsPerPage(parseInt(e.target.value));
-                                            setCurrentPage(1);
-                                        }}
-                                    >
-                                        <option value={10}>10</option>
-                                        <option value={25}>25</option>
-                                        <option value={50}>50</option>
-                                        <option value={100}>100</option>
-                                    </select>
-
-                                    <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
-                                        <button
-                                            type="button"
-                                            className="button button-small"
-                                            onClick={() => setCurrentPage(1)}
-                                            disabled={currentPage === 1}
-                                        >
-                                            «
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="button button-small"
-                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPage === 1}
-                                        >
-                                            ‹ Prev
-                                        </button>
-                                        <span className="ems-meta-text ems-mx-8">
-                                            Page {currentPage} of {totalPages}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            className="button button-small"
-                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            disabled={currentPage === totalPages}
-                                        >
-                                            Next ›
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="button button-small"
-                                            onClick={() => setCurrentPage(totalPages)}
-                                            disabled={currentPage === totalPages}
-                                        >
-                                            »
-                                        </button>
-                                    </div>
-                                </div>
+                {activeViewTab === 'dashboard' ? (
+                    <SignupsDashboard
+                        signups={signups}
+                        onNavigateToTable={handleNavigateToTable}
+                    />
+                ) : (
+                    <>
+                        {/* Filter and Control Bar */}
+                        <div className="ems-signups-toolbar">
+                            {/* Status Tabs */}
+                            <div className="ems-flex-center ems-gap-8">
+                                <label className={`ems-filter-pill ${statusFilter === 'submitted' ? 'ems-filter-pill--active' : ''}`}>
+                                    <input 
+                                        type="radio" 
+                                        name="statusFilter" 
+                                        value="submitted" 
+                                        checked={statusFilter === 'submitted'} 
+                                        onChange={() => setStatusFilter('submitted')} 
+                                    />
+                                    Submitted
+                                </label>
+                                <label className={`ems-filter-pill ${statusFilter === 'archived' ? 'ems-filter-pill--active' : ''}`}>
+                                    <input 
+                                        type="radio" 
+                                        name="statusFilter" 
+                                        value="archived" 
+                                        checked={statusFilter === 'archived'} 
+                                        onChange={() => setStatusFilter('archived')} 
+                                    />
+                                    Archived
+                                </label>
                             </div>
-                        )}
-                    </div>
-                </div>
+
+                            {/* Filters & Grouping Dropdowns */}
+                            <div className="ems-flex-center ems-gap-16 ems-wrap">
+                                {/* Group By selector */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="grouping-select" className="ems-toolbar__label">Group By:</label>
+                                    <select
+                                        id="grouping-select"
+                                        value={grouping}
+                                        onChange={(e) => setGrouping(e.target.value as any)}
+                                        className="ems-select"
+                                    >
+                                        <option value="none">Ungrouped</option>
+                                        <option value="explorer">Explorer</option>
+                                        <option value="parent">Parent</option>
+                                        <option value="unit">Unit</option>
+                                        <option value="level">Level</option>
+                                    </select>
+                                </div>
+
+                                {/* Form Type selector */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="type-filter" className="ems-toolbar__label">Form Type:</label>
+                                    <select
+                                        id="type-filter"
+                                        value={typeFilter}
+                                        onChange={(e) => setTypeFilter(e.target.value)}
+                                        className="ems-select"
+                                    >
+                                        <option value="all">All Types</option>
+                                        <option value="participant">Participant Place</option>
+                                        <option value="expedition">Expedition Preference</option>
+                                    </select>
+                                </div>
+
+                                {/* Level selector */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="level-filter" className="ems-toolbar__label">Filter Level:</label>
+                                    <select
+                                        id="level-filter"
+                                        value={levelFilter}
+                                        onChange={(e) => setLevelFilter(e.target.value)}
+                                        className="ems-select"
+                                    >
+                                        <option value="all">All Levels</option>
+                                        <option value="bronze">Bronze</option>
+                                        <option value="silver">Silver</option>
+                                        <option value="gold">Gold</option>
+                                    </select>
+                                </div>
+
+                                {/* Expedition Type selector */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="expedition-type-filter" className="ems-toolbar__label">Expedition Type:</label>
+                                    <select
+                                        id="expedition-type-filter"
+                                        value={expeditionTypeFilter}
+                                        onChange={(e) => setExpeditionTypeFilter(e.target.value)}
+                                        className="ems-select"
+                                    >
+                                        <option value="all">All Expeditions</option>
+                                        <option value="hillwalking">Hillwalking</option>
+                                        <option value="biking">Biking</option>
+                                        <option value="paddling">Paddling</option>
+                                    </select>
+                                </div>
+
+                                {/* Unit selector */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="unit-filter" className="ems-toolbar__label">Unit:</label>
+                                    <select
+                                        id="unit-filter"
+                                        value={unitFilter}
+                                        onChange={(e) => setUnitFilter(e.target.value)}
+                                        className="ems-select"
+                                    >
+                                        <option value="all">All Units</option>
+                                        {uniqueUnits.map(u => (
+                                            <option key={u} value={u}>{u}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Quick View / Anomaly selector */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="anomaly-filter" className="ems-toolbar__label">Filter View:</label>
+                                    <select
+                                        id="anomaly-filter"
+                                        value={anomalyFilter}
+                                        onChange={(e) => setAnomalyFilter(e.target.value as any)}
+                                        className="ems-select"
+                                    >
+                                        <option value="all">All Records</option>
+                                        <option value="no_expedition">Participant Only (No Expedition)</option>
+                                        <option value="duplicate">Duplicate Signups</option>
+                                        <option value="unmatched_osm">No Synced OSM Record</option>
+                                    </select>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="button button-secondary"
+                                    onClick={() => {
+                                        const exportUrl = `${config.root_url}/signups/participants/export?status=${statusFilter}&level=${levelFilter}&_wpnonce=${config.nonce}`;
+                                        window.location.href = exportUrl;
+                                    }}
+                                >
+                                    Export CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Table Grid */}
+                        <div className="ems-panel">
+                            <div className="ems-signups-table-wrap">
+                                <table className="ems-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="ems-table-cell--center ems-m-0"></th>
+                                            {renderHeader('Form Type', 'type')}
+                                            {renderHeader('Submission Date', 'created_at')}
+                                            {renderHeader('Explorer Name', 'explorer_first_name')}
+                                            {renderHeader('Level', 'dofe_level')}
+                                            {renderHeader('Expedition Type', 'expedition')}
+                                            {renderHeader('ESU', 'unit_name')}
+                                            {renderHeader('Email', 'explorer_email')}
+                                            {renderHeader('DofE Number', 'dofe_number')}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedGroupedSignups.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
+                                                    No signup records found for this filter state.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            paginatedGroupedSignups.map(g => (
+                                                <React.Fragment key={g.title || 'flat'}>
+                                                    {g.title && (
+                                                        <tr className="ems-table-group-header">
+                                                            <td colSpan={9}><strong>{g.title}</strong></td>
+                                                        </tr>
+                                                    )}
+                                                    {g.items.map((s) => (
+                                                        <tr 
+                                                            key={`${s.type}_${s.id}`} 
+                                                            onClick={() => setSelectedSignup(s)}
+                                                            className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id && selectedSignup.type === s.type ? 'ems-table-row--selected' : ''}`}
+                                                        >
+                                                            <td className="ems-table-cell--center">
+                                                                {s.scout_id !== 0 ? (
+                                                                    <span title="Synced with OSM" className="ems-fa-full">✓</span>
+                                                                ) : (
+                                                                    <span title="Guest Roster / Unmatched" className="ems-fa-warning">⚠️</span>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <span className={`ems-status-badge ems-status-badge--${s.type}`}>
+                                                                    {s.type === 'participant' ? 'Place' : 'Exped'}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                {s.created_at ? s.created_at.substring(0, 16) : '—'}
+                                                            </td>
+                                                            <td>
+                                                                <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
+                                                            </td>
+                                                            <td>
+                                                                <span className={`ems-pill ems-pill--${s.dofe_level}`}>
+                                                                    {s.dofe_level}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                {s.type === 'expedition' && s.expedition_preferences?.exped_type ? (
+                                                                    <span>
+                                                                        {normalize(s.expedition_preferences.exped_type) === 'hillwalking'
+                                                                            ? '🥾 '
+                                                                            : normalize(s.expedition_preferences.exped_type) === 'biking'
+                                                                            ? '🚲 '
+                                                                            : '🛶 '}
+                                                                        {s.expedition_preferences.exped_type}
+                                                                    </span>
+                                                                ) : (
+                                                                    '—'
+                                                                )}
+                                                            </td>
+                                                            <td>{s.unit_name || 'Unassigned'}</td>
+                                                            <td>{s.explorer_email || '—'}</td>
+                                                            <td className="ems-monospace">
+                                                                {s.dofe_number || '—'}
+                                                                {s.dofe_registered === 'y-other' && (
+                                                                    <div className="ems-signups-transfer-warning">
+                                                                        ⚠️ Transfer Req.
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </React.Fragment>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+
+                                {/* Pagination Bar */}
+                                {totalItems > 0 && (
+                                    <div className="ems-table-pagination">
+                                        <div className="ems-meta-text">
+                                            Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} {grouping === 'none' ? 'records' : (grouping === 'explorer' ? 'explorers' : 'groups')}
+                                        </div>
+                                        <div className="ems-flex-center ems-gap-8">
+                                            <label htmlFor="items-per-page" className="ems-toolbar__label">Items per page:</label>
+                                            <select
+                                                id="items-per-page"
+                                                className="ems-select-sm"
+                                                value={itemsPerPage}
+                                                onChange={(e) => {
+                                                    setItemsPerPage(parseInt(e.target.value));
+                                                    setCurrentPage(1);
+                                                }}
+                                            >
+                                                <option value={10}>10</option>
+                                                <option value={25}>25</option>
+                                                <option value={50}>50</option>
+                                                <option value={100}>100</option>
+                                            </select>
+
+                                            <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
+                                                <button
+                                                    type="button"
+                                                    className="button button-small"
+                                                    onClick={() => setCurrentPage(1)}
+                                                    disabled={currentPage === 1}
+                                                >
+                                                    «
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="button button-small"
+                                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                    disabled={currentPage === 1}
+                                                >
+                                                    ‹ Prev
+                                                </button>
+                                                <span className="ems-meta-text ems-mx-8">
+                                                    Page {currentPage} of {totalPages}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="button button-small"
+                                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                    disabled={currentPage === totalPages}
+                                                >
+                                                    Next ›
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="button button-small"
+                                                    onClick={() => setCurrentPage(totalPages)}
+                                                    disabled={currentPage === totalPages}
+                                                >
+                                                    »
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Inspector Panel - Slide-Out/Docked Layout */}
