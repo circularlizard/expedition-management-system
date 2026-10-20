@@ -21,3 +21,48 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     Then signup 11 signup_status should be "processed"
     And explorer 103 dofe_number should be "D-882233"
     And processed_by should match the current admin user ID
+
+  Scenario: Signups Dashboard displays breakdown by signup type, level, and expedition type
+    Given the following active signups exist:
+      | id | type        | scout_id | explorer_name | dofe_level | exped_type  | is_synced_osm | created_at          |
+      | 10 | participant | 30003    | Mary Jones    | bronze     |             | 1             | 2026-08-03 10:00:00 |
+      | 11 | participant | 0        | Alice Smith   | silver     |             | 0             | 2026-08-10 10:00:00 |
+      | 12 | participant | 30002    | Bob Smith     | gold       |             | 1             | 2026-08-12 10:00:00 |
+      | 20 | expedition  | 30002    | Bob Smith     | gold       | Hillwalking | 1             | 2026-08-18 10:00:00 |
+      | 21 | expedition  | 30004    | Sam Taylor    | silver     | Biking      | 1             | 2026-08-20 10:00:00 |
+    When the administrator opens the Signups Dashboard tab
+    Then the signup type breakdown should show 3 Participant Place and 2 Expedition Preference signups
+    And the DofE level breakdown should show 1 Bronze, 2 Silver, and 2 Gold signups
+    And the expedition type breakdown should show 1 Hillwalking, 1 Biking, and 0 Paddling signups
+
+  Scenario: Cumulative signups by week chart starts August 1st and filters by signup type and level
+    Given active signups exist across Week 1 (Aug 1–7), Week 2 (Aug 8–14), and Week 3 (Aug 15–21) of the school year
+    When the administrator views the Cumulative Signups by Week chart on the Signups Dashboard
+    Then Week 1 should show cumulative total 1, Week 2 should show cumulative total 3, and Week 3 should show cumulative total 5
+    When the administrator filters the cumulative chart by signup type "participant" and level "silver"
+    Then the cumulative chart should update to count only Silver Participant Place signups
+
+  Scenario: Dashboard summarises explorers with a participant place but no expedition signup by level
+    Given explorer "Mary Jones" has a Bronze participant place signup and no expedition signup
+    And explorer "Alice Smith" has a Silver participant place signup and no expedition signup
+    And explorer "Bob Smith" has both a Gold participant place signup and a Gold expedition signup
+    When the administrator views the Signups Dashboard
+    Then the "Participant Place Only (No Expedition)" card should show 2 explorers in total
+    And the breakdown by level should show 1 Bronze, 1 Silver, and 0 Gold
+    When the administrator clicks the "Participant Place Only" card
+    Then the view should switch to the Signups Table filtered to those 2 participant place records
+
+  Scenario: Dashboard summarises duplicate signups and records not synced from OSM
+    Given explorer "Mary Jones" (scout_id 30003) has 2 active Bronze participant place signups
+    And guest explorer "Alice Smith" (scout_id 0) has 1 active Silver participant place signup with no synced OSM record
+    When the administrator views the Signups Dashboard
+    Then the "Duplicate Signups" card should show 1 duplicate group (2 duplicate records)
+    And the "No Synced OSM Record" card should show 1 unmatched signup
+
+  Scenario: Signups Table displays Expedition Type column and filters by expedition type
+    Given active signups include expedition signups for "Hillwalking" and "Biking" and participant place signups
+    When the administrator switches to the Signups Table tab
+    Then the table should include an "Expedition Type" column showing "Hillwalking" and "Biking" for expedition rows and "—" for participant rows
+    When the administrator filters the Signups Table by Expedition Type "Hillwalking"
+    Then only signups with expedition type "Hillwalking" should be displayed in the table
+
