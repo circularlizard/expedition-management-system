@@ -619,29 +619,86 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                         <div className="ems-meta-text ems-mt-4">
                             School year {cumulativeSeries.schoolYearLabel}
                         </div>
-                        <div className="ems-flex-center ems-gap-16 ems-mt-8 ems-wrap">
-                            <span className="ems-flex-center ems-gap-6 ems-small-text">
-                                <span className="ems-status-badge ems-status-badge--participant">
-                                    Place
-                                </span>
-                                Participant Place:{' '}
-                                <strong data-testid="chart-cumulative-participant">
-                                    {cumulativeSeries.totalParticipant}
-                                </strong>
-                            </span>
-                            <span className="ems-flex-center ems-gap-6 ems-small-text">
-                                <span className="ems-status-badge ems-status-badge--expedition">
-                                    Exped
-                                </span>
-                                Expedition Preference:{' '}
-                                <strong data-testid="chart-cumulative-expedition">
-                                    {cumulativeSeries.totalExpedition}
-                                </strong>
-                            </span>
-                        </div>
                     </div>
 
                     <div className="ems-flex-center ems-gap-12 ems-wrap">
+                        {/* Chart Legend */}
+                        <div
+                            className="ems-dashboard-chart-legend"
+                            data-testid="chart-legend"
+                            aria-label="Chart Legend"
+                        >
+                            <div
+                                className="ems-dashboard-chart-legend__item"
+                                data-testid="chart-legend-participant"
+                            >
+                                <svg
+                                    className="ems-dashboard-chart-legend__swatch"
+                                    viewBox="0 0 28 12"
+                                    aria-hidden="true"
+                                >
+                                    <line
+                                        x1="2"
+                                        y1="6"
+                                        x2="26"
+                                        y2="6"
+                                        stroke="#2271b1"
+                                        strokeWidth="2.5"
+                                    />
+                                    <circle
+                                        cx="14"
+                                        cy="6"
+                                        r="3.5"
+                                        fill="#ffffff"
+                                        stroke="#2271b1"
+                                        strokeWidth="2"
+                                    />
+                                </svg>
+                                <span>
+                                    Participant Place (
+                                    <strong data-testid="chart-cumulative-participant">
+                                        {cumulativeSeries.totalParticipant}
+                                    </strong>
+                                    )
+                                </span>
+                            </div>
+
+                            <div
+                                className="ems-dashboard-chart-legend__item"
+                                data-testid="chart-legend-expedition"
+                            >
+                                <svg
+                                    className="ems-dashboard-chart-legend__swatch"
+                                    viewBox="0 0 28 12"
+                                    aria-hidden="true"
+                                >
+                                    <line
+                                        x1="2"
+                                        y1="6"
+                                        x2="26"
+                                        y2="6"
+                                        stroke="#15803D"
+                                        strokeWidth="2.5"
+                                    />
+                                    <circle
+                                        cx="14"
+                                        cy="6"
+                                        r="3.5"
+                                        fill="#ffffff"
+                                        stroke="#15803D"
+                                        strokeWidth="2"
+                                    />
+                                </svg>
+                                <span>
+                                    Expedition Preference (
+                                    <strong data-testid="chart-cumulative-expedition">
+                                        {cumulativeSeries.totalExpedition}
+                                    </strong>
+                                    )
+                                </span>
+                            </div>
+                        </div>
+
                         {cumulativeSeries.availableSchoolYears.length > 1 && (
                             <div className="ems-flex-center ems-gap-6">
                                 <label

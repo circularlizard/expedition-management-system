@@ -3750,3 +3750,28 @@ input.ems-form-input--title {
     font-size: 13px;
 }
 
+.ems-dashboard-chart-legend {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #1d2327;
+}
+
+.ems-dashboard-chart-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ems-dashboard-chart-legend__swatch {
+    width: 28px;
+    height: 12px;
+    display: inline-block;
+    flex-shrink: 0;
+}
