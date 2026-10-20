@@ -35,10 +35,11 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     And the DofE level breakdown should show 1 Bronze, 2 Silver, and 2 Gold signups
     And the expedition type breakdown should show 1 Hillwalking, 1 Biking, and 0 Paddling signups
 
-  Scenario: Cumulative signups by week chart starts August 1st, displays separate lines for Participant Place and Expedition Preference, and filters by level
+  Scenario: Cumulative signups by week chart starts August 1st, displays separate lines with a legend for Participant Place and Expedition Preference, and filters by level
     Given active signups exist across Week 1 (Aug 1–7), Week 2 (Aug 8–14), and Week 3 (Aug 15–21) of the school year
     When the administrator views the Cumulative Signups by Week chart on the Signups Dashboard
     Then the chart should display two cumulative lines: one for Participant Place (total 3) and one for Expedition Preference (total 2)
+    And the chart should display a legend identifying the Participant Place and Expedition Preference lines
     When the administrator filters the cumulative chart by level "silver"
     Then the cumulative chart should update both lines to count only Silver Participant Place and Silver Expedition Preference signups
 
