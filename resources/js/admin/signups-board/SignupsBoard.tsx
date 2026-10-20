@@ -49,7 +49,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [expeditionTypeFilter, setExpeditionTypeFilter] = useState<string>('all');
     const [unitFilter, setUnitFilter] = useState<string>('all');
-    const [anomalyFilter, setAnomalyFilter] = useState<'all' | 'no_expedition' | 'duplicate' | 'unmatched_osm'>('all');
+    const [anomalyFilter, setAnomalyFilter] = useState<'all' | 'no_expedition' | 'no_participant' | 'duplicate' | 'unmatched_osm'>('all');
 
     // Grouping & Sorting
     const [grouping, setGrouping] = useState<'none' | 'unit' | 'level' | 'explorer' | 'parent'>('none');
@@ -281,6 +281,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         if (anomalyFilter !== 'all') {
             const key = getSignupRecordKey(s);
             if (anomalyFilter === 'no_expedition' && !dashboardMetrics.participantWithoutExpedition.signupKeys.has(key)) return false;
+            if (anomalyFilter === 'no_participant' && !dashboardMetrics.expeditionWithoutParticipant.signupKeys.has(key)) return false;
             if (anomalyFilter === 'duplicate' && !dashboardMetrics.duplicates.signupKeys.has(key)) return false;
             if (anomalyFilter === 'unmatched_osm' && !dashboardMetrics.unmatchedOsm.signupKeys.has(key)) return false;
         }
@@ -345,43 +346,52 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         };
 
         if (grouping === 'explorer') {
-            const explorerGroups: { title: string; keys: Set<string>; items: any[] }[] = [];
+            const explorerGroups: { title: string; scoutId: number; keys: Set<string>; items: any[] }[] = [];
 
             sortedSignups.forEach(s => {
                 let matchedGroup = null;
-
                 const scoutId = Number(s.scout_id || 0);
-                if (scoutId !== 0) {
-                    const sIdStr = String(scoutId);
-                    matchedGroup = explorerGroups.find(g => g.keys.has(`scout_${sIdStr}`));
-                } else {
-                    const email = s.explorer_email ? normalize(s.explorer_email) : '';
-                    const name = `${normalize(s.explorer_first_name)}_${normalize(s.explorer_last_name)}`;
-                    const parent = s.parent_email ? normalize(s.parent_email) : '';
+                const email = s.explorer_email ? normalize(s.explorer_email) : '';
+                const firstName = normalize(s.explorer_first_name);
+                const lastName = normalize(s.explorer_last_name);
+                const fullName = firstName && lastName ? `${firstName}_${lastName}` : '';
+                const parent = s.parent_email ? normalize(s.parent_email) : '';
 
+                if (scoutId !== 0) {
+                    matchedGroup = explorerGroups.find(g => g.scoutId === scoutId);
+                }
+                if (!matchedGroup) {
                     matchedGroup = explorerGroups.find(g => {
+                        if (scoutId !== 0 && g.scoutId !== 0 && g.scoutId !== scoutId) {
+                            return false;
+                        }
                         const hasEmailMatch = email && g.keys.has(`email_${email}`);
-                        const hasNameMatch = name && parent && g.keys.has(`name_${parent}_${name}`);
-                        return hasEmailMatch || hasNameMatch;
+                        const hasNameMatch = fullName && parent && g.keys.has(`name_${parent}_${fullName}`);
+                        const hasFullNameMatch = fullName && g.keys.has(`fullname_${fullName}`);
+                        return hasEmailMatch || hasNameMatch || hasFullNameMatch;
                     });
                 }
 
                 const itemKeys = new Set<string>();
                 if (scoutId !== 0) {
                     itemKeys.add(`scout_${scoutId}`);
-                } else {
-                    if (s.explorer_email) {
-                        itemKeys.add(`email_${normalize(s.explorer_email)}`);
-                    }
-                    const name = `${normalize(s.explorer_first_name)}_${normalize(s.explorer_last_name)}`;
-                    const parent = s.parent_email ? normalize(s.parent_email) : '';
-                    if (name && parent) {
-                        itemKeys.add(`name_${parent}_${name}`);
-                    }
+                }
+                if (email) {
+                    itemKeys.add(`email_${email}`);
+                }
+                if (fullName && parent) {
+                    itemKeys.add(`name_${parent}_${fullName}`);
+                }
+                if (fullName) {
+                    itemKeys.add(`fullname_${fullName}`);
                 }
 
                 if (matchedGroup) {
-                    itemKeys.forEach(k => matchedGroup.keys.add(k));
+                    if (matchedGroup.scoutId === 0 && scoutId !== 0) {
+                        matchedGroup.scoutId = scoutId;
+                        matchedGroup.title = `${s.explorer_first_name} ${s.explorer_last_name} (Scout ID: ${scoutId})`;
+                    }
+                    itemKeys.forEach(k => matchedGroup!.keys.add(k));
                     matchedGroup.items.push(s);
                 } else {
                     const title = scoutId !== 0 
@@ -390,6 +400,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
                     explorerGroups.push({
                         title,
+                        scoutId,
                         keys: itemKeys,
                         items: [s]
                     });
@@ -726,6 +737,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                     >
                                         <option value="all">All Records</option>
                                         <option value="no_expedition">Participant Only (No Expedition)</option>
+                                        <option value="no_participant">Expedition Only (No Participant Place)</option>
                                         <option value="duplicate">Duplicate Signups</option>
                                         <option value="unmatched_osm">No Synced OSM Record</option>
                                     </select>
@@ -743,6 +755,32 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                 </button>
                             </div>
                         </div>
+
+                        {anomalyFilter !== 'all' && (
+                            <div className="ems-dashboard-active-filter-banner">
+                                <span>
+                                    <strong>Active Dashboard Filter:</strong>{' '}
+                                    {anomalyFilter === 'no_expedition'
+                                        ? 'Showing explorers who signed up for a Participant Place without a matching Expedition Preference.'
+                                        : anomalyFilter === 'no_participant'
+                                        ? 'Showing explorers who signed up for an Expedition Preference without a matching Participant Place.'
+                                        : anomalyFilter === 'duplicate'
+                                        ? 'Showing duplicate signups (multiple active submissions for the same Form Type and DofE Level).'
+                                        : 'Showing signups with no synced OSM Explorer record.'}
+                                </span>
+                                <button
+                                    type="button"
+                                    className="button button-small"
+                                    onClick={() => {
+                                        setAnomalyFilter('all');
+                                        setTypeFilter('all');
+                                        setLevelFilter('all');
+                                    }}
+                                >
+                                    Clear Filter
+                                </button>
+                            </div>
+                        )}
 
                         {/* Table Grid */}
                         <div className="ems-panel">

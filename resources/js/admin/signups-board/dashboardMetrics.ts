@@ -4,6 +4,17 @@ export interface LevelBreakdown {
     expedition: number;
 }
 
+export interface UnpairedGroupMetric {
+    totalExplorers: number;
+    totalRows: number;
+    byLevel: {
+        bronze: number;
+        silver: number;
+        gold: number;
+    };
+    signupKeys: Set<string>;
+}
+
 export interface DashboardMetrics {
     byType: {
         total: number;
@@ -22,15 +33,15 @@ export interface DashboardMetrics {
         paddling: number;
         unspecified: number;
     };
-    participantWithoutExpedition: {
+    participantWithoutExpedition: UnpairedGroupMetric;
+    expeditionWithoutParticipant: UnpairedGroupMetric;
+    pairedExplorers: {
         totalExplorers: number;
-        totalRows: number;
         byLevel: {
             bronze: number;
             silver: number;
             gold: number;
         };
-        signupKeys: Set<string>;
     };
     duplicates: {
         groupsCount: number;
@@ -73,6 +84,7 @@ export const getSignupRecordKey = (s: any): string => {
 };
 
 interface ExplorerBucket {
+    scoutId: number;
     keys: Set<string>;
     items: any[];
 }
@@ -81,46 +93,60 @@ export function groupSignupsByExplorerIdentity(signups: any[]): ExplorerBucket[]
     const groups: ExplorerBucket[] = [];
 
     signups.forEach((s) => {
-        let matchedGroup: ExplorerBucket | undefined;
         const scoutId = Number(s.scout_id || 0);
+        const email = s.explorer_email ? normalize(s.explorer_email) : '';
+        const firstName = normalize(s.explorer_first_name);
+        const lastName = normalize(s.explorer_last_name);
+        const fullName = firstName && lastName ? `${firstName}_${lastName}` : '';
+        const parent = s.parent_email ? normalize(s.parent_email) : '';
 
+        let matchedGroup: ExplorerBucket | undefined;
+
+        // 1. Exact scout_id match when linked
         if (scoutId !== 0) {
-            const sIdKey = `scout_${scoutId}`;
-            matchedGroup = groups.find((g) => g.keys.has(sIdKey));
-        } else {
-            const email = s.explorer_email ? normalize(s.explorer_email) : '';
-            const name = `${normalize(s.explorer_first_name)}_${normalize(s.explorer_last_name)}`;
-            const parent = s.parent_email ? normalize(s.parent_email) : '';
+            matchedGroup = groups.find((g) => g.scoutId === scoutId);
+        }
 
+        // 2. Fallback identity match (email, parent+name, or exact full name)
+        // Only merge if the group does not have a conflicting non-zero scout_id
+        if (!matchedGroup) {
             matchedGroup = groups.find((g) => {
+                if (scoutId !== 0 && g.scoutId !== 0 && g.scoutId !== scoutId) {
+                    return false;
+                }
                 const hasEmailMatch = Boolean(email && g.keys.has(`email_${email}`));
-                const hasNameMatch = Boolean(name !== '_' && parent && g.keys.has(`name_${parent}_${name}`));
-                return hasEmailMatch || hasNameMatch;
+                const hasParentNameMatch = Boolean(fullName && parent && g.keys.has(`name_${parent}_${fullName}`));
+                const hasFullNameMatch = Boolean(fullName && g.keys.has(`fullname_${fullName}`));
+                return hasEmailMatch || hasParentNameMatch || hasFullNameMatch;
             });
         }
 
         const itemKeys = new Set<string>();
         if (scoutId !== 0) {
             itemKeys.add(`scout_${scoutId}`);
-        } else {
-            const email = s.explorer_email ? normalize(s.explorer_email) : '';
-            if (email) {
-                itemKeys.add(`email_${email}`);
-            }
-            const name = `${normalize(s.explorer_first_name)}_${normalize(s.explorer_last_name)}`;
-            const parent = s.parent_email ? normalize(s.parent_email) : '';
-            if (name !== '_' && parent) {
-                itemKeys.add(`name_${parent}_${name}`);
-            } else {
-                itemKeys.add(`row_${getSignupRecordKey(s)}`);
-            }
+        }
+        if (email) {
+            itemKeys.add(`email_${email}`);
+        }
+        if (fullName && parent) {
+            itemKeys.add(`name_${parent}_${fullName}`);
+        }
+        if (fullName) {
+            itemKeys.add(`fullname_${fullName}`);
+        }
+        if (itemKeys.size === 0) {
+            itemKeys.add(`row_${getSignupRecordKey(s)}`);
         }
 
         if (matchedGroup) {
+            if (matchedGroup.scoutId === 0 && scoutId !== 0) {
+                matchedGroup.scoutId = scoutId;
+            }
             itemKeys.forEach((k) => matchedGroup!.keys.add(k));
             matchedGroup.items.push(s);
         } else {
             groups.push({
+                scoutId,
                 keys: itemKeys,
                 items: [s],
             });
@@ -158,6 +184,24 @@ export function computeSignupsDashboardMetrics(signups: any[]): DashboardMetrics
                 gold: 0,
             },
             signupKeys: new Set<string>(),
+        },
+        expeditionWithoutParticipant: {
+            totalExplorers: 0,
+            totalRows: 0,
+            byLevel: {
+                bronze: 0,
+                silver: 0,
+                gold: 0,
+            },
+            signupKeys: new Set<string>(),
+        },
+        pairedExplorers: {
+            totalExplorers: 0,
+            byLevel: {
+                bronze: 0,
+                silver: 0,
+                gold: 0,
+            },
         },
         duplicates: {
             groupsCount: 0,
@@ -213,23 +257,49 @@ export function computeSignupsDashboardMetrics(signups: any[]): DashboardMetrics
     const explorerGroups = groupSignupsByExplorerIdentity(signups);
     metrics.byType.uniqueExplorers = explorerGroups.length;
 
+    const levels = ['bronze', 'silver', 'gold'] as const;
+
     explorerGroups.forEach((group) => {
-        const participantItems = group.items.filter((i) => i.type === 'participant');
-        const expeditionItems = group.items.filter((i) => i.type === 'expedition');
+        let hasAnyPlaceWithoutExped = false;
+        let hasAnyExpedWithoutPlace = false;
+        let hasAnyPaired = false;
 
-        // 1. Participant Place without Expedition
-        if (participantItems.length > 0 && expeditionItems.length === 0) {
-            metrics.participantWithoutExpedition.totalExplorers++;
-            metrics.participantWithoutExpedition.totalRows += participantItems.length;
+        levels.forEach((lvl) => {
+            const lvlParticipants = group.items.filter(
+                (i) => i.type === 'participant' && normalize(i.dofe_level) === lvl
+            );
+            const lvlExpeditions = group.items.filter(
+                (i) => i.type === 'expedition' && normalize(i.dofe_level) === lvl
+            );
 
-            const primaryLevel = normalize(participantItems[0].dofe_level);
-            if (primaryLevel === 'bronze' || primaryLevel === 'silver' || primaryLevel === 'gold') {
-                metrics.participantWithoutExpedition.byLevel[primaryLevel]++;
+            if (lvlParticipants.length > 0 && lvlExpeditions.length === 0) {
+                hasAnyPlaceWithoutExped = true;
+                metrics.participantWithoutExpedition.byLevel[lvl]++;
+                metrics.participantWithoutExpedition.totalRows += lvlParticipants.length;
+                lvlParticipants.forEach((item) => {
+                    metrics.participantWithoutExpedition.signupKeys.add(getSignupRecordKey(item));
+                });
+            } else if (lvlExpeditions.length > 0 && lvlParticipants.length === 0) {
+                hasAnyExpedWithoutPlace = true;
+                metrics.expeditionWithoutParticipant.byLevel[lvl]++;
+                metrics.expeditionWithoutParticipant.totalRows += lvlExpeditions.length;
+                lvlExpeditions.forEach((item) => {
+                    metrics.expeditionWithoutParticipant.signupKeys.add(getSignupRecordKey(item));
+                });
+            } else if (lvlParticipants.length > 0 && lvlExpeditions.length > 0) {
+                hasAnyPaired = true;
+                metrics.pairedExplorers.byLevel[lvl]++;
             }
+        });
 
-            participantItems.forEach((item) => {
-                metrics.participantWithoutExpedition.signupKeys.add(getSignupRecordKey(item));
-            });
+        if (hasAnyPlaceWithoutExped) {
+            metrics.participantWithoutExpedition.totalExplorers++;
+        }
+        if (hasAnyExpedWithoutPlace) {
+            metrics.expeditionWithoutParticipant.totalExplorers++;
+        }
+        if (hasAnyPaired) {
+            metrics.pairedExplorers.totalExplorers++;
         }
 
         // 2. Duplicate Signups (same explorer, same form type, same DofE level)

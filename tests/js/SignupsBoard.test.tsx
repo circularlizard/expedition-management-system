@@ -455,6 +455,12 @@ describe('SignupsBoard', () => {
         expect(screen.getByTestId('metric-no-expedition-silver')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-no-expedition-gold')).toHaveTextContent('0');
 
+        // Verify Expedition Only (Bob Smith - gold expedition without participant place)
+        expect(screen.getByTestId('metric-no-participant-total')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-no-participant-bronze')).toHaveTextContent('0');
+        expect(screen.getByTestId('metric-no-participant-silver')).toHaveTextContent('0');
+        expect(screen.getByTestId('metric-no-participant-gold')).toHaveTextContent('1');
+
         // Verify Duplicate Signups (Mary Jones has 2 bronze participant signups)
         expect(screen.getByTestId('metric-duplicates-groups')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-duplicates-rows')).toHaveTextContent('2');
@@ -471,12 +477,26 @@ describe('SignupsBoard', () => {
         fireEvent.change(chartLevelSelect, { target: { value: 'silver' } });
         expect(screen.getByTestId('chart-cumulative-total')).toHaveTextContent('1');
 
-        // Click "Participant Place Only" card to drill down to filtered Signups Table
+        // Click "Participant Place Only" section to drill down to filtered Signups Table
         fireEvent.click(screen.getByTestId('card-no-expedition'));
 
         await waitFor(() => {
             expect(screen.getByText('Alice Smith')).toBeInTheDocument();
             expect(screen.getByText('Charlie Smith')).toBeInTheDocument();
+            expect(screen.queryByText('Mary Jones')).not.toBeInTheDocument();
+            expect(screen.queryByText('Bob Smith')).not.toBeInTheDocument();
+        });
+
+        // Switch back to Dashboard and click "Expedition Only" section
+        fireEvent.click(screen.getByRole('button', { name: /Dashboard/i }));
+        await waitFor(() => {
+            expect(screen.getByTestId('card-no-participant')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByTestId('card-no-participant'));
+
+        await waitFor(() => {
+            expect(screen.getByText('Bob Smith')).toBeInTheDocument();
+            expect(screen.queryByText('Alice Smith')).not.toBeInTheDocument();
             expect(screen.queryByText('Mary Jones')).not.toBeInTheDocument();
         });
     });
