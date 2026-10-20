@@ -468,8 +468,11 @@ describe('SignupsBoard', () => {
         // Verify No Synced OSM Record (Alice Smith & Charlie Smith -> 2 signups)
         expect(screen.getByTestId('metric-unmatched-osm')).toHaveTextContent('2');
 
-        // Verify cumulative chart renders 2 lines (Participant Place and Expedition Preference) without a Signup Type filter
+        // Verify cumulative chart renders 2 lines and a legend (Participant Place and Expedition Preference) without a Signup Type filter
         expect(screen.queryByLabelText(/Chart Signup Type/i)).not.toBeInTheDocument();
+        expect(screen.getByTestId('chart-legend')).toBeInTheDocument();
+        expect(screen.getByTestId('chart-legend-participant')).toHaveTextContent(/Participant Place/i);
+        expect(screen.getByTestId('chart-legend-expedition')).toHaveTextContent(/Expedition Preference/i);
         expect(screen.getByTestId('chart-line-participant')).toBeInTheDocument();
         expect(screen.getByTestId('chart-line-expedition')).toBeInTheDocument();
         expect(screen.getByTestId('chart-cumulative-participant')).toHaveTextContent('4');
