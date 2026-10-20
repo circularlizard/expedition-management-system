@@ -65,6 +65,10 @@ export interface WeeklyBucket {
     endDate: string;
     weeklyCount: number;
     cumulativeCount: number;
+    participantWeeklyCount: number;
+    participantCumulativeCount: number;
+    expeditionWeeklyCount: number;
+    expeditionCumulativeCount: number;
 }
 
 export interface CumulativeSeriesResult {
@@ -72,6 +76,8 @@ export interface CumulativeSeriesResult {
     schoolYearLabel: string;
     availableSchoolYears: number[];
     totalMatching: number;
+    totalParticipant: number;
+    totalExpedition: number;
     weeks: WeeklyBucket[];
 }
 
@@ -359,12 +365,10 @@ export function formatShortDate(date: Date): string {
 export function computeWeeklyCumulativeSeries(
     signups: any[],
     options: {
-        typeFilter?: string;
         levelFilter?: string;
         schoolYearStart?: number;
     } = {}
 ): CumulativeSeriesResult {
-    const typeFilter = options.typeFilter || 'all';
     const levelFilter = options.levelFilter || 'all';
 
     const yearsSet = new Set<number>();
@@ -394,16 +398,15 @@ export function computeWeeklyCumulativeSeries(
     const startOfYear = new Date(activeYear, 7, 1, 0, 0, 0, 0); // 1 Aug YYYY
     const endOfYear = new Date(activeYear + 1, 6, 31, 23, 59, 59, 999); // 31 Jul YYYY+1
 
-    // Filter signups matching school year, signup type, and level
-    const matchingDates: Date[] = [];
+    // Filter signups matching school year and level
+    const matchingItems: { dt: Date; type: string }[] = [];
     signups.forEach((s) => {
-        if (typeFilter !== 'all' && s.type !== typeFilter) return;
         if (levelFilter !== 'all' && normalize(s.dofe_level) !== normalize(levelFilter)) return;
 
         const dt = parseSignupDate(s.created_at);
         if (!dt) return;
         if (dt >= startOfYear && dt <= endOfYear) {
-            matchingDates.push(dt);
+            matchingItems.push({ dt, type: s.type });
         }
     });
 
@@ -423,16 +426,27 @@ export function computeWeeklyCumulativeSeries(
         Math.max(11, Math.floor((maxDateInYear.getTime() - startOfYear.getTime()) / msPerWeek))
     );
 
-    const weeklyCounts = new Array(maxWeekIndex + 1).fill(0);
-    matchingDates.forEach((dt) => {
+    const participantWeeklyCounts = new Array(maxWeekIndex + 1).fill(0);
+    const expeditionWeeklyCounts = new Array(maxWeekIndex + 1).fill(0);
+
+    matchingItems.forEach(({ dt, type }) => {
         const rawWeek = Math.floor((dt.getTime() - startOfYear.getTime()) / msPerWeek);
         const weekIdx = Math.min(maxWeekIndex, Math.max(0, rawWeek));
-        weeklyCounts[weekIdx]++;
+        if (type === 'participant') {
+            participantWeeklyCounts[weekIdx]++;
+        } else if (type === 'expedition') {
+            expeditionWeeklyCounts[weekIdx]++;
+        }
     });
 
-    let cumulative = 0;
-    const weeks: WeeklyBucket[] = weeklyCounts.map((count, idx) => {
-        cumulative += count;
+    let participantCumulative = 0;
+    let expeditionCumulative = 0;
+
+    const weeks: WeeklyBucket[] = participantWeeklyCounts.map((pCount, idx) => {
+        const eCount = expeditionWeeklyCounts[idx];
+        participantCumulative += pCount;
+        expeditionCumulative += eCount;
+
         const wStart = new Date(startOfYear.getTime() + idx * msPerWeek);
         const wEndRaw = new Date(startOfYear.getTime() + (idx + 1) * msPerWeek - 1);
         const wEnd = wEndRaw > endOfYear ? endOfYear : wEndRaw;
@@ -446,8 +460,12 @@ export function computeWeeklyCumulativeSeries(
             rangeLabel: `${startLabel} – ${endLabel}`,
             startDate: wStart.toISOString().substring(0, 10),
             endDate: wEnd.toISOString().substring(0, 10),
-            weeklyCount: count,
-            cumulativeCount: cumulative,
+            weeklyCount: pCount + eCount,
+            cumulativeCount: participantCumulative + expeditionCumulative,
+            participantWeeklyCount: pCount,
+            participantCumulativeCount: participantCumulative,
+            expeditionWeeklyCount: eCount,
+            expeditionCumulativeCount: expeditionCumulative,
         };
     });
 
@@ -456,7 +474,9 @@ export function computeWeeklyCumulativeSeries(
         schoolYearStart: activeYear,
         schoolYearLabel: `${activeYear}/${nextYearShort} (from 1 Aug ${activeYear})`,
         availableSchoolYears,
-        totalMatching: cumulative,
+        totalMatching: participantCumulative + expeditionCumulative,
+        totalParticipant: participantCumulative,
+        totalExpedition: expeditionCumulative,
         weeks,
     };
 }

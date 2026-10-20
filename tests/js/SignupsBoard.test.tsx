@@ -468,14 +468,18 @@ describe('SignupsBoard', () => {
         // Verify No Synced OSM Record (Alice Smith & Charlie Smith -> 2 signups)
         expect(screen.getByTestId('metric-unmatched-osm')).toHaveTextContent('2');
 
-        // Filter cumulative chart by Signup Type and Level
-        const chartTypeSelect = screen.getByLabelText(/Chart Signup Type/i);
-        fireEvent.change(chartTypeSelect, { target: { value: 'participant' } });
-        expect(screen.getByTestId('chart-cumulative-total')).toHaveTextContent('4');
+        // Verify cumulative chart renders 2 lines (Participant Place and Expedition Preference) without a Signup Type filter
+        expect(screen.queryByLabelText(/Chart Signup Type/i)).not.toBeInTheDocument();
+        expect(screen.getByTestId('chart-line-participant')).toBeInTheDocument();
+        expect(screen.getByTestId('chart-line-expedition')).toBeInTheDocument();
+        expect(screen.getByTestId('chart-cumulative-participant')).toHaveTextContent('4');
+        expect(screen.getByTestId('chart-cumulative-expedition')).toHaveTextContent('2');
 
+        // Filter cumulative chart by Level
         const chartLevelSelect = screen.getByLabelText(/Chart Level/i);
         fireEvent.change(chartLevelSelect, { target: { value: 'silver' } });
-        expect(screen.getByTestId('chart-cumulative-total')).toHaveTextContent('1');
+        expect(screen.getByTestId('chart-cumulative-participant')).toHaveTextContent('1');
+        expect(screen.getByTestId('chart-cumulative-expedition')).toHaveTextContent('0');
 
         // Click "Participant Place Only" section to drill down to filtered Signups Table
         fireEvent.click(screen.getByTestId('card-no-expedition'));
