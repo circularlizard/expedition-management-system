@@ -42,15 +42,18 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     When the administrator filters the cumulative chart by signup type "participant" and level "silver"
     Then the cumulative chart should update to count only Silver Participant Place signups
 
-  Scenario: Dashboard summarises explorers with a participant place but no expedition signup by level
+  Scenario: Dashboard summarises unpaired signups (participant place without expedition and expedition without participant place) by level
     Given explorer "Mary Jones" has a Bronze participant place signup and no expedition signup
     And explorer "Alice Smith" has a Silver participant place signup and no expedition signup
     And explorer "Bob Smith" has both a Gold participant place signup and a Gold expedition signup
+    And explorer "Sam Taylor" has a Silver expedition signup and no participant place signup
     When the administrator views the Signups Dashboard
-    Then the "Participant Place Only (No Expedition)" card should show 2 explorers in total
-    And the breakdown by level should show 1 Bronze, 1 Silver, and 0 Gold
-    When the administrator clicks the "Participant Place Only" card
-    Then the view should switch to the Signups Table filtered to those 2 participant place records
+    Then the unpaired signups card should show 2 explorers with a Participant Place Only (1 Bronze, 1 Silver, 0 Gold)
+    And the unpaired signups card should show 1 explorer with an Expedition Only (0 Bronze, 1 Silver, 0 Gold)
+    When the administrator clicks the "Participant Place Only" section
+    Then the view should switch to the Signups Table filtered to those participant place records
+    When the administrator clicks the "Expedition Only" section
+    Then the view should switch to the Signups Table filtered to those expedition records
 
   Scenario: Dashboard summarises duplicate signups and records not synced from OSM
     Given explorer "Mary Jones" (scout_id 30003) has 2 active Bronze participant place signups

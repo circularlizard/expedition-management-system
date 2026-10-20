@@ -8,7 +8,7 @@ export interface TableDrilldownFilters {
     typeFilter?: string;
     levelFilter?: string;
     expeditionTypeFilter?: string;
-    anomalyFilter?: 'all' | 'no_expedition' | 'duplicate' | 'unmatched_osm';
+    anomalyFilter?: 'all' | 'no_expedition' | 'no_participant' | 'duplicate' | 'unmatched_osm';
     grouping?: 'none' | 'unit' | 'level' | 'explorer' | 'parent';
 }
 
@@ -330,86 +330,188 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
 
             {/* Row 2: Follow-Up & Data Integrity Cards */}
             <div className="ems-dashboard-grid-3">
-                {/* 1. Participant Place Only (No Expedition) */}
-                <div
-                    className="ems-overview-card ems-dashboard-action-card ems-cursor-pointer"
-                    data-testid="card-no-expedition"
-                    onClick={() =>
-                        onNavigateToTable({
-                            typeFilter: 'participant',
-                            anomalyFilter: 'no_expedition',
-                        })
-                    }
-                >
+                {/* 1. Unpaired Signups: Place Only vs Expedition Only */}
+                <div className="ems-overview-card ems-dashboard-action-card">
                     <div className="ems-overview-card__title">
-                        <span>⛺</span> Participant Place Only (No Expedition)
+                        <span>⛺</span> Unpaired Signups (Place vs Expedition)
                     </div>
-                    <div className="ems-dashboard-hero-row">
-                        <div>
-                            <div
-                                className="ems-dashboard-hero-number"
-                                data-testid="metric-no-expedition-total"
-                            >
-                                {metrics.participantWithoutExpedition.totalExplorers}
+
+                    {/* Case A: Participant Place Only (No Expedition) */}
+                    <div
+                        className="ems-dashboard-stat-item ems-cursor-pointer"
+                        data-testid="card-no-expedition"
+                        onClick={() =>
+                            onNavigateToTable({
+                                typeFilter: 'participant',
+                                anomalyFilter: 'no_expedition',
+                            })
+                        }
+                    >
+                        <div className="ems-flex-between">
+                            <div>
+                                <div className="ems-font-semibold">
+                                    Participant Place Only (No Expedition)
+                                </div>
+                                <div className="ems-meta-text ems-small-text">
+                                    Signed up for a place without an expedition form
+                                </div>
                             </div>
-                            <div className="ems-meta-text">
-                                Explorers signed up for a place without an expedition form
+                            <div className="ems-flex-center ems-gap-8">
+                                <span
+                                    className="ems-dashboard-subhero-number"
+                                    data-testid="metric-no-expedition-total"
+                                >
+                                    {metrics.participantWithoutExpedition.totalExplorers}
+                                </span>
+                                <span className="ems-table__link ems-small-text">Filter →</span>
                             </div>
                         </div>
-                        <span className="ems-table__link ems-small-text">Filter Table →</span>
+                        <div className="ems-dashboard-pill-group">
+                            <button
+                                type="button"
+                                className="ems-dashboard-mini-pill ems-pill--bronze"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNavigateToTable({
+                                        typeFilter: 'participant',
+                                        levelFilter: 'bronze',
+                                        anomalyFilter: 'no_expedition',
+                                    });
+                                }}
+                            >
+                                Bronze:{' '}
+                                <strong data-testid="metric-no-expedition-bronze">
+                                    {metrics.participantWithoutExpedition.byLevel.bronze}
+                                </strong>
+                            </button>
+                            <button
+                                type="button"
+                                className="ems-dashboard-mini-pill ems-pill--silver"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNavigateToTable({
+                                        typeFilter: 'participant',
+                                        levelFilter: 'silver',
+                                        anomalyFilter: 'no_expedition',
+                                    });
+                                }}
+                            >
+                                Silver:{' '}
+                                <strong data-testid="metric-no-expedition-silver">
+                                    {metrics.participantWithoutExpedition.byLevel.silver}
+                                </strong>
+                            </button>
+                            <button
+                                type="button"
+                                className="ems-dashboard-mini-pill ems-pill--gold"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNavigateToTable({
+                                        typeFilter: 'participant',
+                                        levelFilter: 'gold',
+                                        anomalyFilter: 'no_expedition',
+                                    });
+                                }}
+                            >
+                                Gold:{' '}
+                                <strong data-testid="metric-no-expedition-gold">
+                                    {metrics.participantWithoutExpedition.byLevel.gold}
+                                </strong>
+                            </button>
+                        </div>
                     </div>
-                    <div className="ems-dashboard-pill-group">
-                        <button
-                            type="button"
-                            className="ems-dashboard-mini-pill ems-pill--bronze"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigateToTable({
-                                    typeFilter: 'participant',
-                                    levelFilter: 'bronze',
-                                    anomalyFilter: 'no_expedition',
-                                });
-                            }}
-                        >
-                            Bronze:{' '}
-                            <strong data-testid="metric-no-expedition-bronze">
-                                {metrics.participantWithoutExpedition.byLevel.bronze}
-                            </strong>
-                        </button>
-                        <button
-                            type="button"
-                            className="ems-dashboard-mini-pill ems-pill--silver"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigateToTable({
-                                    typeFilter: 'participant',
-                                    levelFilter: 'silver',
-                                    anomalyFilter: 'no_expedition',
-                                });
-                            }}
-                        >
-                            Silver:{' '}
-                            <strong data-testid="metric-no-expedition-silver">
-                                {metrics.participantWithoutExpedition.byLevel.silver}
-                            </strong>
-                        </button>
-                        <button
-                            type="button"
-                            className="ems-dashboard-mini-pill ems-pill--gold"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigateToTable({
-                                    typeFilter: 'participant',
-                                    levelFilter: 'gold',
-                                    anomalyFilter: 'no_expedition',
-                                });
-                            }}
-                        >
-                            Gold:{' '}
-                            <strong data-testid="metric-no-expedition-gold">
-                                {metrics.participantWithoutExpedition.byLevel.gold}
-                            </strong>
-                        </button>
+
+                    {/* Case B: Expedition Only (No Participant Place) */}
+                    <div
+                        className="ems-dashboard-stat-item ems-cursor-pointer"
+                        data-testid="card-no-participant"
+                        onClick={() =>
+                            onNavigateToTable({
+                                typeFilter: 'expedition',
+                                anomalyFilter: 'no_participant',
+                            })
+                        }
+                    >
+                        <div className="ems-flex-between">
+                            <div>
+                                <div className="ems-font-semibold">
+                                    Expedition Only (No Participant Place)
+                                </div>
+                                <div className="ems-meta-text ems-small-text">
+                                    Signed up for an expedition without a participant place form
+                                </div>
+                            </div>
+                            <div className="ems-flex-center ems-gap-8">
+                                <span
+                                    className="ems-dashboard-subhero-number"
+                                    data-testid="metric-no-participant-total"
+                                >
+                                    {metrics.expeditionWithoutParticipant.totalExplorers}
+                                </span>
+                                <span className="ems-table__link ems-small-text">Filter →</span>
+                            </div>
+                        </div>
+                        <div className="ems-dashboard-pill-group">
+                            <button
+                                type="button"
+                                className="ems-dashboard-mini-pill ems-pill--bronze"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNavigateToTable({
+                                        typeFilter: 'expedition',
+                                        levelFilter: 'bronze',
+                                        anomalyFilter: 'no_participant',
+                                    });
+                                }}
+                            >
+                                Bronze:{' '}
+                                <strong data-testid="metric-no-participant-bronze">
+                                    {metrics.expeditionWithoutParticipant.byLevel.bronze}
+                                </strong>
+                            </button>
+                            <button
+                                type="button"
+                                className="ems-dashboard-mini-pill ems-pill--silver"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNavigateToTable({
+                                        typeFilter: 'expedition',
+                                        levelFilter: 'silver',
+                                        anomalyFilter: 'no_participant',
+                                    });
+                                }}
+                            >
+                                Silver:{' '}
+                                <strong data-testid="metric-no-participant-silver">
+                                    {metrics.expeditionWithoutParticipant.byLevel.silver}
+                                </strong>
+                            </button>
+                            <button
+                                type="button"
+                                className="ems-dashboard-mini-pill ems-pill--gold"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNavigateToTable({
+                                        typeFilter: 'expedition',
+                                        levelFilter: 'gold',
+                                        anomalyFilter: 'no_participant',
+                                    });
+                                }}
+                            >
+                                Gold:{' '}
+                                <strong data-testid="metric-no-participant-gold">
+                                    {metrics.expeditionWithoutParticipant.byLevel.gold}
+                                </strong>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="ems-meta-text ems-small-text">
+                        Complete pairs (both Place &amp; Exped):{' '}
+                        <strong>{metrics.pairedExplorers.totalExplorers}</strong> (Bronze:{' '}
+                        {metrics.pairedExplorers.byLevel.bronze}, Silver:{' '}
+                        {metrics.pairedExplorers.byLevel.silver}, Gold:{' '}
+                        {metrics.pairedExplorers.byLevel.gold})
                     </div>
                 </div>
 

@@ -3730,9 +3730,23 @@ input.ems-form-input--title {
     display: block;
 }
 
+.ems-dashboard-subhero-number {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--ems-text-primary, #1C1917);
+}
 
-
-
-
-
+.ems-dashboard-active-filter-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    color: #1e3a8a;
+    font-size: 13px;
+}
 
