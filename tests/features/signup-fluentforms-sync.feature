@@ -199,4 +199,34 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
       | exped_practice_dates            | ["H-SP1", "H-SP2"]                               |
       | exped_qualifier_dates           | ["H-SQ1"]                                        |
 
+  Scenario: Re-syncing existing signups from Settings re-parses Fluent Forms submissions with current field mappings
+    Given an existing expedition signup record exists with form_submission_id 501 and signup_status "submitted"
+    And Fluent Forms submission 501 exists for form ID 3 with JSON response containing updated fields:
+      | signup_child                | 30001                                                |
+      | signup_dob                  | 15/05/2011                                           |
+      | signup_email                | tom@example.com                                      |
+      | signup_level                | Bronze                                               |
+      | signup_edofe_registered     | yes                                                  |
+      | exped_type_bronze           | Paddling                                             |
+      | exped_bronze_dates          | ["B-PQ1", "B-PQ2"]                                   |
+      | description                 | Dyslexia                                             |
+    When an administrator triggers "Re-sync Signups from Fluent Forms" in Settings -> Form Mappings
+    Then the existing expedition signup record for form_submission_id 501 should be updated with:
+      | explorer_email              | tom@example.com                                      |
+      | dob                         | 2011-05-15                                           |
+      | dofe_registered             | yes                                                  |
+      | additional_support_needs    | Dyslexia                                             |
+    And its expedition_preferences JSON should contain exped_type "Paddling" and exped_practice_dates '["B-PQ1", "B-PQ2"]'
+
+  Scenario: Re-syncing archives EMS signups whose Fluent Forms submission or form has been deleted
+    Given an existing expedition signup record exists with form_submission_id 502 and signup_status "submitted"
+    And an existing participant signup record exists with form_submission_id 503 and signup_status "submitted"
+    And Fluent Forms submission 502 has been deleted from wp_fluentform_submissions
+    And Fluent Forms submission 503 belongs to a deleted form or has status "trashed"
+    When an administrator triggers "Re-sync Signups from Fluent Forms" in Settings -> Form Mappings
+    Then the expedition signup record for form_submission_id 502 should have signup_status "archived"
+    And the participant signup record for form_submission_id 503 should have signup_status "archived"
+    And the Settings page should display a notice summarizing the number of updated and archived signups
+
+
 

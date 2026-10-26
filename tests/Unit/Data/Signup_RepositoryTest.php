@@ -362,4 +362,45 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertNotNull( $participant_update );
         $this->assertNotNull( $expedition_update );
     }
+
+    public function test_update_expedition_signup_from_sync_updates_fields(): void {
+        $wpdb = new class {
+            public string $prefix = 'wp_';
+            public array $updated = [];
+
+            public function update( $table, $data, $where, $format = null, $where_format = null ) {
+                $this->updated[] = compact( 'table', 'data', 'where' );
+                return 1;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+        $result = $repo->update_expedition_signup_from_sync( 15, [
+            'scout_id'                 => 30001,
+            'unit_id'                  => 10,
+            'unit_name'                => 'BO-Kelso',
+            'explorer_first_name'      => 'Tom',
+            'explorer_last_name'       => 'Strachan',
+            'explorer_email'           => 'tom@example.com',
+            'parent_email'             => 'jane@example.com',
+            'leader_email'             => 'leader@kelso.scouts.org.uk',
+            'dofe_level'               => 'bronze',
+            'dob'                      => '2011-05-15',
+            'dofe_registered'          => 'yes',
+            'dofe_number'              => '1234567',
+            'expedition_preferences'   => [ 'exped_type' => 'Paddling', 'exped_practice_dates' => [ 'B-PQ1', 'B-PQ2' ] ],
+            'additional_support_needs' => 'Dyslexia',
+            'first_aid_status'         => 'first-aid-yes',
+            'first_aid_expiry'         => null,
+        ] );
+
+        $this->assertTrue( $result );
+        $this->assertCount( 1, $wpdb->updated );
+        $this->assertSame( 'wp_ems_expedition_signups', $wpdb->updated[0]['table'] );
+        $this->assertSame( [ 'id' => 15 ], $wpdb->updated[0]['where'] );
+        $this->assertSame( 'tom@example.com', $wpdb->updated[0]['data']['explorer_email'] );
+        $this->assertSame( '2011-05-15', $wpdb->updated[0]['data']['dob'] );
+        $this->assertSame( 'yes', $wpdb->updated[0]['data']['dofe_registered'] );
+        $this->assertSame( 'Dyslexia', $wpdb->updated[0]['data']['additional_support_needs'] );
+    }
 }

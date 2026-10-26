@@ -301,4 +301,24 @@ class Settings_PageTest extends EMSTestCase {
 
         $this->assertTrue( \Brain\Monkey\Actions\has( 'admin_init' ) );
     }
+
+    public function test_resync_fluent_forms_outputs_summary_notice(): void {
+        $sync_mock = \Mockery::mock( \EMS\Integrations\Fluent_Forms_Sync::class );
+        $sync_mock->shouldReceive( 'resync_existing_signups' )
+            ->once()
+            ->andReturn( [
+                'updated'  => 4,
+                'archived' => 2,
+            ] );
+
+        $page = new Settings_Page( $sync_mock );
+
+        ob_start();
+        $page->handle_resync_fluent_forms();
+        $output = (string) ob_get_clean();
+
+        $this->assertStringContainsString( '4', $output );
+        $this->assertStringContainsString( '2', $output );
+        $this->assertStringContainsString( 'archived', strtolower( $output ) );
+    }
 }
