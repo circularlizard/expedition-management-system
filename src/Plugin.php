@@ -658,7 +658,6 @@ class Plugin {
 				wp_enqueue_script( 'ems-portal' );
 			}
 			if ( has_shortcode( $post->post_content, 'ems-leader-dashboard' ) ) {
-				wp_enqueue_style( 'wp-components' );
 				wp_enqueue_style( 'ems-admin' );
 				wp_enqueue_script( 'ems-leader-dashboard' );
 			}
@@ -666,7 +665,6 @@ class Plugin {
 	}
 
 	public function render_leader_dashboard_shortcode(): string {
-		wp_enqueue_style( 'wp-components' );
 		wp_enqueue_style( 'ems-admin' );
 		wp_enqueue_script( 'ems-leader-dashboard' );
 

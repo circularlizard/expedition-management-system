@@ -264,11 +264,11 @@ export const LeaderDashboard: React.FC = () => {
 
     if (!config.user_data.logged_in) {
         return (
-            <div className="ems-portal-container">
-                <div className="ems-portal-welcome-card">
+            <div className="ems-leader-dashboard">
+                <div>
                     <h2>Unit Leader Signups Dashboard</h2>
                     <p className="ems-mb-20">Please log in with your Unit Leader account to view explorer DofE signups.</p>
-                    <a href={config.login_url} className="button button-primary">
+                    <a href={config.login_url} className="button">
                         Log In
                     </a>
                 </div>
@@ -278,11 +278,11 @@ export const LeaderDashboard: React.FC = () => {
 
     if (!config.user_data.can_access) {
         return (
-            <div className="ems-portal-container">
-                <div className="ems-portal-welcome-card">
+            <div className="ems-leader-dashboard">
+                <div>
                     <h2>Access Restricted</h2>
                     <p className="ems-mb-20">Your account does not have Unit Leader permissions to view this dashboard.</p>
-                    <a href={config.logout_url} className="button button-secondary">
+                    <a href={config.logout_url} className="button">
                         Log Out &amp; Switch Accounts
                     </a>
                 </div>
@@ -292,11 +292,8 @@ export const LeaderDashboard: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="ems-portal-container">
-                <div className="ems-loading-state">
-                    <span className="ems-spinner"></span>
-                    <p>Loading explorer signups...</p>
-                </div>
+            <div className="ems-leader-dashboard">
+                <p>Loading explorer signups...</p>
             </div>
         );
     }
@@ -304,221 +301,206 @@ export const LeaderDashboard: React.FC = () => {
     const osmIconUrl = `${config.plugin_url || '/wp-content/plugins/ems-plugin/'}assets/images/osm_icon.png`;
 
     return (
-        <div className="ems-portal-container">
+        <div className="ems-leader-dashboard">
             {error && <div className="ems-error-notice">{error}</div>}
 
-            <div className="ems-signups-toolbar">
-                <div className="ems-flex-center ems-gap-16 ems-wrap">
-                    <div className="ems-flex-center ems-gap-8">
-                        <label htmlFor="leader-grouping-select" className="ems-toolbar__label">Group By:</label>
-                        <select
-                            id="leader-grouping-select"
-                            value={grouping}
-                            onChange={(e) => setGrouping(e.target.value as any)}
-                            className="ems-select"
-                        >
-                            <option value="none">None (Flat List)</option>
-                            <option value="level">DofE Level</option>
-                            <option value="expedition">Expedition Type</option>
-                            <option value="esu">Unit (ESU)</option>
-                        </select>
-                    </div>
+            <div className="ems-flex-center ems-gap-16 ems-wrap ems-mb-20">
+                <div className="ems-flex-center ems-gap-8">
+                    <label htmlFor="leader-grouping-select">Group By:</label>
+                    <select
+                        id="leader-grouping-select"
+                        value={grouping}
+                        onChange={(e) => setGrouping(e.target.value as any)}
+                    >
+                        <option value="none">None (Flat List)</option>
+                        <option value="level">DofE Level</option>
+                        <option value="expedition">Expedition Type</option>
+                        <option value="esu">Unit (ESU)</option>
+                    </select>
+                </div>
 
-                    <div className="ems-flex-center ems-gap-8">
-                        <label htmlFor="leader-level-filter" className="ems-toolbar__label">Filter Level:</label>
-                        <select
-                            id="leader-level-filter"
-                            value={levelFilter}
-                            onChange={(e) => setLevelFilter(e.target.value)}
-                            className="ems-select"
-                        >
-                            <option value="all">All Levels</option>
-                            <option value="bronze">Bronze</option>
-                            <option value="silver">Silver</option>
-                            <option value="gold">Gold</option>
-                        </select>
-                    </div>
+                <div className="ems-flex-center ems-gap-8">
+                    <label htmlFor="leader-level-filter">Filter Level:</label>
+                    <select
+                        id="leader-level-filter"
+                        value={levelFilter}
+                        onChange={(e) => setLevelFilter(e.target.value)}
+                    >
+                        <option value="all">All Levels</option>
+                        <option value="bronze">Bronze</option>
+                        <option value="silver">Silver</option>
+                        <option value="gold">Gold</option>
+                    </select>
+                </div>
 
-                    <div className="ems-flex-center ems-gap-8">
-                        <label htmlFor="leader-expedition-type-filter" className="ems-toolbar__label">Expedition Type:</label>
-                        <select
-                            id="leader-expedition-type-filter"
-                            value={expeditionTypeFilter}
-                            onChange={(e) => setExpeditionTypeFilter(e.target.value)}
-                            className="ems-select"
-                        >
-                            <option value="all">All Expeditions</option>
-                            <option value="hillwalking">Hillwalking</option>
-                            <option value="biking">Biking</option>
-                            <option value="paddling">Paddling</option>
-                        </select>
-                    </div>
+                <div className="ems-flex-center ems-gap-8">
+                    <label htmlFor="leader-expedition-type-filter">Expedition Type:</label>
+                    <select
+                        id="leader-expedition-type-filter"
+                        value={expeditionTypeFilter}
+                        onChange={(e) => setExpeditionTypeFilter(e.target.value)}
+                    >
+                        <option value="all">All Expeditions</option>
+                        <option value="hillwalking">Hillwalking</option>
+                        <option value="biking">Biking</option>
+                        <option value="paddling">Paddling</option>
+                    </select>
+                </div>
 
-                    <div className="ems-flex-center ems-gap-8">
-                        <label htmlFor="leader-unit-filter" className="ems-toolbar__label">Unit:</label>
-                        <select
-                            id="leader-unit-filter"
-                            value={unitFilter}
-                            onChange={(e) => setUnitFilter(e.target.value)}
-                            className="ems-select"
-                        >
-                            <option value="all">All Units</option>
-                            {uniqueUnits.map((u) => (
-                                <option key={u} value={u}>{u}</option>
-                            ))}
-                        </select>
-                    </div>
+                <div className="ems-flex-center ems-gap-8">
+                    <label htmlFor="leader-unit-filter">Unit:</label>
+                    <select
+                        id="leader-unit-filter"
+                        value={unitFilter}
+                        onChange={(e) => setUnitFilter(e.target.value)}
+                    >
+                        <option value="all">All Units</option>
+                        {uniqueUnits.map((u) => (
+                            <option key={u} value={u}>{u}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
-            <div className="ems-panel">
-                <div className="ems-signups-table-wrap">
-                    <table className="ems-table">
-                        <thead>
-                            <tr>
-                                {renderHeader('Explorer Name', 'explorer_first_name')}
-                                {renderHeader('Level', 'dofe_level')}
-                                {renderHeader('Participant Place', 'participant')}
-                                {renderHeader('Expedition Preference', 'expedition_signup')}
-                                {renderHeader('Expedition Type', 'expedition')}
-                                {renderHeader('Unit', 'unit_name')}
-                                {renderHeader('OSM Sync', 'osm_sync')}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedGroupedRows.length === 0 || (paginatedGroupedRows.length === 1 && paginatedGroupedRows[0].items.length === 0) ? (
-                                <tr>
-                                    <td colSpan={7} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
-                                        No signup records found for this filter state.
-                                    </td>
-                                </tr>
-                            ) : (
-                                paginatedGroupedRows.map((g) => (
-                                    <React.Fragment key={g.title || 'flat'}>
-                                        {g.title && (
-                                            <tr className="ems-table-group-header">
-                                                <td colSpan={7}><strong>{g.title}</strong></td>
-                                            </tr>
-                                        )}
-                                        {g.items.map((row: any) => (
-                                            <tr key={row.rowKey}>
-                                                <td>
-                                                    <strong>{row.explorer_first_name} {row.explorer_last_name}</strong>
-                                                </td>
-                                                <td>
-                                                    <span className={`ems-pill ems-pill--${row.dofe_level}`}>
-                                                        {row.dofe_level}
-                                                    </span>
-                                                </td>
-                                                <td className="ems-table-cell--center">
-                                                    {row.participantEntries.length > 0 ? (
-                                                        <span title="Participant Place submitted" className="ems-fa-full">
-                                                            ✓{row.participantEntries.length > 1 ? ` (${row.participantEntries.length})` : ''}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="ems-text-muted">—</span>
-                                                    )}
-                                                </td>
-                                                <td className="ems-table-cell--center">
-                                                    {row.expeditionEntries.length > 0 ? (
-                                                        <span title="Expedition Preference submitted" className="ems-fa-full">
-                                                            ✓{row.expeditionEntries.length > 1 ? ` (${row.expeditionEntries.length})` : ''}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="ems-text-muted">—</span>
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    {row.expedition_preferences?.exped_type ? (
-                                                        <span className="ems-pill">{row.expedition_preferences.exped_type}</span>
-                                                    ) : (
-                                                        <span className="ems-text-muted">—</span>
-                                                    )}
-                                                </td>
-                                                <td>{row.unit_name || 'Unassigned'}</td>
-                                                <td className="ems-table-cell--center">
-                                                    {row.scout_id !== 0 ? (
-                                                        <img
-                                                            src={osmIconUrl}
-                                                            alt="Synced with OSM"
-                                                            title="Synced with OSM"
-                                                            className="ems-osm-sync-icon"
-                                                        />
-                                                    ) : null}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </React.Fragment>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-
-                    {totalItems > 0 && (
-                        <div className="ems-table-pagination">
-                            <div className="ems-meta-text">
-                                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} explorers
-                            </div>
-                            <div className="ems-flex-center ems-gap-8">
-                                <label htmlFor="leader-items-per-page" className="ems-toolbar__label">Items per page:</label>
-                                <select
-                                    id="leader-items-per-page"
-                                    className="ems-select-sm"
-                                    value={itemsPerPage}
-                                    onChange={(e) => {
-                                        setItemsPerPage(parseInt(e.target.value, 10));
-                                        setCurrentPage(1);
-                                    }}
-                                >
-                                    <option value={5}>5</option>
-                                    <option value={10}>10</option>
-                                    <option value={25}>25</option>
-                                    <option value={50}>50</option>
-                                    <option value={100}>100</option>
-                                </select>
-
-                                <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(1)}
-                                        disabled={currentPage === 1}
-                                    >
-                                        «
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                    >
-                                        ‹ Prev
-                                    </button>
-                                    <span className="ems-meta-text">
-                                        Page {currentPage} of {totalPages}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        Next ›
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="button button-small"
-                                        onClick={() => setCurrentPage(totalPages)}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        »
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+            <table>
+                <thead>
+                    <tr>
+                        {renderHeader('Explorer Name', 'explorer_first_name')}
+                        {renderHeader('Level', 'dofe_level')}
+                        {renderHeader('Participant Place', 'participant')}
+                        {renderHeader('Expedition Preference', 'expedition_signup')}
+                        {renderHeader('Expedition Type', 'expedition')}
+                        {renderHeader('Unit', 'unit_name')}
+                        {renderHeader('OSM Sync', 'osm_sync')}
+                    </tr>
+                </thead>
+                <tbody>
+                    {paginatedGroupedRows.length === 0 || (paginatedGroupedRows.length === 1 && paginatedGroupedRows[0].items.length === 0) ? (
+                        <tr>
+                            <td colSpan={7} className="ems-table-cell--center ems-italic">
+                                No signup records found for this filter state.
+                            </td>
+                        </tr>
+                    ) : (
+                        paginatedGroupedRows.map((g) => (
+                            <React.Fragment key={g.title || 'flat'}>
+                                {g.title && (
+                                    <tr>
+                                        <td colSpan={7}><strong>{g.title}</strong></td>
+                                    </tr>
+                                )}
+                                {g.items.map((row: any) => (
+                                    <tr key={row.rowKey}>
+                                        <td>
+                                            <strong>{row.explorer_first_name} {row.explorer_last_name}</strong>
+                                        </td>
+                                        <td>
+                                            <span className={`ems-pill ems-pill--${row.dofe_level}`}>
+                                                {row.dofe_level}
+                                            </span>
+                                        </td>
+                                        <td className="ems-table-cell--center">
+                                            {row.participantEntries.length > 0 ? (
+                                                <span title="Participant Place submitted" className="ems-fa-full">
+                                                    ✓{row.participantEntries.length > 1 ? ` (${row.participantEntries.length})` : ''}
+                                                </span>
+                                            ) : (
+                                                <span>—</span>
+                                            )}
+                                        </td>
+                                        <td className="ems-table-cell--center">
+                                            {row.expeditionEntries.length > 0 ? (
+                                                <span title="Expedition Preference submitted" className="ems-fa-full">
+                                                    ✓{row.expeditionEntries.length > 1 ? ` (${row.expeditionEntries.length})` : ''}
+                                                </span>
+                                            ) : (
+                                                <span>—</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            {row.expedition_preferences?.exped_type ? (
+                                                <span>{row.expedition_preferences.exped_type}</span>
+                                            ) : (
+                                                <span>—</span>
+                                            )}
+                                        </td>
+                                        <td>{row.unit_name || 'Unassigned'}</td>
+                                        <td className="ems-table-cell--center">
+                                            {row.scout_id !== 0 ? (
+                                                <img
+                                                    src={osmIconUrl}
+                                                    alt="Synced with OSM"
+                                                    title="Synced with OSM"
+                                                    className="ems-osm-sync-icon"
+                                                />
+                                            ) : null}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </React.Fragment>
+                        ))
                     )}
+                </tbody>
+            </table>
+
+            {totalItems > 0 && (
+                <div className="ems-flex-between ems-wrap ems-gap-12 ems-mt-16">
+                    <div>
+                        Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} explorers
+                    </div>
+                    <div className="ems-flex-center ems-gap-8">
+                        <label htmlFor="leader-items-per-page">Items per page:</label>
+                        <select
+                            id="leader-items-per-page"
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                setItemsPerPage(parseInt(e.target.value, 10));
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                        </select>
+
+                        <div className="ems-flex-center ems-gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage(1)}
+                                disabled={currentPage === 1}
+                            >
+                                «
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                            >
+                                ‹ Prev
+                            </button>
+                            <span>
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                            >
+                                Next ›
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage(totalPages)}
+                                disabled={currentPage === totalPages}
+                            >
+                                »
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
