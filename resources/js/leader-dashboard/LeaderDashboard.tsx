@@ -385,8 +385,15 @@ export const LeaderDashboard: React.FC = () => {
                         paginatedGroupedRows.map((g) => (
                             <React.Fragment key={g.title || 'flat'}>
                                 {g.title && (
-                                    <tr>
-                                        <td colSpan={7}><strong>{g.title}</strong></td>
+                                    <tr className="ems-table-group-header">
+                                        <td colSpan={7}>
+                                            <div className="ems-table-group-header__content">
+                                                <span className="ems-table-group-header__title">{g.title}</span>
+                                                <span className="ems-table-group-header__badge">
+                                                    {g.items.length} {g.items.length === 1 ? 'explorer' : 'explorers'}
+                                                </span>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )}
                                 {g.items.map((row: any) => (

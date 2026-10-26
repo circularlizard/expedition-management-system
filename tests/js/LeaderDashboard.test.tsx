@@ -100,8 +100,8 @@ describe('LeaderDashboard Component', () => {
         const rows = screen.getAllByRole('row');
         const rowTexts = rows.map(r => r.textContent || '');
 
-        const kelsoHeaderIdx = rowTexts.findIndex(t => t === 'BO-Kelso');
-        const peeblesHeaderIdx = rowTexts.findIndex(t => t === 'TW-Peebles');
+        const kelsoHeaderIdx = rowTexts.findIndex(t => t.includes('BO-Kelso') && !t.includes('Alice') && !t.includes('Zack'));
+        const peeblesHeaderIdx = rowTexts.findIndex(t => t.includes('TW-Peebles') && !t.includes('Bob'));
         const aliceRowIdx = rowTexts.findIndex(t => t.includes('Alice Zimmerman'));
         const zackRowIdx = rowTexts.findIndex(t => t.includes('Zack Adams'));
         const bobRowIdx = rowTexts.findIndex(t => t.includes('Bob Smith'));
@@ -111,6 +111,15 @@ describe('LeaderDashboard Component', () => {
         expect(aliceRowIdx).toBeGreaterThan(kelsoHeaderIdx);
         expect(zackRowIdx).toBeGreaterThan(aliceRowIdx);
         expect(bobRowIdx).toBeGreaterThan(peeblesHeaderIdx);
+
+        // Group header rows have ems-table-group-header class and explorer count badges
+        const kelsoRow = screen.getByText('BO-Kelso', { selector: '.ems-table-group-header__title' }).closest('tr')!;
+        expect(kelsoRow.className).toContain('ems-table-group-header');
+        expect(within(kelsoRow).getByText(/2 explorers/i)).toBeDefined();
+
+        const peeblesRow = screen.getByText('TW-Peebles', { selector: '.ems-table-group-header__title' }).closest('tr')!;
+        expect(peeblesRow.className).toContain('ems-table-group-header');
+        expect(within(peeblesRow).getByText(/1 explorer/i)).toBeDefined();
 
         // 3. OSM Sync icon: Zack Adams (scout_id 30003) shows assets/images/osm_icon.png, Alice Zimmerman (scout_id 0) shows nothing
         const zackRow = screen.getByText('Zack Adams').closest('tr')!;
