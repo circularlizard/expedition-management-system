@@ -558,4 +558,114 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$this->assertSame( 'Welcome - Kelso ESU, Peebles ESU and Gala ESU Access', $result['subject'] );
 		$this->assertSame( 'Units: Kelso ESU, Peebles ESU and Gala ESU', $result['message'] );
 	}
+
+	public function test_list_leaders_with_units_groups_by_email(): void {
+		$wpdb = new class {
+			public $prefix = 'wp_';
+
+			public function prepare( string $sql, ...$args ): string {
+				return vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
+			}
+
+			public function get_results( string $sql, string $output = 'OBJECT' ) {
+				if ( str_contains( $sql, 'SELECT * FROM wp_ems_units' ) ) {
+					return [
+						[ 'id' => 1, 'unit_id' => 10, 'district' => 'Borders', 'name' => 'Kelso ESU', 'short_code' => 'BO-Kelso', 'leader_email' => 'john@example.com' ],
+						[ 'id' => 2, 'unit_id' => 20, 'district' => 'Tweed',   'name' => 'Peebles ESU', 'short_code' => 'TW-Peebles', 'leader_email' => 'john@example.com' ],
+						[ 'id' => 3, 'unit_id' => 30, 'district' => 'Borders', 'name' => 'Hawick ESU', 'short_code' => 'BO-Hawick', 'leader_email' => 'mary@example.com' ],
+						[ 'id' => 4, 'unit_id' => 40, 'district' => 'Borders', 'name' => 'Gala ESU',   'short_code' => 'BO-Gala',   'leader_email' => '' ],
+					];
+				}
+				return [];
+			}
+		};
+
+		$user_john     = \Mockery::mock( 'WP_User' );
+		$user_john->ID = 501;
+
+		Functions\when( 'get_user_by' )->alias( function( $field, $value ) use ( $user_john ) {
+			if ( $field === 'email' && $value === 'john@example.com' ) {
+				return $user_john;
+			}
+			return false;
+		} );
+
+		Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single ) {
+			if ( $user_id === 501 && $key === 'ems_leader_invited_at' ) {
+				return '2026-10-01 10:00:00';
+			}
+			if ( $user_id === 501 && $key === 'ems_last_login_at' ) {
+				return '2026-10-02 12:00:00';
+			}
+			return '';
+		} );
+
+		$repo    = new Unit_Repository( $wpdb );
+		$leaders = $repo->list_leaders_with_units();
+
+		$this->assertCount( 2, $leaders );
+		$this->assertArrayHasKey( 'john@example.com', $leaders );
+		$this->assertArrayHasKey( 'mary@example.com', $leaders );
+
+		$john = $leaders['john@example.com'];
+		$this->assertSame( 'john@example.com', $john['email'] );
+		$this->assertCount( 2, $john['units'] );
+		$this->assertSame( [ 'Kelso ESU', 'Peebles ESU' ], $john['unit_names'] );
+		$this->assertSame( [ 'Borders', 'Tweed' ], $john['districts'] );
+		$this->assertTrue( $john['access_status']['invited'] );
+		$this->assertTrue( $john['access_status']['logged_in'] );
+
+		$mary = $leaders['mary@example.com'];
+		$this->assertSame( 'mary@example.com', $mary['email'] );
+		$this->assertCount( 1, $mary['units'] );
+		$this->assertSame( [ 'Hawick ESU' ], $mary['unit_names'] );
+		$this->assertFalse( $mary['access_status']['invited'] );
+		$this->assertFalse( $mary['access_status']['logged_in'] );
+	}
+
+	public function test_invite_leader_by_email_sends_notification(): void {
+		$wpdb = new class {
+			public $prefix = 'wp_';
+
+			public function prepare( string $sql, ...$args ): string {
+				return vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
+			}
+
+			public function get_results( string $sql, string $output = 'OBJECT' ) {
+				if ( str_contains( $sql, 'leader@example.com' ) ) {
+					return [
+						[ 'id' => 1, 'name' => 'Kelso ESU', 'short_code' => 'BO-Kelso' ],
+					];
+				}
+				return [];
+			}
+		};
+
+		$inserted_users = [];
+		Functions\when( 'wp_insert_user' )->alias( function( $userdata ) use ( &$inserted_users ) {
+			$inserted_users[] = $userdata;
+			return 777;
+		} );
+
+		$notified_users = [];
+		Functions\when( 'wp_new_user_notification' )->alias( function( $user_id, $dep = null, $notify = '' ) use ( &$notified_users ) {
+			$notified_users[] = $user_id;
+		} );
+
+		Functions\when( 'get_user_by' )->justReturn( false );
+		Functions\when( 'sanitize_user' )->returnArg();
+		Functions\when( 'username_exists' )->justReturn( false );
+		Functions\when( 'wp_generate_password' )->justReturn( 'password123' );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'update_user_meta' )->justReturn( true );
+
+		$repo    = new Unit_Repository( $wpdb );
+		$success = $repo->invite_leader_by_email( 'leader@example.com' );
+
+		$this->assertTrue( $success );
+		$this->assertCount( 1, $inserted_users );
+		$this->assertSame( 'leader@example.com', $inserted_users[0]['user_email'] );
+		$this->assertCount( 1, $notified_users );
+		$this->assertSame( 777, $notified_users[0] );
+	}
 }

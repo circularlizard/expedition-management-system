@@ -557,5 +557,133 @@ class Admin_PageTest extends EMSTestCase {
 		$this->assertStringContainsString( 'Consolidation complete: Merged 2 duplicate unit record(s).', $output );
 		$this->assertStringContainsString( 'BR-ALBATROSS: Merged 1 duplicate(s) into Unit ID 46461', $output );
 	}
+
+	public function test_handle_invite_leader_by_email_success(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'invite_leader_by_email' )
+			->with( 'leader@example.com', true )
+			->once()
+			->andReturn( true );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page       = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method    = $reflected->getMethod( 'handle_invite_leader_by_email' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page, 'leader@example.com' );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Leader invitation email sent to leader@example.com.', $output );
+	}
+
+	public function test_handle_invite_leader_by_email_failure(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'invite_leader_by_email' )
+			->with( 'bad-email', true )
+			->once()
+			->andReturn( false );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page       = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method    = $reflected->getMethod( 'handle_invite_leader_by_email' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page, 'bad-email' );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Could not send invitation email to bad-email.', $output );
+	}
+
+	public function test_render_leaders_view_displays_table_and_summary(): void {
+		Functions\when( 'wp_nonce_field' )->justReturn( '' );
+		Functions\when( 'get_edit_user_link' )->alias( fn( $id ) => "http://example.com/wp-admin/user-edit.php?user_id={$id}" );
+
+		$mock_user               = Mockery::mock( \WP_User::class );
+		$mock_user->ID           = 99;
+		$mock_user->display_name = 'John Leader';
+		$mock_user->user_login   = 'johnleader';
+
+		$leaders_data = [
+			'leader@example.com' => [
+				'email'         => 'leader@example.com',
+				'units'         => [
+					[ 'id' => 1, 'unit_id' => 101, 'name' => 'Kelso ESU', 'short_code' => 'KELSO', 'district' => 'Borders' ],
+				],
+				'unit_names'    => [ 'Kelso ESU' ],
+				'districts'     => [ 'Borders' ],
+				'access_status' => [
+					'invited'       => true,
+					'invited_at'    => '2026-06-13 10:00:00',
+					'logged_in'     => true,
+					'last_login_at' => '2026-06-13 12:00:00',
+					'user_id'       => 99,
+				],
+				'user'          => $mock_user,
+			],
+		];
+
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'list_leaders_with_units' )->once()->andReturn( $leaders_data );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page       = new Admin_Page( $diagnostic );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method    = $reflected->getMethod( 'render_leaders_view' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page, $repo );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Unit Leader Invitations & Portal Access', $output );
+		$this->assertStringContainsString( 'Total Leaders: 1', $output );
+		$this->assertStringContainsString( 'leader@example.com', $output );
+		$this->assertStringContainsString( 'Kelso ESU', $output );
+		$this->assertStringContainsString( 'Borders', $output );
+		$this->assertStringContainsString( 'Logged In', $output );
+		$this->assertStringContainsString( 'Resend Invite', $output );
+	}
+
+	public function test_render_unit_leaders_tab_renders_view_switcher_and_routes_to_leaders(): void {
+		Functions\when( 'wp_nonce_field' )->justReturn( '' );
+		$_GET['view'] = 'leaders';
+
+		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
+		$repo->shouldReceive( 'list_leaders_with_units' )->once()->andReturn( [] );
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$page       = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$reflected = new \ReflectionClass( Admin_Page::class );
+		$method    = $reflected->getMethod( 'render_unit_leaders_tab' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'View by District / Units', $output );
+		$this->assertStringContainsString( 'View by Leader & Invitations', $output );
+		$this->assertStringContainsString( 'No Leaders Found', $output );
+
+		unset( $_GET['view'] );
+	}
 }
 
