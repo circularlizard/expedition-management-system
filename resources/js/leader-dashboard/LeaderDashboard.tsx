@@ -445,27 +445,29 @@ export const LeaderDashboard: React.FC = () => {
 
             {totalItems > 0 && (
                 <div className="ems-flex-between ems-wrap ems-gap-12 ems-mt-16">
-                    <div>
+                    <div className="ems-leader-dashboard__nowrap">
                         Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} explorers
                     </div>
-                    <div className="ems-flex-center ems-gap-8">
-                        <label htmlFor="leader-items-per-page">Items per page:</label>
-                        <select
-                            id="leader-items-per-page"
-                            value={itemsPerPage}
-                            onChange={(e) => {
-                                setItemsPerPage(parseInt(e.target.value, 10));
-                                setCurrentPage(1);
-                            }}
-                        >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                            <option value={100}>100</option>
-                        </select>
+                    <div className="ems-flex-center ems-gap-12 ems-wrap">
+                        <div className="ems-flex-center ems-gap-8">
+                            <label htmlFor="leader-items-per-page">Items per page:</label>
+                            <select
+                                id="leader-items-per-page"
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(parseInt(e.target.value, 10));
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
 
-                        <div className="ems-flex-center ems-gap-4">
+                        <div className="ems-flex-center ems-gap-8">
                             <button
                                 type="button"
                                 onClick={() => setCurrentPage(1)}
@@ -480,7 +482,7 @@ export const LeaderDashboard: React.FC = () => {
                             >
                                 ‹ Prev
                             </button>
-                            <span>
+                            <span className="ems-leader-dashboard__nowrap">
                                 Page {currentPage} of {totalPages}
                             </span>
                             <button
