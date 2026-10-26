@@ -3853,16 +3853,16 @@ input.ems-form-input--title {
 .ems-table tbody tr.ems-table-group-header,
 .ems-table tr.ems-table-group-header,
 .ems-leader-dashboard .ems-table tbody tr.ems-table-group-header {
-    background-color: #f1f5f9 !important;
+    background-color: lightsteelblue !important;
 }
 
 .ems-table tbody tr.ems-table-group-header td,
 .ems-table tr.ems-table-group-header td,
 .ems-leader-dashboard .ems-table tbody tr.ems-table-group-header td {
-    background-color: #f1f5f9 !important;
-    border-top: 2px solid #cbd5e1 !important;
-    border-bottom: 2px solid #cbd5e1 !important;
-    border-left: 4px solid #005a9c !important;
+    background-color: lightsteelblue !important;
+    border-top: 1px solid #94a3b8 !important;
+    border-bottom: 2px solid #64748b !important;
+    border-left: 5px solid #005a9c !important;
     padding: 10px 14px !important;
     color: #0f172a !important;
 }
@@ -3871,7 +3871,7 @@ input.ems-form-input--title {
 .ems-table tbody tr.ems-table-group-header:hover td,
 .ems-leader-dashboard .ems-table tbody tr.ems-table-group-header:hover,
 .ems-leader-dashboard .ems-table tbody tr.ems-table-group-header:hover td {
-    background-color: #e2e8f0 !important;
+    background-color: #9fb9d6 !important;
 }
 
 .ems-table-group-header__content {
@@ -3893,14 +3893,14 @@ input.ems-form-input--title {
     display: inline-flex;
     align-items: center;
     padding: 3px 10px;
-    background-color: #ffffff;
-    color: #475569;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #1e3a5f;
     font-size: 11px;
     font-weight: 600;
     border-radius: 12px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid rgba(0, 0, 0, 0.15);
     letter-spacing: 0.02em;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 
