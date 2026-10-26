@@ -44,9 +44,9 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     Then the toolbar should not contain a "Form Type" filter
     And the table should be grouped by unit with group headers "BO-Kelso" followed by "TW-Peebles"
     And within "BO-Kelso", "Alice Zimmerman" should appear before "Zack Adams" (sorted by first name)
-    And the row for "Zack Adams" should display the OSM sync icon "assets/images/osm_icon.png"
-    And the row for "Alice Zimmerman" should not display any icon in the OSM sync column
+    And the row for "Zack Adams" should display the OSM sync icon "assets/images/osm_icon.png" in the "OSM Sync" column
+    And the row for "Alice Zimmerman" should not display any icon in the "OSM Sync" column
     And the level badges should render with coloured pill classes "ems-pill--bronze", "ems-pill--silver", and "ems-pill--gold"
     And the row for "Zack Adams" should show "✓" in both "Participant Place" and "Expedition Preference"
-    And the table should include a "Unit" column and pagination controls
+    And the table should include "OSM Sync" and "Unit" column headers and working pagination controls across explorer rows
     And clicking a row in the leader dashboard table should not open an inspector panel

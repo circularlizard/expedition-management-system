@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LeaderDashboard } from '../../resources/js/leader-dashboard/LeaderDashboard';
 
@@ -131,10 +131,11 @@ describe('LeaderDashboard Component', () => {
         const goldPill = within(bobRow).getByText('gold');
         expect(goldPill.className).toContain('ems-pill--gold');
 
-        // 5. Checkmarks in Participant Place and Expedition Preference, plus Unit column
+        // 5. Checkmarks in Participant Place and Expedition Preference, plus OSM Sync and Unit columns
+        expect(screen.getByRole('columnheader', { name: /OSM Sync/i })).toBeDefined();
         expect(screen.getByRole('columnheader', { name: /Unit/i })).toBeDefined();
         const zackCells = within(zackRow).getAllByRole('cell');
-        // Columns: 0: OSM Icon, 1: Explorer Name, 2: Level, 3: Participant Place, 4: Expedition Preference, 5: Expedition Type, 6: Unit
+        // Columns: 0: OSM Sync, 1: Explorer Name, 2: Level, 3: Participant Place, 4: Expedition Preference, 5: Expedition Type, 6: Unit
         expect(zackCells[3].textContent?.trim()).toBe('✓');
         expect(zackCells[4].textContent?.trim()).toBe('✓');
         expect(zackCells[5].textContent?.trim()).toBe('Hillwalking');
@@ -148,5 +149,52 @@ describe('LeaderDashboard Component', () => {
 
         // 7. No inspector panel exists
         expect(document.querySelector('.ems-signups-inspector')).toBeNull();
+    });
+
+    it('paginates explorer rows across unit groups when items per page is changed and Next/Prev are clicked', async () => {
+        const twelveExplorersPayload = Array.from({ length: 12 }, (_, idx) => ({
+            id: 100 + idx,
+            type: 'participant',
+            scout_id: 40000 + idx,
+            explorer_first_name: `Explorer${String(idx + 1).padStart(2, '0')}`,
+            explorer_last_name: 'Test',
+            dofe_level: 'bronze',
+            unit_id: idx < 6 ? 10 : 20,
+            unit_name: idx < 6 ? 'BO-Kelso' : 'TW-Peebles',
+            expedition_preferences: null,
+            signup_status: 'submitted',
+            created_at: '2026-08-03 10:00:00',
+        }));
+
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(twelveExplorersPayload),
+        });
+
+        render(<LeaderDashboard />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Explorer01 Test')).toBeDefined();
+        });
+
+        // Change Items per page to 10 -> should paginate 12 explorers across 2 pages even when grouped by Unit
+        const perPageSelect = screen.getByLabelText(/Items per page/i);
+        fireEvent.change(perPageSelect, { target: { value: '10' } });
+
+        expect(screen.getByText(/Showing 1–10 of 12 explorers/i)).toBeDefined();
+        expect(screen.getByText(/Page 1 of 2/i)).toBeDefined();
+        expect(screen.getByText('Explorer01 Test')).toBeDefined();
+        expect(screen.getByText('Explorer10 Test')).toBeDefined();
+        expect(screen.queryByText('Explorer11 Test')).toBeNull();
+
+        // Click Next -> Page 2 shows Explorer11 and Explorer12
+        const nextBtn = screen.getByRole('button', { name: /Next/i });
+        fireEvent.click(nextBtn);
+
+        expect(screen.getByText(/Showing 11–12 of 12 explorers/i)).toBeDefined();
+        expect(screen.getByText(/Page 2 of 2/i)).toBeDefined();
+        expect(screen.queryByText('Explorer01 Test')).toBeNull();
+        expect(screen.getByText('Explorer11 Test')).toBeDefined();
+        expect(screen.getByText('Explorer12 Test')).toBeDefined();
     });
 });

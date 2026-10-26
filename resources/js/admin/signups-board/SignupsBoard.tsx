@@ -501,22 +501,41 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     const groupedSignups = getGroupedSignups();
 
-    const totalItems = grouping === 'none' ? sortedSignups.length : groupedSignups.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const totalItems = sortedSignups.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
-    // Paginate grouped signups directly to keep groups together on a page
+    // Paginate explorer rows across groups while keeping group headers intact
     const getPaginatedGroupedSignups = () => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = currentPage * itemsPerPage;
+
         if (grouping === 'none') {
-            const flatSlice = sortedSignups.slice(
-                (currentPage - 1) * itemsPerPage,
-                currentPage * itemsPerPage
-            );
-            return [{ title: null, items: flatSlice }];
+            return [{ title: null, items: sortedSignups.slice(startIndex, endIndex) }];
         }
-        return groupedSignups.slice(
-            (currentPage - 1) * itemsPerPage,
-            currentPage * itemsPerPage
-        );
+
+        const result: Array<{ title: string | null; items: any[] }> = [];
+        let offset = 0;
+
+        for (const group of groupedSignups) {
+            const groupStart = offset;
+            const groupEnd = offset + group.items.length;
+            offset = groupEnd;
+
+            if (groupEnd <= startIndex || groupStart >= endIndex) {
+                continue;
+            }
+
+            const sliceStart = Math.max(0, startIndex - groupStart);
+            const sliceEnd = Math.min(group.items.length, endIndex - groupStart);
+            if (sliceEnd > sliceStart) {
+                result.push({
+                    title: group.title,
+                    items: group.items.slice(sliceStart, sliceEnd),
+                });
+            }
+        }
+
+        return result;
     };
 
     const paginatedGroupedSignups = getPaginatedGroupedSignups();
@@ -840,13 +859,13 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                 <table className="ems-table">
                                     <thead>
                                         <tr>
-                                            <th className="ems-table-cell--center ems-m-0"></th>
+                                            <th className="ems-table-cell--center ems-m-0">OSM Sync</th>
                                             {renderHeader('Explorer Name', 'explorer_first_name')}
                                             {renderHeader('Level', 'dofe_level')}
                                             {renderHeader('Participant Place', 'participant')}
                                             {renderHeader('Expedition Preference', 'expedition_signup')}
                                             {renderHeader('Expedition Type', 'expedition')}
-                                            {renderHeader('ESU', 'unit_name')}
+                                            {renderHeader('Unit', 'unit_name')}
                                             {renderHeader('Email', 'explorer_email')}
                                             {renderHeader('DofE Number', 'dofe_number')}
                                         </tr>
