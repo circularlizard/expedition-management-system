@@ -5,6 +5,11 @@ class Settings_Page {
 
 	private const VALID_MODES = array( 'mock', 'live', 'live-auth-only', 'live-limited' );
 
+	private ?\EMS\Integrations\Fluent_Forms_Sync $fluent_sync;
+
+	public function __construct( ?\EMS\Integrations\Fluent_Forms_Sync $fluent_sync = null ) {
+		$this->fluent_sync = $fluent_sync;
+	}
 
 	public function register(): void {
 		add_action( 'admin_init', array( $this, 'maybe_handle_export' ) );
@@ -90,6 +95,8 @@ class Settings_Page {
 			$this->save_connection( $post_data );
 		} elseif ( isset( $post_data['ems_save_form_mappings'] ) ) {
 			$this->save_form_mappings( $post_data );
+		} elseif ( isset( $post_data['ems_resync_fluent_forms'] ) ) {
+			$this->handle_resync_fluent_forms();
 		} elseif ( isset( $post_data['ems_save_access_control'] ) ) {
 			$this->save_access_control( $post_data );
 		} else {
@@ -115,6 +122,8 @@ class Settings_Page {
 			$this->save_connection( $_POST );
 		} elseif ( isset( $_POST['ems_save_form_mappings'] ) && check_admin_referer( 'ems_settings_form_mappings' ) ) {
 			$this->save_form_mappings( $_POST );
+		} elseif ( isset( $_POST['ems_resync_fluent_forms'] ) && check_admin_referer( 'ems_settings_form_mappings' ) ) {
+			$this->handle_resync_fluent_forms();
 		} elseif ( isset( $_POST['ems_save_access_control'] ) && check_admin_referer( 'ems_settings_access_control' ) ) {
 			$this->save_access_control( $_POST );
 		} elseif ( isset( $_POST['ems_import_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
@@ -358,6 +367,23 @@ class Settings_Page {
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Form configurations saved.', 'ems-plugin' ) . '</p></div>';
 	}
 
+	public function handle_resync_fluent_forms(): void {
+		$sync   = $this->fluent_sync ?: new \EMS\Integrations\Fluent_Forms_Sync();
+		$result = $sync->resync_existing_signups();
+
+		$updated  = $result['updated'];
+		$archived = $result['archived'];
+
+		$message = sprintf(
+			/* translators: 1: number of updated signups, 2: number of archived signups */
+			__( 'Fluent Forms re-sync complete: %1$d signup(s) updated, %2$d signup(s) archived (missing or deleted form/entry).', 'ems-plugin' ),
+			$updated,
+			$archived
+		);
+
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+	}
+
 	private function save_access_control( array $post ): void {
 		$raw_page_roles = $post['ems_page_roles'] ?? array();
 		$page_roles     = array();
@@ -538,6 +564,10 @@ class Settings_Page {
 
 			<p class="submit">
 				<input type="submit" name="ems_save_form_mappings" id="submit" class="button button-primary" value="<?php esc_attr_e( 'Save Form Configuration', 'ems-plugin' ); ?>" />
+				<input type="submit" name="ems_resync_fluent_forms" id="ems_resync_fluent_forms" class="button button-secondary" style="margin-left: 8px;" value="<?php esc_attr_e( 'Re-sync Signups from Fluent Forms', 'ems-plugin' ); ?>" />
+			</p>
+			<p class="description">
+				<?php esc_html_e( 'Use "Re-sync Signups from Fluent Forms" to re-parse existing signup entries with the current field mappings and archive any entries whose Fluent Forms submission or form has been deleted.', 'ems-plugin' ); ?>
 			</p>
 		</form>
 		<?php

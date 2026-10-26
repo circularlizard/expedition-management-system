@@ -606,4 +606,77 @@ class Signup_Repository {
 
 		return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
 	}
+
+	/**
+	 * Update an existing participant signup record from a Fluent Forms re-sync.
+	 */
+	public function update_participant_signup_from_sync( int $id, array $data ): bool {
+		$now = current_time( 'mysql' );
+
+		$update_data = array(
+			'scout_id'            => (int) ( $data['scout_id'] ?? 0 ),
+			'unit_id'             => ! empty( $data['unit_id'] ) ? (int) $data['unit_id'] : null,
+			'unit_name'           => sanitize_text_field( $data['unit_name'] ?? '' ),
+			'explorer_first_name' => sanitize_text_field( $data['explorer_first_name'] ?? '' ),
+			'explorer_last_name'  => sanitize_text_field( $data['explorer_last_name'] ?? '' ),
+			'explorer_email'      => sanitize_email( $data['explorer_email'] ?? '' ),
+			'parent_email'        => sanitize_email( $data['parent_email'] ?? '' ),
+			'leader_email'        => sanitize_email( $data['leader_email'] ?? '' ),
+			'dofe_level'          => strtolower( sanitize_text_field( $data['dofe_level'] ?? '' ) ),
+			'dob'                 => ! empty( $data['dob'] ) ? sanitize_text_field( $data['dob'] ) : null,
+			'dofe_registered'     => sanitize_text_field( $data['dofe_registered'] ?? 'n' ),
+			'dofe_number'         => ! empty( $data['dofe_number'] ) ? sanitize_text_field( $data['dofe_number'] ) : null,
+			'dofe_org'            => ! empty( $data['dofe_org'] ) ? sanitize_text_field( $data['dofe_org'] ) : null,
+			'bronze_completion'   => ! empty( $data['bronze_completion'] ) ? ( is_array( $data['bronze_completion'] ) ? json_encode( $data['bronze_completion'] ) : $data['bronze_completion'] ) : null,
+			'silver_completion'   => ! empty( $data['silver_completion'] ) ? ( is_array( $data['silver_completion'] ) ? json_encode( $data['silver_completion'] ) : $data['silver_completion'] ) : null,
+			'updated_at'          => $now,
+		);
+
+		$result = $this->wpdb->update(
+			"{$this->wpdb->prefix}ems_participant_signups",
+			$update_data,
+			array( 'id' => $id ),
+			array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
+			array( '%d' )
+		);
+
+		return $result !== false;
+	}
+
+	/**
+	 * Update an existing expedition signup record from a Fluent Forms re-sync.
+	 */
+	public function update_expedition_signup_from_sync( int $id, array $data ): bool {
+		$now = current_time( 'mysql' );
+
+		$update_data = array(
+			'scout_id'                 => (int) ( $data['scout_id'] ?? 0 ),
+			'unit_id'                  => ! empty( $data['unit_id'] ) ? (int) $data['unit_id'] : null,
+			'unit_name'                => sanitize_text_field( $data['unit_name'] ?? '' ),
+			'explorer_first_name'      => sanitize_text_field( $data['explorer_first_name'] ?? '' ),
+			'explorer_last_name'       => sanitize_text_field( $data['explorer_last_name'] ?? '' ),
+			'explorer_email'           => sanitize_email( $data['explorer_email'] ?? '' ),
+			'parent_email'             => sanitize_email( $data['parent_email'] ?? '' ),
+			'leader_email'             => sanitize_email( $data['leader_email'] ?? '' ),
+			'dofe_level'               => strtolower( sanitize_text_field( $data['dofe_level'] ?? '' ) ),
+			'dob'                      => ! empty( $data['dob'] ) ? sanitize_text_field( $data['dob'] ) : null,
+			'dofe_registered'          => sanitize_text_field( $data['dofe_registered'] ?? 'n' ),
+			'dofe_number'              => ! empty( $data['dofe_number'] ) ? sanitize_text_field( $data['dofe_number'] ) : null,
+			'expedition_preferences'   => ! empty( $data['expedition_preferences'] ) ? ( is_array( $data['expedition_preferences'] ) ? json_encode( $data['expedition_preferences'] ) : $data['expedition_preferences'] ) : null,
+			'additional_support_needs' => ! empty( $data['additional_support_needs'] ) ? sanitize_textarea_field( $data['additional_support_needs'] ) : null,
+			'first_aid_status'         => sanitize_text_field( $data['first_aid_status'] ?? 'none' ),
+			'first_aid_expiry'         => ! empty( $data['first_aid_expiry'] ) ? sanitize_text_field( $data['first_aid_expiry'] ) : null,
+			'updated_at'               => $now,
+		);
+
+		$result = $this->wpdb->update(
+			"{$this->wpdb->prefix}ems_expedition_signups",
+			$update_data,
+			array( 'id' => $id ),
+			array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
+			array( '%d' )
+		);
+
+		return $result !== false;
+	}
 }
