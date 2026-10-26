@@ -87,9 +87,10 @@ class Admin_Page {
 			'ems-signups-board',
 			'emsSignupsBoard',
 			array(
-				'root_url' => get_rest_url( null, 'ems/v1' ),
-				'nonce'    => wp_create_nonce( 'wp_rest' ),
-				'units'    => $units,
+				'root_url'   => get_rest_url( null, 'ems/v1' ),
+				'nonce'      => wp_create_nonce( 'wp_rest' ),
+				'plugin_url' => plugin_dir_url( EMS_PLUGIN_FILE ),
+				'units'      => $units,
 			)
 		);
 	}
@@ -266,6 +267,10 @@ class Admin_Page {
 			$this->handle_delete_district( sanitize_text_field( wp_unslash( $_POST['ems_delete_district'] ) ) );
 		} elseif ( isset( $_POST['ems_consolidate_units'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
 			$this->handle_consolidate_units();
+		} elseif ( isset( $_POST['ems_bulk_invite_leaders'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
+			$this->handle_bulk_invite_leaders( $_POST );
+		} elseif ( isset( $_POST['ems_invite_single_unit'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
+			$this->handle_invite_single_unit( (int) $_POST['ems_invite_single_unit'], $_POST );
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'link_patrol' && check_admin_referer( 'ems_link_patrol' ) ) {
 			$this->handle_link_patrol_to_unit();
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'create_unit_from_patrol' && check_admin_referer( 'ems_create_unit_from_patrol' ) ) {
@@ -906,6 +911,67 @@ class Admin_Page {
 	}
 
 	/**
+	 * Handles bulk-inviting unit leaders who have not yet been invited.
+	 *
+	 * @param array $post_data The POST data (saves any pending unit email changes first).
+	 * @return void
+	 */
+	private function handle_bulk_invite_leaders( array $post_data ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		if ( ! empty( $post_data['unit_leaders'] ) ) {
+			$this->save_unit_leaders( $post_data );
+		}
+
+		$unit_repo = $this->get_unit_repository();
+		$summary   = $unit_repo->invite_unit_leaders( null, false );
+
+		echo '<div class="notice notice-success is-dismissible"><p>' .
+			sprintf(
+				/* translators: 1: number of invited leaders, 2: already invited count, 3: skipped without email count */
+				esc_html__( 'Leader invitations complete: %1$d new leader(s) invited, %2$d already invited/active, %3$d unit(s) skipped (no email).', 'ems-plugin' ),
+				$summary['invited'],
+				$summary['already_invited'],
+				$summary['skipped_no_email']
+			) .
+			'</p></div>';
+
+		if ( ! empty( $summary['errors'] ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( implode( '; ', $summary['errors'] ) ) . '</p></div>';
+		}
+	}
+
+	/**
+	 * Handles sending or resending an invitation to a single unit's leader.
+	 *
+	 * @param int   $unit_row_id The unit database row ID.
+	 * @param array $post_data   The POST data.
+	 * @return void
+	 */
+	private function handle_invite_single_unit( int $unit_row_id, array $post_data ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		if ( ! empty( $post_data['unit_leaders'] ) ) {
+			$this->save_unit_leaders( $post_data );
+		}
+
+		$unit_repo = $this->get_unit_repository();
+		$summary   = $unit_repo->invite_unit_leaders( $unit_row_id, true );
+
+		if ( $summary['invited'] > 0 ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Leader invitation email sent.', 'ems-plugin' ) . '</p></div>';
+		} elseif ( ! empty( $summary['errors'] ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( implode( '; ', $summary['errors'] ) ) . '</p></div>';
+		} else {
+			echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Please enter a valid Leader Email for this unit before sending an invite.', 'ems-plugin' ) . '</p></div>';
+		}
+	}
+
+	/**
 	 * Checks if a unit export request has been made and handles it before headers are sent.
 	 *
 	 * @return void
@@ -1415,6 +1481,10 @@ class Admin_Page {
 								<span class="dashicons dashicons-randomize" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
 								<?php esc_html_e( 'Consolidate Duplicate Units', 'ems-plugin' ); ?>
 							</button>
+							<button type="submit" name="ems_bulk_invite_leaders" value="1" class="button button-secondary" onclick="return confirm('<?php echo esc_attr( __( 'Send invitation emails to all unit leaders who have not yet been invited?', 'ems-plugin' ) ); ?>');">
+								<span class="dashicons dashicons-email-alt" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
+								<?php esc_html_e( 'Invite All Uninvited Leaders', 'ems-plugin' ); ?>
+							</button>
 							<button type="button" class="button button-secondary" onclick="var el = document.getElementById('custom_unit_district'); if (el) { el.value = ''; el.focus(); el.scrollIntoView({behavior: 'smooth', block: 'center'}); }">
 								<span class="dashicons dashicons-plus-alt2" style="vertical-align: text-top; font-size: 15px; margin-right: 2px;"></span>
 								<?php esc_html_e( 'Add Master Unit', 'ems-plugin' ); ?>
@@ -1467,11 +1537,12 @@ class Admin_Page {
 							<table class="wp-list-table widefat striped ems-district-units-table" style="margin-top: 10px;">
 								<thead>
 									<tr>
-										<th style="width: 20%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
-										<th style="width: 8%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
-										<th style="width: 12%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
-										<th style="width: 20%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
-										<th style="width: 24%;"><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
+										<th style="width: 16%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
+										<th style="width: 7%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
+										<th style="width: 10%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
+										<th style="width: 18%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+										<th style="width: 15%;"><?php esc_html_e( 'Leader Access', 'ems-plugin' ); ?></th>
+										<th style="width: 18%;"><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
 										<th style="width: 10%;"><?php esc_html_e( 'Move District', 'ems-plugin' ); ?></th>
 										<th style="width: 6%; text-align: center;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
 									</tr>
@@ -1479,14 +1550,16 @@ class Admin_Page {
 								<tbody>
 									<?php if ( empty( $group_units ) ) : ?>
 										<tr>
-											<td colspan="7" style="padding: 16px; text-align: center; color: #646970; font-style: italic;">
+											<td colspan="8" style="padding: 16px; text-align: center; color: #646970; font-style: italic;">
 												<?php echo sprintf( esc_html__( 'No units in %s yet. Click "Add Unit to %s" above or use "Move District" on existing units to assign them here.', 'ems-plugin' ), esc_html( $group_key ), esc_html( $group_key ) ); ?>
 											</td>
 										</tr>
 									<?php else : ?>
 										<?php foreach ( $group_units as $u ) :
-											$row_id   = (int) $u['id'];
-											$cur_dist = $u['district'] ?? '';
+											$row_id        = (int) $u['id'];
+											$cur_dist      = $u['district'] ?? '';
+											$leader_email  = $u['leader_email'] ?? '';
+											$access_status = $unit_repo->get_leader_access_status( (string) $leader_email );
 											?>
 											<tr class="ems-unit-row" data-unit-row-id="<?php echo $row_id; ?>">
 												<input type="hidden" class="ems-unit-district-hidden" 
@@ -1506,7 +1579,37 @@ class Admin_Page {
 												</td>
 												<td>
 													<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
-															value="<?php echo esc_attr( $u['leader_email'] ?? '' ); ?>" />
+															value="<?php echo esc_attr( $leader_email ); ?>" />
+												</td>
+												<td>
+													<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+														<div style="display: flex; flex-wrap: wrap; gap: 4px;">
+															<?php if ( $access_status['invited'] ) : ?>
+																<span class="ems-status-badge ems-status-badge--planning" title="<?php echo esc_attr( $access_status['invited_at'] ? sprintf( __( 'Invited: %s', 'ems-plugin' ), $access_status['invited_at'] ) : __( 'Invited', 'ems-plugin' ) ); ?>">
+																	<?php esc_html_e( 'Invited', 'ems-plugin' ); ?>
+																</span>
+															<?php else : ?>
+																<span class="ems-status-badge ems-status-badge--archived">
+																	<?php esc_html_e( 'Not Invited', 'ems-plugin' ); ?>
+																</span>
+															<?php endif; ?>
+
+															<?php if ( $access_status['logged_in'] ) : ?>
+																<span class="ems-status-badge ems-status-badge--active" title="<?php echo esc_attr( sprintf( __( 'Last login: %s', 'ems-plugin' ), $access_status['last_login_at'] ) ); ?>">
+																	✓ <?php esc_html_e( 'Logged In', 'ems-plugin' ); ?>
+																</span>
+															<?php elseif ( $access_status['invited'] ) : ?>
+																<span class="ems-status-badge ems-status-badge--pending">
+																	<?php esc_html_e( 'Never Logged In', 'ems-plugin' ); ?>
+																</span>
+															<?php endif; ?>
+														</div>
+														<?php if ( ! empty( $leader_email ) ) : ?>
+															<button type="submit" name="ems_invite_single_unit" value="<?php echo $row_id; ?>" class="button button-small" style="font-size: 11px; min-height: 24px; line-height: 22px; padding: 0 8px;">
+																<?php echo $access_status['invited'] ? esc_html__( 'Resend Invite', 'ems-plugin' ) : esc_html__( 'Send Invite', 'ems-plugin' ); ?>
+															</button>
+														<?php endif; ?>
+													</div>
 												</td>
 												<td>
 													<?php if ( ! empty( $u['matched_patrols'] ) ) : ?>

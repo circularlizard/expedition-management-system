@@ -380,4 +380,87 @@ class Portal_ControllerTest extends EMSTestCase {
         $this->assertCount( 1, $data['signups'] );
         $this->assertEquals( 'silver', $data['signups'][0]['dofe_level'] );
     }
+
+    public function test_check_leader_dashboard_permission_allows_leader_or_admin(): void {
+        Functions\when( 'current_user_can' )->alias( function( $cap ) {
+            return $cap === 'access_ems_leader_portal';
+        } );
+
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client );
+        $this->assertTrue( $controller->check_leader_dashboard_permission() );
+
+        Functions\when( 'current_user_can' )->justReturn( false );
+        $this->assertFalse( $controller->check_leader_dashboard_permission() );
+    }
+
+    public function test_get_leader_dashboard_signups_returns_sanitized_active_signups(): void {
+        $signup_repo = \Mockery::mock( \EMS\Data\Signup_Repository::class );
+        $signup_repo->shouldReceive( 'get_participant_signups' )->with( 'all' )->once()->andReturn( [
+            [
+                'id'                  => 10,
+                'scout_id'            => 30003,
+                'unit_id'             => 10,
+                'unit_name'           => 'BO-Kelso',
+                'explorer_first_name' => 'Zack',
+                'explorer_last_name'  => 'Adams',
+                'explorer_email'      => 'zack@example.com',
+                'parent_email'        => 'parent@example.com',
+                'dofe_level'          => 'bronze',
+                'signup_status'       => 'submitted',
+                'is_synced_osm'       => 1,
+                'created_at'          => '2026-08-03 10:00:00',
+            ],
+            [
+                'id'                  => 99,
+                'scout_id'            => 30009,
+                'unit_id'             => 10,
+                'unit_name'           => 'BO-Kelso',
+                'explorer_first_name' => 'Archived',
+                'explorer_last_name'  => 'Person',
+                'dofe_level'          => 'bronze',
+                'signup_status'       => 'archived',
+                'is_synced_osm'       => 1,
+                'created_at'          => '2026-08-01 10:00:00',
+            ],
+        ] );
+
+        $signup_repo->shouldReceive( 'get_expedition_signups' )->with( 'all' )->once()->andReturn( [
+            [
+                'id'                       => 20,
+                'scout_id'                 => 30003,
+                'unit_id'                  => 10,
+                'unit_name'                => 'BO-Kelso',
+                'explorer_first_name'      => 'Zack',
+                'explorer_last_name'       => 'Adams',
+                'explorer_email'           => 'zack@example.com',
+                'parent_email'             => 'parent@example.com',
+                'additional_support_needs' => 'Asthma inhalers',
+                'dofe_level'               => 'bronze',
+                'expedition_preferences'   => json_encode( [ 'exped_type' => 'Hillwalking' ] ),
+                'signup_status'            => 'submitted',
+                'is_synced_osm'            => 1,
+                'created_at'               => '2026-08-18 10:00:00',
+            ],
+        ] );
+
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client, $signup_repo );
+        $request    = new \WP_REST_Request( 'GET', '/ems/v1/leader-dashboard/signups' );
+        $response   = $controller->get_leader_dashboard_signups( $request );
+
+        $this->assertEquals( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        // Archived signup 99 should be excluded
+        $this->assertCount( 2, $data );
+        $this->assertEquals( 'participant', $data[0]['type'] );
+        $this->assertEquals( 'Zack', $data[0]['explorer_first_name'] );
+        $this->assertArrayNotHasKey( 'explorer_email', $data[0] );
+        $this->assertArrayNotHasKey( 'parent_email', $data[0] );
+
+        $this->assertEquals( 'expedition', $data[1]['type'] );
+        $this->assertEquals( 'Hillwalking', $data[1]['expedition_preferences']['exped_type'] );
+        $this->assertArrayNotHasKey( 'additional_support_needs', $data[1] );
+        $this->assertArrayNotHasKey( 'explorer_email', $data[1] );
+        $this->assertArrayNotHasKey( 'parent_email', $data[1] );
+    }
 }
