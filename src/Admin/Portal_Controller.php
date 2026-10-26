@@ -2,18 +2,29 @@
 namespace EMS\Admin;
 
 use EMS\Data\OSM_Explorer_Repository;
+use EMS\Data\Signup_Repository;
 use EMS\Integrations\TutorLMS_Client;
 
 class Portal_Controller {
 	private OSM_Explorer_Repository $explorer_repo;
 	private TutorLMS_Client $tutor_client;
+	private ?Signup_Repository $signup_repo;
 
 	public function __construct(
 		?OSM_Explorer_Repository $explorer_repo = null,
-		?TutorLMS_Client $tutor_client = null
+		?TutorLMS_Client $tutor_client = null,
+		?Signup_Repository $signup_repo = null
 	) {
 		$this->explorer_repo = $explorer_repo ?: new OSM_Explorer_Repository();
 		$this->tutor_client  = $tutor_client ?: new TutorLMS_Client();
+		$this->signup_repo   = $signup_repo;
+	}
+
+	private function get_signup_repository(): Signup_Repository {
+		if ( $this->signup_repo === null ) {
+			$this->signup_repo = new Signup_Repository();
+		}
+		return $this->signup_repo;
 	}
 
 	public function register_routes(): void {
@@ -36,6 +47,69 @@ class Portal_Controller {
 				'permission_callback' => 'is_user_logged_in',
 			)
 		);
+
+		register_rest_route(
+			'ems/v1',
+			'/leader-dashboard/signups',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'get_leader_dashboard_signups' ),
+				'permission_callback' => array( $this, 'check_leader_dashboard_permission' ),
+			)
+		);
+	}
+
+	public function check_leader_dashboard_permission(): bool {
+		return current_user_can( 'access_ems_leader_portal' ) || current_user_can( 'manage_options' );
+	}
+
+	public function get_leader_dashboard_signups( \WP_REST_Request $request ): \WP_REST_Response {
+		$repo         = $this->get_signup_repository();
+		$participants = $repo->get_participant_signups( 'all' );
+		$expeditions  = $repo->get_expedition_signups( 'all' );
+
+		$results = array();
+
+		foreach ( $participants as $row ) {
+			if ( ( $row['signup_status'] ?? '' ) === 'archived' ) {
+				continue;
+			}
+			$results[] = array(
+				'id'                     => (int) $row['id'],
+				'type'                   => 'participant',
+				'scout_id'               => (int) ( $row['scout_id'] ?? 0 ),
+				'unit_id'                => ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null,
+				'unit_name'              => ! empty( $row['unit_name'] ) ? $row['unit_name'] : 'Unassigned',
+				'explorer_first_name'    => $row['explorer_first_name'] ?? '',
+				'explorer_last_name'     => $row['explorer_last_name'] ?? '',
+				'dofe_level'             => $row['dofe_level'] ?? '',
+				'expedition_preferences' => null,
+				'signup_status'          => $row['signup_status'] ?? 'submitted',
+				'created_at'             => $row['created_at'] ?? '',
+			);
+		}
+
+		foreach ( $expeditions as $row ) {
+			if ( ( $row['signup_status'] ?? '' ) === 'archived' ) {
+				continue;
+			}
+			$prefs     = ! empty( $row['expedition_preferences'] ) ? json_decode( (string) $row['expedition_preferences'], true ) : null;
+			$results[] = array(
+				'id'                     => (int) $row['id'],
+				'type'                   => 'expedition',
+				'scout_id'               => (int) ( $row['scout_id'] ?? 0 ),
+				'unit_id'                => ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null,
+				'unit_name'              => ! empty( $row['unit_name'] ) ? $row['unit_name'] : 'Unassigned',
+				'explorer_first_name'    => $row['explorer_first_name'] ?? '',
+				'explorer_last_name'     => $row['explorer_last_name'] ?? '',
+				'dofe_level'             => $row['dofe_level'] ?? '',
+				'expedition_preferences' => is_array( $prefs ) ? array( 'exped_type' => $prefs['exped_type'] ?? '' ) : null,
+				'signup_status'          => $row['signup_status'] ?? 'submitted',
+				'created_at'             => $row['created_at'] ?? '',
+			);
+		}
+
+		return new \WP_REST_Response( $results, 200 );
 	}
 
 	public function get_me( \WP_REST_Request $request ): \WP_REST_Response {
