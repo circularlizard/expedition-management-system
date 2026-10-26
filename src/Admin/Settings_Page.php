@@ -1050,7 +1050,7 @@ class Settings_Page {
 						><?php echo esc_textarea( $invite_body ); ?></textarea>
 						<p class="description">
 							<?php esc_html_e( 'Available placeholders:', 'ems-plugin' ); ?>
-							<code>{{unit_name}}</code>,
+							<code>{{unit_name}}</code> / <code>{{units}}</code> <?php esc_html_e( '(formats multiple units as "Unit A, Unit B and Unit C")', 'ems-plugin' ); ?>,
 							<code>{{set_password_url}}</code>,
 							<code>{{dashboard_url}}</code>,
 							<code>{{site_name}}</code>,

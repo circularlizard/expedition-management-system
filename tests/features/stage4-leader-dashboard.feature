@@ -65,3 +65,10 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     And the user should be redirected to the Leader Dashboard page URL
     When a user with role "ems_leader" logs in via the standard WordPress login screen without a custom redirect target
     Then the user should be redirected to the Leader Dashboard page URL instead of wp-admin
+
+  Scenario: Formatting multiple units in leader invitation email with conjunction
+    Given leader "john@example.com" is assigned to units "Kelso ESU", "Peebles ESU", and "Gala ESU"
+    When an invitation email is generated for "john@example.com"
+    Then the "{{unit_name}}" and "{{units}}" placeholders should be formatted as "Kelso ESU, Peebles ESU and Gala ESU"
+    When a leader "mary@example.com" is assigned to units "Hawick ESU" and "Jedburgh ESU"
+    Then the "{{unit_name}}" and "{{units}}" placeholders should be formatted as "Hawick ESU and Jedburgh ESU"
