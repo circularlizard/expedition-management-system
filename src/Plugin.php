@@ -23,6 +23,7 @@ class Plugin {
 		$this->init_hooks();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );
 		add_shortcode( 'ems-portal', array( $this, 'render_portal_shortcode' ) );
+		add_shortcode( 'ems-leader-dashboard', array( $this, 'render_leader_dashboard_shortcode' ) );
 		add_shortcode( 'ems_signup_banner', array( $this, 'render_signup_banner_shortcode' ) );
 	}
 
@@ -34,6 +35,9 @@ class Plugin {
 
 		add_action( 'wp_login', function( $user_login, $user ) {
 			$u_id = ( $user instanceof \WP_User ) ? $user->ID : null;
+			if ( $u_id ) {
+				update_user_meta( (int) $u_id, 'ems_last_login_at', current_time( 'mysql' ) );
+			}
 			\EMS\Core\Audit_Logger::log( 'login_success', null, $u_id );
 		}, 10, 2 );
 		add_action( 'template_redirect', array( $this, 'restrict_signup_page_access' ) );
@@ -604,9 +608,10 @@ class Plugin {
 	}
 
 	public function register_and_enqueue_frontend_assets(): void {
-		$css_path     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
-		$volunteer_js = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/volunteer-signup.js';
-		$portal_js    = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.js';
+		$css_path            = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+		$volunteer_js        = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/volunteer-signup.js';
+		$portal_js           = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.js';
+		$leader_dashboard_js = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/leader-dashboard.js';
 
 		wp_register_style( 'ems-admin', $css_path, array( 'wp-components' ), EMS_VERSION );
 		wp_register_script(
@@ -619,6 +624,13 @@ class Plugin {
 		wp_register_script(
 			'ems-portal',
 			$portal_js,
+			array( 'wp-element', 'wp-i18n' ),
+			EMS_VERSION,
+			true
+		);
+		wp_register_script(
+			'ems-leader-dashboard',
+			$leader_dashboard_js,
 			array( 'wp-element', 'wp-i18n' ),
 			EMS_VERSION,
 			true
@@ -645,7 +657,45 @@ class Plugin {
 				wp_enqueue_style( 'ems-admin' );
 				wp_enqueue_script( 'ems-portal' );
 			}
+			if ( has_shortcode( $post->post_content, 'ems-leader-dashboard' ) ) {
+				wp_enqueue_style( 'wp-components' );
+				wp_enqueue_style( 'ems-admin' );
+				wp_enqueue_script( 'ems-leader-dashboard' );
+			}
 		}
+	}
+
+	public function render_leader_dashboard_shortcode(): string {
+		wp_enqueue_style( 'wp-components' );
+		wp_enqueue_style( 'ems-admin' );
+		wp_enqueue_script( 'ems-leader-dashboard' );
+
+		$current_user = wp_get_current_user();
+		$logged_in    = $current_user->exists();
+		$can_access   = $logged_in && ( current_user_can( 'access_ems_leader_portal' ) || current_user_can( 'manage_options' ) );
+
+		$user_data = array(
+			'logged_in'    => $logged_in,
+			'display_name' => $logged_in ? ( $current_user->display_name ?: $current_user->user_email ) : '',
+			'can_access'   => $can_access,
+		);
+
+		$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );
+
+		wp_localize_script(
+			'ems-leader-dashboard',
+			'emsLeaderDashboard',
+			array(
+				'root_url'   => get_rest_url( null, 'ems/v1' ),
+				'nonce'      => wp_create_nonce( 'wp_rest' ),
+				'plugin_url' => plugin_dir_url( EMS_PLUGIN_FILE ),
+				'login_url'  => wp_login_url( $current_url ),
+				'logout_url' => wp_logout_url( $current_url ),
+				'user_data'  => $user_data,
+			)
+		);
+
+		return '<div id="ems-leader-dashboard-root"></div>';
 	}
 
 	public function render_volunteer_signup_shortcode(): string {

@@ -391,4 +391,139 @@ class Unit_Repository {
 			'details'      => $details,
 		);
 	}
+
+	/**
+	 * Returns invitation and login status for a unit leader email.
+	 *
+	 * @param string $email The leader's email address.
+	 * @return array{invited: bool, invited_at: ?string, logged_in: bool, last_login_at: ?string, user_id: ?int}
+	 */
+	public function get_leader_access_status( string $email ): array {
+		$email = trim( $email );
+		if ( $email === '' || ! is_email( $email ) ) {
+			return array(
+				'invited'       => false,
+				'invited_at'    => null,
+				'logged_in'     => false,
+				'last_login_at' => null,
+				'user_id'       => null,
+			);
+		}
+
+		$user = get_user_by( 'email', $email );
+		if ( ! $user ) {
+			return array(
+				'invited'       => false,
+				'invited_at'    => null,
+				'logged_in'     => false,
+				'last_login_at' => null,
+				'user_id'       => null,
+			);
+		}
+
+		$user_id       = (int) $user->ID;
+		$invited_at    = (string) get_user_meta( $user_id, 'ems_leader_invited_at', true );
+		$last_login_at = (string) get_user_meta( $user_id, 'ems_last_login_at', true );
+
+		return array(
+			'invited'       => $invited_at !== '' || $last_login_at !== '',
+			'invited_at'    => $invited_at !== '' ? $invited_at : null,
+			'logged_in'     => $last_login_at !== '',
+			'last_login_at' => $last_login_at !== '' ? $last_login_at : null,
+			'user_id'       => $user_id,
+		);
+	}
+
+	/**
+	 * Bulk-invites unit leaders (or invites a single unit's leader) by creating/updating
+	 * WordPress user accounts with the ems_leader role and sending the WP password setup email.
+	 *
+	 * @param int|null $only_unit_row_id Optional unit row ID to invite a single unit.
+	 * @param bool     $force_resend     Whether to resend the invitation email even if already invited.
+	 * @return array{invited: int, already_invited: int, skipped_no_email: int, errors: array<string>}
+	 */
+	public function invite_unit_leaders( ?int $only_unit_row_id = null, bool $force_resend = false ): array {
+		if ( $only_unit_row_id !== null ) {
+			$unit  = $this->find_by_id( $only_unit_row_id );
+			$units = $unit ? array( $unit ) : array();
+		} else {
+			$units = $this->list_active_units();
+		}
+
+		$invited          = 0;
+		$already_invited  = 0;
+		$skipped_no_email = 0;
+		$errors           = array();
+		$seen_emails      = array();
+		$now              = current_time( 'mysql' );
+
+		foreach ( $units as $u ) {
+			$email = strtolower( trim( (string) ( $u['leader_email'] ?? '' ) ) );
+			if ( $email === '' || ! is_email( $email ) ) {
+				++$skipped_no_email;
+				continue;
+			}
+
+			if ( isset( $seen_emails[ $email ] ) ) {
+				continue;
+			}
+			$seen_emails[ $email ] = true;
+
+			$user = get_user_by( 'email', $email );
+			if ( $user ) {
+				if ( is_callable( array( $user, 'add_role' ) ) ) {
+					$user->add_role( 'ems_leader' );
+				}
+				$user_id       = (int) $user->ID;
+				$invited_at    = (string) get_user_meta( $user_id, 'ems_leader_invited_at', true );
+				$last_login_at = (string) get_user_meta( $user_id, 'ems_last_login_at', true );
+
+				if ( ! $force_resend && ( $invited_at !== '' || $last_login_at !== '' ) ) {
+					++$already_invited;
+					continue;
+				}
+
+				wp_new_user_notification( $user_id, null, 'user' );
+				update_user_meta( $user_id, 'ems_leader_invited_at', $now );
+				++$invited;
+				continue;
+			}
+
+			$base_login = sanitize_user( current( explode( '@', $email ) ), true );
+			if ( $base_login === '' ) {
+				$base_login = 'ems_leader';
+			}
+			$user_login = $base_login;
+			$suffix     = 1;
+			while ( username_exists( $user_login ) ) {
+				$user_login = $base_login . '_' . $suffix;
+				++$suffix;
+			}
+
+			$new_user_id = wp_insert_user(
+				array(
+					'user_login' => $user_login,
+					'user_email' => $email,
+					'user_pass'  => wp_generate_password( 24, true, true ),
+					'role'       => 'ems_leader',
+				)
+			);
+
+			if ( is_wp_error( $new_user_id ) ) {
+				$errors[] = $email . ': ' . $new_user_id->get_error_message();
+				continue;
+			}
+
+			wp_new_user_notification( (int) $new_user_id, null, 'user' );
+			update_user_meta( (int) $new_user_id, 'ems_leader_invited_at', $now );
+			++$invited;
+		}
+
+		return array(
+			'invited'          => $invited,
+			'already_invited'  => $already_invited,
+			'skipped_no_email' => $skipped_no_email,
+			'errors'           => $errors,
+		);
+	}
 }

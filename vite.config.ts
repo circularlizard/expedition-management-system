@@ -29,6 +29,7 @@ export default defineConfig({
                 'volunteers':       resolve( __dirname, 'resources/js/admin/volunteers/index.tsx' ),
                 'volunteer-signup':  resolve( __dirname, 'resources/js/admin/volunteers/signup-wizard.tsx' ),
                 'ems-portal':        resolve( __dirname, 'resources/js/portal/index.tsx' ),
+                'leader-dashboard':  resolve( __dirname, 'resources/js/leader-dashboard/index.tsx' ),
                 'fluent-forms-sync': resolve( __dirname, 'resources/js/fluent-forms/index.ts' ),
             },
             output: {
