@@ -656,6 +656,26 @@ describe('SignupsBoard', () => {
             expect(screen.getByText('First Aid Status')).toBeInTheDocument();
             expect(screen.getByText('first_response')).toBeInTheDocument();
         });
+
+        // Switch back from Expedition Preference to Participant Place entry
+        fireEvent.change(screen.getByLabelText(/Select Signup Entry/i), { target: { value: 'participant_10' } });
+
+        await waitFor(() => {
+            expect(screen.getByText('Participant Place Details')).toBeInTheDocument();
+            expect(screen.getByText('DofE Registration Status')).toBeInTheDocument();
+        });
+
+        // Also test switching Form Type filter from expedition to participant
+        const typeSelect = screen.getByLabelText(/Form Type:/i);
+        fireEvent.change(typeSelect, { target: { value: 'expedition' } });
+        await waitFor(() => {
+            expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0);
+        });
+        fireEvent.change(typeSelect, { target: { value: 'participant' } });
+        await waitFor(() => {
+            expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0);
+            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+        });
     });
 });
 
