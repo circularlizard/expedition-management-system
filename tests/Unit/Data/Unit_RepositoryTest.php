@@ -396,4 +396,108 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$this->assertFalse( $status_hawick['invited'] );
 		$this->assertFalse( $status_hawick['logged_in'] );
 	}
+
+	public function test_customize_leader_notification_email_replaces_placeholders(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_leader_invite_email_subject' ) {
+				return 'Welcome to {{site_name}} - {{unit_name}} Leader Access';
+			}
+			if ( $key === 'ems_leader_invite_email_body' ) {
+				return "Hello {{user_email}},\nUnit: {{unit_name}}\nSet Password: {{set_password_url}}\nDashboard: {{dashboard_url}}";
+			}
+			if ( $key === 'ems_leader_dashboard_page_id' ) {
+				return 42;
+			}
+			return $default;
+		} );
+
+		Functions\when( 'get_permalink' )->alias( function( $page_id ) {
+			if ( (int) $page_id === 42 ) {
+				return 'https://example.org/leader-dashboard/';
+			}
+			return '';
+		} );
+
+		$user             = \Mockery::mock( 'WP_User' );
+		$user->ID         = 101;
+		$user->user_login = 'leader';
+		$user->user_email = 'leader@kelso.scouts.org.uk';
+
+		$default_email = array(
+			'to'      => 'leader@kelso.scouts.org.uk',
+			'subject' => '[%s] Login Details',
+			'message' => "Username: leader\r\n\r\nTo set your password, visit the following address:\r\n\r\nhttps://example.org/wp-login.php?action=rp&key=abc123key&login=leader\r\n\r\nhttps://example.org/wp-login.php\r\n",
+			'headers' => '',
+		);
+
+		$repo   = new Unit_Repository();
+		$result = $repo->customize_leader_notification_email(
+			$default_email,
+			$user,
+			'SEE Expeditions',
+			array(
+				'name'       => 'Kelso ESU',
+				'short_code' => 'BO-Kelso',
+			)
+		);
+
+		$this->assertSame( 'Welcome to SEE Expeditions - Kelso ESU Leader Access', $result['subject'] );
+		$this->assertStringContainsString( 'Hello leader@kelso.scouts.org.uk,', $result['message'] );
+		$this->assertStringContainsString( 'Unit: Kelso ESU', $result['message'] );
+		$this->assertStringContainsString( 'Set Password: https://example.org/wp-login.php?action=rp&key=abc123key&login=leader', $result['message'] );
+		$this->assertStringContainsString( 'Dashboard: https://example.org/leader-dashboard/', $result['message'] );
+	}
+
+	public function test_leader_password_reset_and_login_redirect_to_leader_dashboard(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_leader_dashboard_page_id' ) {
+				return 42;
+			}
+			return $default;
+		} );
+
+		Functions\when( 'get_permalink' )->alias( function( $page_id ) {
+			if ( (int) $page_id === 42 ) {
+				return 'https://example.org/leader-dashboard/';
+			}
+			return '';
+		} );
+
+		$user        = \Mockery::mock( 'WP_User' );
+		$user->ID    = 101;
+		$user->roles = array( 'ems_leader' );
+
+		$logged_in_user_id = 0;
+		$auth_cookie_user  = 0;
+		$updated_meta      = array();
+		$redirected_to     = '';
+
+		Functions\when( 'wp_set_current_user' )->alias( function( $id ) use ( &$logged_in_user_id ) {
+			$logged_in_user_id = $id;
+		} );
+		Functions\when( 'wp_set_auth_cookie' )->alias( function( $id ) use ( &$auth_cookie_user ) {
+			$auth_cookie_user = $id;
+		} );
+		Functions\when( 'update_user_meta' )->alias( function( $id, $key, $val ) use ( &$updated_meta ) {
+			$updated_meta[ $id ][ $key ] = $val;
+			return true;
+		} );
+		Functions\when( 'wp_safe_redirect' )->alias( function( $url ) use ( &$redirected_to ) {
+			$redirected_to = $url;
+			return true;
+		} );
+		Functions\when( 'admin_url' )->justReturn( 'https://example.org/wp-admin/' );
+
+		$repo = new Unit_Repository();
+		$repo->handle_leader_password_reset_redirect( $user );
+
+		$this->assertSame( 101, $logged_in_user_id );
+		$this->assertSame( 101, $auth_cookie_user );
+		$this->assertNotEmpty( $updated_meta[101]['ems_last_login_at'] );
+		$this->assertSame( 'https://example.org/leader-dashboard/', $redirected_to );
+
+		// Also verify standard login_redirect filter for ems_leader
+		$login_target = $repo->filter_leader_login_redirect( 'https://example.org/wp-admin/', '', $user );
+		$this->assertSame( 'https://example.org/leader-dashboard/', $login_target );
+	}
 }

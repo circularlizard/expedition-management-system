@@ -40,6 +40,18 @@ class Plugin {
 			}
 			\EMS\Core\Audit_Logger::log( 'login_success', null, $u_id );
 		}, 10, 2 );
+
+		add_action( 'after_password_reset', function( $user ) {
+			( new \EMS\Data\Unit_Repository() )->handle_leader_password_reset_redirect( $user );
+		}, 10, 1 );
+
+		add_filter( 'login_redirect', function( $redirect_to, $requested_redirect_to, $user ) {
+			return ( new \EMS\Data\Unit_Repository() )->filter_leader_login_redirect(
+				(string) $redirect_to,
+				(string) $requested_redirect_to,
+				$user
+			);
+		}, 10, 3 );
 		add_action( 'template_redirect', array( $this, 'restrict_signup_page_access' ) );
 
 		add_action( 'wp_login_failed', function( $username ) {
