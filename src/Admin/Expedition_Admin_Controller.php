@@ -1065,6 +1065,16 @@ class Expedition_Admin_Controller {
 			)
 		);
 
+		register_rest_route(
+			'ems/v1',
+			'/signups/unit',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_signup_unit' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
 		// Participant Places Endpoints
 		register_rest_route(
 			'ems/v1',
@@ -1250,6 +1260,8 @@ class Expedition_Admin_Controller {
 				'parent_email'             => $row['parent_email'],
 				'leader_email'             => $row['leader_email'] ?? '',
 				'dofe_level'               => $row['dofe_level'],
+				'dob'                      => $row['dob'] ?? null,
+				'dofe_registered'          => $row['dofe_registered'] ?? null,
 				'dofe_number'              => $row['dofe_number'],
 				'expedition_preferences'   => $prefs,
 				'additional_support_needs' => $row['additional_support_needs'],
@@ -1316,6 +1328,32 @@ class Expedition_Admin_Controller {
 		}
 
 		return new \WP_REST_Response( array( 'unlinked' => true ) );
+	}
+
+	public function update_signup_unit( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$body        = $request->get_json_params() ?: array();
+		$signup_id   = isset( $body['signup_id'] ) ? (int) $body['signup_id'] : 0;
+		$signup_type = isset( $body['signup_type'] ) ? sanitize_text_field( (string) $body['signup_type'] ) : '';
+		$unit_id     = isset( $body['unit_id'] ) ? (int) $body['unit_id'] : 0;
+
+		if ( $signup_id <= 0 || ! in_array( $signup_type, array( 'participant', 'expedition' ), true ) || $unit_id <= 0 ) {
+			return $this->error( 'ems_invalid_parameters', 'Invalid signup or unit parameters.', 400 );
+		}
+
+		$result = $this->signups->update_signup_unit( $signup_id, $signup_type, $unit_id );
+		if ( ! $result ) {
+			return $this->error( 'ems_signup_or_unit_not_found', 'Signup or unit not found.', 404 );
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'updated'      => true,
+				'unit_id'      => $result['unit_id'],
+				'unit_name'    => $result['unit_name'],
+				'leader_email' => $result['leader_email'],
+			),
+			200
+		);
 	}
 
 	public function list_all_signups( \WP_REST_Request $request ): \WP_REST_Response {

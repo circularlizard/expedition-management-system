@@ -79,12 +79,17 @@ class Admin_Page {
 	private function enqueue_signups_assets(): void {
 		$this->enqueue_admin_script( 'ems-signups-board', 'assets/js/signups-board.js' );
 		$this->enqueue_admin_styles();
+		global $wpdb;
+		$units = ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'get_results' ) )
+			? ( new \EMS\Data\Unit_Repository( $wpdb ) )->list_active_units()
+			: array();
 		wp_localize_script(
 			'ems-signups-board',
 			'emsSignupsBoard',
 			array(
 				'root_url' => get_rest_url( null, 'ems/v1' ),
 				'nonce'    => wp_create_nonce( 'wp_rest' ),
+				'units'    => $units,
 			)
 		);
 	}

@@ -70,3 +70,20 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     When the administrator filters the Signups Table by Expedition Type "Hillwalking"
     Then only signups with expedition type "Hillwalking" should be displayed in the table
 
+  Scenario: Administrator updates the selected unit on a signup entry from the Signups screen and syncs paired signups
+    Given master units exist in the unit table:
+      | unit_id | short_code | name       | leader_email               |
+      | 10      | BO-Kelso   | Kelso ESU  | leader@kelso.scouts.org.uk |
+      | 20      | TW-Peebles | Peebles ESU| leader@peebles.scouts.org  |
+    And a participant signup exists with ID 10, scout_id 30001, unit_id 10, unit_name "BO-Kelso", and leader_email "leader@kelso.scouts.org.uk"
+    And an expedition signup exists with ID 15, scout_id 30001, unit_id 10, unit_name "BO-Kelso", and leader_email "leader@kelso.scouts.org.uk"
+    When the administrator selects expedition signup 15 on the Signups Table
+    And the administrator changes the selected unit to "TW-Peebles" and saves
+    Then expedition signup 15 and paired participant signup 10 should both be updated in the database with:
+      | unit_id      | 20                         |
+      | unit_name    | TW-Peebles                 |
+      | leader_email | leader@peebles.scouts.org  |
+    And the Signups Table and Inspector Panel should display "TW-Peebles" as the unit for both signups
+
+
+

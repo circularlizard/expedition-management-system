@@ -138,3 +138,65 @@ Feature: Fluent Forms Signup Sync & Unit Lookup Integration
     When the form interaction script is enqueued
     Then the unit mappings map should include entries for short codes, names, and unit IDs pointing to their respective leader emails
 
+  Scenario: Bronze expedition submission captures expedition type from exped_type_bronze and updated form fields
+    Given a parent user is logged in with a linked child having Scout ID 30001
+    And ESU patrol mapping exists with short code "BO-Kelso"
+    And expedition form field mappings exist for form ID 3
+    When an expedition form submission is inserted for form ID 3 with values:
+      | signup_child                | 30001                                                |
+      | signup_child_name           | {"first_name": "Tom", "last_name": "Strachan"}       |
+      | signup_dob                  | 15/05/2011                                           |
+      | signup_email                | tom@example.com                                      |
+      | signup_parentname           | {"first_name": "Jane", "last_name": "Strachan"}      |
+      | signup_parent_email         | jane@example.com                                     |
+      | signup_unit                 | BO-Kelso                                             |
+      | signup_leader_email         | leader@kelso.scouts.org.uk                           |
+      | signup_level                | Bronze                                               |
+      | signup_edofe_registered     | yes                                                  |
+      | signup_dofe_number          | 1234567                                              |
+      | exped_type                  |                                                      |
+      | exped_type_bronze           | Paddling                                             |
+      | exped_bronze_dates          | ["B-PQ1", "B-PQ2"]                                   |
+      | exped_team_names            | Sam Taylor                                           |
+      | input_radio                 | first-aid-yes                                        |
+      | input_radio_1               | Yes                                                  |
+      | description                 | Dyslexia                                             |
+    Then an expedition signup record should be created in the database with:
+      | scout_id                    | 30001                                                |
+      | dofe_level                  | bronze                                               |
+      | dob                         | 2011-05-15                                           |
+      | dofe_registered             | yes                                                  |
+      | dofe_number                 | 1234567                                              |
+      | first_aid_status            | first-aid-yes                                        |
+      | additional_support_needs    | Dyslexia                                             |
+    And the expedition signup preferences JSON should contain:
+      | exped_type                  | Paddling                                             |
+      | exped_practice_dates        | ["B-PQ1", "B-PQ2"]                                   |
+      | exped_qualifier_dates       | ["B-PQ1", "B-PQ2"]                                   |
+      | exped_team_names            | Sam Taylor                                           |
+
+  Scenario: Silver and Gold expedition submissions capture underscored practice and qualifier date fields
+    Given a parent user is logged in with a linked child having Scout ID 30002
+    And expedition form field mappings exist for form ID 3
+    When an expedition form submission is inserted for form ID 3 with values:
+      | signup_child                    | 30002                                            |
+      | signup_child_name               | {"first_name": "Lucy", "last_name": "Strachan"}  |
+      | signup_unit                     | BO-Kelso                                         |
+      | signup_level                    | Silver                                           |
+      | signup_edofe_registered         | Registered but not received yet                  |
+      | exped_type                      | Hillwalking                                      |
+      | exped_silver_practice_dates     | ["H-SP1", "H-SP2"]                               |
+      | exped_silver_qualifier_dates    | ["H-SQ1"]                                        |
+      | input_radio                     | first-aid-no                                     |
+      | input_radio_1                   | No                                               |
+    Then an expedition signup record should be created in the database with:
+      | scout_id                        | 30002                                            |
+      | dofe_level                      | silver                                           |
+      | dofe_registered                 | Registered but not received yet                  |
+      | first_aid_status                | first-aid-no                                     |
+    And the expedition signup preferences JSON should contain:
+      | exped_type                      | Hillwalking                                      |
+      | exped_practice_dates            | ["H-SP1", "H-SP2"]                               |
+      | exped_qualifier_dates           | ["H-SQ1"]                                        |
+
+

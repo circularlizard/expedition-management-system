@@ -603,7 +603,7 @@ export function initEmsFormSync(): void {
 
         // 0. If user is logged in, make parent name fields read-only and bypass parent OTP code validation
         if (fields.isLoggedIn) {
-            const parentNameInputs = document.querySelectorAll<HTMLInputElement>('input[name^="names["], input[name="parent_name"], input[name^="parent_name["]');
+            const parentNameInputs = document.querySelectorAll<HTMLInputElement>('input[name^="names["], input[name="parent_name"], input[name^="parent_name["], input[name^="signup_parentname["]');
             parentNameInputs.forEach(function(input) {
                 input.setAttribute('readonly', 'readonly');
                 input.classList.add('ff-read-only');

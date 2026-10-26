@@ -700,5 +700,172 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 		$this->assertSame( '', $result );
 		$this->assertContains( $transient_key, $deleted );
 	}
+
+	public function test_save_expedition_submission_resolves_exped_type_bronze_and_updated_fields(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_fluent_expedition_form_id' ) {
+				return 3;
+			}
+			return $default;
+		} );
+
+		Functions\when( 'get_current_user_id' )->justReturn( 42 );
+		Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single = false ) {
+			if ( $key === 'ems_access_type' ) return 'parent';
+			if ( $key === 'ems_children' ) {
+				return [
+					[
+						'scout_id'   => 30001,
+						'first_name' => 'Tom',
+						'last_name'  => 'Strachan',
+					]
+				];
+			}
+			return '';
+		} );
+		Functions\when( 'is_email' )->alias( fn( $val ) => str_contains( (string) $val, '@' ) );
+		Functions\when( 'sanitize_email' )->alias( fn( $val ) => trim( (string) $val ) );
+		Functions\when( 'wp_json_encode' )->alias( fn( $val ) => json_encode( $val ) );
+
+		$wpdb = new class {
+			public $prefix = 'wp_';
+			public function prepare( string $sql, ...$args ): string {
+				return $sql;
+			}
+			public function get_row( string $sql, string $output = ARRAY_A ) {
+				if ( str_contains( $sql, 'wp_ems_units' ) ) {
+					return [
+						'unit_id'      => 10,
+						'short_code'   => 'BO-Kelso',
+						'name'         => 'Kelso ESU',
+						'leader_email' => 'leader@kelso.scouts.org.uk',
+					];
+				}
+				return null;
+			}
+		};
+
+		$captured_data = null;
+		$this->signup_repo->shouldReceive( 'create_expedition_signup' )
+			->once()
+			->andReturnUsing( function( array $data ) use ( &$captured_data ) {
+				$captured_data = $data;
+				return 99;
+			} );
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $wpdb );
+
+		$formData = [
+			'signup_child'            => '30001',
+			'signup_child_name'       => [ 'first_name' => 'Tom', 'last_name' => 'Strachan' ],
+			'signup_dob'              => '15/05/2011',
+			'signup_email'            => 'tom@example.com',
+			'signup_parentname'       => [ 'first_name' => 'Jane', 'last_name' => 'Strachan' ],
+			'signup_parent_email'     => 'jane@example.com',
+			'signup_unit'             => 'BO-Kelso',
+			'signup_leader_email'     => 'leader@kelso.scouts.org.uk',
+			'signup_level'            => 'Bronze',
+			'signup_edofe_registered' => 'yes',
+			'signup_dofe_number'      => '1234567',
+			'exped_type'              => '',
+			'exped_type_bronze'       => 'Paddling',
+			'exped_bronze_dates'      => [ 'B-PQ1', 'B-PQ2' ],
+			'exped_team_names'        => 'Sam Taylor',
+			'input_radio'             => 'first-aid-yes',
+			'input_radio_1'           => 'Yes',
+			'description'             => 'Dyslexia',
+		];
+
+		$sync->handle_submission( 555, $formData, (object) [ 'id' => 3 ] );
+
+		$this->assertNotNull( $captured_data );
+		$this->assertSame( 30001, $captured_data['scout_id'] );
+		$this->assertSame( 'bronze', $captured_data['dofe_level'] );
+		$this->assertSame( '2011-05-15', $captured_data['dob'] );
+		$this->assertSame( 'yes', $captured_data['dofe_registered'] );
+		$this->assertSame( '1234567', $captured_data['dofe_number'] );
+		$this->assertSame( 'first-aid-yes', $captured_data['first_aid_status'] );
+		$this->assertNull( $captured_data['first_aid_expiry'] );
+		$this->assertSame( 'Dyslexia', $captured_data['additional_support_needs'] );
+
+		$prefs = $captured_data['expedition_preferences'];
+		$this->assertSame( 'Paddling', $prefs['exped_type'] );
+		$this->assertSame( [ 'B-PQ1', 'B-PQ2' ], $prefs['exped_practice_dates'] );
+		$this->assertSame( [ 'B-PQ1', 'B-PQ2' ], $prefs['exped_qualifier_dates'] );
+		$this->assertSame( 'Sam Taylor', $prefs['exped_team_names'] );
+	}
+
+	public function test_save_expedition_submission_captures_underscored_silver_and_gold_date_fields(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_fluent_expedition_form_id' ) {
+				return 3;
+			}
+			return $default;
+		} );
+
+		Functions\when( 'get_current_user_id' )->justReturn( 42 );
+		Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single = false ) {
+			if ( $key === 'ems_access_type' ) return 'parent';
+			if ( $key === 'ems_children' ) {
+				return [
+					[
+						'scout_id'   => 30002,
+						'first_name' => 'Lucy',
+						'last_name'  => 'Strachan',
+					]
+				];
+			}
+			return '';
+		} );
+		Functions\when( 'is_email' )->alias( fn( $val ) => str_contains( (string) $val, '@' ) );
+		Functions\when( 'sanitize_email' )->alias( fn( $val ) => trim( (string) $val ) );
+		Functions\when( 'wp_json_encode' )->alias( fn( $val ) => json_encode( $val ) );
+
+		$wpdb = new class {
+			public $prefix = 'wp_';
+			public function prepare( string $sql, ...$args ): string {
+				return $sql;
+			}
+			public function get_row( string $sql, string $output = ARRAY_A ) {
+				return null;
+			}
+		};
+
+		$captured_data = null;
+		$this->signup_repo->shouldReceive( 'create_expedition_signup' )
+			->once()
+			->andReturnUsing( function( array $data ) use ( &$captured_data ) {
+				$captured_data = $data;
+				return 100;
+			} );
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $wpdb );
+
+		$formData = [
+			'signup_child'                 => '30002',
+			'signup_child_name'            => [ 'first_name' => 'Lucy', 'last_name' => 'Strachan' ],
+			'signup_unit'                  => 'BO-Kelso',
+			'signup_level'                 => 'Silver',
+			'signup_edofe_registered'      => 'Registered but not received yet',
+			'exped_type'                   => 'Hillwalking',
+			'exped_silver_practice_dates'  => [ 'H-SP1', 'H-SP2' ],
+			'exped_silver_qualifier_dates' => [ 'H-SQ1' ],
+			'input_radio'                  => 'first-aid-no',
+			'input_radio_1'                => 'No',
+		];
+
+		$sync->handle_submission( 556, $formData, (object) [ 'id' => 3 ] );
+
+		$this->assertNotNull( $captured_data );
+		$this->assertSame( 30002, $captured_data['scout_id'] );
+		$this->assertSame( 'silver', $captured_data['dofe_level'] );
+		$this->assertSame( 'Registered but not received yet', $captured_data['dofe_registered'] );
+		$this->assertSame( 'first-aid-no', $captured_data['first_aid_status'] );
+
+		$prefs = $captured_data['expedition_preferences'];
+		$this->assertSame( 'Hillwalking', $prefs['exped_type'] );
+		$this->assertSame( [ 'H-SP1', 'H-SP2' ], $prefs['exped_practice_dates'] );
+		$this->assertSame( [ 'H-SQ1' ], $prefs['exped_qualifier_dates'] );
+	}
 }
 
