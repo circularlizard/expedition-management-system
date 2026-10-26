@@ -23,6 +23,9 @@ class Portability_Engine {
 		'ems_osm_resource_url',
 		'ems_districts',
 		'ems_debug_log_guard',
+		'ems_leader_dashboard_page_id',
+		'ems_leader_invite_email_subject',
+		'ems_leader_invite_email_body',
 	);
 
 	private const TABLES_TO_EXPORT = array(

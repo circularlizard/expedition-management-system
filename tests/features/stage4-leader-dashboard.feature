@@ -50,3 +50,18 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     And the row for "Zack Adams" should show "✓" in both "Participant Place" and "Expedition Preference"
     And the table should include "OSM Sync" and "Unit" column headers and working pagination controls across explorer rows
     And clicking a row in the leader dashboard table should not open an inspector panel
+
+  Scenario: Customising the Unit Leader invitation email subject and body with placeholders
+    Given the administrator has configured "ems_leader_invite_email_subject" as "Welcome to {{site_name}} - {{unit_name}} Leader Access"
+    And the administrator has configured "ems_leader_invite_email_body" with placeholders "{{unit_name}}", "{{set_password_url}}", "{{dashboard_url}}", and "{{user_email}}"
+    And unit "Kelso ESU" has leader_email "leader@kelso.scouts.org.uk"
+    When the administrator sends a unit leader invitation to "leader@kelso.scouts.org.uk"
+    Then the outgoing email subject and body should have "{{unit_name}}", "{{set_password_url}}", "{{dashboard_url}}", "{{site_name}}", and "{{user_email}}" replaced with the unit's values and password reset link
+
+  Scenario: Redirecting an ems_leader user to the Leader Dashboard after setting their password or logging in
+    Given the Leader Dashboard page URL is configured in EMS Settings
+    When a user with role "ems_leader" completes setting their password on the WordPress password reset screen
+    Then the user should be automatically logged in with "ems_last_login_at" updated
+    And the user should be redirected to the Leader Dashboard page URL
+    When a user with role "ems_leader" logs in via the standard WordPress login screen without a custom redirect target
+    Then the user should be redirected to the Leader Dashboard page URL instead of wp-admin

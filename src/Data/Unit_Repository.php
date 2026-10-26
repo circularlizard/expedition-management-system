@@ -434,6 +434,187 @@ class Unit_Repository {
 		);
 	}
 
+	public const DEFAULT_INVITE_SUBJECT = '[{{site_name}}] Your Unit Leader Dashboard Access';
+
+	public const DEFAULT_INVITE_BODY = "Hello,\n\nYou have been invited as the Unit Leader for {{unit_name}} on {{site_name}}.\n\nTo set your password and access the Unit Leader Dashboard, please visit the following address:\n{{set_password_url}}\n\nOnce you have set your password, you will be signed in and redirected to the Unit Leader Dashboard:\n{{dashboard_url}}\n\nYour login email is: {{user_email}}\n";
+
+	/**
+	 * Resolves the front-end URL for the Unit Leader Dashboard page.
+	 *
+	 * @return string
+	 */
+	public function get_leader_dashboard_url(): string {
+		$page_id = (int) get_option( 'ems_leader_dashboard_page_id', 0 );
+		if ( $page_id > 0 && function_exists( 'get_permalink' ) ) {
+			$url = (string) get_permalink( $page_id );
+			if ( $url !== '' ) {
+				return $url;
+			}
+		}
+
+		if ( function_exists( 'get_pages' ) && function_exists( 'get_permalink' ) ) {
+			$pages = get_pages( array( 'post_status' => 'publish' ) );
+			if ( is_array( $pages ) ) {
+				foreach ( $pages as $page ) {
+					if ( is_object( $page ) && property_exists( $page, 'post_content' ) && str_contains( (string) $page->post_content, '[ems-leader-dashboard' ) ) {
+						$url = (string) get_permalink( (int) $page->ID );
+						if ( $url !== '' ) {
+							return $url;
+						}
+					}
+				}
+			}
+		}
+
+		return function_exists( 'home_url' ) ? (string) home_url( '/' ) : '';
+	}
+
+	/**
+	 * Customizes the WordPress new-user notification email for a Unit Leader invitation
+	 * using the configurable subject and body templates and placeholders.
+	 *
+	 * @param array<string, mixed> $email_data Default wp_new_user_notification_email array.
+	 * @param object               $user       WP_User object.
+	 * @param string               $blogname   Site title.
+	 * @param array<string, mixed> $unit       Unit row array.
+	 * @return array<string, mixed>
+	 */
+	public function customize_leader_notification_email( array $email_data, $user, string $blogname, array $unit = array() ): array {
+		$subject_tpl = trim( (string) get_option( 'ems_leader_invite_email_subject', '' ) );
+		if ( $subject_tpl === '' ) {
+			$subject_tpl = self::DEFAULT_INVITE_SUBJECT;
+		}
+
+		$body_tpl = trim( (string) get_option( 'ems_leader_invite_email_body', '' ) );
+		if ( $body_tpl === '' ) {
+			$body_tpl = self::DEFAULT_INVITE_BODY;
+		}
+
+		$set_password_url = '';
+		$orig_message     = (string) ( $email_data['message'] ?? '' );
+		if ( preg_match( '#https?://[^\s]+action=rp[^\s]*#', $orig_message, $matches ) ) {
+			$set_password_url = trim( $matches[0] );
+		} elseif ( is_object( $user ) && isset( $user->user_login ) && function_exists( 'get_password_reset_key' ) && function_exists( 'network_site_url' ) ) {
+			$key = get_password_reset_key( $user );
+			if ( is_string( $key ) ) {
+				$set_password_url = network_site_url( "wp-login.php?action=rp&key={$key}&login=" . rawurlencode( (string) $user->user_login ), 'login' );
+			}
+		}
+
+		$unit_name = trim( (string) ( $unit['name'] ?? $unit['short_code'] ?? '' ) );
+		if ( $unit_name === '' ) {
+			$unit_name = 'your Explorer Scout Unit';
+		}
+
+		$user_email    = ( is_object( $user ) && isset( $user->user_email ) ) ? (string) $user->user_email : (string) ( $email_data['to'] ?? '' );
+		$dashboard_url = $this->get_leader_dashboard_url();
+
+		$replacements = array(
+			'{{unit_name}}'        => $unit_name,
+			'{{set_password_url}}' => $set_password_url,
+			'{{dashboard_url}}'    => $dashboard_url,
+			'{{site_name}}'        => $blogname,
+			'{{user_email}}'       => $user_email,
+		);
+
+		$email_data['subject'] = strtr( $subject_tpl, $replacements );
+		$email_data['message'] = strtr( $body_tpl, $replacements );
+
+		return $email_data;
+	}
+
+	/**
+	 * Automatically logs in an ems_leader user after they set their password on wp-login.php
+	 * and redirects them directly to the Unit Leader Dashboard page.
+	 *
+	 * @param mixed $user WP_User instance passed by after_password_reset.
+	 * @return void
+	 */
+	public function handle_leader_password_reset_redirect( $user ): void {
+		if ( ! is_object( $user ) || ! isset( $user->ID, $user->roles ) ) {
+			return;
+		}
+
+		$roles = (array) $user->roles;
+		if ( ! in_array( 'ems_leader', $roles, true ) || in_array( 'administrator', $roles, true ) ) {
+			return;
+		}
+
+		$dashboard_url = $this->get_leader_dashboard_url();
+		if ( $dashboard_url === '' ) {
+			return;
+		}
+
+		$user_id = (int) $user->ID;
+		if ( function_exists( 'wp_set_current_user' ) ) {
+			wp_set_current_user( $user_id );
+		}
+		if ( function_exists( 'wp_set_auth_cookie' ) ) {
+			wp_set_auth_cookie( $user_id, true );
+		}
+		update_user_meta( $user_id, 'ems_last_login_at', current_time( 'mysql' ) );
+
+		wp_safe_redirect( $dashboard_url );
+		if ( ! class_exists( '\EMS\Tests\EMSTestCase' ) ) {
+			exit;
+		}
+	}
+
+	/**
+	 * Redirects ems_leader users to the Unit Leader Dashboard upon standard WordPress login
+	 * when no explicit non-admin redirect target was requested.
+	 *
+	 * @param string $redirect_to           The redirect destination URL.
+	 * @param string $requested_redirect_to The requested redirect destination URL.
+	 * @param mixed  $user                  WP_User object or WP_Error.
+	 * @return string
+	 */
+	public function filter_leader_login_redirect( string $redirect_to, string $requested_redirect_to, $user ): string {
+		if ( ! is_object( $user ) || ! isset( $user->roles ) ) {
+			return $redirect_to;
+		}
+
+		$roles = (array) $user->roles;
+		if ( ! in_array( 'ems_leader', $roles, true ) || in_array( 'administrator', $roles, true ) ) {
+			return $redirect_to;
+		}
+
+		$default_admin = function_exists( 'admin_url' ) ? rtrim( (string) admin_url(), '/' ) : '';
+		$req_trimmed   = rtrim( $requested_redirect_to, '/' );
+
+		if ( $requested_redirect_to === '' || ( $default_admin !== '' && $req_trimmed === $default_admin ) ) {
+			$dashboard_url = $this->get_leader_dashboard_url();
+			if ( $dashboard_url !== '' ) {
+				return $dashboard_url;
+			}
+		}
+
+		return $redirect_to;
+	}
+
+	/**
+	 * Sends a leader invitation notification for a specific user and unit, applying the custom email filter.
+	 *
+	 * @param int                  $user_id WordPress user ID.
+	 * @param array<string, mixed> $unit    Unit row array.
+	 * @return void
+	 */
+	private function send_leader_invitation_notification( int $user_id, array $unit ): void {
+		$filter_cb = function ( array $email_data, $user, string $blogname ) use ( $unit ): array {
+			return $this->customize_leader_notification_email( $email_data, $user, $blogname, $unit );
+		};
+
+		if ( function_exists( 'add_filter' ) ) {
+			add_filter( 'wp_new_user_notification_email', $filter_cb, 10, 3 );
+		}
+
+		wp_new_user_notification( $user_id, null, 'user' );
+
+		if ( function_exists( 'remove_filter' ) ) {
+			remove_filter( 'wp_new_user_notification_email', $filter_cb, 10 );
+		}
+	}
+
 	/**
 	 * Bulk-invites unit leaders (or invites a single unit's leader) by creating/updating
 	 * WordPress user accounts with the ems_leader role and sending the WP password setup email.
@@ -483,7 +664,7 @@ class Unit_Repository {
 					continue;
 				}
 
-				wp_new_user_notification( $user_id, null, 'user' );
+				$this->send_leader_invitation_notification( $user_id, $u );
 				update_user_meta( $user_id, 'ems_leader_invited_at', $now );
 				++$invited;
 				continue;
@@ -514,7 +695,7 @@ class Unit_Repository {
 				continue;
 			}
 
-			wp_new_user_notification( (int) $new_user_id, null, 'user' );
+			$this->send_leader_invitation_notification( (int) $new_user_id, $u );
 			update_user_meta( (int) $new_user_id, 'ems_leader_invited_at', $now );
 			++$invited;
 		}

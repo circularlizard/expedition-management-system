@@ -401,6 +401,21 @@ class Settings_Page {
 		$protect_tutor = ! empty( $post['ems_protect_tutor_lms'] );
 		update_option( 'ems_protect_tutor_lms', $protect_tutor );
 
+		if ( isset( $post['ems_leader_dashboard_page_id'] ) ) {
+			update_option( 'ems_leader_dashboard_page_id', max( 0, (int) $post['ems_leader_dashboard_page_id'] ) );
+		}
+
+		if ( isset( $post['ems_leader_invite_email_subject'] ) ) {
+			$subject = sanitize_text_field( wp_unslash( (string) $post['ems_leader_invite_email_subject'] ) );
+			update_option( 'ems_leader_invite_email_subject', $subject );
+		}
+
+		if ( isset( $post['ems_leader_invite_email_body'] ) ) {
+			$raw_body = (string) wp_unslash( $post['ems_leader_invite_email_body'] );
+			$body     = function_exists( 'sanitize_textarea_field' ) ? sanitize_textarea_field( $raw_body ) : sanitize_text_field( $raw_body );
+			update_option( 'ems_leader_invite_email_body', $body );
+		}
+
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Access control settings saved.', 'ems-plugin' ) . '</p></div>';
 	}
 
@@ -896,8 +911,11 @@ class Settings_Page {
 	}
 
 	private function render_access_control_tab(): void {
-		$page_roles    = get_option( 'ems_page_roles', array() );
-		$protect_tutor = get_option( 'ems_protect_tutor_lms', true );
+		$page_roles       = get_option( 'ems_page_roles', array() );
+		$protect_tutor    = get_option( 'ems_protect_tutor_lms', true );
+		$leader_page_id   = (int) get_option( 'ems_leader_dashboard_page_id', 0 );
+		$invite_subject   = (string) get_option( 'ems_leader_invite_email_subject', \EMS\Data\Unit_Repository::DEFAULT_INVITE_SUBJECT );
+		$invite_body      = (string) get_option( 'ems_leader_invite_email_body', \EMS\Data\Unit_Repository::DEFAULT_INVITE_BODY );
 
 		$pages     = get_pages( array( 'post_status' => 'publish' ) );
 		$all_roles = wp_roles()->get_names();
@@ -986,6 +1004,58 @@ class Settings_Page {
 							<?php esc_html_e( 'Enable Tutor LMS Route Protection', 'ems-plugin' ); ?>
 						</label>
 						<p class="description"><?php esc_html_e( 'Automatically intercept and restrict access to all Tutor LMS dashboard and course pages (requires the "ems_explorer" role).', 'ems-plugin' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ems_leader_dashboard_page_id"><?php esc_html_e( 'Unit Leader Dashboard Page', 'ems-plugin' ); ?></label></th>
+					<td>
+						<select id="ems_leader_dashboard_page_id" name="ems_leader_dashboard_page_id" style="max-width: 400px;">
+							<option value="0"><?php esc_html_e( '— Auto-detect page with [ems-leader-dashboard] —', 'ems-plugin' ); ?></option>
+							<?php foreach ( $pages as $page ) : ?>
+								<option value="<?php echo esc_attr( (string) $page->ID ); ?>" <?php selected( $leader_page_id, (int) $page->ID ); ?>>
+									<?php echo esc_html( $page->post_title ); ?> (ID: <?php echo esc_html( (string) $page->ID ); ?>)
+								</option>
+							<?php endforeach; ?>
+						</select>
+						<p class="description">
+							<?php esc_html_e( 'Unit leaders (ems_leader role) are automatically signed in and redirected to this page after setting their password or logging in.', 'ems-plugin' ); ?>
+						</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ems_leader_invite_email_subject"><?php esc_html_e( 'Leader Invitation Email Subject', 'ems-plugin' ); ?></label></th>
+					<td>
+						<input
+							type="text"
+							id="ems_leader_invite_email_subject"
+							name="ems_leader_invite_email_subject"
+							value="<?php echo esc_attr( $invite_subject ); ?>"
+							class="large-text"
+							style="max-width: 650px;"
+						/>
+						<p class="description">
+							<?php esc_html_e( 'Subject line for the invitation email sent to unit leaders. Supports placeholders below.', 'ems-plugin' ); ?>
+						</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ems_leader_invite_email_body"><?php esc_html_e( 'Leader Invitation Email Body', 'ems-plugin' ); ?></label></th>
+					<td>
+						<textarea
+							id="ems_leader_invite_email_body"
+							name="ems_leader_invite_email_body"
+							rows="10"
+							class="large-text code"
+							style="max-width: 650px;"
+						><?php echo esc_textarea( $invite_body ); ?></textarea>
+						<p class="description">
+							<?php esc_html_e( 'Available placeholders:', 'ems-plugin' ); ?>
+							<code>{{unit_name}}</code>,
+							<code>{{set_password_url}}</code>,
+							<code>{{dashboard_url}}</code>,
+							<code>{{site_name}}</code>,
+							<code>{{user_email}}</code>
+						</p>
 					</td>
 				</tr>
 			</table>
