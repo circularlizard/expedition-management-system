@@ -354,8 +354,9 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                 return !latest || e.created_at > latest ? e.created_at : latest;
             }, '');
 
+            const baseKey = bucket.scoutId !== 0 ? `scout_${bucket.scoutId}` : `explorer_${primary.type}_${primary.id}_${idx}`;
             return {
-                rowKey: bucket.scoutId !== 0 ? `scout_${bucket.scoutId}` : `explorer_${primary.type}_${primary.id}_${idx}`,
+                rowKey: `${baseKey}_p${participantEntries.length}_e${expeditionEntries.length}`,
                 scout_id: bucket.scoutId,
                 explorer_first_name: primary.explorer_first_name || '',
                 explorer_last_name: primary.explorer_last_name || '',
@@ -895,55 +896,61 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                                 </td>
                                                                 <td>
                                                                     {row.participantEntries.length > 0 ? (
-                                                                        <div>
+                                                                        <div
+                                                                            key="has-place"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setSelectedSignup(row.participantEntries[0]);
+                                                                            }}
+                                                                        >
                                                                             <span className="ems-status-badge ems-status-badge--participant">
-                                                                                Place{row.participantEntries.length > 1 ? ` (${row.participantEntries.length})` : ''}
+                                                                                {`Place${row.participantEntries.length > 1 ? ` (${row.participantEntries.length})` : ''}`}
                                                                             </span>
                                                                             <div className="ems-meta-text ems-small-text">
                                                                                 {row.participantEntries[0].created_at ? row.participantEntries[0].created_at.substring(0, 10) : ''}
                                                                             </div>
                                                                         </div>
                                                                     ) : (
-                                                                        '—'
+                                                                        <span key="no-place">—</span>
                                                                     )}
                                                                 </td>
                                                                 <td>
                                                                     {row.expeditionEntries.length > 0 ? (
                                                                         <div
+                                                                            key="has-exped"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
                                                                                 setSelectedSignup(row.expeditionEntries[0]);
                                                                             }}
                                                                         >
                                                                             <span className="ems-status-badge ems-status-badge--expedition">
-                                                                                Exped{row.expeditionEntries.length > 1 ? ` (${row.expeditionEntries.length})` : ''}
+                                                                                {`Exped${row.expeditionEntries.length > 1 ? ` (${row.expeditionEntries.length})` : ''}`}
                                                                             </span>
                                                                             <div className="ems-meta-text ems-small-text">
                                                                                 {row.expeditionEntries[0].created_at ? row.expeditionEntries[0].created_at.substring(0, 10) : ''}
                                                                             </div>
                                                                         </div>
                                                                     ) : (
-                                                                        '—'
+                                                                        <span key="no-exped">—</span>
                                                                     )}
                                                                 </td>
                                                                 <td>
                                                                     {row.expedition_preferences?.exped_type ? (
-                                                                        <span>
-                                                                            {normalize(row.expedition_preferences.exped_type) === 'hillwalking'
+                                                                        <span key="has-exped-type">
+                                                                            {`${normalize(row.expedition_preferences.exped_type) === 'hillwalking'
                                                                                 ? '🥾 '
                                                                                 : normalize(row.expedition_preferences.exped_type) === 'biking'
                                                                                 ? '🚲 '
-                                                                                : '🛶 '}
-                                                                            {row.expedition_preferences.exped_type}
+                                                                                : '🛶 '}${row.expedition_preferences.exped_type}`}
                                                                         </span>
                                                                     ) : (
-                                                                        '—'
+                                                                        <span key="no-exped-type">—</span>
                                                                     )}
                                                                 </td>
                                                                 <td>{row.unit_name || 'Unassigned'}</td>
                                                                 <td>{row.explorer_email || '—'}</td>
                                                                 <td className="ems-monospace">
-                                                                    {row.dofe_number || '—'}
+                                                                    <span>{row.dofe_number || '—'}</span>
                                                                     {row.dofe_registered === 'y-other' && (
                                                                         <div className="ems-signups-transfer-warning">
                                                                             ⚠️ Transfer Req.
@@ -1030,7 +1037,11 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
             {/* Inspector Panel - Slide-Out/Docked Layout */}
             {selectedSignup && (
-                <div ref={inspectorRef} className={`ems-signups-inspector ems-signups-inspector--${selectedSignup.type}`}>
+                <div
+                    key={`inspector_${selectedSignup.type}_${selectedSignup.id}`}
+                    ref={inspectorRef}
+                    className={`ems-signups-inspector ems-signups-inspector--${selectedSignup.type}`}
+                >
                     {/* Header */}
                     <div className={`ems-signups-inspector__header ems-signups-inspector__header--${selectedSignup.type}`}>
                         <div className="ems-flex-center ems-gap-6">
@@ -1352,9 +1363,22 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         <div className="ems-signups-inspector__support-box" style={{ fontStyle: 'normal' }}>
                                             {selectedSignup.expedition_preferences ? (
                                                 <div className="ems-flex-col ems-gap-8 ems-small-text">
-                                                    <div><strong>Practice:</strong> {selectedSignup.expedition_preferences.exped_practice_dates || '—'}</div>
-                                                    <div><strong>Qualifier:</strong> {selectedSignup.expedition_preferences.exped_qualifier_dates || '—'}</div>
-                                                    <div><strong>Teammates:</strong> {selectedSignup.expedition_preferences.exped_team_names || '—'}</div>
+                                                    <div>
+                                                        <strong>Practice:</strong>{' '}
+                                                        {Array.isArray(selectedSignup.expedition_preferences.exped_practice_dates)
+                                                            ? selectedSignup.expedition_preferences.exped_practice_dates.join(', ')
+                                                            : (selectedSignup.expedition_preferences.exped_practice_dates || '—')}
+                                                    </div>
+                                                    <div>
+                                                        <strong>Qualifier:</strong>{' '}
+                                                        {Array.isArray(selectedSignup.expedition_preferences.exped_qualifier_dates)
+                                                            ? selectedSignup.expedition_preferences.exped_qualifier_dates.join(', ')
+                                                            : (selectedSignup.expedition_preferences.exped_qualifier_dates || '—')}
+                                                    </div>
+                                                    <div>
+                                                        <strong>Teammates:</strong>{' '}
+                                                        {selectedSignup.expedition_preferences.exped_team_names || '—'}
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="ems-meta-text ems-italic">No preferences specified.</div>
