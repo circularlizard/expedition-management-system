@@ -15,14 +15,17 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     And no duplicate invitation email should be sent to "leader@peebles.scouts.org"
     And the bulk invitation summary should report 1 invited, 1 already invited, and 1 skipped without email
 
-  Scenario: Unit Mapping table displays Invited and Logged In indicators for each unit leader
+  Scenario: Unit Mapping screen provides View by Leader with leader invitations and status tracking
     Given unit "Kelso ESU" has leader_email "leader@kelso.scouts.org.uk" whose WP user has "ems_leader_invited_at" set and "ems_last_login_at" set
     And unit "Peebles ESU" has leader_email "leader@peebles.scouts.org" whose WP user has "ems_leader_invited_at" set and no "ems_last_login_at"
     And unit "Hawick ESU" has leader_email "leader@hawick.scouts.org" with no WP user account
-    When the administrator views the Unit Mapping tab
-    Then the row for "Kelso ESU" should display "Invited" and "Logged In" status badges
-    And the row for "Peebles ESU" should display "Invited" and "Never Logged In" status badges
-    And the row for "Hawick ESU" should display "Not Invited" status badge
+    When the administrator views the Unit Mapping "View by Leader" screen
+    Then the row for leader "leader@kelso.scouts.org.uk" should display assigned units "Kelso ESU" and status badges "Invited" and "Logged In"
+    And the row for leader "leader@peebles.scouts.org" should display assigned units "Peebles ESU" and status badges "Invited" and "Never Logged In"
+    And the row for leader "leader@hawick.scouts.org" should display assigned units "Hawick ESU" and status badge "Not Invited"
+    And single and bulk leader invitation actions should be available in the View by Leader screen
+    When the administrator views the Unit Mapping "View by District" screen
+    Then the units table should focus on unit configuration without leader invite actions
 
   Scenario: Leader dashboard REST endpoint enforces leader capability and returns active signups without sensitive fields
     Given active participant and expedition signups exist in the database
