@@ -394,8 +394,9 @@ describe('SignupsBoard', () => {
         // Ensure "First Aid" table header is not in the document
         expect(screen.queryByRole('columnheader', { name: /First Aid/i })).not.toBeInTheDocument();
 
-        // Open Inspector for Mary Jones
+        // Open Inspector for Mary Jones and switch to her Expedition entry
         fireEvent.click(screen.getAllByText('Mary Jones')[0]);
+        fireEvent.change(screen.getByLabelText(/Select Signup Entry/i), { target: { value: 'expedition_20' } });
 
         await waitFor(() => {
             // First Aid Status should be in the inspector
@@ -614,6 +615,46 @@ describe('SignupsBoard', () => {
 
         await waitFor(() => {
             expect(screen.getAllByText('TW-Peebles').length).toBeGreaterThanOrEqual(2);
+        });
+    });
+
+    it('renders a single row per explorer with Participant Place and Expedition Preference columns and allows switching entries in the inspector', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /Signups Table/i })).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Signups Table/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('columnheader', { name: /Participant Place/i })).toBeInTheDocument();
+            expect(screen.getByRole('columnheader', { name: /Expedition Preference/i })).toBeInTheDocument();
+        });
+
+        // Mary Jones has both Participant Place (id 10) and Expedition Preference (id 20), but should appear on a single table row
+        const maryCells = screen.getAllByText('Mary Jones');
+        expect(maryCells).toHaveLength(1);
+
+        // Click Mary Jones's row to open the inspector on her first entry
+        fireEvent.click(maryCells[0]);
+
+        await waitFor(() => {
+            expect(screen.getByLabelText(/Select Signup Entry/i)).toBeInTheDocument();
+            expect(screen.getByText('Participant Place Details')).toBeInTheDocument();
+        });
+
+        // Switch to her Expedition Preference entry using the inspector control
+        const entrySelector = screen.getByLabelText(/Select Signup Entry/i) as HTMLSelectElement;
+        fireEvent.change(entrySelector, { target: { value: 'expedition_20' } });
+
+        await waitFor(() => {
+            expect(screen.getByText('Expedition Preference Details')).toBeInTheDocument();
+            expect(screen.getByText('First Aid Status')).toBeInTheDocument();
+            expect(screen.getByText('first_response')).toBeInTheDocument();
         });
     });
 });
