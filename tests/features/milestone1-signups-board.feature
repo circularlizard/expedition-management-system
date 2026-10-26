@@ -85,5 +85,21 @@ Feature: Milestone 1 - Signups Board & Reconciliation
       | leader_email | leader@peebles.scouts.org  |
     And the Signups Table and Inspector Panel should display "TW-Peebles" as the unit for both signups
 
+  Scenario: Signups Table displays a single row per explorer with columns for each signup kind and an inspector entry switcher
+    Given explorer "Mary Jones" (scout_id 30003) has both a Participant Place signup (ID 10) and an Expedition Preference signup (ID 20, Hillwalking)
+    And explorer "Alice Smith" (scout_id 0) has only a Participant Place signup (ID 11)
+    And explorer "Bob Smith" (scout_id 30002) has only an Expedition Preference signup (ID 21, Biking)
+    When the administrator opens the Signups Table tab
+    Then the table should display 1 row for "Mary Jones", 1 row for "Alice Smith", and 1 row for "Bob Smith"
+    And the row for "Mary Jones" should show statuses in both the "Participant Place" column and the "Expedition Preference" column
+    And the row for "Alice Smith" should show a status in the "Participant Place" column and "—" in the "Expedition Preference" column
+    And the row for "Bob Smith" should show "—" in the "Participant Place" column and a status in the "Expedition Preference" column
+    When the administrator clicks the row for "Mary Jones"
+    Then the Inspector Panel should open displaying the first signup entry for "Mary Jones"
+    And the Inspector Panel should display a signup entry selector listing all signup entries for "Mary Jones"
+    When the administrator selects the other signup entry for "Mary Jones" in the Inspector Panel selector
+    Then the Inspector Panel should switch to display the details for that selected signup entry
+
+
 
 

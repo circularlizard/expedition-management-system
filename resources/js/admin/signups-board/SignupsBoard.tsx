@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
-import { computeSignupsDashboardMetrics, getSignupRecordKey } from './dashboardMetrics';
+import { computeSignupsDashboardMetrics, getSignupRecordKey, groupSignupsByExplorerIdentity } from './dashboardMetrics';
 
 interface SignupsConfig {
     root_url: string;
@@ -317,6 +317,8 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     const dashboardMetrics = useMemo(() => computeSignupsDashboardMetrics(signups), [signups]);
 
+    const allExplorerBuckets = useMemo(() => groupSignupsByExplorerIdentity(signups), [signups]);
+
     // Filter signups in memory
     const filteredSignups = signups.filter(s => {
         if (typeFilter !== 'all' && s.type !== typeFilter) return false;
@@ -336,12 +338,67 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         return true;
     });
 
+    // Build consolidated Explorer rows from filteredSignups (1 row per Explorer)
+    const explorerRows = useMemo(() => {
+        const buckets = groupSignupsByExplorerIdentity(filteredSignups);
+        return buckets.map((bucket, idx) => {
+            const participantEntries = bucket.items.filter((i: any) => i.type === 'participant');
+            const expeditionEntries = bucket.items.filter((i: any) => i.type === 'expedition');
+            const entries = [...participantEntries, ...expeditionEntries];
+            const primary = entries[0] || bucket.items[0];
+            const expedWithPrefs = expeditionEntries.find((e: any) => e.expedition_preferences?.exped_type);
+            const dofeWithNum = entries.find((e: any) => e.dofe_number);
+            const transferReq = entries.some((e: any) => e.dofe_registered === 'y-other');
+            const latestCreatedAt = entries.reduce((latest: string, e: any) => {
+                if (!e.created_at) return latest;
+                return !latest || e.created_at > latest ? e.created_at : latest;
+            }, '');
+
+            return {
+                rowKey: bucket.scoutId !== 0 ? `scout_${bucket.scoutId}` : `explorer_${primary.type}_${primary.id}_${idx}`,
+                scout_id: bucket.scoutId,
+                explorer_first_name: primary.explorer_first_name || '',
+                explorer_last_name: primary.explorer_last_name || '',
+                explorer_email: entries.find((e: any) => e.explorer_email)?.explorer_email || '',
+                parent_email: entries.find((e: any) => e.parent_email)?.parent_email || '',
+                parent_user_id: entries.find((e: any) => e.parent_user_id)?.parent_user_id || 0,
+                unit_name: entries.find((e: any) => e.unit_name && e.unit_name !== 'Unassigned')?.unit_name || primary.unit_name || 'Unassigned',
+                dofe_level: primary.dofe_level || '',
+                dofe_number: dofeWithNum ? dofeWithNum.dofe_number : null,
+                dofe_registered: transferReq ? 'y-other' : (primary.dofe_registered || 'n'),
+                expedition_preferences: expedWithPrefs ? expedWithPrefs.expedition_preferences : null,
+                created_at: latestCreatedAt,
+                participantEntries,
+                expeditionEntries,
+                entries,
+            };
+        });
+    }, [filteredSignups]);
+
+    // Entries belonging to the currently selected explorer in the Inspector Panel
+    const selectedExplorerEntries = useMemo(() => {
+        if (!selectedSignup) return [];
+        const bucket = allExplorerBuckets.find((b) =>
+            b.items.some((item: any) => item.id === selectedSignup.id && item.type === selectedSignup.type)
+        );
+        if (!bucket) return [selectedSignup];
+        const parts = bucket.items.filter((i: any) => i.type === 'participant');
+        const expeds = bucket.items.filter((i: any) => i.type === 'expedition');
+        return [...parts, ...expeds];
+    }, [selectedSignup, allExplorerBuckets]);
+
     // Unique units for ESU filter
     const uniqueUnits = Array.from(new Set(signups.map(s => s.unit_name || 'Unassigned'))).filter(Boolean);
 
     const getSortValue = (item: any, key: string) => {
         if (key === 'explorer_first_name') {
             return `${item.explorer_first_name || ''} ${item.explorer_last_name || ''}`.toLowerCase();
+        }
+        if (key === 'participant') {
+            return item.participantEntries?.length || 0;
+        }
+        if (key === 'expedition_signup') {
+            return item.expeditionEntries?.length || 0;
         }
         if (key === 'expedition') {
             return (item.expedition_preferences?.exped_type || '').toLowerCase();
@@ -364,8 +421,8 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         return val ?? '';
     };
 
-    // Sort signups
-    const sortedSignups = [...filteredSignups].sort((a, b) => {
+    // Sort explorer rows
+    const sortedSignups = [...explorerRows].sort((a, b) => {
         let valA = getSortValue(a, sortKey);
         let valB = getSortValue(b, sortKey);
         if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
@@ -394,74 +451,14 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         };
 
         if (grouping === 'explorer') {
-            const explorerGroups: { title: string; scoutId: number; keys: Set<string>; items: any[] }[] = [];
-
-            sortedSignups.forEach(s => {
-                let matchedGroup = null;
-                const scoutId = Number(s.scout_id || 0);
-                const email = s.explorer_email ? normalize(s.explorer_email) : '';
-                const firstName = normalize(s.explorer_first_name);
-                const lastName = normalize(s.explorer_last_name);
-                const fullName = firstName && lastName ? `${firstName}_${lastName}` : '';
-                const parent = s.parent_email ? normalize(s.parent_email) : '';
-
-                if (scoutId !== 0) {
-                    matchedGroup = explorerGroups.find(g => g.scoutId === scoutId);
-                }
-                if (!matchedGroup) {
-                    matchedGroup = explorerGroups.find(g => {
-                        if (scoutId !== 0 && g.scoutId !== 0 && g.scoutId !== scoutId) {
-                            return false;
-                        }
-                        const hasEmailMatch = email && g.keys.has(`email_${email}`);
-                        const hasNameMatch = fullName && parent && g.keys.has(`name_${parent}_${fullName}`);
-                        const hasFullNameMatch = fullName && g.keys.has(`fullname_${fullName}`);
-                        return hasEmailMatch || hasNameMatch || hasFullNameMatch;
-                    });
-                }
-
-                const itemKeys = new Set<string>();
-                if (scoutId !== 0) {
-                    itemKeys.add(`scout_${scoutId}`);
-                }
-                if (email) {
-                    itemKeys.add(`email_${email}`);
-                }
-                if (fullName && parent) {
-                    itemKeys.add(`name_${parent}_${fullName}`);
-                }
-                if (fullName) {
-                    itemKeys.add(`fullname_${fullName}`);
-                }
-
-                if (matchedGroup) {
-                    if (matchedGroup.scoutId === 0 && scoutId !== 0) {
-                        matchedGroup.scoutId = scoutId;
-                        matchedGroup.title = `${s.explorer_first_name} ${s.explorer_last_name} (Scout ID: ${scoutId})`;
-                    }
-                    itemKeys.forEach(k => matchedGroup!.keys.add(k));
-                    matchedGroup.items.push(s);
-                } else {
-                    const title = scoutId !== 0 
-                        ? `${s.explorer_first_name} ${s.explorer_last_name} (Scout ID: ${scoutId})`
-                        : `${s.explorer_first_name} ${s.explorer_last_name} (Guest)`;
-
-                    explorerGroups.push({
-                        title,
-                        scoutId,
-                        keys: itemKeys,
-                        items: [s]
-                    });
-                }
-            });
-
-            // Sort explorer groups alphabetically by title
-            return explorerGroups.sort((a, b) => {
-                return a.title.localeCompare(b.title);
-            }).map(g => ({
-                title: g.title,
-                items: sortGroupItems(g.items)
-            }));
+            return sortedSignups
+                .map((row) => ({
+                    title: row.scout_id !== 0
+                        ? `${row.explorer_first_name} ${row.explorer_last_name} (Scout ID: ${row.scout_id})`
+                        : `${row.explorer_first_name} ${row.explorer_last_name} (Guest)`,
+                    items: [row],
+                }))
+                .sort((a, b) => a.title.localeCompare(b.title));
         }
 
         const groupsMap: { [key: string]: { title: string, items: any[] } } = {};
@@ -550,8 +547,14 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     };
 
     // Traversal queue inside inspector panel
-    const activeUnprocessedSignups = sortedSignups.filter(s => s.signup_status === 'submitted');
-    const currentUnprocessedIndex = selectedSignup ? activeUnprocessedSignups.findIndex(s => s.id === selectedSignup.id) : -1;
+    const activeUnprocessedSignups = sortedSignups
+        .map((row) => row.entries[0])
+        .filter((s) => s && s.signup_status === 'submitted');
+    const currentUnprocessedIndex = selectedSignup
+        ? activeUnprocessedSignups.findIndex((s) =>
+              selectedExplorerEntries.some((entry: any) => entry.id === s.id && entry.type === s.type)
+          )
+        : -1;
 
     const handlePrevSignup = () => {
         if (currentUnprocessedIndex > 0) {
@@ -655,7 +658,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                         className={`ems-tab-nav__button ${activeViewTab === 'table' ? 'ems-tab-nav__button--active' : ''}`}
                         onClick={() => setActiveViewTab('table')}
                     >
-                        Signups Table ({filteredSignups.length})
+                        Signups Table ({explorerRows.length})
                     </button>
                 </div>
 
@@ -837,10 +840,10 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                     <thead>
                                         <tr>
                                             <th className="ems-table-cell--center ems-m-0"></th>
-                                            {renderHeader('Form Type', 'type')}
-                                            {renderHeader('Submission Date', 'created_at')}
                                             {renderHeader('Explorer Name', 'explorer_first_name')}
                                             {renderHeader('Level', 'dofe_level')}
+                                            {renderHeader('Participant Place', 'participant')}
+                                            {renderHeader('Expedition Preference', 'expedition_signup')}
                                             {renderHeader('Expedition Type', 'expedition')}
                                             {renderHeader('ESU', 'unit_name')}
                                             {renderHeader('Email', 'explorer_email')}
@@ -848,7 +851,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {paginatedGroupedSignups.length === 0 ? (
+                                        {paginatedGroupedSignups.length === 0 || (paginatedGroupedSignups.length === 1 && paginatedGroupedSignups[0].items.length === 0) ? (
                                             <tr>
                                                 <td colSpan={9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                                     No signup records found for this filter state.
@@ -862,61 +865,94 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                             <td colSpan={9}><strong>{g.title}</strong></td>
                                                         </tr>
                                                     )}
-                                                    {g.items.map((s) => (
-                                                        <tr 
-                                                            key={`${s.type}_${s.id}`} 
-                                                            onClick={() => setSelectedSignup(s)}
-                                                            className={`ems-row-hoverable ${selectedSignup && selectedSignup.id === s.id && selectedSignup.type === s.type ? 'ems-table-row--selected' : ''}`}
-                                                        >
-                                                            <td className="ems-table-cell--center">
-                                                                {s.scout_id !== 0 ? (
-                                                                    <span title="Synced with OSM" className="ems-fa-full">✓</span>
-                                                                ) : (
-                                                                    <span title="Guest Roster / Unmatched" className="ems-fa-warning">⚠️</span>
-                                                                )}
-                                                            </td>
-                                                            <td>
-                                                                <span className={`ems-status-badge ems-status-badge--${s.type}`}>
-                                                                    {s.type === 'participant' ? 'Place' : 'Exped'}
-                                                                </span>
-                                                            </td>
-                                                            <td>
-                                                                {s.created_at ? s.created_at.substring(0, 16) : '—'}
-                                                            </td>
-                                                            <td>
-                                                                <strong>{s.explorer_first_name} {s.explorer_last_name}</strong>
-                                                            </td>
-                                                            <td>
-                                                                <span className={`ems-pill ems-pill--${s.dofe_level}`}>
-                                                                    {s.dofe_level}
-                                                                </span>
-                                                            </td>
-                                                            <td>
-                                                                {s.type === 'expedition' && s.expedition_preferences?.exped_type ? (
-                                                                    <span>
-                                                                        {normalize(s.expedition_preferences.exped_type) === 'hillwalking'
-                                                                            ? '🥾 '
-                                                                            : normalize(s.expedition_preferences.exped_type) === 'biking'
-                                                                            ? '🚲 '
-                                                                            : '🛶 '}
-                                                                        {s.expedition_preferences.exped_type}
+                                                    {g.items.map((row: any) => {
+                                                        const isRowSelected = Boolean(
+                                                            selectedSignup &&
+                                                            row.entries.some(
+                                                                (entry: any) => entry.id === selectedSignup.id && entry.type === selectedSignup.type
+                                                            )
+                                                        );
+                                                        return (
+                                                            <tr 
+                                                                key={row.rowKey} 
+                                                                onClick={() => setSelectedSignup(row.entries[0])}
+                                                                className={`ems-row-hoverable ${isRowSelected ? 'ems-table-row--selected' : ''}`}
+                                                            >
+                                                                <td className="ems-table-cell--center">
+                                                                    {row.scout_id !== 0 ? (
+                                                                        <span title="Synced with OSM" className="ems-fa-full">✓</span>
+                                                                    ) : (
+                                                                        <span title="Guest Roster / Unmatched" className="ems-fa-warning">⚠️</span>
+                                                                    )}
+                                                                </td>
+                                                                <td>
+                                                                    <strong>{row.explorer_first_name} {row.explorer_last_name}</strong>
+                                                                </td>
+                                                                <td>
+                                                                    <span className={`ems-pill ems-pill--${row.dofe_level}`}>
+                                                                        {row.dofe_level}
                                                                     </span>
-                                                                ) : (
-                                                                    '—'
-                                                                )}
-                                                            </td>
-                                                            <td>{s.unit_name || 'Unassigned'}</td>
-                                                            <td>{s.explorer_email || '—'}</td>
-                                                            <td className="ems-monospace">
-                                                                {s.dofe_number || '—'}
-                                                                {s.dofe_registered === 'y-other' && (
-                                                                    <div className="ems-signups-transfer-warning">
-                                                                        ⚠️ Transfer Req.
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                                </td>
+                                                                <td>
+                                                                    {row.participantEntries.length > 0 ? (
+                                                                        <div>
+                                                                            <span className="ems-status-badge ems-status-badge--participant">
+                                                                                Place{row.participantEntries.length > 1 ? ` (${row.participantEntries.length})` : ''}
+                                                                            </span>
+                                                                            <div className="ems-meta-text ems-small-text">
+                                                                                {row.participantEntries[0].created_at ? row.participantEntries[0].created_at.substring(0, 10) : ''}
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        '—'
+                                                                    )}
+                                                                </td>
+                                                                <td>
+                                                                    {row.expeditionEntries.length > 0 ? (
+                                                                        <div
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setSelectedSignup(row.expeditionEntries[0]);
+                                                                            }}
+                                                                        >
+                                                                            <span className="ems-status-badge ems-status-badge--expedition">
+                                                                                Exped{row.expeditionEntries.length > 1 ? ` (${row.expeditionEntries.length})` : ''}
+                                                                            </span>
+                                                                            <div className="ems-meta-text ems-small-text">
+                                                                                {row.expeditionEntries[0].created_at ? row.expeditionEntries[0].created_at.substring(0, 10) : ''}
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        '—'
+                                                                    )}
+                                                                </td>
+                                                                <td>
+                                                                    {row.expedition_preferences?.exped_type ? (
+                                                                        <span>
+                                                                            {normalize(row.expedition_preferences.exped_type) === 'hillwalking'
+                                                                                ? '🥾 '
+                                                                                : normalize(row.expedition_preferences.exped_type) === 'biking'
+                                                                                ? '🚲 '
+                                                                                : '🛶 '}
+                                                                            {row.expedition_preferences.exped_type}
+                                                                        </span>
+                                                                    ) : (
+                                                                        '—'
+                                                                    )}
+                                                                </td>
+                                                                <td>{row.unit_name || 'Unassigned'}</td>
+                                                                <td>{row.explorer_email || '—'}</td>
+                                                                <td className="ems-monospace">
+                                                                    {row.dofe_number || '—'}
+                                                                    {row.dofe_registered === 'y-other' && (
+                                                                        <div className="ems-signups-transfer-warning">
+                                                                            ⚠️ Transfer Req.
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </React.Fragment>
                                             ))
                                         )}
@@ -1038,6 +1074,35 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
                     {/* Details Body */}
                     <div className="ems-signups-inspector__body">
+                        {/* Explorer Entry Selector */}
+                        <div className="ems-signups-matching-panel ems-mb-16">
+                            <label htmlFor="inspector-entry-select" className="ems-signups-inspector__label">
+                                Signup Entry ({selectedExplorerEntries.length})
+                            </label>
+                            <div className="ems-mt-4">
+                                <select
+                                    id="inspector-entry-select"
+                                    aria-label="Select Signup Entry"
+                                    className="ems-select ems-w-full"
+                                    value={`${selectedSignup.type}_${selectedSignup.id}`}
+                                    onChange={(e) => {
+                                        const found = selectedExplorerEntries.find(
+                                            (entry: any) => `${entry.type}_${entry.id}` === e.target.value
+                                        );
+                                        if (found) {
+                                            setSelectedSignup(found);
+                                        }
+                                    }}
+                                >
+                                    {selectedExplorerEntries.map((entry: any) => (
+                                        <option key={`${entry.type}_${entry.id}`} value={`${entry.type}_${entry.id}`}>
+                                            {entry.type === 'participant' ? 'Participant Place' : 'Expedition Preference'} — {(entry.dofe_level || '').toUpperCase()} (#{entry.id}{entry.created_at ? `, ${entry.created_at.substring(0, 10)}` : ''})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
                         {/* Matching Widget */}
                         <div className="ems-signups-matching-panel ems-mb-16">
                             <div className="ems-signups-inspector__section-title" style={{ marginTop: 0 }}>OSM Profile Linkage</div>
