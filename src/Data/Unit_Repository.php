@@ -673,6 +673,120 @@ class Unit_Repository {
 	}
 
 	/**
+	 * Lists all unique leaders with their assigned units, districts, and portal access status.
+	 *
+	 * @return array<string, array{
+	 *     email: string,
+	 *     units: array<array<string, mixed>>,
+	 *     unit_names: array<string>,
+	 *     districts: array<string>,
+	 *     access_status: array{invited: bool, invited_at: ?string, logged_in: bool, last_login_at: ?string, user_id: ?int},
+	 *     user: ?\WP_User
+	 * }>
+	 */
+	public function list_leaders_with_units(): array {
+		$units   = $this->list_active_units();
+		$leaders = array();
+
+		foreach ( $units as $u ) {
+			$email = strtolower( trim( (string) ( $u['leader_email'] ?? '' ) ) );
+			if ( $email === '' || ! is_email( $email ) ) {
+				continue;
+			}
+
+			if ( ! isset( $leaders[ $email ] ) ) {
+				$status  = $this->get_leader_access_status( $email );
+				$wp_user = get_user_by( 'email', $email );
+				$leaders[ $email ] = array(
+					'email'         => $email,
+					'units'         => array(),
+					'unit_names'    => array(),
+					'districts'     => array(),
+					'access_status' => $status,
+					'user'          => ( $wp_user instanceof \WP_User ) ? $wp_user : null,
+				);
+			}
+
+			$leaders[ $email ]['units'][] = $u;
+
+			$name = trim( (string) ( $u['name'] ?? $u['short_code'] ?? '' ) );
+			if ( $name !== '' && ! in_array( $name, $leaders[ $email ]['unit_names'], true ) ) {
+				$leaders[ $email ]['unit_names'][] = $name;
+			}
+
+			$dist = trim( (string) ( $u['district'] ?? '' ) );
+			if ( $dist !== '' && ! in_array( $dist, $leaders[ $email ]['districts'], true ) ) {
+				$leaders[ $email ]['districts'][] = $dist;
+			}
+		}
+
+		ksort( $leaders );
+		return $leaders;
+	}
+
+	/**
+	 * Invites a leader by their email address, ensuring an ems_leader WP account exists and dispatching the notification email.
+	 *
+	 * @param string $email        Leader email address.
+	 * @param bool   $force_resend Whether to resend the invitation even if already invited.
+	 * @return bool True if an invitation was sent, false otherwise.
+	 */
+	public function invite_leader_by_email( string $email, bool $force_resend = false ): bool {
+		$email = strtolower( trim( $email ) );
+		if ( $email === '' || ! is_email( $email ) ) {
+			return false;
+		}
+
+		$now  = current_time( 'mysql' );
+		$user = get_user_by( 'email', $email );
+
+		if ( $user ) {
+			if ( is_callable( array( $user, 'add_role' ) ) ) {
+				$user->add_role( 'ems_leader' );
+			}
+			$user_id       = (int) $user->ID;
+			$invited_at    = (string) get_user_meta( $user_id, 'ems_leader_invited_at', true );
+			$last_login_at = (string) get_user_meta( $user_id, 'ems_last_login_at', true );
+
+			if ( ! $force_resend && ( $invited_at !== '' || $last_login_at !== '' ) ) {
+				return false;
+			}
+
+			$this->send_leader_invitation_notification( $user_id, array() );
+			update_user_meta( $user_id, 'ems_leader_invited_at', $now );
+			return true;
+		}
+
+		$base_login = sanitize_user( current( explode( '@', $email ) ), true );
+		if ( $base_login === '' ) {
+			$base_login = 'ems_leader';
+		}
+		$user_login = $base_login;
+		$suffix     = 1;
+		while ( username_exists( $user_login ) ) {
+			$user_login = $base_login . '_' . $suffix;
+			++$suffix;
+		}
+
+		$new_user_id = wp_insert_user(
+			array(
+				'user_login' => $user_login,
+				'user_email' => $email,
+				'user_pass'  => wp_generate_password( 24, true, true ),
+				'role'       => 'ems_leader',
+			)
+		);
+
+		if ( is_wp_error( $new_user_id ) ) {
+			return false;
+		}
+
+		$this->send_leader_invitation_notification( (int) $new_user_id, array() );
+		update_user_meta( (int) $new_user_id, 'ems_leader_invited_at', $now );
+		return true;
+	}
+
+	/**
 	 * Bulk-invites unit leaders (or invites a single unit's leader) by creating/updating
 	 * WordPress user accounts with the ems_leader role and sending the WP password setup email.
 	 *
