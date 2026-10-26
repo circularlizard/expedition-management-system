@@ -131,15 +131,18 @@ describe('LeaderDashboard Component', () => {
         const goldPill = within(bobRow).getByText('gold');
         expect(goldPill.className).toContain('ems-pill--gold');
 
-        // 5. Checkmarks in Participant Place and Expedition Preference, plus OSM Sync and Unit columns
-        expect(screen.getByRole('columnheader', { name: /OSM Sync/i })).toBeDefined();
-        expect(screen.getByRole('columnheader', { name: /Unit/i })).toBeDefined();
+        // 5. Checkmarks in Participant Place and Expedition Preference, plus Unit and OSM Sync (last) columns
+        const headers = screen.getAllByRole('columnheader');
+        expect(headers[5].textContent).toContain('Unit');
+        expect(headers[6].textContent).toContain('OSM Sync');
+
         const zackCells = within(zackRow).getAllByRole('cell');
-        // Columns: 0: OSM Sync, 1: Explorer Name, 2: Level, 3: Participant Place, 4: Expedition Preference, 5: Expedition Type, 6: Unit
+        // Columns: 0: Explorer Name, 1: Level, 2: Participant Place, 3: Expedition Preference, 4: Expedition Type, 5: Unit, 6: OSM Sync
+        expect(zackCells[2].textContent?.trim()).toBe('✓');
         expect(zackCells[3].textContent?.trim()).toBe('✓');
-        expect(zackCells[4].textContent?.trim()).toBe('✓');
-        expect(zackCells[5].textContent?.trim()).toBe('Hillwalking');
-        expect(zackCells[6].textContent?.trim()).toBe('BO-Kelso');
+        expect(zackCells[4].textContent?.trim()).toBe('Hillwalking');
+        expect(zackCells[5].textContent?.trim()).toBe('BO-Kelso');
+        expect(within(zackCells[6]).getByRole('img', { name: /Synced with OSM/i })).toBeDefined();
 
         // 6. Pagination controls exist
         expect(screen.getByLabelText(/Items per page/i)).toBeDefined();
