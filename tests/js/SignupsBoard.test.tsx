@@ -163,9 +163,10 @@ describe('SignupsBoard', () => {
             expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0);
             expect(screen.getByText('Alice Smith')).toBeInTheDocument();
             expect(screen.getByText('Charlie Smith')).toBeInTheDocument();
-            // Form Type column assertions
-            expect(screen.getAllByText('Place').length).toBeGreaterThan(0);
-            expect(screen.getAllByText('Exped').length).toBeGreaterThan(0);
+            // Participant Place and Expedition Preference columns show checkmarks
+            expect(screen.getByRole('columnheader', { name: /Participant Place/i })).toBeInTheDocument();
+            expect(screen.getByRole('columnheader', { name: /Expedition Preference/i })).toBeInTheDocument();
+            expect(screen.getAllByText('✓').length).toBeGreaterThan(0);
         });
 
         // Group by Unit ESU

@@ -894,42 +894,36 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                                         {row.dofe_level}
                                                                     </span>
                                                                 </td>
-                                                                <td>
+                                                                <td className="ems-table-cell--center">
                                                                     {row.participantEntries.length > 0 ? (
-                                                                        <div
+                                                                        <span
                                                                             key="has-place"
+                                                                            title="Participant Place submitted"
+                                                                            className="ems-fa-full ems-cursor-pointer"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
                                                                                 setSelectedSignup(row.participantEntries[0]);
                                                                             }}
                                                                         >
-                                                                            <span className="ems-status-badge ems-status-badge--participant">
-                                                                                {`Place${row.participantEntries.length > 1 ? ` (${row.participantEntries.length})` : ''}`}
-                                                                            </span>
-                                                                            <div className="ems-meta-text ems-small-text">
-                                                                                {row.participantEntries[0].created_at ? row.participantEntries[0].created_at.substring(0, 10) : ''}
-                                                                            </div>
-                                                                        </div>
+                                                                            {`✓${row.participantEntries.length > 1 ? ` (${row.participantEntries.length})` : ''}`}
+                                                                        </span>
                                                                     ) : (
                                                                         <span key="no-place">—</span>
                                                                     )}
                                                                 </td>
-                                                                <td>
+                                                                <td className="ems-table-cell--center">
                                                                     {row.expeditionEntries.length > 0 ? (
-                                                                        <div
+                                                                        <span
                                                                             key="has-exped"
+                                                                            title="Expedition Preference submitted"
+                                                                            className="ems-fa-full ems-cursor-pointer"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
                                                                                 setSelectedSignup(row.expeditionEntries[0]);
                                                                             }}
                                                                         >
-                                                                            <span className="ems-status-badge ems-status-badge--expedition">
-                                                                                {`Exped${row.expeditionEntries.length > 1 ? ` (${row.expeditionEntries.length})` : ''}`}
-                                                                            </span>
-                                                                            <div className="ems-meta-text ems-small-text">
-                                                                                {row.expeditionEntries[0].created_at ? row.expeditionEntries[0].created_at.substring(0, 10) : ''}
-                                                                            </div>
-                                                                        </div>
+                                                                            {`✓${row.expeditionEntries.length > 1 ? ` (${row.expeditionEntries.length})` : ''}`}
+                                                                        </span>
                                                                     ) : (
                                                                         <span key="no-exped">—</span>
                                                                     )}
