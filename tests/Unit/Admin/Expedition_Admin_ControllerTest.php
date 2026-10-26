@@ -1180,6 +1180,72 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertCount( 1, $data );
         $this->assertSame( 'Alice', $data[0]['first_name'] );
     }
+
+    public function test_update_signup_unit_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'update_signup_unit' )
+            ->with( 15, 'expedition', 20 )
+            ->once()
+            ->andReturn( [
+                'unit_id'      => 20,
+                'unit_name'    => 'TW-Peebles',
+                'leader_email' => 'leader@peebles.scouts.org',
+            ] );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 15,
+            'signup_type' => 'expedition',
+            'unit_id'     => 20,
+        ] );
+        $response = $controller->update_signup_unit( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertTrue( $data['updated'] );
+        $this->assertSame( 20, $data['unit_id'] );
+        $this->assertSame( 'TW-Peebles', $data['unit_name'] );
+        $this->assertSame( 'leader@peebles.scouts.org', $data['leader_email'] );
+    }
+
+    public function test_update_signup_unit_returns_400_on_invalid_params(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups    = \Mockery::mock( Signup_Repository::class );
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 15,
+            'signup_type' => 'invalid_type',
+            'unit_id'     => 20,
+        ] );
+        $response = $controller->update_signup_unit( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+    }
+
+    public function test_update_signup_unit_returns_404_when_not_found(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'update_signup_unit' )
+            ->with( 999, 'expedition', 20 )
+            ->once()
+            ->andReturn( false );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 999,
+            'signup_type' => 'expedition',
+            'unit_id'     => 20,
+        ] );
+        $response = $controller->update_signup_unit( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 404, $response->get_error_data()['status'] );
+    }
 }
 
 

@@ -189,6 +189,9 @@ class Table_InstallerTest extends EMSTestCase {
 
         $this->assertNotNull( $exped_sql );
         $this->assertStringContainsString( 'scout_id', $exped_sql );
+        $this->assertStringContainsString( 'dob', $exped_sql );
+        $this->assertStringContainsString( 'dofe_registered', $exped_sql );
+        $this->assertStringContainsString( 'dofe_number', $exped_sql );
         $this->assertStringContainsString( 'expedition_preferences', $exped_sql );
         $this->assertStringContainsString( 'additional_support_needs', $exped_sql );
         $this->assertStringContainsString( 'first_aid_status', $exped_sql );

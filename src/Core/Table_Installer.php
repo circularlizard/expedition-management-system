@@ -63,6 +63,20 @@ class Table_Installer {
 			$wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
 		}
 
+		$expedition_signups_table = $wpdb->prefix . 'ems_expedition_signups';
+		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'dob' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN dob DATE DEFAULT NULL AFTER dofe_level" );
+		}
+		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'dofe_registered' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN dofe_registered VARCHAR(50) NOT NULL DEFAULT 'n' AFTER dob" );
+		}
+		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'dofe_number' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER dofe_registered" );
+		}
+
 		$avail_table = $wpdb->prefix . 'ems_volunteer_availability';
 		if ( ! $this->column_exists( $wpdb, $avail_table, 'volunteer_id' ) ) {
 			// Add column
@@ -566,6 +580,9 @@ class Table_Installer {
             parent_email           VARCHAR(100)             DEFAULT NULL,
             leader_email           VARCHAR(100)             DEFAULT NULL,
             dofe_level             VARCHAR(20)     NOT NULL,
+            dob                    DATE                     DEFAULT NULL,
+            dofe_registered        VARCHAR(50)     NOT NULL DEFAULT 'n',
+            dofe_number            VARCHAR(50)              DEFAULT NULL,
             expedition_preferences TEXT                     DEFAULT NULL,
             additional_support_needs TEXT                   DEFAULT NULL,
             first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',

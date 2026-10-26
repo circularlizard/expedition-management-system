@@ -5,6 +5,7 @@ import { computeSignupsDashboardMetrics, getSignupRecordKey } from './dashboardM
 interface SignupsConfig {
     root_url: string;
     nonce: string;
+    units?: any[];
 }
 
 declare global {
@@ -59,9 +60,11 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     // Selected signup & Inspector Panel
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
     const [editedDofeNumber, setEditedDofeNumber] = useState<string>('');
+    const [editedUnitId, setEditedUnitId] = useState<string>('');
     const [reconcileSearch, setReconcileSearch] = useState<string>('');
     const [unlinkError, setUnlinkError] = useState<string | null>(null);
     const inspectorRef = useRef<HTMLDivElement>(null);
+    const availableUnits: any[] = config.units || [];
 
     // Pagination
     const [currentPage, setCurrentPage] = useState<number>(1);
@@ -115,6 +118,16 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     useEffect(() => {
         if (selectedSignup) {
             setEditedDofeNumber(selectedSignup.dofe_number || '');
+            if (selectedSignup.unit_id) {
+                setEditedUnitId(String(selectedSignup.unit_id));
+            } else {
+                const matchedUnit = availableUnits.find(
+                    (u: any) =>
+                        normalize(u.short_code) === normalize(selectedSignup.unit_name) ||
+                        normalize(u.name) === normalize(selectedSignup.unit_name)
+                );
+                setEditedUnitId(matchedUnit ? String(matchedUnit.unit_id) : '');
+            }
             setUnlinkError(null);
             setReconcileSearch('');
         }
@@ -193,6 +206,41 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
             fetchData();
         } catch (err: any) {
             setUnlinkError(err.message);
+        }
+    };
+
+    const handleUpdateUnit = async (signupId: number, signupType: string, unitId: number) => {
+        if (!unitId) return;
+        try {
+            const response = await fetch(`${config.root_url}/signups/unit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    signup_id: signupId,
+                    signup_type: signupType,
+                    unit_id: unitId
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || (data.code && data.message)) {
+                throw new Error(data.message || 'Failed to update unit');
+            }
+            setSelectedSignup((prev: any) =>
+                prev
+                    ? {
+                          ...prev,
+                          unit_id: data.unit_id,
+                          unit_name: data.unit_name,
+                          leader_email: data.leader_email,
+                      }
+                    : null
+            );
+            fetchData();
+        } catch (err: any) {
+            alert(err.message);
         }
     };
 
@@ -1113,10 +1161,34 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                 </div>
                             </div>
 
-                            <div className="ems-signups-detail-item">
+                            <div className="ems-signups-detail-item ems-signups-detail-item--full">
                                 <span className="ems-signups-inspector__label">Unit</span>
                                 <div className="ems-signups-inspector__value ems-font-semibold">
                                     {selectedSignup.unit_name || 'Unassigned'}
+                                </div>
+                                <div className="ems-flex-center ems-gap-8 ems-mt-8">
+                                    <select
+                                        aria-label="Change Unit"
+                                        value={editedUnitId}
+                                        onChange={(e) => setEditedUnitId(e.target.value)}
+                                        className="ems-select"
+                                    >
+                                        <option value="">Select unit...</option>
+                                        {availableUnits.map((u: any) => (
+                                            <option key={u.unit_id} value={String(u.unit_id)}>
+                                                {u.short_code || u.name}
+                                                {u.name && u.short_code && u.name !== u.short_code ? ` (${u.name})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleUpdateUnit(selectedSignup.id, selectedSignup.type, Number(editedUnitId))}
+                                        disabled={!editedUnitId}
+                                        className="button button-secondary"
+                                    >
+                                        Update Unit
+                                    </button>
                                 </div>
                             </div>
                         </div>

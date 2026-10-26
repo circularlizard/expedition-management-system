@@ -550,5 +550,71 @@ describe('SignupsBoard', () => {
             expect(screen.queryByText('Alice Smith')).not.toBeInTheDocument();
         });
     });
+
+    it('updates the selected unit on a signup entry and syncs paired signups for the same explorer', async () => {
+        (global as any).window.emsSignupsBoard = {
+            ...mockConfig,
+            units: [
+                { unit_id: 10, short_code: 'Kelso', name: 'Kelso ESU', leader_email: 'leader@kelso.scouts.org.uk' },
+                { unit_id: 20, short_code: 'TW-Peebles', name: 'Peebles ESU', leader_email: 'leader@peebles.scouts.org' },
+            ],
+        };
+
+        const updatedSignups = mockCombinedSignups.map((s) =>
+            s.scout_id === 30003
+                ? { ...s, unit_id: 20, unit_name: 'TW-Peebles', leader_email: 'leader@peebles.scouts.org' }
+                : s
+        );
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    updated: true,
+                    unit_id: 20,
+                    unit_name: 'TW-Peebles',
+                    leader_email: 'leader@peebles.scouts.org',
+                }),
+            })
+            .mockResolvedValueOnce({ ok: true, json: async () => updatedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /Signups Table/i })).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Signups Table/i }));
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0);
+        });
+
+        // Click Mary Jones's expedition signup row
+        fireEvent.click(screen.getAllByText('Mary Jones')[0]);
+
+        await waitFor(() => {
+            expect(screen.getByLabelText(/Change Unit/i)).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByLabelText(/Change Unit/i), { target: { value: '20' } });
+        fireEvent.click(screen.getByRole('button', { name: /Update Unit/i }));
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/signups/unit'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: expect.stringContaining('"unit_id":20'),
+                })
+            );
+        });
+
+        await waitFor(() => {
+            expect(screen.getAllByText('TW-Peebles').length).toBeGreaterThanOrEqual(2);
+        });
+    });
 });
 
