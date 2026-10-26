@@ -867,5 +867,145 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 		$this->assertSame( [ 'H-SP1', 'H-SP2' ], $prefs['exped_practice_dates'] );
 		$this->assertSame( [ 'H-SQ1' ], $prefs['exped_qualifier_dates'] );
 	}
+
+	public function test_resync_existing_signups_updates_valid_submissions_and_archives_deleted_ones(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_fluent_participant_form_id' ) return 6;
+			if ( $key === 'ems_fluent_expedition_form_id' ) return 3;
+			return $default;
+		} );
+		Functions\when( 'is_email' )->alias( fn( $val ) => str_contains( (string) $val, '@' ) );
+		Functions\when( 'sanitize_email' )->alias( fn( $val ) => trim( (string) $val ) );
+		Functions\when( 'wp_json_encode' )->alias( fn( $val ) => json_encode( $val ) );
+
+		$wpdb = new class {
+			public string $prefix = 'wp_';
+			public function prepare( string $sql, ...$args ): string {
+				$vsprintf_args = [];
+				foreach ( $args as $arg ) {
+					if ( is_array( $arg ) ) {
+						$vsprintf_args = array_merge( $vsprintf_args, $arg );
+					} else {
+						$vsprintf_args[] = $arg;
+					}
+				}
+				$formatted = str_replace( [ '%d', '%s' ], [ '%u', "'%s'" ], $sql );
+				return vsprintf( $formatted, $vsprintf_args );
+			}
+			public function get_var( string $sql ) {
+				if ( str_contains( $sql, 'SHOW TABLES LIKE' ) && str_contains( $sql, 'fluentform_forms' ) ) {
+					return 'wp_fluentform_forms';
+				}
+				if ( str_contains( $sql, 'FROM wp_fluentform_forms WHERE id = 3' ) ) {
+					return '3';
+				}
+				if ( str_contains( $sql, 'FROM wp_fluentform_forms WHERE id = 999' ) ) {
+					return null; // Deleted form
+				}
+				return null;
+			}
+			public function get_row( string $sql, string $output = ARRAY_A ) {
+				if ( str_contains( $sql, 'FROM wp_fluentform_submissions WHERE id = 501' ) ) {
+					return [
+						'id'       => 501,
+						'form_id'  => 3,
+						'status'   => 'unread',
+						'response' => json_encode( [
+							'signup_child'            => '30001',
+							'signup_child_name'       => [ 'first_name' => 'Tom', 'last_name' => 'Strachan' ],
+							'signup_dob'              => '15/05/2011',
+							'signup_email'            => 'tom@example.com',
+							'signup_parent_email'     => 'jane@example.com',
+							'signup_unit'             => 'BO-Kelso',
+							'signup_level'            => 'Bronze',
+							'signup_edofe_registered' => 'yes',
+							'signup_dofe_number'      => '1234567',
+							'exped_type_bronze'       => 'Paddling',
+							'exped_bronze_dates'      => [ 'B-PQ1', 'B-PQ2' ],
+							'description'             => 'Dyslexia',
+							'input_radio'             => 'first-aid-yes',
+						] ),
+					];
+				}
+				if ( str_contains( $sql, 'FROM wp_fluentform_submissions WHERE id = 502' ) ) {
+					return null; // Submission deleted
+				}
+				if ( str_contains( $sql, 'FROM wp_fluentform_submissions WHERE id = 503' ) ) {
+					return [
+						'id'       => 503,
+						'form_id'  => 999, // Form 999 was deleted
+						'status'   => 'unread',
+						'response' => json_encode( [ 'signup_child' => '30002' ] ),
+					];
+				}
+				return null;
+			}
+		};
+
+		$this->signup_repo->shouldReceive( 'get_participant_signups' )
+			->once()
+			->with( 'submitted' )
+			->andReturn( [
+				[
+					'id'                 => 21,
+					'scout_id'           => 30002,
+					'form_submission_id' => 503,
+					'signup_status'      => 'submitted',
+				],
+			] );
+
+		$this->signup_repo->shouldReceive( 'get_expedition_signups' )
+			->once()
+			->with( 'submitted' )
+			->andReturn( [
+				[
+					'id'                 => 11,
+					'scout_id'           => 30001,
+					'unit_id'            => 10,
+					'unit_name'          => 'BO-Kelso',
+					'leader_email'       => 'leader@kelso.scouts.org.uk',
+					'form_submission_id' => 501,
+					'signup_status'      => 'submitted',
+				],
+				[
+					'id'                 => 12,
+					'scout_id'           => 30003,
+					'form_submission_id' => 502,
+					'signup_status'      => 'submitted',
+				],
+			] );
+
+		$captured_update = null;
+		$this->signup_repo->shouldReceive( 'update_expedition_signup_from_sync' )
+			->once()
+			->with( 11, Mockery::on( function( array $data ) use ( &$captured_update ) {
+				$captured_update = $data;
+				return true;
+			} ) )
+			->andReturn( true );
+
+		$this->signup_repo->shouldReceive( 'archive_expedition_signup' )
+			->once()
+			->with( 12 )
+			->andReturn( true );
+
+		$this->signup_repo->shouldReceive( 'archive_participant_signup' )
+			->once()
+			->with( 21 )
+			->andReturn( true );
+
+		$sync   = new Fluent_Forms_Sync( $this->signup_repo, $wpdb );
+		$result = $sync->resync_existing_signups();
+
+		$this->assertSame( 1, $result['updated'] );
+		$this->assertSame( 2, $result['archived'] );
+		$this->assertNotNull( $captured_update );
+		$this->assertSame( 'tom@example.com', $captured_update['explorer_email'] );
+		$this->assertSame( '2011-05-15', $captured_update['dob'] );
+		$this->assertSame( 'yes', $captured_update['dofe_registered'] );
+		$this->assertSame( 'Dyslexia', $captured_update['additional_support_needs'] );
+		$this->assertSame( 'Paddling', $captured_update['expedition_preferences']['exped_type'] );
+		$this->assertSame( [ 'B-PQ1', 'B-PQ2' ], $captured_update['expedition_preferences']['exped_practice_dates'] );
+	}
 }
 

@@ -240,62 +240,66 @@ class Fluent_Forms_Sync {
 		$expedition_form_id  = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
 
 		if ( $form_id === $participant_form_id ) {
-			$config = get_option( 'ems_participant_form_mappings', array() );
-			$config = array_merge(
-				array(
-					'scout_id_field'          => 'signup_child',
-					'first_name_field'        => 'signup_child_name',
-					'last_name_field'         => 'signup_child_name',
-					'dofe_level_field'        => 'signup_level',
-					'dob_field'               => 'signup_dob',
-					'dofe_registered_field'   => 'signup_dofe_registered',
-					'dofe_number_field'       => 'signup_dofe_number',
-					'dofe_org_field'          => 'signup_dofe_org',
-					'bronze_completion_field' => 'signup_bronze_completion',
-					'silver_completion_field' => 'signup_silver_completion',
-					'esu_patrol_field'        => 'signup_unit',
-					'explorer_email_field'    => 'signup_explorer_email',
-					'parent_email_field'      => 'signup_parent_email',
-					'leader_email_field'      => 'signup_leader_email',
-				),
-				$config
-			);
-
-			$this->save_participant_submission( $entryId, $formData, $config );
+			$this->save_participant_submission( (int) $entryId, $formData, $this->get_participant_config() );
 		} elseif ( $form_id === $expedition_form_id ) {
-			$config = get_option( 'ems_expedition_form_mappings', array() );
-			$config = array_merge(
-				array(
-					'scout_id_field'               => 'signup_child',
-					'first_name_field'             => 'signup_child_name',
-					'last_name_field'              => 'signup_child_name',
-					'dob_field'                    => 'signup_dob',
-					'dofe_level_field'             => 'signup_level',
-					'dofe_registered_field'        => 'signup_edofe_registered',
-					'dofe_number_field'            => 'signup_dofe_number',
-					'esu_patrol_field'             => 'signup_unit',
-					'explorer_email_field'         => 'signup_email',
-					'parent_email_field'           => 'signup_parent_email',
-					'leader_email_field'           => 'signup_leader_email',
-					'exped_type_field'             => 'exped_type',
-					'exped_type_bronze_field'      => 'exped_type_bronze',
-					'bronze_dates_field'           => 'exped_bronze_dates',
-					'practice_dates_field'         => 'exped_practice_dates',
-					'qualifier_dates_field'        => 'exped_qualifier_dates',
-					'silver_practice_dates_field'  => 'exped_silver_practice_dates',
-					'gold_practice_dates_field'    => 'exped_gold_practice_dates',
-					'silver_qualifier_dates_field' => 'exped_silver_qualifier_dates',
-					'gold_qualifier_dates_field'   => 'exped_gold_qualifier_dates',
-					'team_names_field'             => 'exped_team_names',
-					'asn_field'                    => 'description',
-					'first_aid_field'              => 'input_radio',
-					'first_aid_expiry_field'       => 'datetime',
-				),
-				$config
-			);
-
-			$this->save_expedition_submission( $entryId, $formData, $config );
+			$this->save_expedition_submission( (int) $entryId, $formData, $this->get_expedition_config() );
 		}
+	}
+
+	private function get_participant_config(): array {
+		$config = get_option( 'ems_participant_form_mappings', array() );
+		return array_merge(
+			array(
+				'scout_id_field'          => 'signup_child',
+				'first_name_field'        => 'signup_child_name',
+				'last_name_field'         => 'signup_child_name',
+				'dofe_level_field'        => 'signup_level',
+				'dob_field'               => 'signup_dob',
+				'dofe_registered_field'   => 'signup_dofe_registered',
+				'dofe_number_field'       => 'signup_dofe_number',
+				'dofe_org_field'          => 'signup_dofe_org',
+				'bronze_completion_field' => 'signup_bronze_completion',
+				'silver_completion_field' => 'signup_silver_completion',
+				'esu_patrol_field'        => 'signup_unit',
+				'explorer_email_field'    => 'signup_explorer_email',
+				'parent_email_field'      => 'signup_parent_email',
+				'leader_email_field'      => 'signup_leader_email',
+			),
+			is_array( $config ) ? $config : array()
+		);
+	}
+
+	private function get_expedition_config(): array {
+		$config = get_option( 'ems_expedition_form_mappings', array() );
+		return array_merge(
+			array(
+				'scout_id_field'               => 'signup_child',
+				'first_name_field'             => 'signup_child_name',
+				'last_name_field'              => 'signup_child_name',
+				'dob_field'                    => 'signup_dob',
+				'dofe_level_field'             => 'signup_level',
+				'dofe_registered_field'        => 'signup_edofe_registered',
+				'dofe_number_field'            => 'signup_dofe_number',
+				'esu_patrol_field'             => 'signup_unit',
+				'explorer_email_field'         => 'signup_email',
+				'parent_email_field'           => 'signup_parent_email',
+				'leader_email_field'           => 'signup_leader_email',
+				'exped_type_field'             => 'exped_type',
+				'exped_type_bronze_field'      => 'exped_type_bronze',
+				'bronze_dates_field'           => 'exped_bronze_dates',
+				'practice_dates_field'         => 'exped_practice_dates',
+				'qualifier_dates_field'        => 'exped_qualifier_dates',
+				'silver_practice_dates_field'  => 'exped_silver_practice_dates',
+				'gold_practice_dates_field'    => 'exped_gold_practice_dates',
+				'silver_qualifier_dates_field' => 'exped_silver_qualifier_dates',
+				'gold_qualifier_dates_field'   => 'exped_gold_qualifier_dates',
+				'team_names_field'             => 'exped_team_names',
+				'asn_field'                    => 'description',
+				'first_aid_field'              => 'input_radio',
+				'first_aid_expiry_field'       => 'datetime',
+			),
+			is_array( $config ) ? $config : array()
+		);
 	}
 
 	private function parse_name_and_scout_id( array $formData, array $config ): array {
@@ -341,7 +345,7 @@ class Fluent_Forms_Sync {
 		return array( $scout_id, $first_name, $last_name );
 	}
 
-	private function save_participant_submission( int $entryId, array $formData, array $config ): void {
+	private function build_participant_submission_data( int $entryId, array $formData, array $config ): array {
 		list( $scout_id, $first_name, $last_name ) = $this->parse_name_and_scout_id( $formData, $config );
 
 		$dob = $formData[ $config['dob_field'] ] ?? null;
@@ -386,10 +390,15 @@ class Fluent_Forms_Sync {
 		$leader_email = sanitize_email( $formData[ $config['leader_email_field'] ] ?? '' );
 		$insert_data['leader_email'] = ! empty( $leader_email ) ? $leader_email : $unit_details['leader_email'];
 
+		return $insert_data;
+	}
+
+	private function save_participant_submission( int $entryId, array $formData, array $config ): void {
+		$insert_data = $this->build_participant_submission_data( $entryId, $formData, $config );
 		$this->signup_repo->create_participant_signup( $insert_data );
 	}
 
-	private function save_expedition_submission( int $entryId, array $formData, array $config ): void {
+	private function build_expedition_submission_data( int $entryId, array $formData, array $config ): array {
 		list( $scout_id, $first_name, $last_name ) = $this->parse_name_and_scout_id( $formData, $config );
 
 		$level = strtolower( sanitize_text_field( $formData[ $config['dofe_level_field'] ?? 'signup_level' ] ?? '' ) );
@@ -508,7 +517,134 @@ class Fluent_Forms_Sync {
 		$leader_email = sanitize_email( $formData[ $config['leader_email_field'] ] ?? '' );
 		$insert_data['leader_email'] = ! empty( $leader_email ) ? $leader_email : $unit_details['leader_email'];
 
+		return $insert_data;
+	}
+
+	private function save_expedition_submission( int $entryId, array $formData, array $config ): void {
+		$insert_data = $this->build_expedition_submission_data( $entryId, $formData, $config );
 		$this->signup_repo->create_expedition_signup( $insert_data );
+	}
+
+	/**
+	 * Re-sync existing active signups from Fluent Forms submissions.
+	 * Updates records using current field mappings and archives records whose submission or form was deleted.
+	 *
+	 * @return array{updated: int, archived: int}
+	 */
+	public function resync_existing_signups(): array {
+		$updated  = 0;
+		$archived = 0;
+
+		$part_config = $this->get_participant_config();
+		$exp_config  = $this->get_expedition_config();
+
+		$forms_table     = $this->wpdb->prefix . 'fluentform_forms';
+		$has_forms_table = method_exists( $this->wpdb, 'get_var' )
+			&& method_exists( $this->wpdb, 'prepare' )
+			&& $this->wpdb->get_var( $this->wpdb->prepare( 'SHOW TABLES LIKE %s', $forms_table ) ) === $forms_table;
+
+		$fetch_valid_submission = function ( int $submission_id ) use ( $has_forms_table, $forms_table ): ?array {
+			if ( $submission_id <= 0 ) {
+				return null;
+			}
+			$sub = $this->wpdb->get_row(
+				$this->wpdb->prepare(
+					"SELECT id, form_id, response, status FROM {$this->wpdb->prefix}fluentform_submissions WHERE id = %d",
+					$submission_id
+				),
+				ARRAY_A
+			);
+			if ( ! $sub || ( $sub['status'] ?? '' ) === 'trashed' ) {
+				return null;
+			}
+			if ( $has_forms_table ) {
+				$form_id     = (int) ( $sub['form_id'] ?? 0 );
+				$form_exists = $this->wpdb->get_var(
+					$this->wpdb->prepare(
+						"SELECT id FROM {$forms_table} WHERE id = %d",
+						$form_id
+					)
+				);
+				if ( empty( $form_exists ) ) {
+					return null;
+				}
+			}
+			return $sub;
+		};
+
+		// 1. Participant signups
+		$participant_rows = $this->signup_repo->get_participant_signups( 'submitted' );
+		foreach ( $participant_rows as $row ) {
+			$signup_id     = (int) ( $row['id'] ?? 0 );
+			$submission_id = (int) ( $row['form_submission_id'] ?? 0 );
+			$sub           = $fetch_valid_submission( $submission_id );
+
+			if ( ! $sub ) {
+				$this->signup_repo->archive_participant_signup( $signup_id );
+				++$archived;
+				continue;
+			}
+
+			$form_data = json_decode( (string) ( $sub['response'] ?? '' ), true );
+			if ( ! is_array( $form_data ) ) {
+				continue;
+			}
+
+			$parsed = $this->build_participant_submission_data( $submission_id, $form_data, $part_config );
+			if ( ! empty( $row['scout_id'] ) ) {
+				$parsed['scout_id'] = (int) $row['scout_id'];
+			}
+			if ( ! empty( $row['unit_id'] ) ) {
+				$parsed['unit_id']      = (int) $row['unit_id'];
+				$parsed['unit_name']    = $row['unit_name'] ?? $parsed['unit_name'];
+				$parsed['leader_email'] = ! empty( $row['leader_email'] ) ? $row['leader_email'] : $parsed['leader_email'];
+			}
+			if ( ! empty( $row['dofe_number'] ) && empty( $parsed['dofe_number'] ) ) {
+				$parsed['dofe_number'] = $row['dofe_number'];
+			}
+
+			if ( $this->signup_repo->update_participant_signup_from_sync( $signup_id, $parsed ) ) {
+				++$updated;
+			}
+		}
+
+		// 2. Expedition signups
+		$expedition_rows = $this->signup_repo->get_expedition_signups( 'submitted' );
+		foreach ( $expedition_rows as $row ) {
+			$signup_id     = (int) ( $row['id'] ?? 0 );
+			$submission_id = (int) ( $row['form_submission_id'] ?? 0 );
+			$sub           = $fetch_valid_submission( $submission_id );
+
+			if ( ! $sub ) {
+				$this->signup_repo->archive_expedition_signup( $signup_id );
+				++$archived;
+				continue;
+			}
+
+			$form_data = json_decode( (string) ( $sub['response'] ?? '' ), true );
+			if ( ! is_array( $form_data ) ) {
+				continue;
+			}
+
+			$parsed = $this->build_expedition_submission_data( $submission_id, $form_data, $exp_config );
+			if ( ! empty( $row['scout_id'] ) ) {
+				$parsed['scout_id'] = (int) $row['scout_id'];
+			}
+			if ( ! empty( $row['unit_id'] ) ) {
+				$parsed['unit_id']      = (int) $row['unit_id'];
+				$parsed['unit_name']    = $row['unit_name'] ?? $parsed['unit_name'];
+				$parsed['leader_email'] = ! empty( $row['leader_email'] ) ? $row['leader_email'] : $parsed['leader_email'];
+			}
+
+			if ( $this->signup_repo->update_expedition_signup_from_sync( $signup_id, $parsed ) ) {
+				++$updated;
+			}
+		}
+
+		return array(
+			'updated'  => $updated,
+			'archived' => $archived,
+		);
 	}
 
 	public function handle_payment_status( $status, $submission ): void {
