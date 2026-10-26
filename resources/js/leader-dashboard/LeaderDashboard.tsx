@@ -376,13 +376,13 @@ export const LeaderDashboard: React.FC = () => {
                     <table className="ems-table">
                         <thead>
                             <tr>
-                                {renderHeader('OSM Sync', 'osm_sync')}
                                 {renderHeader('Explorer Name', 'explorer_first_name')}
                                 {renderHeader('Level', 'dofe_level')}
                                 {renderHeader('Participant Place', 'participant')}
                                 {renderHeader('Expedition Preference', 'expedition_signup')}
                                 {renderHeader('Expedition Type', 'expedition')}
                                 {renderHeader('Unit', 'unit_name')}
+                                {renderHeader('OSM Sync', 'osm_sync')}
                             </tr>
                         </thead>
                         <tbody>
@@ -402,16 +402,6 @@ export const LeaderDashboard: React.FC = () => {
                                         )}
                                         {g.items.map((row: any) => (
                                             <tr key={row.rowKey}>
-                                                <td className="ems-table-cell--center">
-                                                    {row.scout_id !== 0 ? (
-                                                        <img
-                                                            src={osmIconUrl}
-                                                            alt="Synced with OSM"
-                                                            title="Synced with OSM"
-                                                            className="ems-osm-sync-icon"
-                                                        />
-                                                    ) : null}
-                                                </td>
                                                 <td>
                                                     <strong>{row.explorer_first_name} {row.explorer_last_name}</strong>
                                                 </td>
@@ -446,6 +436,16 @@ export const LeaderDashboard: React.FC = () => {
                                                     )}
                                                 </td>
                                                 <td>{row.unit_name || 'Unassigned'}</td>
+                                                <td className="ems-table-cell--center">
+                                                    {row.scout_id !== 0 ? (
+                                                        <img
+                                                            src={osmIconUrl}
+                                                            alt="Synced with OSM"
+                                                            title="Synced with OSM"
+                                                            className="ems-osm-sync-icon"
+                                                        />
+                                                    ) : null}
+                                                </td>
                                             </tr>
                                         ))}
                                     </React.Fragment>
