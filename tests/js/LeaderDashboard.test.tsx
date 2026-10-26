@@ -131,15 +131,22 @@ describe('LeaderDashboard Component', () => {
         const goldPill = within(bobRow).getByText('gold');
         expect(goldPill.className).toContain('ems-pill--gold');
 
-        // 5. Checkmarks in Participant Place and Expedition Preference
+        // 5. Checkmarks in Participant Place and Expedition Preference, plus Unit column
+        expect(screen.getByRole('columnheader', { name: /Unit/i })).toBeDefined();
         const zackCells = within(zackRow).getAllByRole('cell');
-        // Columns: 0: OSM Icon, 1: Explorer Name, 2: Level, 3: Participant Place, 4: Expedition Preference, 5: Expedition Type, 6: ESU
+        // Columns: 0: OSM Icon, 1: Explorer Name, 2: Level, 3: Participant Place, 4: Expedition Preference, 5: Expedition Type, 6: Unit
         expect(zackCells[3].textContent?.trim()).toBe('✓');
         expect(zackCells[4].textContent?.trim()).toBe('✓');
         expect(zackCells[5].textContent?.trim()).toBe('Hillwalking');
         expect(zackCells[6].textContent?.trim()).toBe('BO-Kelso');
 
-        // 6. No inspector panel exists
+        // 6. Pagination controls exist
+        expect(screen.getByLabelText(/Items per page/i)).toBeDefined();
+        expect(screen.getByText(/Page 1 of 1/i)).toBeDefined();
+        expect(screen.getByRole('button', { name: /Prev/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /Next/i })).toBeDefined();
+
+        // 7. No inspector panel exists
         expect(document.querySelector('.ems-signups-inspector')).toBeNull();
     });
 });

@@ -44,6 +44,12 @@ export const LeaderDashboard: React.FC = () => {
     const [unitFilter, setUnitFilter] = useState<string>('all');
     const [sortKey, setSortKey] = useState<string>('explorer_first_name');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [itemsPerPage, setItemsPerPage] = useState<number>(25);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [grouping, levelFilter, expeditionTypeFilter, unitFilter, sortKey, sortOrder]);
 
     useEffect(() => {
         if (!config.user_data.logged_in || !config.user_data.can_access) {
@@ -215,6 +221,17 @@ export const LeaderDashboard: React.FC = () => {
         return [{ title: null, items: sortedRows }];
     }, [grouping, sortedRows]);
 
+    const totalItems = grouping === 'none' ? sortedRows.length : groupedRows.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+
+    const paginatedGroupedRows = useMemo(() => {
+        if (grouping === 'none') {
+            const flatSlice = sortedRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+            return [{ title: null, items: flatSlice }];
+        }
+        return groupedRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    }, [grouping, sortedRows, groupedRows, currentPage, itemsPerPage]);
+
     const handleSort = (key: string) => {
         if (sortKey === key) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -355,18 +372,18 @@ export const LeaderDashboard: React.FC = () => {
                                 {renderHeader('Participant Place', 'participant')}
                                 {renderHeader('Expedition Preference', 'expedition_signup')}
                                 {renderHeader('Expedition Type', 'expedition')}
-                                {renderHeader('ESU', 'unit_name')}
+                                {renderHeader('Unit', 'unit_name')}
                             </tr>
                         </thead>
                         <tbody>
-                            {groupedRows.length === 0 || (groupedRows.length === 1 && groupedRows[0].items.length === 0) ? (
+                            {paginatedGroupedRows.length === 0 || (paginatedGroupedRows.length === 1 && paginatedGroupedRows[0].items.length === 0) ? (
                                 <tr>
                                     <td colSpan={7} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                         No signup records found for this filter state.
                                     </td>
                                 </tr>
                             ) : (
-                                groupedRows.map((g) => (
+                                paginatedGroupedRows.map((g) => (
                                     <React.Fragment key={g.title || 'flat'}>
                                         {g.title && (
                                             <tr className="ems-table-group-header">
@@ -426,6 +443,69 @@ export const LeaderDashboard: React.FC = () => {
                             )}
                         </tbody>
                     </table>
+
+                    {totalItems > 0 && (
+                        <div className="ems-table-pagination">
+                            <div className="ems-meta-text">
+                                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} {grouping === 'none' ? 'explorers' : 'groups'}
+                            </div>
+                            <div className="ems-flex-center ems-gap-8">
+                                <label htmlFor="leader-items-per-page" className="ems-toolbar__label">Items per page:</label>
+                                <select
+                                    id="leader-items-per-page"
+                                    className="ems-select-sm"
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(parseInt(e.target.value, 10));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+
+                                <div className="ems-pagination-buttons ems-flex-center ems-gap-4">
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        «
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        ‹ Prev
+                                    </button>
+                                    <span className="ems-meta-text">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next ›
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button button-small"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        »
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
