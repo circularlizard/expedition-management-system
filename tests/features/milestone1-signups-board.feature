@@ -91,9 +91,9 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     And explorer "Bob Smith" (scout_id 30002) has only an Expedition Preference signup (ID 21, Biking)
     When the administrator opens the Signups Table tab
     Then the table should display 1 row for "Mary Jones", 1 row for "Alice Smith", and 1 row for "Bob Smith"
-    And the row for "Mary Jones" should show statuses in both the "Participant Place" column and the "Expedition Preference" column
-    And the row for "Alice Smith" should show a status in the "Participant Place" column and "—" in the "Expedition Preference" column
-    And the row for "Bob Smith" should show "—" in the "Participant Place" column and a status in the "Expedition Preference" column
+    And the row for "Mary Jones" should show a checkmark "✓" in both the "Participant Place" column and the "Expedition Preference" column
+    And the row for "Alice Smith" should show a checkmark "✓" in the "Participant Place" column and "—" in the "Expedition Preference" column
+    And the row for "Bob Smith" should show "—" in the "Participant Place" column and a checkmark "✓" in the "Expedition Preference" column
     When the administrator clicks the row for "Mary Jones"
     Then the Inspector Panel should open displaying the first signup entry for "Mary Jones"
     And the Inspector Panel should display a signup entry selector listing all signup entries for "Mary Jones"

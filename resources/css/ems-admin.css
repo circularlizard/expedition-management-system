@@ -2384,7 +2384,8 @@ input.ems-form-input {
 
 /* Slide-out Inspector Panel */
 .ems-signups-inspector {
-    width: 380px;
+    width: 460px;
+    flex-shrink: 0;
     max-width: 100%;
     background: #fff;
     border: 1px solid #ccd0d4;
