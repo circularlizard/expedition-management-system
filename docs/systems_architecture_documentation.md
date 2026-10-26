@@ -410,6 +410,27 @@ The unit lookup mapping translates between Online Scout Manager (OSM) entities a
 3. **Form Resolution (Client-Side Mapping)**: During parent signup form completion, the backend builds a mapping array linking the parent's children (Scout IDs) to their corresponding unit IDs based on their synced `section_id` matching `ems_units.unit_id`. The JavaScript updates the selected unit dropdown choice instantly when a child is selected. **Note: The client-side auto-selection depends directly on the HTML `value` attribute of the `<option>` elements in the dropdown select matching either the `unit_id` or the `short_code` (unitCode) passed in the `emsFormMappings` JS payload.**
 4. **Data Persistence & Alert Routing**: Upon submission insertion, the system reads the chosen unit ID from the form payload, queries `wp_ems_units` to retrieve the associated **Leader Email**, and saves both the `unit_id`, `unit_name`, and `leader_email` directly into the custom signups tables. This ensures notification/approval emails are dynamically routed to the correct local unit leader.
 
+### 5.4 Unit Leader Account Provisioning & Invitation Pipeline
+The Unit Mapping interface allows administrators to track leader portal onboarding and send invitations:
+1. **Access Status Inspection**: For each unit, `Unit_Repository::get_leader_access_status()` checks the associated leader email against WordPress user accounts. It inspects `ems_leader_invited_at` and `ems_last_login_at` in user meta to output status badges (`Invited` vs. `Not Invited`, `Logged In` vs. `Never Logged In`).
+2. **Account Provisioning**: When triggering single or bulk invites via `Unit_Repository::invite_unit_leaders()`:
+   * If an account with that email already exists, it ensures the `ems_leader` role is assigned.
+   * If no account exists, a new WordPress user is created with a sanitized login name, random initial password, and the `ems_leader` role.
+3. **Customized Invitation Email**: Invitations hook into WordPress's `wp_new_user_notification_email` filter via `Unit_Repository::customize_leader_notification_email()`. It replaces configurable template tokens with dynamic context:
+   * `{{unit_name}}`: The full name or short code of the unit (e.g., *Kelso ESU*).
+   * `{{set_password_url}}`: The WordPress one-time password reset URL generated via `wp_new_user_notification`.
+   * `{{dashboard_url}}`: The front-end URL of the page containing `[ems-leader-dashboard]`.
+   * `{{site_name}}`: The WordPress blog name.
+   * `{{user_email}}`: The recipient's email address.
+   * Upon successful email dispatch, the current timestamp is recorded in `ems_leader_invited_at`.
+
+### 5.5 Seamless Leader Onboarding & Post-Password-Reset Redirection
+To eliminate confusing administrative screens and minimize onboarding friction for volunteer leaders:
+1. **Password Creation Hook (`after_password_reset`)**: When a leader accesses the password reset screen (`wp-login.php?action=rp`) and sets their new password, WordPress fires `after_password_reset`.
+2. **Automatic Sign-In**: `Unit_Repository::handle_leader_password_reset_redirect()` inspects the user. If they possess the `ems_leader` role (and are not administrators), the system immediately logs them in via `wp_set_current_user()` and `wp_set_auth_cookie()`, records their initial login timestamp in `ems_last_login_at`, and audits the successful login.
+3. **Destination Redirection**: The leader is redirected via `wp_safe_redirect()` directly to the configured Leader Dashboard page URL.
+4. **Standard Login Routing (`login_redirect`)**: For all subsequent logins via the standard WordPress login form without a specific redirect destination, `Unit_Repository::filter_leader_login_redirect()` intercepts users with the `ems_leader` role and directs them to the Leader Dashboard rather than `wp-admin`.
+
 ---
 
 ## 6. REST API Specifications
@@ -463,6 +484,7 @@ All endpoints are registered under the `/wp-json/ems/v1/` or `/wp-json/ems/v1/ad
 | `/admin/sync-status` | `GET`/`DELETE` | `manage_options` | Checks status of push-back sync lock or clears failed pushback queue. |
 | `/portal/me` | `GET` | Authenticated | Retrieves current logged-in user profile details and roles. |
 | `/portal/explorer/{scout_id}` | `GET` | Authenticated | Fetches explorer contact, medical, and Tutor training status for the portal. |
+| `/leader-dashboard/signups` | `GET` | `access_ems_leader_portal` \| `manage_options` | Returns active participant and expedition signups (filtered for leader view with explorer names, units, levels, expedition types, and OSM sync status, excluding sensitive medical and parental contact details). |
 | `/unit-leaders` | `GET` | `manage_options` | Lists registered unit leaders. |
 | `/unit-leaders/{id}` | `POST`/`PUT`/`PATCH` | `manage_options` | Updates contact details for a unit leader. |
 | `/volunteers` | `GET` | `manage_options` | Lists registered adult volunteers. |
@@ -568,6 +590,9 @@ EMS stores its configuration options in the core WordPress options table. The fo
 | `ems_writeback_section_id` | int | Targeted section ID utilized for back-syncing. |
 | `ems_failed_pushback_queue` | array | Serialized array logs of unsuccessful push-back sync attempts. |
 | `ems_flexirecord_column_map` | array | Dynamically configured OSM column-to-EMS-field mappings. |
+| `ems_leader_dashboard_page_id` | int | WordPress page ID configured for the Unit Leader Dashboard (auto-detected if 0). |
+| `ems_leader_invite_email_subject` | string | Configurable subject template for unit leader invitation emails. |
+| `ems_leader_invite_email_body` | string | Configurable message body template with template tokens for unit leader invitations. |
 
 ---
 
@@ -578,6 +603,7 @@ EMS React SPAs are rendered within custom page templates (`ems-page-template.php
 | Shortcode | Target Audience | Primary Function |
 |---|---|---|
 | `[ems-portal]` | Parents, Explorers, Leaders | **Unified Portal SPA**: Localizes the script with OIDC user details and access types, rendering either the Parent portal (profile setups, child linkages, Form 6/7 tracking), Explorer portal (roster checklists, tutor training status, GPX and route card submits), or Leader portal (events lists, WhatsApp logs, team assignments builder, helper schedules) dynamically. |
+| `[ems-leader-dashboard]` | Unit Leaders (`ems_leader`) | **Unit Leader Dashboard SPA**: Renders a read-only explorer registration overview grouped by unit and sorted alphabetically by first name. Displays DofE levels, participant place and expedition preference completion checkmarks, expedition modes, and OSM sync indicators. |
 | `[ems-volunteer-signup]` | Adult Helpers | **Volunteer Portal**: Renders interactive availability Cover Boards, overnight cover checkgrids, and qualification forms. |
 | `[ems_signup_banner]` | Form Registrants | **OIDC Action Banner**: CTA banner rendered at the top of signup forms promoting parents to log in via OIDC to pre-populate their child's details. See [Section 8.1](#81-ems_signup_banner-shortcode-parameters) for parameters and gating logic. |
 
