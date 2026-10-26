@@ -500,4 +500,62 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$login_target = $repo->filter_leader_login_redirect( 'https://example.org/wp-admin/', '', $user );
 		$this->assertSame( 'https://example.org/leader-dashboard/', $login_target );
 	}
+
+	public function test_format_unit_names_list(): void {
+		$repo = new Unit_Repository();
+
+		$this->assertSame( 'your Explorer Scout Unit', $repo->format_unit_names_list( [] ) );
+		$this->assertSame( 'Kelso ESU', $repo->format_unit_names_list( [ 'Kelso ESU' ] ) );
+		$this->assertSame( 'Hawick ESU and Jedburgh ESU', $repo->format_unit_names_list( [ 'Hawick ESU', 'Jedburgh ESU' ] ) );
+		$this->assertSame( 'Kelso ESU, Peebles ESU and Gala ESU', $repo->format_unit_names_list( [ 'Kelso ESU', 'Peebles ESU', 'Gala ESU' ] ) );
+		$this->assertSame( 'Unit 1, Unit 2, Unit 3 and Unit 4', $repo->format_unit_names_list( [ 'Unit 1', 'Unit 2', 'Unit 3', 'Unit 4' ] ) );
+	}
+
+	public function test_customize_leader_notification_email_aggregates_multiple_units_for_same_leader(): void {
+		$wpdb = new class {
+			public $prefix = 'wp_';
+
+			public function prepare( string $sql, ...$args ): string {
+				return vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
+			}
+
+			public function get_results( string $sql, string $output = 'OBJECT' ) {
+				if ( str_contains( $sql, 'leader@example.com' ) ) {
+					return [
+						[ 'id' => 1, 'name' => 'Kelso ESU', 'short_code' => 'BO-Kelso' ],
+						[ 'id' => 2, 'name' => 'Peebles ESU', 'short_code' => 'TW-Peebles' ],
+						[ 'id' => 3, 'name' => 'Gala ESU', 'short_code' => 'BO-Gala' ],
+					];
+				}
+				return [];
+			}
+		};
+
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_leader_invite_email_subject' ) {
+				return 'Welcome - {{unit_name}} Access';
+			}
+			if ( $key === 'ems_leader_invite_email_body' ) {
+				return 'Units: {{units}}';
+			}
+			return $default;
+		} );
+
+		$user             = \Mockery::mock( 'WP_User' );
+		$user->ID         = 501;
+		$user->user_login = 'john';
+		$user->user_email = 'leader@example.com';
+
+		$default_email = array(
+			'to'      => 'leader@example.com',
+			'subject' => '[Site] Login Details',
+			'message' => 'https://example.org/wp-login.php?action=rp&key=xyz123',
+		);
+
+		$repo   = new Unit_Repository( $wpdb );
+		$result = $repo->customize_leader_notification_email( $default_email, $user, 'SEE Expeditions' );
+
+		$this->assertSame( 'Welcome - Kelso ESU, Peebles ESU and Gala ESU Access', $result['subject'] );
+		$this->assertSame( 'Units: Kelso ESU, Peebles ESU and Gala ESU', $result['message'] );
+	}
 }

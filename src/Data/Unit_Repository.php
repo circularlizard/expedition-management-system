@@ -470,6 +470,37 @@ class Unit_Repository {
 	}
 
 	/**
+	 * Formats a list of unit names with comma separation and "and" between the last two items.
+	 *
+	 * @param array<string> $unit_names Array of unit names.
+	 * @return string Formatted string, e.g. "Kelso ESU, Peebles ESU and Gala ESU".
+	 */
+	public function format_unit_names_list( array $unit_names ): string {
+		$clean_names = array_values(
+			array_filter(
+				array_map( 'trim', $unit_names ),
+				function ( $name ) {
+					return $name !== '';
+				}
+			)
+		);
+		$count = count( $clean_names );
+
+		if ( $count === 0 ) {
+			return 'your Explorer Scout Unit';
+		}
+		if ( $count === 1 ) {
+			return $clean_names[0];
+		}
+		if ( $count === 2 ) {
+			return $clean_names[0] . ' and ' . $clean_names[1];
+		}
+
+		$last = array_pop( $clean_names );
+		return implode( ', ', $clean_names ) . ' and ' . $last;
+	}
+
+	/**
 	 * Customizes the WordPress new-user notification email for a Unit Leader invitation
 	 * using the configurable subject and body templates and placeholders.
 	 *
@@ -501,16 +532,42 @@ class Unit_Repository {
 			}
 		}
 
-		$unit_name = trim( (string) ( $unit['name'] ?? $unit['short_code'] ?? '' ) );
-		if ( $unit_name === '' ) {
-			$unit_name = 'your Explorer Scout Unit';
+		$user_email = ( is_object( $user ) && isset( $user->user_email ) ) ? (string) $user->user_email : (string) ( $email_data['to'] ?? '' );
+		$user_email = trim( strtolower( $user_email ) );
+
+		// Find all units associated with this leader's email
+		$matching_unit_names = array();
+		if ( is_object( $this->wpdb ) && $user_email !== '' && is_email( $user_email ) ) {
+			$table = $this->wpdb->prefix . 'ems_units';
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows  = $this->wpdb->get_results(
+				$this->wpdb->prepare( "SELECT name, short_code FROM {$table} WHERE LOWER(leader_email) = %s ORDER BY name ASC", $user_email ),
+				ARRAY_A
+			);
+			if ( is_array( $rows ) ) {
+				foreach ( $rows as $row ) {
+					$n = trim( (string) ( $row['name'] ?? $row['short_code'] ?? '' ) );
+					if ( $n !== '' && ! in_array( $n, $matching_unit_names, true ) ) {
+						$matching_unit_names[] = $n;
+					}
+				}
+			}
 		}
 
-		$user_email    = ( is_object( $user ) && isset( $user->user_email ) ) ? (string) $user->user_email : (string) ( $email_data['to'] ?? '' );
+		// Fallback to the single passed $unit if no rows found in DB
+		if ( empty( $matching_unit_names ) && ! empty( $unit ) ) {
+			$single_name = trim( (string) ( $unit['name'] ?? $unit['short_code'] ?? '' ) );
+			if ( $single_name !== '' ) {
+				$matching_unit_names[] = $single_name;
+			}
+		}
+
+		$unit_name     = $this->format_unit_names_list( $matching_unit_names );
 		$dashboard_url = $this->get_leader_dashboard_url();
 
 		$replacements = array(
 			'{{unit_name}}'        => $unit_name,
+			'{{units}}'            => $unit_name,
 			'{{set_password_url}}' => $set_password_url,
 			'{{dashboard_url}}'    => $dashboard_url,
 			'{{site_name}}'        => $blogname,
