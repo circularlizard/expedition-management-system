@@ -261,4 +261,105 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->expectExceptionMessage( 'Cannot unlink explorer who is currently assigned to a team.' );
         $repo->unlink_signup( 500, 'participant' );
     }
+
+    public function test_insert_expedition_signup_saves_dob_dofe_registered_and_dofe_number(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $insert_id = 88;
+            public $inserted = [];
+
+            public function insert( string $table, array $data, array $format = [] ) {
+                $this->inserted[] = compact( 'table', 'data', 'format' );
+                return 1;
+            }
+        };
+
+        Functions\when( 'sanitize_email' )->alias( fn( $val ) => trim( (string) $val ) );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $val ) => trim( (string) $val ) );
+
+        $repo = new Signup_Repository( $wpdb );
+        $id = $repo->create_expedition_signup( [
+            'scout_id'               => 30001,
+            'explorer_first_name'    => 'Tom',
+            'explorer_last_name'     => 'Strachan',
+            'dofe_level'             => 'bronze',
+            'dob'                    => '2011-05-15',
+            'dofe_registered'        => 'yes',
+            'dofe_number'            => '1234567',
+            'expedition_preferences' => '{"exped_type":"Paddling"}',
+            'first_aid_status'       => 'first-aid-yes',
+        ] );
+
+        $this->assertSame( 88, $id );
+        $this->assertCount( 1, $wpdb->inserted );
+        $this->assertSame( 'wp_ems_expedition_signups', $wpdb->inserted[0]['table'] );
+        $this->assertSame( '2011-05-15', $wpdb->inserted[0]['data']['dob'] );
+        $this->assertSame( 'yes', $wpdb->inserted[0]['data']['dofe_registered'] );
+        $this->assertSame( '1234567', $wpdb->inserted[0]['data']['dofe_number'] );
+        $this->assertSame( 'first-aid-yes', $wpdb->inserted[0]['data']['first_aid_status'] );
+    }
+
+    public function test_update_signup_unit_updates_both_paired_signups_for_same_explorer(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $queries = [];
+
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
+            }
+
+            public function get_row( string $sql, string $output = ARRAY_A ) {
+                if ( str_contains( $sql, 'wp_ems_expedition_signups' ) ) {
+                    return [
+                        'id'                  => 15,
+                        'scout_id'            => 30001,
+                        'explorer_first_name' => 'Tom',
+                        'explorer_last_name'  => 'Strachan',
+                        'explorer_email'      => 'tom@example.com',
+                        'parent_email'        => 'jane@example.com',
+                        'unit_id'             => 10,
+                        'unit_name'           => 'BO-Kelso',
+                        'leader_email'        => 'leader@kelso.scouts.org.uk',
+                    ];
+                }
+                if ( str_contains( $sql, 'wp_ems_units' ) ) {
+                    return [
+                        'unit_id'      => 20,
+                        'short_code'   => 'TW-Peebles',
+                        'name'         => 'Peebles ESU',
+                        'leader_email' => 'leader@peebles.scouts.org',
+                    ];
+                }
+                return null;
+            }
+
+            public function query( string $sql ) {
+                $this->queries[] = $sql;
+                return true;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+        $result = $repo->update_signup_unit( 15, 'expedition', 20 );
+
+        $this->assertIsArray( $result );
+        $this->assertSame( 20, $result['unit_id'] );
+        $this->assertSame( 'TW-Peebles', $result['unit_name'] );
+        $this->assertSame( 'leader@peebles.scouts.org', $result['leader_email'] );
+        $this->assertContains( 'START TRANSACTION', $wpdb->queries );
+        $this->assertContains( 'COMMIT', $wpdb->queries );
+
+        $participant_update = null;
+        $expedition_update  = null;
+        foreach ( $wpdb->queries as $q ) {
+            if ( str_contains( $q, 'wp_ems_participant_signups' ) && str_contains( $q, "unit_name = 'TW-Peebles'" ) ) {
+                $participant_update = $q;
+            }
+            if ( str_contains( $q, 'wp_ems_expedition_signups' ) && str_contains( $q, "unit_name = 'TW-Peebles'" ) ) {
+                $expedition_update = $q;
+            }
+        }
+        $this->assertNotNull( $participant_update );
+        $this->assertNotNull( $expedition_update );
+    }
 }

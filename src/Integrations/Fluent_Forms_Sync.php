@@ -269,21 +269,25 @@ class Fluent_Forms_Sync {
 					'scout_id_field'               => 'signup_child',
 					'first_name_field'             => 'signup_child_name',
 					'last_name_field'              => 'signup_child_name',
+					'dob_field'                    => 'signup_dob',
 					'dofe_level_field'             => 'signup_level',
+					'dofe_registered_field'        => 'signup_edofe_registered',
 					'dofe_number_field'            => 'signup_dofe_number',
 					'esu_patrol_field'             => 'signup_unit',
-					'explorer_email_field'         => 'signup_explorer_email',
+					'explorer_email_field'         => 'signup_email',
 					'parent_email_field'           => 'signup_parent_email',
 					'leader_email_field'           => 'signup_leader_email',
 					'exped_type_field'             => 'exped_type',
+					'exped_type_bronze_field'      => 'exped_type_bronze',
+					'bronze_dates_field'           => 'exped_bronze_dates',
 					'practice_dates_field'         => 'exped_practice_dates',
 					'qualifier_dates_field'        => 'exped_qualifier_dates',
-					'silver_practice_dates_field'  => 'exped-silver-practice-dates',
-					'gold_practice_dates_field'    => 'exped-gold-practice-dates',
-					'silver_qualifier_dates_field' => 'exped-silver-qualifier-dates',
-					'gold_qualifier_dates_field'   => 'exped-gold-qualifier-dates',
+					'silver_practice_dates_field'  => 'exped_silver_practice_dates',
+					'gold_practice_dates_field'    => 'exped_gold_practice_dates',
+					'silver_qualifier_dates_field' => 'exped_silver_qualifier_dates',
+					'gold_qualifier_dates_field'   => 'exped_gold_qualifier_dates',
 					'team_names_field'             => 'exped_team_names',
-					'asn_field'                    => 'exped_asn',
+					'asn_field'                    => 'description',
 					'first_aid_field'              => 'input_radio',
 					'first_aid_expiry_field'       => 'datetime',
 				),
@@ -390,33 +394,77 @@ class Fluent_Forms_Sync {
 
 		$level = strtolower( sanitize_text_field( $formData[ $config['dofe_level_field'] ?? 'signup_level' ] ?? '' ) );
 
-		$practice_key  = 'exped_practice_dates';
-		$qualifier_key = 'exped_qualifier_dates';
+		$resolve_field = function ( array $candidates ) use ( $formData ) {
+			foreach ( $candidates as $key ) {
+				if ( empty( $key ) ) {
+					continue;
+				}
+				if ( isset( $formData[ $key ] ) ) {
+					return $formData[ $key ];
+				}
+				$underscored = str_replace( '-', '_', $key );
+				if ( isset( $formData[ $underscored ] ) ) {
+					return $formData[ $underscored ];
+				}
+				$hyphenated = str_replace( '_', '-', $key );
+				if ( isset( $formData[ $hyphenated ] ) ) {
+					return $formData[ $hyphenated ];
+				}
+			}
+			return null;
+		};
 
 		if ( $level === 'silver' ) {
-			$practice_key  = $config['silver_practice_dates_field'] ?? 'exped-silver-practice-dates';
-			$qualifier_key = $config['silver_qualifier_dates_field'] ?? 'exped-silver-qualifier-dates';
+			$practice_dates  = $resolve_field( array( $config['silver_practice_dates_field'] ?? 'exped_silver_practice_dates', 'exped_silver_practice_dates', $config['practice_dates_field'] ?? 'exped_practice_dates' ) );
+			$qualifier_dates = $resolve_field( array( $config['silver_qualifier_dates_field'] ?? 'exped_silver_qualifier_dates', 'exped_silver_qualifier_dates', $config['qualifier_dates_field'] ?? 'exped_qualifier_dates' ) );
 		} elseif ( $level === 'gold' ) {
-			$practice_key  = $config['gold_practice_dates_field'] ?? 'exped-gold-practice-dates';
-			$qualifier_key = $config['gold_qualifier_dates_field'] ?? 'exped-gold-qualifier-dates';
+			$practice_dates  = $resolve_field( array( $config['gold_practice_dates_field'] ?? 'exped_gold_practice_dates', 'exped_gold_practice_dates', $config['practice_dates_field'] ?? 'exped_practice_dates' ) );
+			$qualifier_dates = $resolve_field( array( $config['gold_qualifier_dates_field'] ?? 'exped_gold_qualifier_dates', 'exped_gold_qualifier_dates', $config['qualifier_dates_field'] ?? 'exped_qualifier_dates' ) );
 		} else {
-			$practice_key  = $config['practice_dates_field'] ?? 'exped_practice_dates';
-			$qualifier_key = $config['qualifier_dates_field'] ?? 'exped_qualifier_dates';
+			$practice_dates  = $resolve_field( array( $config['bronze_dates_field'] ?? 'exped_bronze_dates', 'exped_bronze_dates', $config['practice_dates_field'] ?? 'exped_practice_dates' ) );
+			$qualifier_dates = $resolve_field( array( $config['bronze_dates_field'] ?? 'exped_bronze_dates', 'exped_bronze_dates', $config['qualifier_dates_field'] ?? 'exped_qualifier_dates' ) );
 		}
 
-		$prefs       = array();
-		$pref_fields = array(
-			'exped_type'            => $config['exped_type_field'] ?? 'exped_type',
-			'exped_practice_dates'  => $practice_key,
-			'exped_qualifier_dates' => $qualifier_key,
-			'exped_team_names'      => $config['team_names_field'] ?? 'exped_team_names',
-		);
+		$exped_type_key        = $config['exped_type_field'] ?? 'exped_type';
+		$exped_type_bronze_key = $config['exped_type_bronze_field'] ?? 'exped_type_bronze';
+		$exped_type            = null;
+		if ( $level === 'bronze' && ! empty( $formData[ $exped_type_bronze_key ] ) ) {
+			$exped_type = $formData[ $exped_type_bronze_key ];
+		} elseif ( isset( $formData[ $exped_type_key ] ) && $formData[ $exped_type_key ] !== '' ) {
+			$exped_type = $formData[ $exped_type_key ];
+		} elseif ( ! empty( $formData[ $exped_type_bronze_key ] ) ) {
+			$exped_type = $formData[ $exped_type_bronze_key ];
+		}
 
-		foreach ( $pref_fields as $key => $form_key ) {
-			if ( isset( $formData[ $form_key ] ) ) {
-				$prefs[ $key ] = $formData[ $form_key ];
+		$prefs = array();
+		if ( $exped_type !== null ) {
+			$prefs['exped_type'] = $exped_type;
+		}
+		if ( $practice_dates !== null ) {
+			$prefs['exped_practice_dates'] = $practice_dates;
+		}
+		if ( $qualifier_dates !== null ) {
+			$prefs['exped_qualifier_dates'] = $qualifier_dates;
+		}
+		$team_names_key = $config['team_names_field'] ?? 'exped_team_names';
+		if ( isset( $formData[ $team_names_key ] ) ) {
+			$prefs['exped_team_names'] = $formData[ $team_names_key ];
+		}
+
+		$dob_key = $config['dob_field'] ?? 'signup_dob';
+		$dob     = $formData[ $dob_key ] ?? null;
+		if ( ! empty( $dob ) && is_string( $dob ) && strpos( $dob, '/' ) !== false ) {
+			$parts = explode( '/', $dob );
+			if ( count( $parts ) === 3 ) {
+				$dob = "{$parts[2]}-{$parts[1]}-{$parts[0]}";
 			}
 		}
+
+		$dofe_reg_key    = $config['dofe_registered_field'] ?? 'signup_edofe_registered';
+		$dofe_registered = sanitize_text_field( (string) ( $formData[ $dofe_reg_key ] ?? $formData['signup_edofe_registered'] ?? $formData['signup_dofe_registered'] ?? 'n' ) );
+
+		$dofe_num_key = $config['dofe_number_field'] ?? 'signup_dofe_number';
+		$dofe_number  = ! empty( $formData[ $dofe_num_key ] ) ? sanitize_text_field( (string) $formData[ $dofe_num_key ] ) : null;
 
 		$fa_expiry = $formData[ $config['first_aid_expiry_field'] ] ?? null;
 		if ( ! empty( $fa_expiry ) ) {
@@ -426,10 +474,15 @@ class Fluent_Forms_Sync {
 					$fa_expiry = "{$parts[2]}-{$parts[1]}-{$parts[0]}";
 				}
 			}
+		} else {
+			$fa_expiry = null;
 		}
 
 		$submitted_unit = sanitize_text_field( $formData[ $config['esu_patrol_field'] ] ?? '' );
 		$unit_details   = $this->resolve_submission_unit( $formData, $config, $submitted_unit );
+
+		$explorer_email_raw = $formData[ $config['explorer_email_field'] ] ?? $formData['signup_email'] ?? $formData['signup_explorer_email'] ?? '';
+		$asn_raw            = $formData[ $config['asn_field'] ] ?? $formData['description'] ?? $formData['exped_asn'] ?? '';
 
 		$insert_data = array(
 			'scout_id'                 => $scout_id,
@@ -438,11 +491,14 @@ class Fluent_Forms_Sync {
 			'unit_name'                => $unit_details['unit_name'],
 			'explorer_first_name'      => sanitize_text_field( $first_name ),
 			'explorer_last_name'       => sanitize_text_field( $last_name ),
-			'explorer_email'           => sanitize_email( $formData[ $config['explorer_email_field'] ] ?? '' ),
+			'explorer_email'           => sanitize_email( (string) $explorer_email_raw ),
 			'parent_email'             => sanitize_email( $formData[ $config['parent_email_field'] ] ?? '' ),
-			'dofe_level'               => strtolower( sanitize_text_field( $formData[ $config['dofe_level_field'] ] ?? '' ) ),
+			'dofe_level'               => $level,
+			'dob'                      => $dob ?: null,
+			'dofe_registered'          => $dofe_registered,
+			'dofe_number'              => $dofe_number,
 			'expedition_preferences'   => $prefs,
-			'additional_support_needs' => sanitize_textarea_field( $formData[ $config['asn_field'] ] ?? '' ),
+			'additional_support_needs' => sanitize_textarea_field( (string) $asn_raw ),
 			'first_aid_status'         => sanitize_text_field( $formData[ $config['first_aid_field'] ] ?? 'none' ),
 			'first_aid_expiry'         => $fa_expiry,
 			'signup_status'            => 'submitted',
@@ -527,7 +583,9 @@ class Fluent_Forms_Sync {
 			$target_field = $config['explorer_email_field'] ?? 'signup_explorer_email';
 		}
 
-		if ( ( $data['attributes']['name'] ?? '' ) !== $target_field ) {
+		$field_name = $data['attributes']['name'] ?? '';
+		$allowed_explorer_fields = array_unique( array( $target_field, 'signup_email', 'signup_explorer_email' ) );
+		if ( ! in_array( $field_name, $allowed_explorer_fields, true ) ) {
 			return $data;
 		}
 
@@ -850,6 +908,11 @@ class Fluent_Forms_Sync {
 		$explorer_otp_field   = $config['explorer_otp_field'] ?? 'signup_explorer_otp_code';
 
 		$current_field = $field['name'] ?? '';
+		if ( empty( $config['explorer_email_field'] ) && in_array( $current_field, array( 'signup_email', 'signup_explorer_email' ), true ) ) {
+			$explorer_email_field = $current_field;
+		} elseif ( empty( $config['explorer_email_field'] ) && ! isset( $formData[ $explorer_email_field ] ) && isset( $formData['signup_email'] ) ) {
+			$explorer_email_field = 'signup_email';
+		}
 
 		if ( $current_field !== $parent_email_field && $current_field !== $explorer_email_field ) {
 			return $errorMessage;

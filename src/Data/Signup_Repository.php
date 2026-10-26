@@ -95,6 +95,9 @@ class Signup_Repository {
 			'parent_email'             => sanitize_email( $data['parent_email'] ?? '' ),
 			'leader_email'             => sanitize_email( $data['leader_email'] ?? '' ),
 			'dofe_level'               => strtolower( sanitize_text_field( $data['dofe_level'] ?? '' ) ),
+			'dob'                      => ! empty( $data['dob'] ) ? sanitize_text_field( $data['dob'] ) : null,
+			'dofe_registered'          => sanitize_text_field( $data['dofe_registered'] ?? 'n' ),
+			'dofe_number'              => ! empty( $data['dofe_number'] ) ? sanitize_text_field( $data['dofe_number'] ) : null,
 			'expedition_preferences'   => ! empty( $data['expedition_preferences'] ) ? ( is_array( $data['expedition_preferences'] ) ? json_encode( $data['expedition_preferences'] ) : $data['expedition_preferences'] ) : null,
 			'additional_support_needs' => ! empty( $data['additional_support_needs'] ) ? sanitize_textarea_field( $data['additional_support_needs'] ) : null,
 			'first_aid_status'         => sanitize_text_field( $data['first_aid_status'] ?? 'none' ),
@@ -109,6 +112,9 @@ class Signup_Repository {
 			'%d',
 			'%d',
 			'%d',
+			'%s',
+			'%s',
+			'%s',
 			'%s',
 			'%s',
 			'%s',
@@ -152,7 +158,7 @@ class Signup_Repository {
 	 * Get an expedition signup record by ID
 	 */
 	public function get_expedition_signup( int $id ): ?array {
-		$sql = "SELECT e.*, p.dofe_number
+		$sql = "SELECT e.*, COALESCE(NULLIF(e.dofe_number, ''), p.dofe_number) AS dofe_number
                 FROM {$this->wpdb->prefix}ems_expedition_signups e
                 LEFT JOIN (
                     SELECT p1.scout_id, p1.dofe_number
@@ -229,7 +235,7 @@ class Signup_Repository {
         LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON e.scout_id = o.scout_id";
 
 		if ( $status === 'all' ) {
-			$sql = "SELECT e.*, p.dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
+			$sql = "SELECT e.*, COALESCE(NULLIF(e.dofe_number, ''), p.dofe_number) AS dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
                     FROM {$this->wpdb->prefix}ems_expedition_signups e 
                     {$join_sql}
                     ORDER BY e.created_at DESC";
@@ -241,7 +247,7 @@ class Signup_Repository {
 			$db_status = 'archived';
 		}
 
-		$sql = "SELECT e.*, p.dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
+		$sql = "SELECT e.*, COALESCE(NULLIF(e.dofe_number, ''), p.dofe_number) AS dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
                 FROM {$this->wpdb->prefix}ems_expedition_signups e 
                 {$join_sql}
                 WHERE e.signup_status = %s 
@@ -434,6 +440,123 @@ class Signup_Repository {
 
 		$this->wpdb->query( 'COMMIT' );
 		return true;
+	}
+
+	/**
+	 * Update the selected unit on a signup entry and any paired signups for the same explorer.
+	 *
+	 * @return array{unit_id: int, unit_name: string, leader_email: string}|false
+	 */
+	public function update_signup_unit( int $signup_id, string $signup_type, int $unit_id ): array|false {
+		if ( $signup_type === 'participant' ) {
+			$signup = $this->get_participant_signup( $signup_id );
+		} else {
+			$signup = $this->get_expedition_signup( $signup_id );
+		}
+
+		if ( ! $signup ) {
+			return false;
+		}
+
+		$unit = $this->wpdb->get_row(
+			$this->wpdb->prepare(
+				"SELECT unit_id, short_code, name, leader_email FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d",
+				$unit_id
+			),
+			ARRAY_A
+		);
+
+		if ( ! $unit ) {
+			return false;
+		}
+
+		$resolved_unit_id = (int) $unit['unit_id'];
+		$unit_name        = ! empty( $unit['short_code'] ) ? (string) $unit['short_code'] : (string) $unit['name'];
+		$leader_email     = (string) ( $unit['leader_email'] ?? '' );
+		$now              = current_time( 'mysql' );
+
+		$scout_id     = (int) ( $signup['scout_id'] ?? 0 );
+		$first_name   = (string) ( $signup['explorer_first_name'] ?? '' );
+		$last_name    = (string) ( $signup['explorer_last_name'] ?? '' );
+		$email        = (string) ( $signup['explorer_email'] ?? '' );
+		$parent_email = (string) ( $signup['parent_email'] ?? '' );
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		if ( $scout_id > 0 ) {
+			$p_sql = $this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_participant_signups
+				SET unit_id = %d, unit_name = %s, leader_email = %s, updated_at = %s
+				WHERE scout_id = %d",
+				$resolved_unit_id,
+				$unit_name,
+				$leader_email,
+				$now,
+				$scout_id
+			);
+			$e_sql = $this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_expedition_signups
+				SET unit_id = %d, unit_name = %s, leader_email = %s, updated_at = %s
+				WHERE scout_id = %d",
+				$resolved_unit_id,
+				$unit_name,
+				$leader_email,
+				$now,
+				$scout_id
+			);
+		} else {
+			$p_id  = $signup_type === 'participant' ? $signup_id : 0;
+			$e_id  = $signup_type === 'expedition' ? $signup_id : 0;
+			$p_sql = $this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_participant_signups
+				SET unit_id = %d, unit_name = %s, leader_email = %s, updated_at = %s
+				WHERE id = %d OR (
+					scout_id = 0 AND (
+						(explorer_email = %s AND explorer_email != '') OR
+						(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+					)
+				)",
+				$resolved_unit_id,
+				$unit_name,
+				$leader_email,
+				$now,
+				$p_id,
+				$email,
+				$first_name,
+				$last_name,
+				$parent_email
+			);
+			$e_sql = $this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_expedition_signups
+				SET unit_id = %d, unit_name = %s, leader_email = %s, updated_at = %s
+				WHERE id = %d OR (
+					scout_id = 0 AND (
+						(explorer_email = %s AND explorer_email != '') OR
+						(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+					)
+				)",
+				$resolved_unit_id,
+				$unit_name,
+				$leader_email,
+				$now,
+				$e_id,
+				$email,
+				$first_name,
+				$last_name,
+				$parent_email
+			);
+		}
+
+		$this->wpdb->query( $p_sql );
+		$this->wpdb->query( $e_sql );
+
+		$this->wpdb->query( 'COMMIT' );
+
+		return array(
+			'unit_id'      => $resolved_unit_id,
+			'unit_name'    => $unit_name,
+			'leader_email' => $leader_email,
+		);
 	}
 
 	public function has_additional_support_needs( int $scout_id ): bool {
