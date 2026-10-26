@@ -127,6 +127,9 @@ export const LeaderDashboard: React.FC = () => {
     }, [signups]);
 
     const getSortValue = (item: any, key: string) => {
+        if (key === 'osm_sync') {
+            return item.scout_id !== 0 ? 1 : 0;
+        }
         if (key === 'explorer_first_name') {
             return `${item.explorer_first_name || ''} ${item.explorer_last_name || ''}`.toLowerCase();
         }
@@ -158,26 +161,12 @@ export const LeaderDashboard: React.FC = () => {
             return [{ title: null, items: sortedRows }];
         }
 
-        const sortByFirstName = (items: any[]) => {
-            return [...items].sort((a, b) => {
-                const firstA = (a.explorer_first_name || '').toLowerCase();
-                const firstB = (b.explorer_first_name || '').toLowerCase();
-                if (firstA < firstB) return -1;
-                if (firstA > firstB) return 1;
-                const lastA = (a.explorer_last_name || '').toLowerCase();
-                const lastB = (b.explorer_last_name || '').toLowerCase();
-                if (lastA < lastB) return -1;
-                if (lastA > lastB) return 1;
-                return 0;
-            });
-        };
-
         if (grouping === 'level') {
             const levels = ['bronze', 'silver', 'gold'];
             return levels
                 .map((lvl) => ({
                     title: `${lvl.charAt(0).toUpperCase() + lvl.slice(1)} Level`,
-                    items: sortByFirstName(sortedRows.filter((s) => s.dofe_level === lvl)),
+                    items: sortedRows.filter((s) => s.dofe_level === lvl),
                 }))
                 .filter((g) => g.items.length > 0);
         }
@@ -187,16 +176,12 @@ export const LeaderDashboard: React.FC = () => {
             const groups = types
                 .map((t) => ({
                     title: t,
-                    items: sortByFirstName(
-                        sortedRows.filter((s) => normalize(s.expedition_preferences?.exped_type) === normalize(t))
-                    ),
+                    items: sortedRows.filter((s) => normalize(s.expedition_preferences?.exped_type) === normalize(t)),
                 }))
                 .filter((g) => g.items.length > 0);
 
-            const unassigned = sortByFirstName(
-                sortedRows.filter(
-                    (s) => !types.some((t) => normalize(s.expedition_preferences?.exped_type) === normalize(t))
-                )
+            const unassigned = sortedRows.filter(
+                (s) => !types.some((t) => normalize(s.expedition_preferences?.exped_type) === normalize(t))
             );
             if (unassigned.length > 0) {
                 groups.push({ title: 'No Preference / Participant Place', items: unassigned });
@@ -213,7 +198,7 @@ export const LeaderDashboard: React.FC = () => {
             return units
                 .map((u) => ({
                     title: u,
-                    items: sortByFirstName(sortedRows.filter((s) => (s.unit_name || 'Unassigned') === u)),
+                    items: sortedRows.filter((s) => (s.unit_name || 'Unassigned') === u),
                 }))
                 .filter((g) => g.items.length > 0);
         }
@@ -221,15 +206,40 @@ export const LeaderDashboard: React.FC = () => {
         return [{ title: null, items: sortedRows }];
     }, [grouping, sortedRows]);
 
-    const totalItems = grouping === 'none' ? sortedRows.length : groupedRows.length;
+    const totalItems = sortedRows.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
     const paginatedGroupedRows = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = currentPage * itemsPerPage;
+
         if (grouping === 'none') {
-            const flatSlice = sortedRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-            return [{ title: null, items: flatSlice }];
+            return [{ title: null, items: sortedRows.slice(startIndex, endIndex) }];
         }
-        return groupedRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+        const result: Array<{ title: string | null; items: any[] }> = [];
+        let offset = 0;
+
+        for (const group of groupedRows) {
+            const groupStart = offset;
+            const groupEnd = offset + group.items.length;
+            offset = groupEnd;
+
+            if (groupEnd <= startIndex || groupStart >= endIndex) {
+                continue;
+            }
+
+            const sliceStart = Math.max(0, startIndex - groupStart);
+            const sliceEnd = Math.min(group.items.length, endIndex - groupStart);
+            if (sliceEnd > sliceStart) {
+                result.push({
+                    title: group.title,
+                    items: group.items.slice(sliceStart, sliceEnd),
+                });
+            }
+        }
+
+        return result;
     }, [grouping, sortedRows, groupedRows, currentPage, itemsPerPage]);
 
     const handleSort = (key: string) => {
@@ -366,7 +376,7 @@ export const LeaderDashboard: React.FC = () => {
                     <table className="ems-table">
                         <thead>
                             <tr>
-                                <th className="ems-table-cell--center ems-m-0"></th>
+                                {renderHeader('OSM Sync', 'osm_sync')}
                                 {renderHeader('Explorer Name', 'explorer_first_name')}
                                 {renderHeader('Level', 'dofe_level')}
                                 {renderHeader('Participant Place', 'participant')}
@@ -447,7 +457,7 @@ export const LeaderDashboard: React.FC = () => {
                     {totalItems > 0 && (
                         <div className="ems-table-pagination">
                             <div className="ems-meta-text">
-                                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} {grouping === 'none' ? 'explorers' : 'groups'}
+                                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} explorers
                             </div>
                             <div className="ems-flex-center ems-gap-8">
                                 <label htmlFor="leader-items-per-page" className="ems-toolbar__label">Items per page:</label>
@@ -460,6 +470,7 @@ export const LeaderDashboard: React.FC = () => {
                                         setCurrentPage(1);
                                     }}
                                 >
+                                    <option value={5}>5</option>
                                     <option value={10}>10</option>
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
