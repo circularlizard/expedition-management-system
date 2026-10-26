@@ -621,11 +621,15 @@ class Plugin {
 
 	public function register_and_enqueue_frontend_assets(): void {
 		$css_path            = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+		$css_file            = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+		$css_ver             = EMS_VERSION . ( file_exists( $css_file ) ? '.' . filemtime( $css_file ) : '' );
 		$volunteer_js        = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/volunteer-signup.js';
 		$portal_js           = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.js';
 		$leader_dashboard_js = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/leader-dashboard.js';
+		$leader_js_file      = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/leader-dashboard.js';
+		$leader_js_ver       = EMS_VERSION . ( file_exists( $leader_js_file ) ? '.' . filemtime( $leader_js_file ) : '' );
 
-		wp_register_style( 'ems-admin', $css_path, array( 'wp-components' ), EMS_VERSION );
+		wp_register_style( 'ems-admin', $css_path, array( 'wp-components' ), $css_ver );
 		wp_register_script(
 			'ems-volunteer-signup',
 			$volunteer_js,
@@ -644,7 +648,7 @@ class Plugin {
 			'ems-leader-dashboard',
 			$leader_dashboard_js,
 			array( 'wp-element', 'wp-i18n' ),
-			EMS_VERSION,
+			$leader_js_ver,
 			true
 		);
 
