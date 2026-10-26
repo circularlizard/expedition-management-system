@@ -3818,3 +3818,34 @@ input.ems-form-input--title {
     display: inline-block;
 }
 
+/* ─── Front-End Leader Dashboard Theme-Compatible Refinements ──────────── */
+
+.ems-leader-dashboard label,
+.ems-leader-dashboard__nowrap {
+    white-space: nowrap;
+    margin-bottom: 0;
+}
+
+.ems-leader-dashboard select {
+    width: auto;
+    max-width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding: 6px 32px 6px 12px;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23333333' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 12px;
+}
+
+.ems-leader-dashboard button {
+    white-space: nowrap;
+}
+
+.ems-leader-dashboard button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+
