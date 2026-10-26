@@ -3850,15 +3850,21 @@ input.ems-form-input--title {
 
 /* ─── Table Group Headers (Prominent Visual Separation) ─────────────────── */
 
+.ems-table-group-header,
+tr.ems-table-group-header,
 .ems-table tbody tr.ems-table-group-header,
-.ems-table tr.ems-table-group-header,
-.ems-leader-dashboard .ems-table tbody tr.ems-table-group-header {
+.ems-leader-dashboard table tr.ems-table-group-header,
+.ems-leader-dashboard table tbody tr.ems-table-group-header,
+.ems-leader-dashboard tr.ems-table-group-header {
     background-color: lightsteelblue !important;
 }
 
+.ems-table-group-header td,
+tr.ems-table-group-header td,
 .ems-table tbody tr.ems-table-group-header td,
-.ems-table tr.ems-table-group-header td,
-.ems-leader-dashboard .ems-table tbody tr.ems-table-group-header td {
+.ems-leader-dashboard table tr.ems-table-group-header td,
+.ems-leader-dashboard table tbody tr.ems-table-group-header td,
+.ems-leader-dashboard tr.ems-table-group-header td {
     background-color: lightsteelblue !important;
     border-top: 1px solid #94a3b8 !important;
     border-bottom: 2px solid #64748b !important;
@@ -3867,10 +3873,15 @@ input.ems-form-input--title {
     color: #0f172a !important;
 }
 
+.ems-table-group-header:hover,
+tr.ems-table-group-header:hover,
+.ems-table-group-header:hover td,
+tr.ems-table-group-header:hover td,
 .ems-table tbody tr.ems-table-group-header:hover,
 .ems-table tbody tr.ems-table-group-header:hover td,
-.ems-leader-dashboard .ems-table tbody tr.ems-table-group-header:hover,
-.ems-leader-dashboard .ems-table tbody tr.ems-table-group-header:hover td {
+.ems-leader-dashboard table tr.ems-table-group-header:hover td,
+.ems-leader-dashboard table tbody tr.ems-table-group-header:hover td,
+.ems-leader-dashboard tr.ems-table-group-header:hover td {
     background-color: #9fb9d6 !important;
 }
 
