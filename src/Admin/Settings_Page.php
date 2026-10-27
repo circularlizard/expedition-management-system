@@ -424,6 +424,13 @@ class Settings_Page {
 			update_option( 'ems_leader_invite_email_subject', $subject );
 		}
 
+		if ( isset( $post['ems_leader_invite_email_reply_to'] ) ) {
+			$raw_reply_to = trim( (string) wp_unslash( $post['ems_leader_invite_email_reply_to'] ) );
+			$reply_to     = preg_replace( '/[\r\n\t]+/', '', $raw_reply_to );
+			$reply_to     = trim( (string) $reply_to );
+			update_option( 'ems_leader_invite_email_reply_to', $reply_to );
+		}
+
 		if ( isset( $post['ems_leader_invite_email_body'] ) ) {
 			$raw_body = (string) wp_unslash( $post['ems_leader_invite_email_body'] );
 			$body     = function_exists( 'sanitize_textarea_field' ) ? sanitize_textarea_field( $raw_body ) : sanitize_text_field( $raw_body );
@@ -1138,8 +1145,9 @@ class Settings_Page {
 	}
 
 	private function render_leader_invite_tab(): void {
-		$invite_subject = (string) get_option( 'ems_leader_invite_email_subject', \EMS\Data\Unit_Repository::DEFAULT_INVITE_SUBJECT );
-		$invite_body    = (string) get_option( 'ems_leader_invite_email_body', \EMS\Data\Unit_Repository::DEFAULT_INVITE_BODY );
+		$invite_subject  = (string) get_option( 'ems_leader_invite_email_subject', \EMS\Data\Unit_Repository::DEFAULT_INVITE_SUBJECT );
+		$invite_reply_to = (string) get_option( 'ems_leader_invite_email_reply_to', '' );
+		$invite_body     = (string) get_option( 'ems_leader_invite_email_body', \EMS\Data\Unit_Repository::DEFAULT_INVITE_BODY );
 		?>
 		<form method="post">
 			<?php wp_nonce_field( 'ems_settings_leader_invite' ); ?>
@@ -1157,6 +1165,23 @@ class Settings_Page {
 						/>
 						<p class="description">
 							<?php esc_html_e( 'Subject line for the invitation email sent to unit leaders. Supports placeholders below.', 'ems-plugin' ); ?>
+						</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ems_leader_invite_email_reply_to"><?php esc_html_e( 'Leader Invitation Reply-To Address', 'ems-plugin' ); ?></label></th>
+					<td>
+						<input
+							type="text"
+							id="ems_leader_invite_email_reply_to"
+							name="ems_leader_invite_email_reply_to"
+							value="<?php echo esc_attr( $invite_reply_to ); ?>"
+							class="large-text"
+							style="max-width: 650px;"
+							placeholder="e.g. leader-support@example.com or Support Team &lt;leader-support@example.com&gt;"
+						/>
+						<p class="description">
+							<?php esc_html_e( 'Optional reply-to address for leader invitation emails (e.g. support@example.com or Expedition Team <support@example.com>).', 'ems-plugin' ); ?>
 						</p>
 					</td>
 				</tr>
