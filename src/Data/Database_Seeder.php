@@ -59,32 +59,32 @@ class Database_Seeder {
 
 		// Create expeditions and capture IDs
 		$expedition_ids = array();
-		$expedition_ids['H-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Hill)', 'H-T1', 'training', 'hillwalking', 'silver', '2026-05-09', '2026-05-09', '09:00', '17:00' );
-		$expedition_ids['H-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Hill)', 'H-T2', 'training', 'hillwalking', 'silver', '2026-05-09', '2026-05-10', '09:00', '17:00' );
-		$expedition_ids['B-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Bike)', 'B-T1', 'training', 'biking', 'silver', '2026-05-16', '2026-05-16', '09:00', '17:00' );
-		$expedition_ids['B-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Bike)', 'B-T2', 'training', 'biking', 'silver', '2026-05-16', '2026-05-17', '09:00', '17:00' );
+		$expedition_ids['H-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Hill)', 'H-T1', 'training', 'hillwalking', 'silver', '2027-05-08', '2027-05-08', '09:00', '17:00' );
+		$expedition_ids['H-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Hill)', 'H-T2', 'training', 'hillwalking', 'silver', '2027-05-08', '2027-05-09', '09:00', '17:00' );
+		$expedition_ids['B-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Bike)', 'B-T1', 'training', 'biking', 'silver', '2027-05-15', '2027-05-15', '09:00', '17:00' );
+		$expedition_ids['B-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Bike)', 'B-T2', 'training', 'biking', 'silver', '2027-05-15', '2027-05-16', '09:00', '17:00' );
 
-		$expedition_ids['H-BP1'] = $this->create_test_expedition( 'Bronze Practice 1', 'H-BP1', 'practice', 'hillwalking', 'bronze', '2026-05-15', '2026-05-16', '09:00', '16:00' );
-		$expedition_ids['H-BQ1'] = $this->create_test_expedition( 'Bronze Qualifier 1', 'H-BQ1', 'qualifying', 'hillwalking', 'bronze', '2026-06-12', '2026-06-13', '09:00', '16:00' );
+		$expedition_ids['H-BP1'] = $this->create_test_expedition( 'Bronze Practice 1', 'H-BP1', 'practice', 'hillwalking', 'bronze', '2027-05-14', '2027-05-15', '09:00', '16:00' );
+		$expedition_ids['H-BQ1'] = $this->create_test_expedition( 'Bronze Qualifier 1', 'H-BQ1', 'qualifying', 'hillwalking', 'bronze', '2027-06-11', '2027-06-12', '09:00', '16:00' );
 
-		$expedition_ids['H-SP1'] = $this->create_test_expedition( 'Silver Practice 1', 'H-SP1', 'practice', 'hillwalking', 'silver', '2026-05-28', '2026-05-30', '16:00', '16:00' );
-		$expedition_ids['H-SP2'] = $this->create_test_expedition( 'Silver Practice 2', 'H-SP2', 'practice', 'hillwalking', 'silver', '2026-06-04', '2026-06-06', '16:00', '16:00' );
-		$expedition_ids['H-SP3'] = $this->create_test_expedition( 'Silver Practice 3', 'H-SP3', 'practice', 'hillwalking', 'silver', '2026-06-11', '2026-06-13', '16:00', '16:00' );
-		$expedition_ids['H-SP4'] = $this->create_test_expedition( 'Silver Practice 4', 'H-SP4', 'practice', 'hillwalking', 'silver', '2026-06-18', '2026-06-20', '16:00', '16:00' );
+		$expedition_ids['H-SP1'] = $this->create_test_expedition( 'Silver Practice 1', 'H-SP1', 'practice', 'hillwalking', 'silver', '2027-05-28', '2027-05-30', '16:00', '16:00' );
+		$expedition_ids['H-SP2'] = $this->create_test_expedition( 'Silver Practice 2', 'H-SP2', 'practice', 'hillwalking', 'silver', '2027-06-04', '2027-06-06', '16:00', '16:00' );
+		$expedition_ids['H-SP3'] = $this->create_test_expedition( 'Silver Practice 3', 'H-SP3', 'practice', 'hillwalking', 'silver', '2027-06-11', '2027-06-13', '16:00', '16:00' );
+		$expedition_ids['H-SP4'] = $this->create_test_expedition( 'Silver Practice 4', 'H-SP4', 'practice', 'hillwalking', 'silver', '2027-06-18', '2027-06-20', '16:00', '16:00' );
 
-		$expedition_ids['H-SQ1'] = $this->create_test_expedition( 'Silver Qualifier 1', 'H-SQ1', 'qualifying', 'hillwalking', 'silver', '2026-08-11', '2026-08-15', '09:00', '16:00' );
-		$expedition_ids['H-SQ2'] = $this->create_test_expedition( 'Silver Qualifier 2', 'H-SQ2', 'qualifying', 'hillwalking', 'silver', '2026-08-26', '2026-08-30', '09:00', '16:00' );
-		$expedition_ids['H-SQ3'] = $this->create_test_expedition( 'Silver Qualifier 3', 'H-SQ3', 'qualifying', 'hillwalking', 'silver', '2026-09-08', '2026-09-12', '09:00', '16:00' );
+		$expedition_ids['H-SQ1'] = $this->create_test_expedition( 'Silver Qualifier 1', 'H-SQ1', 'qualifying', 'hillwalking', 'silver', '2027-08-11', '2027-08-15', '09:00', '16:00' );
+		$expedition_ids['H-SQ2'] = $this->create_test_expedition( 'Silver Qualifier 2', 'H-SQ2', 'qualifying', 'hillwalking', 'silver', '2027-08-26', '2027-08-30', '09:00', '16:00' );
+		$expedition_ids['H-SQ3'] = $this->create_test_expedition( 'Silver Qualifier 3', 'H-SQ3', 'qualifying', 'hillwalking', 'silver', '2027-09-08', '2027-09-12', '09:00', '16:00' );
 
-		$expedition_ids['H-GP1'] = $this->create_test_expedition( 'Gold Practice 1', 'H-GP1', 'practice', 'hillwalking', 'gold', '2026-06-04', '2026-06-06', '16:00', '16:00' );
-		$expedition_ids['H-GP2'] = $this->create_test_expedition( 'Gold Practice 2', 'H-GP2', 'practice', 'hillwalking', 'gold', '2026-06-11', '2026-06-13', '16:00', '16:00' );
-		$expedition_ids['H-GP3'] = $this->create_test_expedition( 'Gold Practice 3', 'H-GP3', 'practice', 'hillwalking', 'gold', '2026-06-18', '2026-06-20', '16:00', '16:00' );
-		$expedition_ids['B-GP1'] = $this->create_test_expedition( 'Gold Practice Biking 1', 'B-GP1', 'practice', 'biking', 'gold', '2026-06-04', '2026-06-06', '16:00', '16:00' );
+		$expedition_ids['H-GP1'] = $this->create_test_expedition( 'Gold Practice 1', 'H-GP1', 'practice', 'hillwalking', 'gold', '2027-06-04', '2027-06-06', '16:00', '16:00' );
+		$expedition_ids['H-GP2'] = $this->create_test_expedition( 'Gold Practice 2', 'H-GP2', 'practice', 'hillwalking', 'gold', '2027-06-11', '2027-06-13', '16:00', '16:00' );
+		$expedition_ids['H-GP3'] = $this->create_test_expedition( 'Gold Practice 3', 'H-GP3', 'practice', 'hillwalking', 'gold', '2027-06-18', '2027-06-20', '16:00', '16:00' );
+		$expedition_ids['B-GP1'] = $this->create_test_expedition( 'Gold Practice Biking 1', 'B-GP1', 'practice', 'biking', 'gold', '2027-06-04', '2027-06-06', '16:00', '16:00' );
 
-		$expedition_ids['H-GQ1'] = $this->create_test_expedition( 'Gold Qualifier 1', 'H-GQ1', 'qualifying', 'hillwalking', 'gold', '2026-08-13', '2026-08-15', '09:00', '16:00' );
-		$expedition_ids['H-GQ2'] = $this->create_test_expedition( 'Gold Qualifier 2', 'H-GQ2', 'qualifying', 'hillwalking', 'gold', '2026-08-27', '2026-08-29', '09:00', '16:00' );
-		$expedition_ids['H-GQ3'] = $this->create_test_expedition( 'Gold Qualifier 3', 'H-GQ3', 'qualifying', 'hillwalking', 'gold', '2026-09-10', '2026-09-12', '09:00', '16:00' );
-		$expedition_ids['B-GQ1'] = $this->create_test_expedition( 'Gold Qualifier Biking 1', 'B-GQ1', 'qualifying', 'biking', 'gold', '2026-08-13', '2026-08-15', '09:00', '16:00' );
+		$expedition_ids['H-GQ1'] = $this->create_test_expedition( 'Gold Qualifier 1', 'H-GQ1', 'qualifying', 'hillwalking', 'gold', '2027-08-13', '2027-08-15', '09:00', '16:00' );
+		$expedition_ids['H-GQ2'] = $this->create_test_expedition( 'Gold Qualifier 2', 'H-GQ2', 'qualifying', 'hillwalking', 'gold', '2027-08-27', '2027-08-29', '09:00', '16:00' );
+		$expedition_ids['H-GQ3'] = $this->create_test_expedition( 'Gold Qualifier 3', 'H-GQ3', 'qualifying', 'hillwalking', 'gold', '2027-09-10', '2027-09-12', '09:00', '16:00' );
+		$expedition_ids['B-GQ1'] = $this->create_test_expedition( 'Gold Qualifier Biking 1', 'B-GQ1', 'qualifying', 'biking', 'gold', '2027-08-13', '2027-08-15', '09:00', '16:00' );
 
 		if ( $log_callback ) {
 			call_user_func( $log_callback, 'Querying synced explorers from DB...' );
@@ -109,8 +109,8 @@ class Database_Seeder {
 				'qualifications'  => array( 'First Aid', 'Mountain Leader' ),
 				'preferred_roles' => array( 'Supervisor' ),
 				'availability'    => array(
-					array( 'code' => 'H-SP1', 'dates' => array( '2026-05-28', '2026-05-29', '2026-05-30' ), 'overnight' => 1, 'confirmed' => 1 ),
-					array( 'code' => 'H-SQ1', 'dates' => array( '2026-08-11', '2026-08-12', '2026-08-13' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'H-SP1', 'dates' => array( '2027-05-28', '2027-05-29', '2027-05-30' ), 'overnight' => 1, 'confirmed' => 1 ),
+					array( 'code' => 'H-SQ1', 'dates' => array( '2027-08-11', '2027-08-12', '2027-08-13' ), 'overnight' => 1, 'confirmed' => 0 ),
 				),
 			),
 			array(
@@ -122,9 +122,9 @@ class Database_Seeder {
 				'qualifications'  => array( 'First Aid', 'Hillwalking Assessor' ),
 				'preferred_roles' => array( 'Assessor' ),
 				'availability'    => array(
-					array( 'code' => 'H-SP1', 'dates' => array( '2026-05-28' ), 'overnight' => 0, 'confirmed' => 1 ),
-					array( 'code' => 'H-GP1', 'dates' => array( '2026-06-04' ), 'overnight' => 0, 'confirmed' => -1 ),
-					array( 'code' => 'H-SP1', 'dates' => array( '2026-05-29', '2026-05-30' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'H-SP1', 'dates' => array( '2027-05-28' ), 'overnight' => 0, 'confirmed' => 1 ),
+					array( 'code' => 'H-GP1', 'dates' => array( '2027-06-04' ), 'overnight' => 0, 'confirmed' => -1 ),
+					array( 'code' => 'H-SP1', 'dates' => array( '2027-05-29', '2027-05-30' ), 'overnight' => 1, 'confirmed' => 0 ),
 				),
 			),
 			array(
@@ -136,9 +136,9 @@ class Database_Seeder {
 				'qualifications'  => array( 'First Aid' ),
 				'preferred_roles' => array( 'Supervisor' ),
 				'availability'    => array(
-					array( 'code' => 'H-T1', 'dates' => array( '2026-05-09' ), 'overnight' => 0, 'confirmed' => 1 ),
-					array( 'code' => 'H-T2', 'dates' => array( '2026-05-09', '2026-05-10' ), 'overnight' => 1, 'confirmed' => 0 ),
-					array( 'code' => 'H-SP2', 'dates' => array( '2026-06-04', '2026-06-05', '2026-06-06' ), 'overnight' => 1, 'confirmed' => 1 ),
+					array( 'code' => 'H-T1', 'dates' => array( '2027-05-08' ), 'overnight' => 0, 'confirmed' => 1 ),
+					array( 'code' => 'H-T2', 'dates' => array( '2027-05-08', '2027-05-09' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'H-SP2', 'dates' => array( '2027-06-04', '2027-06-05', '2027-06-06' ), 'overnight' => 1, 'confirmed' => 1 ),
 				),
 			),
 			array(
@@ -150,7 +150,7 @@ class Database_Seeder {
 				'qualifications'  => array( 'Hillwalking Assessor' ),
 				'preferred_roles' => array( 'Assessor' ),
 				'availability'    => array(
-					array( 'code' => 'B-GP1', 'dates' => array( '2026-06-04', '2026-06-05', '2026-06-06' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'B-GP1', 'dates' => array( '2027-06-04', '2027-06-05', '2027-06-06' ), 'overnight' => 1, 'confirmed' => 0 ),
 				),
 			),
 		);
