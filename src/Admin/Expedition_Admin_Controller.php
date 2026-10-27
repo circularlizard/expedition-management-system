@@ -1032,6 +1032,16 @@ class Expedition_Admin_Controller {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+
+		register_rest_route(
+			'ems/v1',
+			'/planning-board/matrix',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_planning_matrix' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 
 	private function register_signup_routes(): void {
@@ -1655,6 +1665,167 @@ class Expedition_Admin_Controller {
 				'training_records'    => $training_records,
 			),
 			200
+		);
+	}
+
+	public function get_planning_matrix( \WP_REST_Request $request ): \WP_REST_Response {
+		global $wpdb;
+
+		$req_level     = strtolower( trim( (string) ( $request->get_param( 'level' ) ?: 'silver' ) ) );
+		$req_type      = strtolower( trim( (string) ( $request->get_param( 'type' ) ?: 'practice' ) ) );
+		$req_transport = strtolower( trim( (string) ( $request->get_param( 'transport' ) ?: 'hillwalking' ) ) );
+
+		if ( $req_type === 'qualifier' ) {
+			$req_type = 'qualifying';
+		}
+
+		// 1. Fetch matching events
+		$raw_events     = $this->expeditions->list_all_chronological();
+		$matched_events = array();
+		$event_ids      = array();
+		$event_map      = array();
+
+		foreach ( $raw_events as $event ) {
+			$level     = strtolower( $event['ems_level'] ?? '' );
+			$type      = strtolower( $event['ems_type'] ?? '' );
+			$transport = strtolower( $event['ems_transport'] ?? '' );
+			$status    = strtolower( $event['ems_status'] ?? '' );
+
+			if ( $status === 'archived' ) {
+				continue;
+			}
+			if ( $level !== $req_level || $type !== $req_type ) {
+				continue;
+			}
+			if ( ! empty( $req_transport ) && $transport !== $req_transport ) {
+				continue;
+			}
+
+			$event_id   = (int) $event['ID'];
+			$event_code = $event['ems_event_code'] ?? '';
+			if ( empty( $event_code ) ) {
+				continue;
+			}
+
+			$event_ids[]            = $event_id;
+			$event_map[ $event_id ] = $event_code;
+
+			$teams_list  = $this->teams->list_by_expedition( $event_id );
+			$unallocated = $this->teams->get_unallocated_team( $event_id );
+			if ( $unallocated ) {
+				$teams_list[] = $unallocated;
+			}
+
+			$teams_data = array();
+			foreach ( $teams_list as $t ) {
+				$members      = $this->team_members->list_by_team( (int) $t['ID'] );
+				$teams_data[] = array(
+					'id'           => (int) $t['ID'],
+					'team_code'    => $t['ems_team_code'] ?? '',
+					'member_count' => count( $members ),
+					'scout_ids'    => array_map( 'intval', array_column( $members, 'scout_id' ) ),
+				);
+			}
+
+			$matched_events[] = array(
+				'id'         => $event_id,
+				'event_code' => $event_code,
+				'title'      => $event['post_title'] ?? '',
+				'level'      => $level,
+				'type'       => $type,
+				'transport'  => $transport,
+				'start_date' => $event['ems_start_date'] ?? '',
+				'end_date'   => $event['ems_end_date'] ?? '',
+				'teams'      => $teams_data,
+			);
+		}
+
+		// 2. Fetch cohort explorers matching level and transport
+		$signups_list      = $this->signups->get_expedition_signups( 'pending' );
+		$matched_explorers = array();
+		$table             = $wpdb->prefix . 'ems_team_members';
+
+		foreach ( $signups_list as $signup ) {
+			if ( ( $signup['signup_status'] ?? '' ) === 'archived' ) {
+				continue;
+			}
+			if ( strtolower( $signup['dofe_level'] ?? '' ) !== $req_level ) {
+				continue;
+			}
+
+			$prefs = ! empty( $signup['expedition_preferences'] ) ? json_decode( $signup['expedition_preferences'], true ) : null;
+			if ( ! is_array( $prefs ) ) {
+				$prefs = array();
+			}
+
+			$pref_transport = strtolower( (string) ( $prefs['exped_type'] ?? $prefs['exped_type_bronze'] ?? 'hillwalking' ) );
+			if ( ! empty( $req_transport ) && $pref_transport !== $req_transport ) {
+				continue;
+			}
+
+			if ( $req_type === 'practice' ) {
+				$available_dates = $prefs['exped_practice_dates'] ?? $prefs['exped_silver_practice_dates'] ?? $prefs['exped_gold_practice_dates'] ?? array();
+			} elseif ( $req_type === 'qualifying' ) {
+				$available_dates = $prefs['exped_qualifier_dates'] ?? $prefs['exped_silver_qualifier_dates'] ?? $prefs['exped_gold_qualifier_dates'] ?? array();
+			} else {
+				$available_dates = array();
+			}
+			if ( ! is_array( $available_dates ) ) {
+				$available_dates = array( $available_dates );
+			}
+			if ( $req_level === 'bronze' && empty( $available_dates ) ) {
+				$available_dates = array_column( $matched_events, 'event_code' );
+			}
+
+			$scout_id = (int) $signup['scout_id'];
+
+			$allocations = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT team_post_id FROM {$table} WHERE scout_id = %d",
+					$scout_id
+				),
+				ARRAY_A
+			) ?: array();
+
+			$allocated_event_code = null;
+			$allocated_team_code  = null;
+			$allocated_team_id    = null;
+
+			foreach ( $allocations as $alloc ) {
+				$team_id = (int) $alloc['team_post_id'];
+				$team    = get_post( $team_id );
+				if ( $team && $team->post_type === 'team' ) {
+					$parent_event_id = (int) $team->post_parent;
+					if ( in_array( $parent_event_id, $event_ids, true ) ) {
+						$allocated_event_code = $event_map[ $parent_event_id ] ?? get_post_meta( $parent_event_id, 'ems_event_code', true );
+						$allocated_team_code  = get_post_meta( $team_id, 'ems_team_code', true );
+						$allocated_team_id    = $team_id;
+						break;
+					}
+				}
+			}
+
+			$matched_explorers[] = array(
+				'scout_id'                 => $scout_id,
+				'first_name'               => $signup['explorer_first_name'] ?? '',
+				'last_name'                => $signup['explorer_last_name'] ?? '',
+				'unit_name'                => $signup['unit_name'] ?: 'Unassigned',
+				'team_preferences'         => $prefs['exped_team_names'] ?? '',
+				'available_events'         => array_values( array_unique( $available_dates ) ),
+				'allocated_event_code'     => $allocated_event_code,
+				'allocated_team_code'      => $allocated_team_code,
+				'allocated_team_id'        => $allocated_team_id,
+				'has_asn'                  => ! empty( $signup['additional_support_needs'] ),
+				'additional_support_needs' => $signup['additional_support_needs'] ?? '',
+				'first_aid_status'         => $signup['first_aid_status'] ?? 'none',
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'events'    => $matched_events,
+				'explorers' => $matched_explorers,
+			)
 		);
 	}
 

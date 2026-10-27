@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import CohortPlanningMatrix from './CohortPlanningMatrix';
 
 interface PlanningEvent {
   id:               number;
@@ -46,6 +47,10 @@ interface EventPlanningBoardProps {
 }
 
 export default function EventPlanningBoard({ event = null, onTeamChanged, onViewAsn }: EventPlanningBoardProps = {}) {
+  if (!event) {
+    return <CohortPlanningMatrix onViewAsn={onViewAsn} />;
+  }
+
   const config  = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
   const rootUrl = config.root_url;
   const nonce   = config.nonce;
