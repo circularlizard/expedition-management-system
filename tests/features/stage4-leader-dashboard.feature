@@ -82,3 +82,12 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     Then the "{{unit_name}}" and "{{units}}" placeholders should be formatted as "Kelso ESU, Peebles ESU and Gala ESU"
     When a leader "mary@example.com" is assigned to units "Hawick ESU" and "Jedburgh ESU"
     Then the "{{unit_name}}" and "{{units}}" placeholders should be formatted as "Hawick ESU and Jedburgh ESU"
+
+  Scenario: Managing Leader Invitation Email settings in a dedicated settings tab
+    Given an administrator is logged into the WordPress admin
+    When the administrator navigates to "EMS Settings" and selects the "Leader Invite Email" tab
+    Then the "Leader Invite Email" settings form should be displayed with fields for "ems_leader_invite_email_subject" and "ems_leader_invite_email_body"
+    And the "Access Control" tab should no longer contain the leader invitation email subject and body fields
+    When the administrator saves the leader invitation email subject and body
+    Then the new email template values should be persisted in WordPress options
+
