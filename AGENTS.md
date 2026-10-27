@@ -227,16 +227,33 @@ Gherkin UI scenarios are implemented with **Vitest + React Testing Library**. Th
 
 ---
 
-## 15. Version Bumping
+## 15. Version Scheme & Bumping Rules
 
-The plugin version lives in **one place**: the `* Version:` header in `ems-plugin.php` (currently `0.1.x`).
+The plugin follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
+The version lives in **one place**: `ems-plugin.php` (in the `* Version:` file header and `EMS_VERSION` constant). The current baseline is `1.0.0`.
 
-Rules:
-- **`bin/package.sh` auto-increments the patch segment** (`0.1.32` → `0.1.33`) on every run — do not manually bump the version before running this script.
-- **Minor bump** (`0.1.x` → `0.2.0`): manually edit `ems-plugin.php` when completing a named stage (e.g. Stage 1.11 done). Reset patch to 0.
-- **Major bump** (`0.x` → `1.0`): reserved for production-ready release. User decision only.
-- Never change the version in `wordpress/wp-content/plugins/ems-plugin/ems-plugin.php` — that copy is managed by `bin/deploy.sh`.
-- After a manual version edit, run `bash bin/deploy.sh` to sync.
+### When to Bump What
+
+- **`MAJOR` (e.g. 1.0.0 → 2.0.0)**:
+  - **Triggers**: Breaking schema changes requiring manual database migration or data conversion, major architectural overhauls, breaking backward-incompatible REST API alterations, or structural redesigns of core user workflows.
+  - **Authority**: Reserved strictly for the user. Never bump `MAJOR` autonomously without explicit user instruction.
+  - **Action**: Manually edit `ems-plugin.php` (both the header and `define( 'EMS_VERSION', ... )`), reset `MINOR` and `PATCH` to `0` (e.g. `2.0.0`), and run `bash bin/deploy.sh`.
+
+- **`MINOR` (e.g. 1.0.0 → 1.1.0)**:
+  - **Triggers**: Completion of a new named milestone, feature stage, or significant new capability added in a backward-compatible manner (e.g. introducing the Leader Dashboard, Volunteer Availability module, Calendar Planning, Portability Engine, or substantial new endpoints/CPTs).
+  - **Authority**: Completed upon delivering a named stage/milestone or at user request.
+  - **Action**: Manually edit `ems-plugin.php` (both the header and `define( 'EMS_VERSION', ... )`), increment `MINOR` by 1 and reset `PATCH` to `0` (e.g. `1.1.0`), then run `bash bin/deploy.sh`.
+
+- **`PATCH` (e.g. 1.0.0 → 1.0.1)**:
+  - **Triggers**: Bug fixes, security patches, styling/UI tweaks, test coverage enhancements, or minor non-breaking refinements within existing feature scopes.
+  - **Authority**: Automatic via packaging, or manual for hotfixes.
+  - **Action**:
+    - **`bin/package.sh` automatically increments the patch segment** (`1.0.0` → `1.0.1`) on every release zip creation — do not manually bump the patch segment immediately before packaging.
+    - If bumping manually outside packaging, edit `ems-plugin.php` (header and constant) and run `bash bin/deploy.sh`.
+
+### Key Constraints:
+- Never edit the version copy in `wordpress/wp-content/plugins/ems-plugin/ems-plugin.php` directly — that directory is synced by `bin/deploy.sh`.
+- Whenever a manual version edit is made in `ems-plugin.php`, always run `bash bin/deploy.sh` to compile assets, update the local WordPress environment, and refresh plugin status.
 
 ---
 
