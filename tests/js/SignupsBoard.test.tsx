@@ -786,6 +786,80 @@ describe('SignupsBoard', () => {
             expect(screen.queryByText('Charlie Smith')).not.toBeInTheDocument();
         });
     });
+
+    it('offers 1-click sync when a companion registration is already matched to OSM', async () => {
+        const signupsWithPartialMatch = [
+            {
+                id: 50,
+                type: 'participant',
+                scout_id: 30003,
+                explorer_first_name: 'Emma',
+                explorer_last_name: 'Watson',
+                explorer_email: 'emma@example.com',
+                parent_email: 'parent@example.com',
+                unit_name: 'Kelso',
+                dofe_level: 'bronze',
+                signup_status: 'submitted',
+                created_at: '2026-06-13 20:00:00',
+            },
+            {
+                id: 51,
+                type: 'expedition',
+                scout_id: 0,
+                explorer_first_name: 'Emma',
+                explorer_last_name: 'Watson',
+                explorer_email: 'emma@example.com',
+                parent_email: 'parent@example.com',
+                unit_name: 'Kelso',
+                dofe_level: 'bronze',
+                expedition_preferences: { exped_type: 'Hillwalking' },
+                signup_status: 'submitted',
+                created_at: '2026-06-13 20:05:00',
+            },
+        ];
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => signupsWithPartialMatch })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ reconciled: true }) });
+
+        render(<SignupsBoard />);
+        const tableTab = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTab);
+
+        await waitFor(() => {
+            expect(screen.getByText('Emma Watson')).toBeInTheDocument();
+        });
+
+        // Click row to open Inspector
+        fireEvent.click(screen.getByText('Emma Watson'));
+
+        // Select the unlinked Expedition entry in the selector
+        const entrySelector = await screen.findByLabelText(/Select Signup Entry/i);
+        fireEvent.change(entrySelector, { target: { value: 'expedition_51' } });
+
+        await waitFor(() => {
+            expect(screen.getByText(/Paired registration is already linked to OSM/i)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Sync with Paired OSM Record/i })).toBeInTheDocument();
+        });
+
+        // Click 1-click sync
+        fireEvent.click(screen.getByRole('button', { name: /Sync with Paired OSM Record/i }));
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/signups/reconcile'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({
+                        signup_id: 51,
+                        signup_type: 'expedition',
+                        scout_id: 30003,
+                    }),
+                })
+            );
+        });
+    });
 });
 
 

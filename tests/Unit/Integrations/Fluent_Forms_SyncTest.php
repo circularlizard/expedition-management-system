@@ -1007,5 +1007,32 @@ class Fluent_Forms_SyncTest extends EMSTestCase {
 		$this->assertSame( 'Paddling', $captured_update['expedition_preferences']['exped_type'] );
 		$this->assertSame( [ 'B-PQ1', 'B-PQ2' ], $captured_update['expedition_preferences']['exped_practice_dates'] );
 	}
+
+	public function test_save_expedition_submission_inherits_scout_id_from_existing_participant_signup_when_guest(): void {
+		$this->wpdb->rows["SELECT scout_id FROM wp_ems_participant_signups WHERE scout_id > 0 AND signup_status = 'submitted' AND ((explorer_email = 'mary@example.com' AND explorer_email != '') OR (LOWER(explorer_first_name) = 'mary' AND LOWER(explorer_last_name) = 'smith' AND parent_email = 'parent@example.com')) LIMIT 1"] = [
+			'scout_id' => 30001,
+		];
+
+		$captured = null;
+		$this->signup_repo->shouldReceive( 'create_expedition_signup' )
+			->once()
+			->with( Mockery::on( function( $data ) use ( &$captured ) {
+				$captured = $data;
+				return true;
+			} ) )
+			->andReturn( 456 );
+
+		$sync = new Fluent_Forms_Sync( $this->signup_repo, $this->wpdb );
+		$sync->handle_submission( 999, [
+			'signup_child_name'   => [ 'first_name' => 'Mary', 'last_name' => 'Smith' ],
+			'signup_email'        => 'mary@example.com',
+			'signup_parent_email' => 'parent@example.com',
+			'signup_level'        => 'Bronze',
+		], (object) [ 'id' => 7 ] );
+
+		$this->assertNotNull( $captured );
+		$this->assertSame( 30001, $captured['scout_id'] );
+	}
 }
+
 

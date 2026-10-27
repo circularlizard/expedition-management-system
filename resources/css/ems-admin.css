@@ -2470,6 +2470,14 @@ input.ems-form-input {
     font-style: italic;
 }
 
+.ems-signups-paired-sync {
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
 .ems-signups-inspector__footer {
     padding: 16px 20px;
     border-top: 1px solid #ccd0d4;
