@@ -4,7 +4,8 @@ namespace EMS\Integrations;
 use EMS\Data\Signup_Repository;
 class Fluent_Forms_Sync {
 	private Signup_Repository $signup_repo;
-	private object $wpdb;
+	/** @var \wpdb */
+	private $wpdb;
 	private bool $parent_email_verified = false;
 	private bool $explorer_email_verified = false;
 
@@ -348,6 +349,13 @@ class Fluent_Forms_Sync {
 	private function build_participant_submission_data( int $entryId, array $formData, array $config ): array {
 		list( $scout_id, $first_name, $last_name ) = $this->parse_name_and_scout_id( $formData, $config );
 
+		$explorer_email = sanitize_email( $formData[ $config['explorer_email_field'] ] ?? '' );
+		$parent_email   = sanitize_email( $formData[ $config['parent_email_field'] ] ?? '' );
+
+		if ( $scout_id === 0 ) {
+			$scout_id = $this->lookup_known_scout_id( (string) $first_name, (string) $last_name, $explorer_email, $parent_email );
+		}
+
 		$dob = $formData[ $config['dob_field'] ] ?? null;
 		if ( ! empty( $dob ) ) {
 			// Fluent Forms sometimes formats dates as YYYY-MM-DD or d/m/Y.
@@ -373,8 +381,8 @@ class Fluent_Forms_Sync {
 			'unit_name'           => $unit_details['unit_name'],
 			'explorer_first_name' => sanitize_text_field( $first_name ),
 			'explorer_last_name'  => sanitize_text_field( $last_name ),
-			'explorer_email'      => sanitize_email( $formData[ $config['explorer_email_field'] ] ?? '' ),
-			'parent_email'        => sanitize_email( $formData[ $config['parent_email_field'] ] ?? '' ),
+			'explorer_email'      => $explorer_email,
+			'parent_email'        => $parent_email,
 			'dofe_level'          => strtolower( sanitize_text_field( $formData[ $config['dofe_level_field'] ] ?? '' ) ),
 			'dob'                 => $dob,
 			'dofe_registered'     => sanitize_text_field( $formData[ $config['dofe_registered_field'] ] ?? 'n' ),
@@ -396,6 +404,17 @@ class Fluent_Forms_Sync {
 	private function save_participant_submission( int $entryId, array $formData, array $config ): void {
 		$insert_data = $this->build_participant_submission_data( $entryId, $formData, $config );
 		$this->signup_repo->create_participant_signup( $insert_data );
+
+		if ( ! empty( $insert_data['scout_id'] ) ) {
+			$this->backfill_companion_scout_id(
+				'expedition',
+				(int) $insert_data['scout_id'],
+				$insert_data['explorer_first_name'],
+				$insert_data['explorer_last_name'],
+				$insert_data['explorer_email'],
+				$insert_data['parent_email']
+			);
+		}
 	}
 
 	private function build_expedition_submission_data( int $entryId, array $formData, array $config ): array {
@@ -491,7 +510,14 @@ class Fluent_Forms_Sync {
 		$unit_details   = $this->resolve_submission_unit( $formData, $config, $submitted_unit );
 
 		$explorer_email_raw = $formData[ $config['explorer_email_field'] ] ?? $formData['signup_email'] ?? $formData['signup_explorer_email'] ?? '';
-		$asn_raw            = $formData[ $config['asn_field'] ] ?? $formData['description'] ?? $formData['exped_asn'] ?? '';
+		$explorer_email     = sanitize_email( (string) $explorer_email_raw );
+		$parent_email       = sanitize_email( $formData[ $config['parent_email_field'] ] ?? '' );
+
+		if ( $scout_id === 0 ) {
+			$scout_id = $this->lookup_known_scout_id( (string) $first_name, (string) $last_name, $explorer_email, $parent_email );
+		}
+
+		$asn_raw = $formData[ $config['asn_field'] ] ?? $formData['description'] ?? $formData['exped_asn'] ?? '';
 
 		$insert_data = array(
 			'scout_id'                 => $scout_id,
@@ -500,8 +526,8 @@ class Fluent_Forms_Sync {
 			'unit_name'                => $unit_details['unit_name'],
 			'explorer_first_name'      => sanitize_text_field( $first_name ),
 			'explorer_last_name'       => sanitize_text_field( $last_name ),
-			'explorer_email'           => sanitize_email( (string) $explorer_email_raw ),
-			'parent_email'             => sanitize_email( $formData[ $config['parent_email_field'] ] ?? '' ),
+			'explorer_email'           => $explorer_email,
+			'parent_email'             => $parent_email,
 			'dofe_level'               => $level,
 			'dob'                      => $dob ?: null,
 			'dofe_registered'          => $dofe_registered,
@@ -523,6 +549,85 @@ class Fluent_Forms_Sync {
 	private function save_expedition_submission( int $entryId, array $formData, array $config ): void {
 		$insert_data = $this->build_expedition_submission_data( $entryId, $formData, $config );
 		$this->signup_repo->create_expedition_signup( $insert_data );
+
+		if ( ! empty( $insert_data['scout_id'] ) ) {
+			$this->backfill_companion_scout_id(
+				'participant',
+				(int) $insert_data['scout_id'],
+				$insert_data['explorer_first_name'],
+				$insert_data['explorer_last_name'],
+				$insert_data['explorer_email'],
+				$insert_data['parent_email']
+			);
+		}
+	}
+
+	private function lookup_known_scout_id( string $first_name, string $last_name, string $explorer_email, string $parent_email ): int {
+		$first_name_lower = strtolower( trim( $first_name ) );
+		$last_name_lower  = strtolower( trim( $last_name ) );
+		$explorer_email   = trim( $explorer_email );
+		$parent_email     = trim( $parent_email );
+
+		if ( method_exists( $this->wpdb, 'get_row' ) && method_exists( $this->wpdb, 'prepare' ) ) {
+			// Check participant table
+			$part_row = $this->wpdb->get_row(
+				$this->wpdb->prepare(
+					"SELECT scout_id FROM {$this->wpdb->prefix}ems_participant_signups WHERE scout_id > 0 AND signup_status = 'submitted' AND ((explorer_email = %s AND explorer_email != '') OR (LOWER(explorer_first_name) = %s AND LOWER(explorer_last_name) = %s AND parent_email = %s)) LIMIT 1",
+					$explorer_email,
+					$first_name_lower,
+					$last_name_lower,
+					$parent_email
+				),
+				ARRAY_A
+			);
+			if ( ! empty( $part_row['scout_id'] ) ) {
+				return (int) $part_row['scout_id'];
+			}
+
+			// Check expedition table
+			$exp_row = $this->wpdb->get_row(
+				$this->wpdb->prepare(
+					"SELECT scout_id FROM {$this->wpdb->prefix}ems_expedition_signups WHERE scout_id > 0 AND signup_status = 'submitted' AND ((explorer_email = %s AND explorer_email != '') OR (LOWER(explorer_first_name) = %s AND LOWER(explorer_last_name) = %s AND parent_email = %s)) LIMIT 1",
+					$explorer_email,
+					$first_name_lower,
+					$last_name_lower,
+					$parent_email
+				),
+				ARRAY_A
+			);
+			if ( ! empty( $exp_row['scout_id'] ) ) {
+				return (int) $exp_row['scout_id'];
+			}
+		}
+
+		return 0;
+	}
+
+	private function backfill_companion_scout_id( string $target_type, int $scout_id, string $first_name, string $last_name, string $explorer_email, string $parent_email ): void {
+		if ( ! method_exists( $this->wpdb, 'query' ) || ! method_exists( $this->wpdb, 'prepare' ) ) {
+			return;
+		}
+
+		$table = $target_type === 'participant'
+			? "{$this->wpdb->prefix}ems_participant_signups"
+			: "{$this->wpdb->prefix}ems_expedition_signups";
+
+		$first_name_lower = strtolower( trim( $first_name ) );
+		$last_name_lower  = strtolower( trim( $last_name ) );
+		$explorer_email   = trim( $explorer_email );
+		$parent_email     = trim( $parent_email );
+
+		$this->wpdb->query(
+			$this->wpdb->prepare(
+				"UPDATE {$table} SET scout_id = %d WHERE scout_id = 0 AND signup_status = 'submitted' AND ((explorer_email = %s AND explorer_email != '') OR (LOWER(explorer_first_name) = %s AND LOWER(explorer_last_name) = %s AND (parent_email = %s OR parent_email = '' OR %s = '')))",
+				$scout_id,
+				$explorer_email,
+				$first_name_lower,
+				$last_name_lower,
+				$parent_email,
+				$parent_email
+			)
+		);
 	}
 
 	/**

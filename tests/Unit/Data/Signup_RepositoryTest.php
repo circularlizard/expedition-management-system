@@ -231,6 +231,35 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertNotNull( $expedition_update );
     }
 
+    public function test_auto_heal_paired_scout_ids_propagates_scout_id_bidirectionally(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $queries = [];
+
+            public function query( string $sql ) {
+                $this->queries[] = $sql;
+                return true;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+        $repo->auto_heal_paired_scout_ids();
+
+        $this->assertNotEmpty( $wpdb->queries );
+        $has_p_update = false;
+        $has_e_update = false;
+        foreach ( $wpdb->queries as $q ) {
+            if ( str_contains( $q, 'UPDATE wp_ems_participant_signups' ) && str_contains( $q, 'wp_ems_expedition_signups' ) ) {
+                $has_p_update = true;
+            }
+            if ( str_contains( $q, 'UPDATE wp_ems_expedition_signups' ) && str_contains( $q, 'wp_ems_participant_signups' ) ) {
+                $has_e_update = true;
+            }
+        }
+        $this->assertTrue( $has_p_update, 'Should update participant signups from expedition signups' );
+        $this->assertTrue( $has_e_update, 'Should update expedition signups from participant signups' );
+    }
+
     public function test_unlink_signup_throws_exception_if_assigned_to_team(): void {
         $wpdb = new class {
             public $prefix = 'wp_';

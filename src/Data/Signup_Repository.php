@@ -337,18 +337,38 @@ class Signup_Repository {
 
 		$this->wpdb->query( 'START TRANSACTION' );
 
+		// Explicitly update current record if unlinked
+		if ( $signup_type === 'participant' ) {
+			$this->wpdb->query(
+				$this->wpdb->prepare(
+					"UPDATE {$this->wpdb->prefix}ems_participant_signups SET scout_id = %d WHERE id = %d",
+					$scout_id,
+					$signup_id
+				)
+			);
+		} else {
+			$this->wpdb->query(
+				$this->wpdb->prepare(
+					"UPDATE {$this->wpdb->prefix}ems_expedition_signups SET scout_id = %d WHERE id = %d",
+					$scout_id,
+					$signup_id
+				)
+			);
+		}
+
 		// Batch update participant places
 		$p_sql = $this->wpdb->prepare(
 			"UPDATE {$this->wpdb->prefix}ems_participant_signups 
 			SET scout_id = %d 
 			WHERE scout_id = 0 AND signup_status = 'submitted' AND (
 				(explorer_email = %s AND explorer_email != '') OR 
-				(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+				(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND (parent_email = %s OR parent_email = '' OR %s = ''))
 			)",
 			$scout_id,
 			$email,
 			$first_name,
 			$last_name,
+			$parent_email,
 			$parent_email
 		);
 		$this->wpdb->query( $p_sql );
@@ -359,18 +379,54 @@ class Signup_Repository {
 			SET scout_id = %d 
 			WHERE scout_id = 0 AND signup_status = 'submitted' AND (
 				(explorer_email = %s AND explorer_email != '') OR 
-				(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+				(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND (parent_email = %s OR parent_email = '' OR %s = ''))
 			)",
 			$scout_id,
 			$email,
 			$first_name,
 			$last_name,
+			$parent_email,
 			$parent_email
 		);
 		$this->wpdb->query( $e_sql );
 
 		$this->wpdb->query( 'COMMIT' );
 		return true;
+	}
+
+	/**
+	 * Auto-heal paired signups where one is matched to OSM (scout_id > 0)
+	 * and the other is unmatched (scout_id = 0).
+	 */
+	public function auto_heal_paired_scout_ids(): void {
+		$p_sql = "UPDATE {$this->wpdb->prefix}ems_participant_signups p
+			INNER JOIN {$this->wpdb->prefix}ems_expedition_signups e
+			ON (
+				(p.explorer_email = e.explorer_email AND p.explorer_email != '')
+				OR (
+					LOWER(p.explorer_first_name) = LOWER(e.explorer_first_name)
+					AND LOWER(p.explorer_last_name) = LOWER(e.explorer_last_name)
+					AND (p.parent_email = e.parent_email OR p.parent_email = '' OR e.parent_email = '' OR p.unit_name = e.unit_name)
+				)
+			)
+			SET p.scout_id = e.scout_id
+			WHERE p.scout_id = 0 AND e.scout_id > 0 AND p.signup_status = 'submitted' AND e.signup_status = 'submitted'";
+
+		$e_sql = "UPDATE {$this->wpdb->prefix}ems_expedition_signups e
+			INNER JOIN {$this->wpdb->prefix}ems_participant_signups p
+			ON (
+				(e.explorer_email = p.explorer_email AND e.explorer_email != '')
+				OR (
+					LOWER(e.explorer_first_name) = LOWER(p.explorer_first_name)
+					AND LOWER(e.explorer_last_name) = LOWER(p.explorer_last_name)
+					AND (e.parent_email = p.parent_email OR e.parent_email = '' OR p.parent_email = '' OR e.unit_name = p.unit_name)
+				)
+			)
+			SET e.scout_id = p.scout_id
+			WHERE e.scout_id = 0 AND p.scout_id > 0 AND e.signup_status = 'submitted' AND p.signup_status = 'submitted'";
+
+		$this->wpdb->query( $p_sql );
+		$this->wpdb->query( $e_sql );
 	}
 
 	/**
