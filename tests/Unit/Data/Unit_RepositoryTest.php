@@ -501,6 +501,116 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$this->assertSame( 'https://example.org/leader-dashboard/', $login_target );
 	}
 
+	public function test_filter_leader_wp_redirect_redirects_ems_leader_from_admin_url_to_dashboard(): void {
+		$leader_user        = new \stdClass();
+		$leader_user->ID    = 101;
+		$leader_user->roles = [ 'ems_leader' ];
+
+		$admin_user        = new \stdClass();
+		$admin_user->ID    = 1;
+		$admin_user->roles = [ 'administrator' ];
+
+		$current_user = null;
+		Functions\when( 'is_user_logged_in' )->alias( function() use ( &$current_user ) {
+			return $current_user !== null;
+		} );
+		Functions\when( 'wp_get_current_user' )->alias( function() use ( &$current_user ) {
+			return $current_user;
+		} );
+		Functions\when( 'admin_url' )->justReturn( 'https://example.org/wp-admin/' );
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_leader_dashboard_page_id' ) {
+				return 42;
+			}
+			return $default;
+		} );
+		Functions\when( 'get_permalink' )->alias( function( $id ) {
+			if ( $id === 42 ) {
+				return 'https://example.org/leader-dashboard/';
+			}
+			return false;
+		} );
+
+		$repo = new Unit_Repository();
+
+		// 1. Not logged in: does not alter redirect
+		$current_user = null;
+		$this->assertSame( 'https://example.org/wp-admin/', $repo->filter_leader_wp_redirect( 'https://example.org/wp-admin/' ) );
+
+		// 2. Logged in as administrator: does not alter redirect
+		$current_user = $admin_user;
+		$this->assertSame( 'https://example.org/wp-admin/', $repo->filter_leader_wp_redirect( 'https://example.org/wp-admin/' ) );
+
+		// 3. Logged in as ems_leader redirecting to admin_url(): rewrites to leader dashboard
+		$current_user = $leader_user;
+		$this->assertSame( 'https://example.org/leader-dashboard/', $repo->filter_leader_wp_redirect( 'https://example.org/wp-admin/' ) );
+		$this->assertSame( 'https://example.org/leader-dashboard/', $repo->filter_leader_wp_redirect( 'https://example.org/wp-admin' ) );
+
+		// 4. Logged in as ems_leader redirecting to non-admin URL: leaves URL untouched
+		$this->assertSame( 'https://example.org/custom-page/', $repo->filter_leader_wp_redirect( 'https://example.org/custom-page/' ) );
+	}
+
+	public function test_maybe_redirect_leader_from_admin_redirects_ems_leader(): void {
+		$leader_user        = new \stdClass();
+		$leader_user->ID    = 101;
+		$leader_user->roles = [ 'ems_leader' ];
+
+		$admin_user        = new \stdClass();
+		$admin_user->ID    = 1;
+		$admin_user->roles = [ 'administrator' ];
+
+		$current_user   = null;
+		$redirected_to  = null;
+		$is_ajax        = false;
+
+		Functions\when( 'is_user_logged_in' )->alias( function() use ( &$current_user ) {
+			return $current_user !== null;
+		} );
+		Functions\when( 'wp_get_current_user' )->alias( function() use ( &$current_user ) {
+			return $current_user;
+		} );
+		Functions\when( 'wp_doing_ajax' )->alias( function() use ( &$is_ajax ) {
+			return $is_ajax;
+		} );
+		Functions\when( 'wp_safe_redirect' )->alias( function( $url ) use ( &$redirected_to ) {
+			$redirected_to = $url;
+			return true;
+		} );
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_leader_dashboard_page_id' ) {
+				return 42;
+			}
+			return $default;
+		} );
+		Functions\when( 'get_permalink' )->alias( function( $id ) {
+			if ( $id === 42 ) {
+				return 'https://example.org/leader-dashboard/';
+			}
+			return false;
+		} );
+
+		$repo = new Unit_Repository();
+
+		// 1. Logged in as administrator: no redirect
+		$current_user  = $admin_user;
+		$redirected_to = null;
+		$repo->maybe_redirect_leader_from_admin();
+		$this->assertNull( $redirected_to );
+
+		// 2. Doing AJAX: no redirect
+		$current_user  = $leader_user;
+		$is_ajax       = true;
+		$redirected_to = null;
+		$repo->maybe_redirect_leader_from_admin();
+		$this->assertNull( $redirected_to );
+
+		// 3. Logged in as ems_leader: redirects to dashboard
+		$is_ajax       = false;
+		$redirected_to = null;
+		$repo->maybe_redirect_leader_from_admin();
+		$this->assertSame( 'https://example.org/leader-dashboard/', $redirected_to );
+	}
+
 	public function test_format_unit_names_list(): void {
 		$repo = new Unit_Repository();
 

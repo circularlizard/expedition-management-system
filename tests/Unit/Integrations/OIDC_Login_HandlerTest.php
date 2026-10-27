@@ -442,6 +442,44 @@ class OIDC_Login_HandlerTest extends EMSTestCase {
         $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
     }
 
+    public function test_handle_osm_login_invited_leader_preserves_leader_role_and_updates_last_login(): void {
+        $meta_updates = [];
+        Functions\when( 'update_user_meta' )->alias( function( $id, $key, $val ) use ( &$meta_updates ) {
+            $meta_updates[ $key ] = $val;
+            return true;
+        } );
+
+        $raw_payload = [
+            'data' => [
+                'globals' => [
+                    'member_access' => [],
+                    'roles' => [],
+                ],
+            ],
+        ];
+
+        $this->api_client->shouldReceive( 'set_access_token' )->once();
+        $this->api_client->shouldReceive( 'get_data_payload' )->once()->andReturn( $raw_payload );
+
+        // OSM returns 'parent' for their access type
+        $this->parser->shouldReceive( 'parse_access_type' )->once()->andReturn( 'parent' );
+        $this->parser->shouldReceive( 'parse_scout_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_section_ids' )->once()->andReturn( [] );
+        $this->parser->shouldReceive( 'parse_children' )->once()->andReturn( [] );
+
+        // The user was already created as an ems_leader from invitation
+        $this->user->roles = [ 'ems_leader' ];
+
+        // Should set target role parent, but re-add ems_leader because user is an invited unit leader
+        $this->user->shouldReceive( 'set_role' )->once()->with( 'ems_parent' );
+        $this->user->shouldReceive( 'add_role' )->once()->with( 'ems_leader' );
+
+        $integration = new OIDC_Login_Handler( $this->api_client, $this->parser );
+        $this->assertNull( $integration->handle_osm_login( $this->user, [ 'access_token' => 'some-token' ] ) );
+
+        $this->assertNotEmpty( $meta_updates['ems_last_login_at'] );
+    }
+
     public function test_handle_osm_login_unknown_role_graceful_wp_die(): void {
         Functions\stubs( [ 'update_user_meta' ] );
         $raw_payload = [

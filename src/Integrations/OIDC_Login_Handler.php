@@ -122,13 +122,16 @@ class OIDC_Login_Handler {
 
 		$this->assign_user_role( $user, $access_type, $section_ids, ! empty( $children ) );
 		$this->maybe_link_explorer( $user );
+		update_user_meta( $user->ID, 'ems_last_login_at', current_time( 'mysql' ) );
 	}
 
 	/**
 	 * Assigns the appropriate custom WordPress role to the user based on access type and section IDs.
 	 */
 	private function assign_user_role( \WP_User $user, string $access_type, array $section_ids, bool $has_children = false ): void {
-		$target_role = '';
+		$had_leader_role = in_array( 'ems_leader', (array) $user->roles, true );
+		$target_role     = '';
+
 		if ( $access_type === 'member' ) {
 			$target_role = 'ems_explorer';
 		} elseif ( $access_type === 'network_member' ) {
@@ -143,7 +146,11 @@ class OIDC_Login_Handler {
 			$user->set_role( $target_role );
 		}
 
-		if ( $target_role === 'ems_leader' && $has_children ) {
+		if ( $had_leader_role && $target_role !== 'ems_leader' ) {
+			$user->add_role( 'ems_leader' );
+		}
+
+		if ( ( $target_role === 'ems_leader' || $had_leader_role ) && $has_children ) {
 			$user->add_role( 'ems_parent' );
 		}
 	}
