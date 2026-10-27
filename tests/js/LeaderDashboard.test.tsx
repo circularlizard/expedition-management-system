@@ -32,6 +32,19 @@ const mockSignupsPayload = [
         created_at: '2026-08-18 10:00:00',
     },
     {
+        id: 30,
+        type: 'participant',
+        scout_id: 30003,
+        explorer_first_name: 'Zack',
+        explorer_last_name: 'Adams',
+        dofe_level: 'silver',
+        unit_id: 10,
+        unit_name: 'BO-Kelso',
+        expedition_preferences: null,
+        signup_status: 'submitted',
+        created_at: '2026-08-19 10:00:00',
+    },
+    {
         id: 11,
         type: 'participant',
         scout_id: 0,
@@ -90,7 +103,7 @@ describe('LeaderDashboard Component', () => {
         render(<LeaderDashboard />);
 
         await waitFor(() => {
-            expect(screen.getByText('Zack Adams')).toBeDefined();
+            expect(screen.getAllByText('Zack Adams').length).toBeGreaterThan(0);
         });
 
         // 1. No Form Type filter in toolbar
@@ -121,16 +134,23 @@ describe('LeaderDashboard Component', () => {
         expect(peeblesRow.className).toContain('ems-table-group-header');
         expect(within(peeblesRow).getByText(/1 explorer/i)).toBeDefined();
 
-        // 3. OSM Sync icon: Zack Adams (scout_id 30003) shows assets/images/osm_icon.png, Alice Zimmerman (scout_id 0) shows nothing
-        const zackRow = screen.getByText('Zack Adams').closest('tr')!;
-        const zackImg = within(zackRow).getByRole('img', { name: /Synced with OSM/i }) as HTMLImageElement;
+        // 3. Zack Adams has 2 rows in BO-Kelso: one bronze, one silver
+        const zackRows = screen.getAllByText('Zack Adams').map(el => el.closest('tr')!);
+        expect(zackRows).toHaveLength(2);
+        const zackBronzeRow = zackRows.find(r => r.textContent?.includes('bronze'))!;
+        const zackSilverRow = zackRows.find(r => r.textContent?.includes('silver'))!;
+        expect(zackBronzeRow).toBeDefined();
+        expect(zackSilverRow).toBeDefined();
+
+        // OSM Sync icon: Zack Adams (scout_id 30003) shows assets/images/osm_icon.png, Alice Zimmerman (scout_id 0) shows nothing
+        const zackImg = within(zackBronzeRow).getByRole('img', { name: /Synced with OSM/i }) as HTMLImageElement;
         expect(zackImg.src).toContain('assets/images/osm_icon.png');
 
         const aliceRow = screen.getByText('Alice Zimmerman').closest('tr')!;
         expect(within(aliceRow).queryByRole('img')).toBeNull();
 
         // 4. Coloured level pills
-        const bronzePill = within(zackRow).getByText('bronze');
+        const bronzePill = within(zackBronzeRow).getByText('bronze');
         expect(bronzePill.className).toContain('ems-pill--bronze');
 
         const silverPill = within(aliceRow).getByText('silver');
@@ -140,18 +160,25 @@ describe('LeaderDashboard Component', () => {
         const goldPill = within(bobRow).getByText('gold');
         expect(goldPill.className).toContain('ems-pill--gold');
 
-        // 5. Checkmarks in Participant Place and Expedition Preference, plus Unit and OSM Sync (last) columns
+        // 5. Checkmarks in Participant Place and Expedition Signup, plus Unit and OSM Sync columns
         const headers = screen.getAllByRole('columnheader');
+        expect(headers[3].textContent).toContain('Expedition Signup');
         expect(headers[5].textContent).toContain('Unit');
         expect(headers[6].textContent).toContain('OSM Sync');
 
-        const zackCells = within(zackRow).getAllByRole('cell');
-        // Columns: 0: Explorer Name, 1: Level, 2: Participant Place, 3: Expedition Preference, 4: Expedition Type, 5: Unit, 6: OSM Sync
-        expect(zackCells[2].textContent?.trim()).toBe('✓');
-        expect(zackCells[3].textContent?.trim()).toBe('✓');
-        expect(zackCells[4].textContent?.trim()).toBe('Hillwalking');
-        expect(zackCells[5].textContent?.trim()).toBe('BO-Kelso');
-        expect(within(zackCells[6]).getByRole('img', { name: /Synced with OSM/i })).toBeDefined();
+        // Zack Bronze row
+        const zackBronzeCells = within(zackBronzeRow).getAllByRole('cell');
+        // Columns: 0: Explorer Name, 1: Level, 2: Participant Place, 3: Expedition Signup, 4: Expedition Type, 5: Unit, 6: OSM Sync
+        expect(zackBronzeCells[2].textContent?.trim()).toBe('✓');
+        expect(zackBronzeCells[3].textContent?.trim()).toBe('✓');
+        expect(zackBronzeCells[4].textContent?.trim()).toBe('Hillwalking');
+        expect(zackBronzeCells[5].textContent?.trim()).toBe('BO-Kelso');
+        expect(within(zackBronzeCells[6]).getByRole('img', { name: /Synced with OSM/i })).toBeDefined();
+
+        // Zack Silver row: Participant Place submitted, Expedition Signup not submitted
+        const zackSilverCells = within(zackSilverRow).getAllByRole('cell');
+        expect(zackSilverCells[2].textContent?.trim()).toBe('✓');
+        expect(zackSilverCells[3].textContent?.trim()).toBe('—');
 
         // 6. Pagination controls exist
         expect(screen.getByLabelText(/Items per page/i)).toBeDefined();

@@ -338,42 +338,59 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         return true;
     });
 
-    // Build consolidated Explorer rows from filteredSignups (1 row per Explorer)
+    // Build consolidated Explorer rows from filteredSignups (indexed by Explorer and Level)
     const explorerRows = useMemo(() => {
         const buckets = groupSignupsByExplorerIdentity(filteredSignups);
-        return buckets.map((bucket, idx) => {
-            const participantEntries = bucket.items.filter((i: any) => i.type === 'participant');
-            const expeditionEntries = bucket.items.filter((i: any) => i.type === 'expedition');
-            const entries = [...participantEntries, ...expeditionEntries];
-            const primary = entries[0] || bucket.items[0];
-            const expedWithPrefs = expeditionEntries.find((e: any) => e.expedition_preferences?.exped_type);
-            const dofeWithNum = entries.find((e: any) => e.dofe_number);
-            const transferReq = entries.some((e: any) => e.dofe_registered === 'y-other');
-            const latestCreatedAt = entries.reduce((latest: string, e: any) => {
-                if (!e.created_at) return latest;
-                return !latest || e.created_at > latest ? e.created_at : latest;
-            }, '');
+        const rows: any[] = [];
 
-            const baseKey = bucket.scoutId !== 0 ? `scout_${bucket.scoutId}` : `explorer_${primary.type}_${primary.id}_${idx}`;
-            return {
-                rowKey: `${baseKey}_p${participantEntries.length}_e${expeditionEntries.length}`,
-                scout_id: bucket.scoutId,
-                explorer_first_name: primary.explorer_first_name || '',
-                explorer_last_name: primary.explorer_last_name || '',
-                explorer_email: entries.find((e: any) => e.explorer_email)?.explorer_email || '',
-                parent_email: entries.find((e: any) => e.parent_email)?.parent_email || '',
-                parent_user_id: entries.find((e: any) => e.parent_user_id)?.parent_user_id || 0,
-                unit_name: entries.find((e: any) => e.unit_name && e.unit_name !== 'Unassigned')?.unit_name || primary.unit_name || 'Unassigned',
-                dofe_level: primary.dofe_level || '',
-                dofe_number: dofeWithNum ? dofeWithNum.dofe_number : null,
-                dofe_registered: transferReq ? 'y-other' : (primary.dofe_registered || 'n'),
-                expedition_preferences: expedWithPrefs ? expedWithPrefs.expedition_preferences : null,
-                created_at: latestCreatedAt,
-                participantEntries,
-                expeditionEntries,
-                entries,
-            };
+        buckets.forEach((bucket, idx) => {
+            const rawLevels = Array.from(
+                new Set(bucket.items.map((i: any) => (i.dofe_level || '').trim().toLowerCase()))
+            ).filter(Boolean);
+            const levels = rawLevels.length > 0 ? rawLevels : [''];
+
+            levels.forEach((lvl) => {
+                const participantEntries = bucket.items.filter(
+                    (i: any) => i.type === 'participant' && (lvl === '' || (i.dofe_level || '').trim().toLowerCase() === lvl)
+                );
+                const expeditionEntries = bucket.items.filter(
+                    (i: any) => i.type === 'expedition' && (lvl === '' || (i.dofe_level || '').trim().toLowerCase() === lvl)
+                );
+                const entries = [...participantEntries, ...expeditionEntries];
+                if (entries.length === 0) return;
+
+                const primary = entries[0] || bucket.items[0];
+                const expedWithPrefs = expeditionEntries.find((e: any) => e.expedition_preferences?.exped_type);
+                const dofeWithNum = entries.find((e: any) => e.dofe_number);
+                const transferReq = entries.some((e: any) => e.dofe_registered === 'y-other');
+                const latestCreatedAt = entries.reduce((latest: string, e: any) => {
+                    if (!e.created_at) return latest;
+                    return !latest || e.created_at > latest ? e.created_at : latest;
+                }, '');
+
+                const baseKey = bucket.scoutId !== 0 ? `scout_${bucket.scoutId}` : `explorer_${primary.type}_${primary.id}_${idx}`;
+                rows.push({
+                    rowKey: `${baseKey}_lvl_${lvl || 'none'}_p${participantEntries.length}_e${expeditionEntries.length}`,
+                    scout_id: bucket.scoutId,
+                    explorer_first_name: primary.explorer_first_name || '',
+                    explorer_last_name: primary.explorer_last_name || '',
+                    explorer_email: entries.find((e: any) => e.explorer_email)?.explorer_email || '',
+                    parent_email: entries.find((e: any) => e.parent_email)?.parent_email || '',
+                    parent_user_id: entries.find((e: any) => e.parent_user_id)?.parent_user_id || 0,
+                    unit_name: entries.find((e: any) => e.unit_name && e.unit_name !== 'Unassigned')?.unit_name || primary.unit_name || 'Unassigned',
+                    dofe_level: lvl || primary.dofe_level || '',
+                    dofe_number: dofeWithNum ? dofeWithNum.dofe_number : null,
+                    dofe_registered: transferReq ? 'y-other' : (primary.dofe_registered || 'n'),
+                    expedition_preferences: expedWithPrefs ? expedWithPrefs.expedition_preferences : null,
+                    created_at: latestCreatedAt,
+                    participantEntries,
+                    expeditionEntries,
+                    entries,
+                });
+            });
         });
+
+        return rows;
     }, [filteredSignups]);
 
     // Entries belonging to the currently selected explorer in the Inspector Panel
@@ -452,14 +469,25 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         };
 
         if (grouping === 'explorer') {
-            return sortedSignups
-                .map((row) => ({
-                    title: row.scout_id !== 0
-                        ? `${row.explorer_first_name} ${row.explorer_last_name} (Scout ID: ${row.scout_id})`
-                        : `${row.explorer_first_name} ${row.explorer_last_name} (Guest)`,
-                    items: [row],
-                }))
-                .sort((a, b) => a.title.localeCompare(b.title));
+            const groupsMap: { [key: string]: { title: string, items: any[] } } = {};
+            sortedSignups.forEach(row => {
+                const key = row.scout_id !== 0
+                    ? `scout_${row.scout_id}`
+                    : `guest_${normalize(row.explorer_first_name)}_${normalize(row.explorer_last_name)}_${normalize(row.parent_email)}`;
+                const title = row.scout_id !== 0
+                    ? `${row.explorer_first_name} ${row.explorer_last_name} (Scout ID: ${row.scout_id})`
+                    : `${row.explorer_first_name} ${row.explorer_last_name} (Guest)`;
+                if (!groupsMap[key]) {
+                    groupsMap[key] = { title, items: [] };
+                }
+                groupsMap[key].items.push(row);
+            });
+            return Object.keys(groupsMap).sort((a, b) => {
+                return groupsMap[a].title.localeCompare(groupsMap[b].title);
+            }).map(key => ({
+                title: groupsMap[key].title,
+                items: groupsMap[key].items,
+            }));
         }
 
         const groupsMap: { [key: string]: { title: string, items: any[] } } = {};
@@ -863,7 +891,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                             {renderHeader('Explorer Name', 'explorer_first_name')}
                                             {renderHeader('Level', 'dofe_level')}
                                             {renderHeader('Participant Place', 'participant')}
-                                            {renderHeader('Expedition Preference', 'expedition_signup')}
+                                            {renderHeader('Expedition Signup', 'expedition_signup')}
                                             {renderHeader('Expedition Type', 'expedition')}
                                             {renderHeader('Unit', 'unit_name')}
                                             {renderHeader('Email', 'explorer_email')}
@@ -934,7 +962,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                                     {row.expeditionEntries.length > 0 ? (
                                                                         <span
                                                                             key="has-exped"
-                                                                            title="Expedition Preference submitted"
+                                                                            title="Expedition Signup submitted"
                                                                             className="ems-fa-full ems-cursor-pointer"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
@@ -1062,7 +1090,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                 {selectedSignup.type === 'participant' ? '📋' : '🏕️'}
                             </span>
                             <h3 className="ems-m-0 ems-font-semibold" style={{ fontSize: '15px', color: '#1d2327' }}>
-                                {selectedSignup.type === 'participant' ? 'Participant Place Details' : 'Expedition Preference Details'}
+                                {selectedSignup.type === 'participant' ? 'Participant Place Details' : 'Expedition Signup Details'}
                             </h3>
                         </div>
                         <div className="ems-flex-center ems-gap-4">
@@ -1120,7 +1148,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                 >
                                     {selectedExplorerEntries.map((entry: any) => (
                                         <option key={`${entry.type}_${entry.id}`} value={`${entry.type}_${entry.id}`}>
-                                            {entry.type === 'participant' ? 'Participant Place' : 'Expedition Preference'} — {(entry.dofe_level || '').toUpperCase()} (#{entry.id}{entry.created_at ? `, ${entry.created_at.substring(0, 10)}` : ''})
+                                            {entry.type === 'participant' ? 'Participant Place' : 'Expedition Signup'} — {(entry.dofe_level || '').toUpperCase()} (#{entry.id}{entry.created_at ? `, ${entry.created_at.substring(0, 10)}` : ''})
                                         </option>
                                     ))}
                                 </select>
