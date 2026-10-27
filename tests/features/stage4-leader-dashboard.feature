@@ -36,22 +36,25 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     And the response should contain active signups with explorer names, levels, units, and expedition types
     And the response should not expose parent emails, explorer emails, or additional support needs
 
-  Scenario: Front-end Leader Dashboard renders explorers grouped by unit and sorted by first name with OSM sync icon, coloured level pills, and no inspector panel
+  Scenario: Front-end Leader Dashboard renders explorers indexed by person and level with OSM sync icon, coloured level pills, and Expedition Signup column
     Given the following active signups exist for the leader dashboard:
       | id | type        | scout_id | explorer_first_name | explorer_last_name | dofe_level | unit_name   | exped_type  |
       | 10 | participant | 30003    | Zack                | Adams              | bronze     | BO-Kelso    |             |
       | 20 | expedition  | 30003    | Zack                | Adams              | bronze     | BO-Kelso    | Hillwalking |
+      | 30 | participant | 30003    | Zack                | Adams              | silver     | BO-Kelso    |             |
       | 11 | participant | 0        | Alice               | Zimmerman          | silver     | BO-Kelso    |             |
       | 12 | expedition  | 30002    | Bob                 | Smith              | gold       | TW-Peebles  | Biking      |
     When an authorized unit leader views the "[ems-leader-dashboard]" page
     Then the toolbar should not contain a "Form Type" filter
     And the table should be grouped by unit with group headers "BO-Kelso" followed by "TW-Peebles"
     And within "BO-Kelso", "Alice Zimmerman" should appear before "Zack Adams" (sorted by first name)
-    And the row for "Zack Adams" should display the OSM sync icon "assets/images/osm_icon.png" in the "OSM Sync" column
+    And "Zack Adams" should have 2 rows in "BO-Kelso" (one for bronze and one for silver)
+    And the row for "Zack Adams" (bronze) should display the OSM sync icon "assets/images/osm_icon.png" in the "OSM Sync" column
     And the row for "Alice Zimmerman" should not display any icon in the "OSM Sync" column
     And the level badges should render with coloured pill classes "ems-pill--bronze", "ems-pill--silver", and "ems-pill--gold"
-    And the row for "Zack Adams" should show "✓" in both "Participant Place" and "Expedition Preference"
-    And the table should include "OSM Sync" and "Unit" column headers and working pagination controls across explorer rows
+    And the Bronze row for "Zack Adams" should show "✓" in both "Participant Place" and "Expedition Signup"
+    And the Silver row for "Zack Adams" should show "✓" in "Participant Place" and "—" in "Expedition Signup"
+    And the table should include "OSM Sync", "Unit", and "Expedition Signup" column headers and working pagination controls across explorer rows
     And clicking a row in the leader dashboard table should not open an inspector panel
 
   Scenario: Customising the Unit Leader invitation email subject and body with placeholders

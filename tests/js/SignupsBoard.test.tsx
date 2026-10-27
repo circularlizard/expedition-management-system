@@ -163,9 +163,9 @@ describe('SignupsBoard', () => {
             expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0);
             expect(screen.getByText('Alice Smith')).toBeInTheDocument();
             expect(screen.getByText('Charlie Smith')).toBeInTheDocument();
-            // Participant Place and Expedition Preference columns show checkmarks
+            // Participant Place and Expedition Signup columns show checkmarks
             expect(screen.getByRole('columnheader', { name: /Participant Place/i })).toBeInTheDocument();
-            expect(screen.getByRole('columnheader', { name: /Expedition Preference/i })).toBeInTheDocument();
+            expect(screen.getByRole('columnheader', { name: /Expedition Signup/i })).toBeInTheDocument();
             expect(screen.getAllByText('✓').length).toBeGreaterThan(0);
         });
 
@@ -619,9 +619,36 @@ describe('SignupsBoard', () => {
         });
     });
 
-    it('renders a single row per explorer with Participant Place and Expedition Preference columns and allows switching entries in the inspector', async () => {
+    it('renders rows indexed by person and level with Participant Place and Expedition Signup columns and allows switching entries in the inspector', async () => {
+        const signupsWithMultiLevelMary = [
+            ...mockCombinedSignups,
+            {
+                id: 30,
+                type: 'participant',
+                scout_id: 30003,
+                parent_user_id: 4,
+                unit_name: 'Kelso',
+                explorer_first_name: 'Mary',
+                explorer_last_name: 'Jones',
+                explorer_email: 'mary@example.com',
+                parent_email: 'parent2@example.com',
+                leader_email: 'leader@example.com',
+                dofe_level: 'silver',
+                dob: '2010-05-15',
+                dofe_registered: 'n',
+                dofe_number: null,
+                bronze_completion: null,
+                silver_completion: null,
+                signup_status: 'submitted',
+                payment_status: 'paid',
+                form_submission_id: 1239,
+                is_synced_osm: 1,
+                created_at: '2026-06-13 20:04:00',
+            },
+        ];
+
         (global.fetch as any)
-            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => signupsWithMultiLevelMary })
             .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
 
         render(<SignupsBoard />);
@@ -633,32 +660,44 @@ describe('SignupsBoard', () => {
 
         await waitFor(() => {
             expect(screen.getByRole('columnheader', { name: /Participant Place/i })).toBeInTheDocument();
-            expect(screen.getByRole('columnheader', { name: /Expedition Preference/i })).toBeInTheDocument();
+            expect(screen.getByRole('columnheader', { name: /Expedition Signup/i })).toBeInTheDocument();
         });
 
-        // Mary Jones has both Participant Place (id 10) and Expedition Preference (id 20), but should appear on a single table row
+        // Mary Jones has Bronze (id 10 & 20) and Silver (id 30), so she should appear on 2 table rows
         const maryCells = screen.getAllByText('Mary Jones');
-        expect(maryCells).toHaveLength(1);
+        expect(maryCells).toHaveLength(2);
 
-        // Click Mary Jones's row to open the inspector on her first entry
-        fireEvent.click(maryCells[0]);
+        // Check rows for Mary Jones
+        const maryRows = maryCells.map((c) => c.closest('tr')!);
+        const bronzeRow = maryRows.find((r) => r.textContent?.includes('bronze'))!;
+        const silverRow = maryRows.find((r) => r.textContent?.includes('silver'))!;
+        expect(bronzeRow).toBeDefined();
+        expect(silverRow).toBeDefined();
+
+        // Bronze row has participant place and expedition signup
+        expect(bronzeRow.textContent).toContain('✓');
+        // Silver row has participant place and no expedition signup
+        expect(silverRow.textContent).toContain('—');
+
+        // Click Mary Jones's Bronze row to open the inspector on her first entry
+        fireEvent.click(bronzeRow);
 
         await waitFor(() => {
             expect(screen.getByLabelText(/Select Signup Entry/i)).toBeInTheDocument();
             expect(screen.getByText('Participant Place Details')).toBeInTheDocument();
         });
 
-        // Switch to her Expedition Preference entry using the inspector control
+        // Switch to her Expedition Signup entry using the inspector control
         const entrySelector = screen.getByLabelText(/Select Signup Entry/i) as HTMLSelectElement;
         fireEvent.change(entrySelector, { target: { value: 'expedition_20' } });
 
         await waitFor(() => {
-            expect(screen.getByText('Expedition Preference Details')).toBeInTheDocument();
+            expect(screen.getByText('Expedition Signup Details')).toBeInTheDocument();
             expect(screen.getByText('First Aid Status')).toBeInTheDocument();
             expect(screen.getByText('first_response')).toBeInTheDocument();
         });
 
-        // Switch back from Expedition Preference to Participant Place entry
+        // Switch back from Expedition Signup to Participant Place entry
         fireEvent.change(screen.getByLabelText(/Select Signup Entry/i), { target: { value: 'participant_10' } });
 
         await waitFor(() => {
