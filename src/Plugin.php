@@ -52,6 +52,17 @@ class Plugin {
 				$user
 			);
 		}, 10, 3 );
+
+		add_filter( 'wp_redirect', function( $location, $status ) {
+			return ( new \EMS\Data\Unit_Repository() )->filter_leader_wp_redirect(
+				(string) $location,
+				(int) $status
+			);
+		}, 10, 2 );
+
+		add_action( 'admin_init', function() {
+			( new \EMS\Data\Unit_Repository() )->maybe_redirect_leader_from_admin();
+		}, 1 );
 		add_action( 'template_redirect', array( $this, 'restrict_signup_page_access' ) );
 
 		add_action( 'wp_login_failed', function( $username ) {
