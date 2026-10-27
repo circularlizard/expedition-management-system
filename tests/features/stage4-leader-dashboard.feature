@@ -64,13 +64,17 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     When the administrator sends a unit leader invitation to "leader@kelso.scouts.org.uk"
     Then the outgoing email subject and body should have "{{unit_name}}", "{{set_password_url}}", "{{dashboard_url}}", "{{site_name}}", and "{{user_email}}" replaced with the unit's values and password reset link
 
-  Scenario: Redirecting an ems_leader user to the Leader Dashboard after setting their password or logging in
+  Scenario: Redirecting an ems_leader user to the Leader Dashboard after setting their password, logging in, signing in with OSM, or accessing wp-admin
     Given the Leader Dashboard page URL is configured in EMS Settings
     When a user with role "ems_leader" completes setting their password on the WordPress password reset screen
     Then the user should be automatically logged in with "ems_last_login_at" updated
     And the user should be redirected to the Leader Dashboard page URL
     When a user with role "ems_leader" logs in via the standard WordPress login screen without a custom redirect target
     Then the user should be redirected to the Leader Dashboard page URL instead of wp-admin
+    When an invited leader signs in with Online Scout Manager (OSM)
+    Then the user should be redirected to the Leader Dashboard page URL instead of wp-admin
+    When a user with role "ems_leader" navigates to the WordPress admin area ("/wp-admin/")
+    Then the user should be redirected to the Leader Dashboard page URL
 
   Scenario: Formatting multiple units in leader invitation email with conjunction
     Given leader "john@example.com" is assigned to units "Kelso ESU", "Peebles ESU", and "Gala ESU"

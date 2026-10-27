@@ -650,6 +650,78 @@ class Unit_Repository {
 	}
 
 	/**
+	 * Intercepts low-level WordPress redirects (such as OAuth / OSM login redirects)
+	 * and redirects ems_leader users targeting the admin area to their Leader Dashboard.
+	 *
+	 * @param string $location The redirect destination URL.
+	 * @param int    $status   HTTP redirect status code.
+	 * @return string
+	 */
+	public function filter_leader_wp_redirect( string $location, int $status = 302 ): string {
+		if ( ! function_exists( 'is_user_logged_in' ) || ! is_user_logged_in() ) {
+			return $location;
+		}
+
+		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		if ( ! is_object( $user ) || empty( $user->roles ) ) {
+			return $location;
+		}
+
+		$roles = (array) $user->roles;
+		if ( ! in_array( 'ems_leader', $roles, true ) || in_array( 'administrator', $roles, true ) ) {
+			return $location;
+		}
+
+		$default_admin = function_exists( 'admin_url' ) ? rtrim( (string) admin_url(), '/' ) : '';
+		$loc_trimmed   = rtrim( $location, '/' );
+
+		if ( $location === '' || ( $default_admin !== '' && $loc_trimmed === $default_admin ) ) {
+			$dashboard_url = $this->get_leader_dashboard_url();
+			if ( $dashboard_url !== '' ) {
+				return $dashboard_url;
+			}
+		}
+
+		return $location;
+	}
+
+	/**
+	 * Intercepts ems_leader users attempting to access the WordPress admin area directly
+	 * and redirects them to the Unit Leader Dashboard.
+	 *
+	 * @return void
+	 */
+	public function maybe_redirect_leader_from_admin(): void {
+		if ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) {
+			return;
+		}
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return;
+		}
+		if ( ! function_exists( 'is_user_logged_in' ) || ! is_user_logged_in() ) {
+			return;
+		}
+
+		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		if ( ! is_object( $user ) || empty( $user->roles ) ) {
+			return;
+		}
+
+		$roles = (array) $user->roles;
+		if ( ! in_array( 'ems_leader', $roles, true ) || in_array( 'administrator', $roles, true ) ) {
+			return;
+		}
+
+		$dashboard_url = $this->get_leader_dashboard_url();
+		if ( $dashboard_url !== '' ) {
+			wp_safe_redirect( $dashboard_url );
+			if ( ! class_exists( '\EMS\Tests\EMSTestCase' ) ) {
+				exit;
+			}
+		}
+	}
+
+	/**
 	 * Sends a leader invitation notification for a specific user and unit, applying the custom email filter.
 	 *
 	 * @param int                  $user_id WordPress user ID.
