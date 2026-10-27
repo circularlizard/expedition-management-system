@@ -321,4 +321,115 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertStringContainsString( '2', $output );
         $this->assertStringContainsString( 'archived', strtolower( $output ) );
     }
+
+    public function test_save_leader_invite_stores_subject_and_body(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+
+        $page = new Settings_Page();
+        ob_start();
+        $page->save_leader_invite( [
+            'ems_leader_invite_email_subject' => 'Custom Subject for {{unit_name}}',
+            'ems_leader_invite_email_body'    => 'Custom Body for {{dashboard_url}}',
+        ] );
+        $output = (string) ob_get_clean();
+
+        $this->assertStringContainsString( 'Leader invitation email settings saved.', $output );
+        $this->assertSame( 'Custom Subject for {{unit_name}}', $stored['ems_leader_invite_email_subject'] );
+        $this->assertSame( 'Custom Body for {{dashboard_url}}', $stored['ems_leader_invite_email_body'] );
+    }
+
+    public function test_save_settings_routes_save_leader_invite(): void {
+        $stored = [];
+        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
+
+        $page = new Settings_Page();
+        ob_start();
+        $page->save_settings( [
+            'ems_save_leader_invite'          => '1',
+            'ems_leader_invite_email_subject' => 'Routed Subject',
+            'ems_leader_invite_email_body'    => 'Routed Body',
+        ] );
+        ob_get_clean();
+
+        $this->assertSame( 'Routed Subject', $stored['ems_leader_invite_email_subject'] );
+        $this->assertSame( 'Routed Body', $stored['ems_leader_invite_email_body'] );
+    }
+
+    public function test_render_leader_invite_tab_outputs_fields_and_placeholders(): void {
+        Functions\when( 'wp_nonce_field' )->justReturn( '' );
+        Functions\when( 'selected' )->justReturn( '' );
+        Functions\when( 'checked' )->justReturn( '' );
+        Functions\when( 'get_option' )->alias( function( $k, $default = false ) {
+            if ( $k === 'ems_leader_invite_email_subject' ) {
+                return 'Existing Subject';
+            }
+            if ( $k === 'ems_leader_invite_email_body' ) {
+                return 'Existing Body with {{unit_name}}';
+            }
+            return $default;
+        } );
+        Functions\when( 'esc_textarea' )->alias( fn( $v ) => $v );
+
+        $_GET['tab'] = 'leader_invite';
+        $page = new Settings_Page();
+        try {
+            ob_start();
+            $page->render();
+            $output = (string) ob_get_clean();
+        } finally {
+            unset( $_GET['tab'] );
+        }
+
+        $this->assertStringContainsString( 'tab=leader_invite', $output );
+        $this->assertStringContainsString( 'nav-tab-active', $output );
+        $this->assertStringContainsString( 'name="ems_leader_invite_email_subject"', $output );
+        $this->assertStringContainsString( 'Existing Subject', $output );
+        $this->assertStringContainsString( 'name="ems_leader_invite_email_body"', $output );
+        $this->assertStringContainsString( 'Existing Body with {{unit_name}}', $output );
+        $this->assertStringContainsString( 'name="ems_save_leader_invite"', $output );
+        $this->assertStringContainsString( '{{unit_name}}', $output );
+        $this->assertStringContainsString( '{{dashboard_url}}', $output );
+    }
+
+    public function test_render_access_control_tab_no_longer_contains_leader_invite_fields(): void {
+        Functions\when( 'wp_nonce_field' )->justReturn( '' );
+        Functions\when( 'get_pages' )->justReturn( [] );
+        Functions\when( 'checked' )->justReturn( '' );
+        Functions\when( 'selected' )->justReturn( '' );
+        Functions\when( 'esc_textarea' )->alias( fn( $v ) => $v );
+        Functions\when( 'translate_user_role' )->alias( fn( $v ) => $v );
+        $mock_roles = new class {
+            public function get_names(): array {
+                return [ 'ems_leader' => 'Leader', 'ems_explorer' => 'Explorer' ];
+            }
+        };
+        Functions\when( 'wp_roles' )->justReturn( $mock_roles );
+        Functions\when( 'get_option' )->alias( function( $k, $default = false ) {
+            if ( $k === 'ems_page_roles' ) {
+                return [];
+            }
+            if ( $k === 'ems_protect_tutor_lms' ) {
+                return false;
+            }
+            if ( $k === 'ems_leader_dashboard_page_id' ) {
+                return 0;
+            }
+            return $default;
+        } );
+
+        $_GET['tab'] = 'access_control';
+        $page = new Settings_Page();
+        try {
+            ob_start();
+            $page->render();
+            $output = (string) ob_get_clean();
+        } finally {
+            unset( $_GET['tab'] );
+        }
+
+        $this->assertStringContainsString( 'name="ems_save_access_control"', $output );
+        $this->assertStringNotContainsString( 'name="ems_leader_invite_email_subject"', $output );
+        $this->assertStringNotContainsString( 'name="ems_leader_invite_email_body"', $output );
+    }
 }
