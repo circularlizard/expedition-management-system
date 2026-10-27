@@ -47,7 +47,7 @@ class Database_Seeder {
 
 		// 3. Delete old Fluent Form submissions
 		$p_form_id = (int) get_option( 'ems_fluent_participant_form_id', 6 );
-		$e_form_id = (int) get_option( 'ems_fluent_expedition_form_id', 7 );
+		$e_form_id = (int) get_option( 'ems_fluent_expedition_form_id', 8 );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$submissions_table} WHERE form_id IN (%d, %d)", $p_form_id, $e_form_id ) );
 		if ( $log_callback ) {
 			call_user_func( $log_callback, "Deleted old Fluent Forms submissions for form IDs {$p_form_id} and {$e_form_id}." );
@@ -59,22 +59,32 @@ class Database_Seeder {
 
 		// Create expeditions and capture IDs
 		$expedition_ids = array();
-		$expedition_ids['H-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Hill)', 'H-T1', 'training', 'hillwalking', 'silver', '2026-08-15', '2026-08-15', '09:00', '17:00' );
-		$expedition_ids['H-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Hill)', 'H-T2', 'training', 'hillwalking', 'silver', '2026-08-15', '2026-08-16', '09:00', '17:00' );
-		$expedition_ids['B-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Bike)', 'B-T1', 'training', 'biking', 'silver', '2026-08-22', '2026-08-22', '09:00', '17:00' );
-		$expedition_ids['B-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Bike)', 'B-T2', 'training', 'biking', 'silver', '2026-08-22', '2026-08-23', '09:00', '17:00' );
+		$expedition_ids['H-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Hill)', 'H-T1', 'training', 'hillwalking', 'silver', '2026-05-09', '2026-05-09', '09:00', '17:00' );
+		$expedition_ids['H-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Hill)', 'H-T2', 'training', 'hillwalking', 'silver', '2026-05-09', '2026-05-10', '09:00', '17:00' );
+		$expedition_ids['B-T1'] = $this->create_test_expedition( 'Combined 1-day Training (Bike)', 'B-T1', 'training', 'biking', 'silver', '2026-05-16', '2026-05-16', '09:00', '17:00' );
+		$expedition_ids['B-T2'] = $this->create_test_expedition( 'Combined 2-day Training (Bike)', 'B-T2', 'training', 'biking', 'silver', '2026-05-16', '2026-05-17', '09:00', '17:00' );
 
-		$expedition_ids['H-SP1'] = $this->create_test_expedition( 'Silver Practice 1', 'H-SP1', 'practice', 'hillwalking', 'silver', '2026-09-04', '2026-09-06', '16:00', '16:00' );
-		$expedition_ids['H-SP2'] = $this->create_test_expedition( 'Silver Practice 2', 'H-SP2', 'practice', 'hillwalking', 'silver', '2026-09-11', '2026-09-13', '16:00', '16:00' );
-		$expedition_ids['H-GP1'] = $this->create_test_expedition( 'Gold Practice 1', 'H-GP1', 'practice', 'hillwalking', 'gold', '2026-09-04', '2026-09-06', '16:00', '16:00' );
-		$expedition_ids['H-GP2'] = $this->create_test_expedition( 'Gold Practice 2', 'H-GP2', 'practice', 'hillwalking', 'gold', '2026-09-11', '2026-09-13', '16:00', '16:00' );
-		$expedition_ids['B-GP1'] = $this->create_test_expedition( 'Gold Practice Biking 1', 'B-GP1', 'practice', 'biking', 'gold', '2026-09-04', '2026-09-06', '16:00', '16:00' );
+		$expedition_ids['H-BP1'] = $this->create_test_expedition( 'Bronze Practice 1', 'H-BP1', 'practice', 'hillwalking', 'bronze', '2026-05-15', '2026-05-16', '09:00', '16:00' );
+		$expedition_ids['H-BQ1'] = $this->create_test_expedition( 'Bronze Qualifier 1', 'H-BQ1', 'qualifying', 'hillwalking', 'bronze', '2026-06-12', '2026-06-13', '09:00', '16:00' );
 
-		$expedition_ids['H-SQ1'] = $this->create_test_expedition( 'Silver Qualifier 1', 'H-SQ1', 'qualifying', 'hillwalking', 'silver', '2026-09-25', '2026-09-27', '09:00', '16:00' );
-		$expedition_ids['H-SQ2'] = $this->create_test_expedition( 'Silver Qualifier 2', 'H-SQ2', 'qualifying', 'hillwalking', 'silver', '2026-10-02', '2026-10-04', '09:00', '16:00' );
-		$expedition_ids['H-GQ1'] = $this->create_test_expedition( 'Gold Qualifier 1', 'H-GQ1', 'qualifying', 'hillwalking', 'gold', '2026-09-23', '2026-09-27', '19:00', '16:00' );
-		$expedition_ids['H-GQ2'] = $this->create_test_expedition( 'Gold Qualifier 2', 'H-GQ2', 'qualifying', 'hillwalking', 'gold', '2026-09-30', '2026-10-04', '19:00', '16:00' );
-		$expedition_ids['B-GQ1'] = $this->create_test_expedition( 'Gold Qualifier Biking 1', 'B-GQ1', 'qualifying', 'biking', 'gold', '2026-09-23', '2026-09-27', '19:00', '16:00' );
+		$expedition_ids['H-SP1'] = $this->create_test_expedition( 'Silver Practice 1', 'H-SP1', 'practice', 'hillwalking', 'silver', '2026-05-28', '2026-05-30', '16:00', '16:00' );
+		$expedition_ids['H-SP2'] = $this->create_test_expedition( 'Silver Practice 2', 'H-SP2', 'practice', 'hillwalking', 'silver', '2026-06-04', '2026-06-06', '16:00', '16:00' );
+		$expedition_ids['H-SP3'] = $this->create_test_expedition( 'Silver Practice 3', 'H-SP3', 'practice', 'hillwalking', 'silver', '2026-06-11', '2026-06-13', '16:00', '16:00' );
+		$expedition_ids['H-SP4'] = $this->create_test_expedition( 'Silver Practice 4', 'H-SP4', 'practice', 'hillwalking', 'silver', '2026-06-18', '2026-06-20', '16:00', '16:00' );
+
+		$expedition_ids['H-SQ1'] = $this->create_test_expedition( 'Silver Qualifier 1', 'H-SQ1', 'qualifying', 'hillwalking', 'silver', '2026-08-11', '2026-08-15', '09:00', '16:00' );
+		$expedition_ids['H-SQ2'] = $this->create_test_expedition( 'Silver Qualifier 2', 'H-SQ2', 'qualifying', 'hillwalking', 'silver', '2026-08-26', '2026-08-30', '09:00', '16:00' );
+		$expedition_ids['H-SQ3'] = $this->create_test_expedition( 'Silver Qualifier 3', 'H-SQ3', 'qualifying', 'hillwalking', 'silver', '2026-09-08', '2026-09-12', '09:00', '16:00' );
+
+		$expedition_ids['H-GP1'] = $this->create_test_expedition( 'Gold Practice 1', 'H-GP1', 'practice', 'hillwalking', 'gold', '2026-06-04', '2026-06-06', '16:00', '16:00' );
+		$expedition_ids['H-GP2'] = $this->create_test_expedition( 'Gold Practice 2', 'H-GP2', 'practice', 'hillwalking', 'gold', '2026-06-11', '2026-06-13', '16:00', '16:00' );
+		$expedition_ids['H-GP3'] = $this->create_test_expedition( 'Gold Practice 3', 'H-GP3', 'practice', 'hillwalking', 'gold', '2026-06-18', '2026-06-20', '16:00', '16:00' );
+		$expedition_ids['B-GP1'] = $this->create_test_expedition( 'Gold Practice Biking 1', 'B-GP1', 'practice', 'biking', 'gold', '2026-06-04', '2026-06-06', '16:00', '16:00' );
+
+		$expedition_ids['H-GQ1'] = $this->create_test_expedition( 'Gold Qualifier 1', 'H-GQ1', 'qualifying', 'hillwalking', 'gold', '2026-08-13', '2026-08-15', '09:00', '16:00' );
+		$expedition_ids['H-GQ2'] = $this->create_test_expedition( 'Gold Qualifier 2', 'H-GQ2', 'qualifying', 'hillwalking', 'gold', '2026-08-27', '2026-08-29', '09:00', '16:00' );
+		$expedition_ids['H-GQ3'] = $this->create_test_expedition( 'Gold Qualifier 3', 'H-GQ3', 'qualifying', 'hillwalking', 'gold', '2026-09-10', '2026-09-12', '09:00', '16:00' );
+		$expedition_ids['B-GQ1'] = $this->create_test_expedition( 'Gold Qualifier Biking 1', 'B-GQ1', 'qualifying', 'biking', 'gold', '2026-08-13', '2026-08-15', '09:00', '16:00' );
 
 		if ( $log_callback ) {
 			call_user_func( $log_callback, 'Querying synced explorers from DB...' );
@@ -99,8 +109,8 @@ class Database_Seeder {
 				'qualifications'  => array( 'First Aid', 'Mountain Leader' ),
 				'preferred_roles' => array( 'Supervisor' ),
 				'availability'    => array(
-					array( 'code' => 'H-SP1', 'dates' => array( '2026-09-04', '2026-09-05', '2026-09-06' ), 'overnight' => 1, 'confirmed' => 1 ),
-					array( 'code' => 'H-SQ1', 'dates' => array( '2026-09-25', '2026-09-26', '2026-09-27' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'H-SP1', 'dates' => array( '2026-05-28', '2026-05-29', '2026-05-30' ), 'overnight' => 1, 'confirmed' => 1 ),
+					array( 'code' => 'H-SQ1', 'dates' => array( '2026-08-11', '2026-08-12', '2026-08-13' ), 'overnight' => 1, 'confirmed' => 0 ),
 				),
 			),
 			array(
@@ -112,9 +122,9 @@ class Database_Seeder {
 				'qualifications'  => array( 'First Aid', 'Hillwalking Assessor' ),
 				'preferred_roles' => array( 'Assessor' ),
 				'availability'    => array(
-					array( 'code' => 'H-SP1', 'dates' => array( '2026-09-04' ), 'overnight' => 0, 'confirmed' => 1 ),
-					array( 'code' => 'H-GP1', 'dates' => array( '2026-09-04' ), 'overnight' => 0, 'confirmed' => -1 ),
-					array( 'code' => 'H-SP1', 'dates' => array( '2026-09-05', '2026-09-06' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'H-SP1', 'dates' => array( '2026-05-28' ), 'overnight' => 0, 'confirmed' => 1 ),
+					array( 'code' => 'H-GP1', 'dates' => array( '2026-06-04' ), 'overnight' => 0, 'confirmed' => -1 ),
+					array( 'code' => 'H-SP1', 'dates' => array( '2026-05-29', '2026-05-30' ), 'overnight' => 1, 'confirmed' => 0 ),
 				),
 			),
 			array(
@@ -126,9 +136,9 @@ class Database_Seeder {
 				'qualifications'  => array( 'First Aid' ),
 				'preferred_roles' => array( 'Supervisor' ),
 				'availability'    => array(
-					array( 'code' => 'H-T1', 'dates' => array( '2026-08-15' ), 'overnight' => 0, 'confirmed' => 1 ),
-					array( 'code' => 'H-T2', 'dates' => array( '2026-08-15', '2026-08-16' ), 'overnight' => 1, 'confirmed' => 0 ),
-					array( 'code' => 'H-SP2', 'dates' => array( '2026-09-11', '2026-09-12', '2026-09-13' ), 'overnight' => 1, 'confirmed' => 1 ),
+					array( 'code' => 'H-T1', 'dates' => array( '2026-05-09' ), 'overnight' => 0, 'confirmed' => 1 ),
+					array( 'code' => 'H-T2', 'dates' => array( '2026-05-09', '2026-05-10' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'H-SP2', 'dates' => array( '2026-06-04', '2026-06-05', '2026-06-06' ), 'overnight' => 1, 'confirmed' => 1 ),
 				),
 			),
 			array(
@@ -140,7 +150,7 @@ class Database_Seeder {
 				'qualifications'  => array( 'Hillwalking Assessor' ),
 				'preferred_roles' => array( 'Assessor' ),
 				'availability'    => array(
-					array( 'code' => 'B-GP1', 'dates' => array( '2026-09-04', '2026-09-05', '2026-09-06' ), 'overnight' => 1, 'confirmed' => 0 ),
+					array( 'code' => 'B-GP1', 'dates' => array( '2026-06-04', '2026-06-05', '2026-06-06' ), 'overnight' => 1, 'confirmed' => 0 ),
 				),
 			),
 		);
@@ -185,6 +195,20 @@ class Database_Seeder {
 			call_user_func( $log_callback, 'Found ' . count( $explorers ) . ' explorers. Seeding form submissions...' );
 		}
 
+		$units_table = $wpdb->prefix . 'ems_units';
+		$unit_codes  = array();
+		try {
+			$col = $wpdb->get_col( "SELECT short_code FROM {$units_table} WHERE short_code IS NOT NULL AND short_code != ''" );
+			if ( is_array( $col ) ) {
+				$unit_codes = $col;
+			}
+		} catch ( \Throwable $e ) {
+			$unit_codes = array();
+		}
+		if ( empty( $unit_codes ) ) {
+			$unit_codes = array( 'BO-Kelso', 'CR-Cramond', 'PE-Castle', 'EL-NorthBerwick', 'BO-Lauderdale' );
+		}
+
 		$sync = new \EMS\Integrations\Fluent_Forms_Sync();
 
 		$explorers_by_patrol = array();
@@ -196,38 +220,46 @@ class Database_Seeder {
 		$participant_count = 0;
 		$expedition_count  = 0;
 
-		foreach ( $explorers as $exp ) {
+		foreach ( $explorers as $idx => $exp ) {
 			$scout_id     = (int) $exp['scout_id'];
 			$first_name   = $exp['first_name'];
 			$last_name    = $exp['last_name'];
 			$patrol       = $exp['patrol'];
 			$email        = $exp['email'] ?: strtolower( "{$first_name}.{$last_name}@mailinator.com" );
 			$parent_email = $exp['parent_email'] ?: 'SEEE-parent@mailinator.com';
+			$unit_code    = $unit_codes[ $idx % count( $unit_codes ) ];
 
 			// 1. Determine level by Patrol
 			if ( $patrol === 'S3' ) {
-				$level = 'bronze';
+				$level      = 'bronze';
+				$level_name = 'Bronze';
+				$dob        = '15/05/2010';
 			} elseif ( $patrol === 'S4' ) {
-				$level = 'silver';
+				$level      = 'silver';
+				$level_name = 'Silver';
+				$dob        = '15/05/2009';
 			} else {
-				$level = 'gold';
+				$level      = 'gold';
+				$level_name = 'Gold';
+				$dob        = '15/05/2008';
 			}
 
 			// 2. Create Participant Place form submission
-			$p_data = array(
+			$dofe_num = (string) rand( 1000000, 9999999 );
+			$p_data   = array(
 				'signup_child'             => "{$scout_id}|{$first_name}|{$last_name}",
 				'signup_child_name'        => array(
 					'first_name' => $first_name,
 					'last_name'  => $last_name,
 				),
 				'signup_scoutid'           => $scout_id,
-				'signup_unit'              => $patrol,
+				'signup_unit'              => $unit_code,
 				'signup_explorer_email'    => $email,
 				'signup_parent_email'      => $parent_email,
-				'signup_dob'               => '2010-05-15',
+				'signup_dob'               => $dob,
 				'signup_level'             => $level,
-				'signup_dofe_registered'   => 'y',
-				'signup_dofe_number'       => 'D-' . rand( 100000, 999999 ),
+				'signup_dofe_registered'   => 'yes',
+				'signup_dofe_number'       => $dofe_num,
 				'signup_dofe_org'          => '',
 				'signup_bronze_completion' => $level !== 'bronze' ? array( 'Volunteering', 'Skills', 'Physical', 'Expedition' ) : null,
 				'signup_silver_completion' => $level === 'gold' ? array( 'Volunteering', 'Skills', 'Physical', 'Expedition' ) : null,
@@ -236,70 +268,70 @@ class Database_Seeder {
 			$this->submit_mock_form( $p_form_id, $p_data, $sync );
 			++$participant_count;
 
-			// 3. Create Expedition signup (Silver & Gold only)
-			if ( $level === 'silver' || $level === 'gold' ) {
-				$transport = 'Hillwalking';
-				if ( $level === 'gold' && rand( 1, 10 ) == 10 ) {
-					$transport = 'Biking';
+			// 3. Create Expedition signup for all levels (matching Form 8 schema)
+			$teammate_names = array();
+			$patrol_peers   = $explorers_by_patrol[ $patrol ] ?? array();
+			foreach ( $patrol_peers as $peer ) {
+				if ( (int) $peer['scout_id'] !== $scout_id ) {
+					$teammate_names[] = "{$peer['first_name']} {$peer['last_name']}";
 				}
+			}
+			shuffle( $teammate_names );
+			$teammate_str = implode( ', ', array_slice( $teammate_names, 0, 3 ) );
 
-				$practice_dates  = array();
-				$qualifier_dates = array();
+			$e_data = array(
+				'signup_child'            => "{$scout_id}|{$first_name}|{$last_name}",
+				'signup_child_name'       => array(
+					'first_name' => $first_name,
+					'last_name'  => $last_name,
+				),
+				'signup_scoutid'          => $scout_id,
+				'signup_unit'             => $unit_code,
+				'signup_explorer_email'   => $email,
+				'signup_parent_email'     => $parent_email,
+				'signup_dob'              => $dob,
+				'signup_edofe_registered' => 'yes',
+				'signup_dofe_number'      => $dofe_num,
+				'signup_level'            => $level_name,
+				'exped_team_names'        => $teammate_str,
+				'exped_asn'               => rand( 1, 10 ) > 8 ? 'Asthma inhaler' : '',
+				'input_radio'             => 'first-aid-yes',
+				'datetime'                => '2028-06-13',
+				'terms-n-condition'       => true,
+			);
 
+			if ( $level === 'bronze' ) {
+				$e_data['exped_type_bronze'] = 'Hillwalking';
+			} elseif ( $level === 'silver' ) {
+				$sp_pool                                = array( 'H-SP1', 'H-SP2', 'H-SP3', 'H-SP4' );
+				$sq_pool                                = array( 'H-SQ1', 'H-SQ2', 'H-SQ3' );
+				$practice_dates                         = array( $sp_pool[ $idx % 4 ], $sp_pool[ ( $idx + 1 ) % 4 ] );
+				$qualifier_dates                        = array( $sq_pool[ $idx % 3 ], $sq_pool[ ( $idx + 1 ) % 3 ] );
+				$e_data['exped_type']                   = 'Hillwalking';
+				$e_data['exped_silver_practice_dates']  = $practice_dates;
+				$e_data['exped_silver_qualifier_dates'] = $qualifier_dates;
+				$e_data['exped-silver-practice-dates']  = $practice_dates;
+				$e_data['exped-silver-qualifier-dates'] = $qualifier_dates;
+			} else { // gold
+				$transport            = ( $idx % 5 === 0 ) ? 'Biking' : 'Hillwalking';
+				$e_data['exped_type'] = $transport;
 				if ( $transport === 'Hillwalking' ) {
-					if ( $level === 'silver' ) {
-						$practice_dates  = array( 'H-SP1', 'H-SP2' );
-						$qualifier_dates = array( 'H-SQ1', 'H-SQ2' );
-					} else {
-						$practice_dates  = array( 'H-GP1', 'H-GP2' );
-						$qualifier_dates = array( 'H-GQ1', 'H-GQ2' );
-					}
+					$gp_pool         = array( 'H-GP1', 'H-GP2', 'H-GP3' );
+					$gq_pool         = array( 'H-GQ1', 'H-GQ2', 'H-GQ3' );
+					$practice_dates  = array( $gp_pool[ $idx % 3 ], $gp_pool[ ( $idx + 1 ) % 3 ] );
+					$qualifier_dates = array( $gq_pool[ $idx % 3 ], $gq_pool[ ( $idx + 1 ) % 3 ] );
 				} else {
 					$practice_dates  = array( 'B-GP1' );
 					$qualifier_dates = array( 'B-GQ1' );
 				}
-
-				$teammate_names = array();
-				$patrol_peers   = $explorers_by_patrol[ $patrol ] ?? array();
-				foreach ( $patrol_peers as $peer ) {
-					if ( (int) $peer['scout_id'] !== $scout_id ) {
-						$teammate_names[] = "{$peer['first_name']} {$peer['last_name']}";
-					}
-				}
-				shuffle( $teammate_names );
-				$teammate_str = implode( ', ', array_slice( $teammate_names, 0, 3 ) );
-
-				$e_data = array(
-					'signup_child'                 => "{$scout_id}|{$first_name}|{$last_name}",
-					'signup_child_name'            => array(
-						'first_name' => $first_name,
-						'last_name'  => $last_name,
-					),
-					'signup_scoutid'               => $scout_id,
-					'signup_unit'                  => $patrol,
-					'signup_explorer_email'        => $email,
-					'signup_parent_email'          => $parent_email,
-					'signup_edofe_registered'      => 'y',
-					'signup_dofe_number'           => 'D-' . rand( 100000, 999999 ),
-					'signup_level'                 => $level,
-					'exped_type'                   => $transport,
-					'exped-silver-practice-dates'  => $level === 'silver' ? $practice_dates : array(),
-					'exped-silver-qualifier-dates' => $level === 'silver' ? $qualifier_dates : array(),
-					'exped-gold-practice-dates'    => $level === 'gold' ? $practice_dates : array(),
-					'exped-gold-qualifier-dates'   => $level === 'gold' ? $qualifier_dates : array(),
-					'exped_silver_practice_dates'  => $level === 'silver' ? $practice_dates : array(),
-					'exped_silver_qualifier_dates' => $level === 'silver' ? $qualifier_dates : array(),
-					'exped_gold_practice_dates'    => $level === 'gold' ? $practice_dates : array(),
-					'exped_gold_qualifier_dates'   => $level === 'gold' ? $qualifier_dates : array(),
-					'exped_team_names'             => $teammate_str,
-					'exped_asn'                    => rand( 1, 10 ) > 8 ? 'Asthma inhaler' : '',
-					'input_radio'                  => 'first-response',
-					'datetime'                     => '2028-06-13',
-				);
-
-				$this->submit_mock_form( $e_form_id, $e_data, $sync );
-				++$expedition_count;
+				$e_data['exped_gold_practice_dates']  = $practice_dates;
+				$e_data['exped_gold_qualifier_dates'] = $qualifier_dates;
+				$e_data['exped-gold-practice-dates']  = $practice_dates;
+				$e_data['exped-gold-qualifier-dates'] = $qualifier_dates;
 			}
+
+			$this->submit_mock_form( $e_form_id, $e_data, $sync );
+			++$expedition_count;
 		}
 
 		return array(
