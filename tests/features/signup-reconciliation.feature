@@ -24,6 +24,23 @@ Feature: Explorer Signup Reconciliation & Multi-Unit Validation
     Then the participant signup 500 should be updated with scout_id 12345
     And the expedition signup 501 should be updated with scout_id 12345
 
+  Scenario: Automatically inherit Scout ID when a guest signup matches an already-linked companion signup
+    Given a participant signup exists with ID 500, scout_id 12345, name "Mary Smith", and parent email "parent@example.com"
+    When a guest expedition signup is submitted for "Mary Smith" with parent email "parent@example.com" and no Scout ID
+    Then the new expedition signup should automatically inherit scout_id 12345 from the existing participant signup
+
+  Scenario: Automatically backfill unlinked companion signups when a signup with Scout ID is submitted
+    Given a guest participant signup exists with ID 500, scout_id 0, name "Mary Smith", and parent email "parent@example.com"
+    When an expedition signup is submitted for "Mary Smith" with parent email "parent@example.com" and scout_id 12345
+    Then the existing participant signup 500 should be updated with scout_id 12345
+
+  Scenario: 1-click sync in Inspector when a companion signup is already matched to OSM
+    Given an explorer "Mary Smith" has a participant signup linked to Scout ID 12345 and an expedition signup with scout_id 0
+    When the administrator selects the unlinked expedition signup in the Inspector
+    Then a prompt should offer to sync with the paired OSM record for Scout ID 12345
+    When the administrator confirms the paired OSM sync
+    Then the expedition signup should be updated with scout_id 12345
+
   Scenario: Unlink / Undo a matched explorer signup
     Given a participant signup exists with ID 500 and scout_id 12345 (originally matched from guest)
     When the admin unlinks the signup 500

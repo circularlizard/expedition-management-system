@@ -340,7 +340,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         const unitsList = (window.emsSignupsBoard?.units || config.units || availableUnits || []);
         unitsList.forEach((u: any) => {
             const dist = (u.district || '').trim();
-            if (dist) set.add(dist);
+            if (dist && dist.toLowerCase() !== 'unassigned') set.add(dist);
         });
         signups.forEach((s: any) => {
             const dist = (s.district || unitDistrictMap[s.unit_name] || unitDistrictMap[String(s.unit_id)] || '').trim();
@@ -1231,7 +1231,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
                         {/* Matching Widget */}
                         <div className="ems-signups-matching-panel ems-mb-16">
-                            <div className="ems-signups-inspector__section-title" style={{ marginTop: 0 }}>OSM Profile Linkage</div>
+                            <div className="ems-signups-inspector__section-title ems-mt-0">OSM Profile Linkage</div>
                             {selectedSignup.scout_id !== 0 ? (
                                 <div className="ems-mt-8">
                                     <div className="ems-flex-between ems-align-center">
@@ -1254,9 +1254,30 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                 </div>
                             ) : (
                                 <div className="ems-mt-8">
-                                    <div className="ems-signups-unmatched-alert">
-                                        ⚠️ Unmatched guest registration.
-                                    </div>
+                                    {(() => {
+                                        const pairedScoutId = selectedExplorerEntries?.find((e: any) => Number(e.scout_id || 0) !== 0)?.scout_id;
+                                        if (pairedScoutId) {
+                                            return (
+                                                <div className="ems-signups-paired-sync">
+                                                    <div className="ems-small-text ems-mb-8">
+                                                        Paired registration is already linked to OSM (Scout ID: <strong>{pairedScoutId}</strong>).
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        className="button button-small button-primary"
+                                                        onClick={() => handleReconcile(selectedSignup.id, selectedSignup.type, Number(pairedScoutId))}
+                                                    >
+                                                        Sync with Paired OSM Record
+                                                    </button>
+                                                </div>
+                                            );
+                                        }
+                                        return (
+                                            <div className="ems-signups-unmatched-alert">
+                                                ⚠️ Unmatched guest registration.
+                                            </div>
+                                        );
+                                    })()}
                                     
                                     {/* Recommendations */}
                                     {currentSuggestions.length > 0 && (
@@ -1365,8 +1386,8 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         className="ems-select"
                                     >
                                         <option value="">Select unit...</option>
-                                        {availableUnits.map((u: any) => (
-                                            <option key={u.unit_id} value={String(u.unit_id)}>
+                                        {availableUnits.map((u: any, idx: number) => (
+                                            <option key={u.unit_id ?? u.id ?? u.name ?? idx} value={String(u.unit_id ?? u.id ?? u.name)}>
                                                 {u.short_code || u.name}
                                                 {u.name && u.short_code && u.name !== u.short_code ? ` (${u.name})` : ''}
                                             </option>
