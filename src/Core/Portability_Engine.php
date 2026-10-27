@@ -25,6 +25,7 @@ class Portability_Engine {
 		'ems_debug_log_guard',
 		'ems_leader_dashboard_page_id',
 		'ems_leader_invite_email_subject',
+		'ems_leader_invite_email_reply_to',
 		'ems_leader_invite_email_body',
 	);
 

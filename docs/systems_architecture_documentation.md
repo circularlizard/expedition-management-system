@@ -592,6 +592,7 @@ EMS stores its configuration options in the core WordPress options table. The fo
 | `ems_flexirecord_column_map` | array | Dynamically configured OSM column-to-EMS-field mappings. |
 | `ems_leader_dashboard_page_id` | int | WordPress page ID configured for the Unit Leader Dashboard (auto-detected if 0). |
 | `ems_leader_invite_email_subject` | string | Configurable subject template for unit leader invitation emails. |
+| `ems_leader_invite_email_reply_to` | string | Optional configurable reply-to address for unit leader invitation emails. |
 | `ems_leader_invite_email_body` | string | Configurable message body template with template tokens for unit leader invitations. |
 
 ---

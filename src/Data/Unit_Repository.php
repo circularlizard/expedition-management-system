@@ -577,6 +577,41 @@ class Unit_Repository {
 		$email_data['subject'] = strtr( $subject_tpl, $replacements );
 		$email_data['message'] = strtr( $body_tpl, $replacements );
 
+		$reply_to = trim( (string) get_option( 'ems_leader_invite_email_reply_to', '' ) );
+		if ( $reply_to !== '' ) {
+			$reply_to = strtr( $reply_to, $replacements );
+			$reply_to = preg_replace( '/^reply-to:\s*/i', '', $reply_to );
+			$reply_to = preg_replace( '/[\r\n\t]+/', '', (string) $reply_to );
+			$reply_to = trim( (string) $reply_to );
+
+			if ( $reply_to !== '' ) {
+				$header_line = 'Reply-To: ' . $reply_to;
+				if ( is_array( $email_data['headers'] ?? null ) ) {
+					$email_data['headers'] = array_values(
+						array_filter(
+							$email_data['headers'],
+							static function ( $h ) {
+								return ! is_string( $h ) || ! str_starts_with( strtolower( trim( $h ) ), 'reply-to:' );
+							}
+						)
+					);
+					$email_data['headers'][] = $header_line;
+				} elseif ( ! empty( $email_data['headers'] ) ) {
+					$lines    = explode( "\n", (string) $email_data['headers'] );
+					$filtered = array_filter(
+						$lines,
+						static function ( $h ) {
+							return ! str_starts_with( strtolower( trim( $h ) ), 'reply-to:' );
+						}
+					);
+					$filtered[]            = $header_line;
+					$email_data['headers'] = implode( "\r\n", array_map( 'trim', $filtered ) );
+				} else {
+					$email_data['headers'] = $header_line;
+				}
+			}
+		}
+
 		return $email_data;
 	}
 

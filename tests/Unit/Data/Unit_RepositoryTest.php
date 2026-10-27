@@ -447,6 +447,76 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$this->assertStringContainsString( 'Unit: Kelso ESU', $result['message'] );
 		$this->assertStringContainsString( 'Set Password: https://example.org/wp-login.php?action=rp&key=abc123key&login=leader', $result['message'] );
 		$this->assertStringContainsString( 'Dashboard: https://example.org/leader-dashboard/', $result['message'] );
+		$this->assertEmpty( $result['headers'] );
+	}
+
+	public function test_customize_leader_notification_email_sets_reply_to_header_when_configured(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_leader_invite_email_subject' ) {
+				return 'Leader Access for {{unit_name}}';
+			}
+			if ( $key === 'ems_leader_invite_email_reply_to' ) {
+				return 'dofe-support@borders-scouts.org.uk';
+			}
+			if ( $key === 'ems_leader_invite_email_body' ) {
+				return 'Hello {{user_email}}';
+			}
+			return $default;
+		} );
+
+		$user             = \Mockery::mock( 'WP_User' );
+		$user->ID         = 101;
+		$user->user_login = 'leader';
+		$user->user_email = 'leader@kelso.scouts.org.uk';
+
+		$default_email = array(
+			'to'      => 'leader@kelso.scouts.org.uk',
+			'subject' => '[%s] Login Details',
+			'message' => 'To set your password...',
+			'headers' => '',
+		);
+
+		$repo   = new Unit_Repository();
+		$result = $repo->customize_leader_notification_email(
+			$default_email,
+			$user,
+			'SEE Expeditions',
+			array( 'name' => 'Kelso ESU' )
+		);
+
+		$this->assertSame( 'Reply-To: dofe-support@borders-scouts.org.uk', $result['headers'] );
+	}
+
+	public function test_customize_leader_notification_email_appends_reply_to_when_headers_array(): void {
+		Functions\when( 'get_option' )->alias( function( $key, $default = false ) {
+			if ( $key === 'ems_leader_invite_email_reply_to' ) {
+				return 'Support Team <support@example.com>';
+			}
+			return $default;
+		} );
+
+		$user             = \Mockery::mock( 'WP_User' );
+		$user->ID         = 101;
+		$user->user_login = 'leader';
+		$user->user_email = 'leader@kelso.scouts.org.uk';
+
+		$default_email = array(
+			'to'      => 'leader@kelso.scouts.org.uk',
+			'subject' => '[%s] Login Details',
+			'message' => 'To set your password...',
+			'headers' => array( 'Content-Type: text/plain; charset=UTF-8' ),
+		);
+
+		$repo   = new Unit_Repository();
+		$result = $repo->customize_leader_notification_email(
+			$default_email,
+			$user,
+			'SEE Expeditions'
+		);
+
+		$this->assertIsArray( $result['headers'] );
+		$this->assertContains( 'Content-Type: text/plain; charset=UTF-8', $result['headers'] );
+		$this->assertContains( 'Reply-To: Support Team <support@example.com>', $result['headers'] );
 	}
 
 	public function test_leader_password_reset_and_login_redirect_to_leader_dashboard(): void {
