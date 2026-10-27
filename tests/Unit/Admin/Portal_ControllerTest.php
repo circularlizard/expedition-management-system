@@ -401,6 +401,7 @@ class Portal_ControllerTest extends EMSTestCase {
                 'scout_id'            => 30003,
                 'unit_id'             => 10,
                 'unit_name'           => 'BO-Kelso',
+                'district'            => 'Borders',
                 'explorer_first_name' => 'Zack',
                 'explorer_last_name'  => 'Adams',
                 'explorer_email'      => 'zack@example.com',
@@ -454,6 +455,7 @@ class Portal_ControllerTest extends EMSTestCase {
         $this->assertCount( 2, $data );
         $this->assertEquals( 'participant', $data[0]['type'] );
         $this->assertEquals( 'Zack', $data[0]['explorer_first_name'] );
+        $this->assertEquals( 'Borders', $data[0]['district'] );
         $this->assertArrayNotHasKey( 'explorer_email', $data[0] );
         $this->assertArrayNotHasKey( 'parent_email', $data[0] );
 

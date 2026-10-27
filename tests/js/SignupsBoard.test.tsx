@@ -717,5 +717,75 @@ describe('SignupsBoard', () => {
             expect(screen.getByText('Alice Smith')).toBeInTheDocument();
         });
     });
+
+    it('allows searching explorers by first name, last name, or full name in the signups table', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        const tableTab = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTab);
+
+        await waitFor(() => {
+            expect(screen.getByText('Mary Jones')).toBeInTheDocument();
+            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+            expect(screen.getByText('Charlie Smith')).toBeInTheDocument();
+        });
+
+        const searchInput = screen.getByLabelText(/Search Explorer:/i);
+        fireEvent.change(searchInput, { target: { value: 'Alice' } });
+
+        await waitFor(() => {
+            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+            expect(screen.queryByText('Mary Jones')).not.toBeInTheDocument();
+            expect(screen.queryByText('Charlie Smith')).not.toBeInTheDocument();
+        });
+
+        // Search full name
+        fireEvent.change(searchInput, { target: { value: 'Charlie Smith' } });
+        await waitFor(() => {
+            expect(screen.getByText('Charlie Smith')).toBeInTheDocument();
+            expect(screen.queryByText('Alice Smith')).not.toBeInTheDocument();
+        });
+
+        // Clear search
+        fireEvent.change(searchInput, { target: { value: '' } });
+        await waitFor(() => {
+            expect(screen.getByText('Mary Jones')).toBeInTheDocument();
+            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+            expect(screen.getByText('Charlie Smith')).toBeInTheDocument();
+        });
+    });
+
+    it('allows filtering signups by district', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        (global as any).window.emsSignupsBoard.units = [
+            { name: 'Kelso', district: 'Borders' },
+            { name: 'Selkirk', district: 'Tweeddale' },
+        ];
+
+        render(<SignupsBoard />);
+        const tableTab = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTab);
+
+        await waitFor(() => {
+            expect(screen.getByText('Mary Jones')).toBeInTheDocument();
+        });
+
+        const districtSelect = screen.getByLabelText(/Filter District:/i);
+        fireEvent.change(districtSelect, { target: { value: 'Borders' } });
+
+        await waitFor(() => {
+            expect(screen.getByText('Mary Jones')).toBeInTheDocument();
+            expect(screen.queryByText('Alice Smith')).not.toBeInTheDocument();
+            expect(screen.queryByText('Charlie Smith')).not.toBeInTheDocument();
+        });
+    });
 });
+
 

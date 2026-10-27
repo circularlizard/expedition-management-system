@@ -707,6 +707,11 @@ class Plugin {
 
 		$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );
 
+		global $wpdb;
+		$units = ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'get_results' ) )
+			? ( new \EMS\Data\Unit_Repository( $wpdb ) )->list_active_units()
+			: array();
+
 		wp_localize_script(
 			'ems-leader-dashboard',
 			'emsLeaderDashboard',
@@ -717,6 +722,7 @@ class Plugin {
 				'login_url'  => wp_login_url( $current_url ),
 				'logout_url' => wp_logout_url( $current_url ),
 				'user_data'  => $user_data,
+				'units'      => $units,
 			)
 		);
 

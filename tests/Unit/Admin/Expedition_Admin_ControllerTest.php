@@ -623,6 +623,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
                 'parent_user_id' => 4,
                 'unit_id' => 99001,
                 'unit_name' => 'Kelso',
+                'district' => 'Borders',
                 'explorer_first_name' => 'Mary',
                 'explorer_last_name' => 'Smith',
                 'explorer_email' => 'mary@example.com',
@@ -651,6 +652,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $data = $response->get_data();
         $this->assertCount( 1, $data );
         $this->assertSame( 'Mary', $data[0]['explorer_first_name'] );
+        $this->assertSame( 'Borders', $data[0]['district'] );
     }
 
     public function test_export_participant_signups_success(): void {
@@ -667,6 +669,7 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
                 'parent_user_id' => 4,
                 'unit_id' => 99001,
                 'unit_name' => 'Kelso',
+                'district' => 'Borders',
                 'explorer_first_name' => 'Mary',
                 'explorer_last_name' => 'Smith',
                 'explorer_email' => 'mary@example.com',
