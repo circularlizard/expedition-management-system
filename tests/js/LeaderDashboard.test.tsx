@@ -236,4 +236,45 @@ describe('LeaderDashboard Component', () => {
         expect(screen.getByText('Explorer11 Test')).toBeDefined();
         expect(screen.getByText('Explorer12 Test')).toBeDefined();
     });
+
+    it('filters leader dashboard table by explorer search query and district', async () => {
+        (global as any).window.emsLeaderDashboard.units = [
+            { name: 'BO-Kelso', district: 'Borders' },
+            { name: 'TW-Peebles', district: 'Tweeddale' },
+        ];
+
+        render(<LeaderDashboard />);
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Zack Adams').length).toBeGreaterThan(0);
+            expect(screen.getByText('Alice Zimmerman')).toBeDefined();
+            expect(screen.getByText('Bob Smith')).toBeDefined();
+        });
+
+        // Search for Zack
+        const searchInput = screen.getByLabelText(/Search Explorer:/i);
+        fireEvent.change(searchInput, { target: { value: 'Zack' } });
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Zack Adams').length).toBeGreaterThan(0);
+            expect(screen.queryByText('Alice Zimmerman')).toBeNull();
+            expect(screen.queryByText('Bob Smith')).toBeNull();
+        });
+
+        // Clear search
+        fireEvent.change(searchInput, { target: { value: '' } });
+        await waitFor(() => {
+            expect(screen.getByText('Alice Zimmerman')).toBeDefined();
+        });
+
+        // Filter by Tweeddale district
+        const districtSelect = screen.getByLabelText(/Filter District:/i);
+        fireEvent.change(districtSelect, { target: { value: 'Tweeddale' } });
+
+        await waitFor(() => {
+            expect(screen.getByText('Bob Smith')).toBeDefined();
+            expect(screen.queryByText('Zack Adams')).toBeNull();
+            expect(screen.queryByText('Alice Zimmerman')).toBeNull();
+        });
+    });
 });

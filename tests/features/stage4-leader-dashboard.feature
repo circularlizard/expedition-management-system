@@ -57,6 +57,19 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     And the table should include "OSM Sync", "Unit", and "Expedition Signup" column headers and working pagination controls across explorer rows
     And clicking a row in the leader dashboard table should not open an inspector panel
 
+  Scenario: Searching by explorer name and filtering by district in the Leader Dashboard table
+    Given the following active signups exist for the leader dashboard:
+      | id | type        | scout_id | explorer_first_name | explorer_last_name | dofe_level | unit_name   | district  |
+      | 10 | participant | 30003    | Zack                | Adams              | bronze     | Kelso ESU   | Borders   |
+      | 11 | participant | 0        | Alice               | Zimmerman          | silver     | Kelso ESU   | Borders   |
+      | 12 | expedition  | 30002    | Bob                 | Smith              | gold       | Peebles ESU | Tweeddale |
+    When an authorized unit leader views the "[ems-leader-dashboard]" page
+    And searches for "Zack" in the explorer search box
+    Then only the row for "Zack Adams" should be displayed in the table
+    When the leader clears the explorer search box
+    And selects district "Tweeddale" from the district filter
+    Then only the row for "Bob Smith" should be displayed in the table
+
   Scenario: Customising the Unit Leader invitation email subject and body with placeholders
     Given the administrator has configured "ems_leader_invite_email_subject" as "Welcome to {{site_name}} - {{unit_name}} Leader Access"
     And the administrator has configured "ems_leader_invite_email_body" with placeholders "{{unit_name}}", "{{set_password_url}}", "{{dashboard_url}}", and "{{user_email}}"

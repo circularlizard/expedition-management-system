@@ -14,6 +14,7 @@ declare global {
                 display_name: string;
                 can_access: boolean;
             };
+            units?: any[];
         };
     }
 }
@@ -42,6 +43,8 @@ export const LeaderDashboard: React.FC = () => {
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [expeditionTypeFilter, setExpeditionTypeFilter] = useState<string>('all');
     const [unitFilter, setUnitFilter] = useState<string>('all');
+    const [districtFilter, setDistrictFilter] = useState<string>('all');
+    const [searchQuery, setSearchQuery] = useState<string>('');
     const [sortKey, setSortKey] = useState<string>('explorer_first_name');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [currentPage, setCurrentPage] = useState<number>(1);
@@ -49,7 +52,35 @@ export const LeaderDashboard: React.FC = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [grouping, levelFilter, expeditionTypeFilter, unitFilter, sortKey, sortOrder]);
+    }, [grouping, levelFilter, expeditionTypeFilter, unitFilter, districtFilter, searchQuery, sortKey, sortOrder]);
+
+    const availableUnits: any[] = (window.emsLeaderDashboard?.units || (config as any).units || []);
+
+    const unitDistrictMap = useMemo(() => {
+        const map: Record<string, string> = {};
+        availableUnits.forEach((u: any) => {
+            const dist = (u.district || '').trim();
+            if (dist) {
+                if (u.name) map[u.name] = dist;
+                if (u.short_code) map[u.short_code] = dist;
+                if (u.unit_id) map[String(u.unit_id)] = dist;
+            }
+        });
+        return map;
+    }, [availableUnits]);
+
+    const uniqueDistricts = useMemo(() => {
+        const set = new Set<string>();
+        availableUnits.forEach((u: any) => {
+            const dist = (u.district || '').trim();
+            if (dist) set.add(dist);
+        });
+        signups.forEach((s: any) => {
+            const dist = (s.district || unitDistrictMap[s.unit_name] || unitDistrictMap[String(s.unit_id)] || '').trim();
+            if (dist && dist.toLowerCase() !== 'unassigned') set.add(dist);
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [availableUnits, signups, unitDistrictMap]);
 
     useEffect(() => {
         if (!config.user_data.logged_in || !config.user_data.can_access) {
@@ -92,9 +123,25 @@ export const LeaderDashboard: React.FC = () => {
             if (unitFilter !== 'all' && (s.unit_name || 'Unassigned') !== unitFilter) {
                 return false;
             }
+            if (districtFilter !== 'all') {
+                const itemDistrict = (s.district || unitDistrictMap[s.unit_name] || unitDistrictMap[String(s.unit_id)] || '').trim() || 'Unassigned';
+                if (normalize(itemDistrict) !== normalize(districtFilter)) {
+                    return false;
+                }
+            }
+            if (searchQuery.trim() !== '') {
+                const q = normalize(searchQuery);
+                const first = normalize(s.explorer_first_name);
+                const last = normalize(s.explorer_last_name);
+                const full = `${first} ${last}`.trim();
+                const rev = `${last} ${first}`.trim();
+                if (!first.includes(q) && !last.includes(q) && !full.includes(q) && !rev.includes(q)) {
+                    return false;
+                }
+            }
             return true;
         });
-    }, [signups, levelFilter, expeditionTypeFilter, unitFilter]);
+    }, [signups, levelFilter, expeditionTypeFilter, unitFilter, districtFilter, searchQuery, unitDistrictMap]);
 
     const explorerRows = useMemo(() => {
         const buckets = groupSignupsByExplorerIdentity(filteredSignups);
@@ -376,6 +423,33 @@ export const LeaderDashboard: React.FC = () => {
                             <option key={u} value={u}>{u}</option>
                         ))}
                     </select>
+                </div>
+
+                <div className="ems-flex-center ems-gap-8">
+                    <label htmlFor="leader-district-filter">Filter District:</label>
+                    <select
+                        id="leader-district-filter"
+                        value={districtFilter}
+                        onChange={(e) => setDistrictFilter(e.target.value)}
+                    >
+                        <option value="all">All Districts</option>
+                        {uniqueDistricts.map((d) => (
+                            <option key={d} value={d}>{d}</option>
+                        ))}
+                        <option value="unassigned">Unassigned</option>
+                    </select>
+                </div>
+
+                <div className="ems-flex-center ems-gap-8">
+                    <label htmlFor="leader-explorer-search">Search Explorer:</label>
+                    <input
+                        type="text"
+                        id="leader-explorer-search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by name..."
+                        className="ems-input"
+                    />
                 </div>
             </div>
 
