@@ -12,6 +12,7 @@ class Unit_RepositoryTest extends EMSTestCase {
 		Functions\when( 'is_email' )->alias( function( $email ) {
 			return filter_var( $email, FILTER_VALIDATE_EMAIL ) !== false;
 		} );
+		Functions\when( 'get_pages' )->justReturn( [] );
 	}
 
 	public function test_sync_patrol_creates_or_updates_and_matches(): void {

@@ -99,6 +99,8 @@ class Settings_Page {
 			$this->handle_resync_fluent_forms();
 		} elseif ( isset( $post_data['ems_save_access_control'] ) ) {
 			$this->save_access_control( $post_data );
+		} elseif ( isset( $post_data['ems_save_leader_invite'] ) ) {
+			$this->save_leader_invite( $post_data );
 		} else {
 			$this->save_general( $post_data );
 		}
@@ -126,6 +128,8 @@ class Settings_Page {
 			$this->handle_resync_fluent_forms();
 		} elseif ( isset( $_POST['ems_save_access_control'] ) && check_admin_referer( 'ems_settings_access_control' ) ) {
 			$this->save_access_control( $_POST );
+		} elseif ( isset( $_POST['ems_save_leader_invite'] ) && check_admin_referer( 'ems_settings_leader_invite' ) ) {
+			$this->save_leader_invite( $_POST );
 		} elseif ( isset( $_POST['ems_import_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
 			$this->handle_import();
 		}
@@ -160,6 +164,10 @@ class Settings_Page {
 					class="nav-tab<?php echo $active_tab === 'access_control' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Access Control', 'ems-plugin' ); ?>
 				</a>
+				<a href="<?php echo esc_url( $page_url . '&tab=leader_invite' ); ?>"
+					class="nav-tab<?php echo $active_tab === 'leader_invite' ? ' nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Leader Invite Email', 'ems-plugin' ); ?>
+				</a>
 			</nav>
 			<?php
 			if ( $active_tab === 'connection' ) {
@@ -172,6 +180,8 @@ class Settings_Page {
 				$this->render_audit_logs_tab();
 			} elseif ( $active_tab === 'access_control' ) {
 				$this->render_access_control_tab();
+			} elseif ( $active_tab === 'leader_invite' ) {
+				$this->render_leader_invite_tab();
 			} else {
 				$this->render_general_tab();
 			}
@@ -405,6 +415,10 @@ class Settings_Page {
 			update_option( 'ems_leader_dashboard_page_id', max( 0, (int) $post['ems_leader_dashboard_page_id'] ) );
 		}
 
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Access control settings saved.', 'ems-plugin' ) . '</p></div>';
+	}
+
+	public function save_leader_invite( array $post ): void {
 		if ( isset( $post['ems_leader_invite_email_subject'] ) ) {
 			$subject = sanitize_text_field( wp_unslash( (string) $post['ems_leader_invite_email_subject'] ) );
 			update_option( 'ems_leader_invite_email_subject', $subject );
@@ -416,7 +430,7 @@ class Settings_Page {
 			update_option( 'ems_leader_invite_email_body', $body );
 		}
 
-		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Access control settings saved.', 'ems-plugin' ) . '</p></div>';
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Leader invitation email settings saved.', 'ems-plugin' ) . '</p></div>';
 	}
 
 	private function render_form_mappings_tab(): void {
@@ -914,8 +928,6 @@ class Settings_Page {
 		$page_roles       = get_option( 'ems_page_roles', array() );
 		$protect_tutor    = get_option( 'ems_protect_tutor_lms', true );
 		$leader_page_id   = (int) get_option( 'ems_leader_dashboard_page_id', 0 );
-		$invite_subject   = (string) get_option( 'ems_leader_invite_email_subject', \EMS\Data\Unit_Repository::DEFAULT_INVITE_SUBJECT );
-		$invite_body      = (string) get_option( 'ems_leader_invite_email_body', \EMS\Data\Unit_Repository::DEFAULT_INVITE_BODY );
 
 		$pages     = get_pages( array( 'post_status' => 'publish' ) );
 		$all_roles = wp_roles()->get_names();
@@ -1022,42 +1034,6 @@ class Settings_Page {
 						</p>
 					</td>
 				</tr>
-				<tr>
-					<th scope="row"><label for="ems_leader_invite_email_subject"><?php esc_html_e( 'Leader Invitation Email Subject', 'ems-plugin' ); ?></label></th>
-					<td>
-						<input
-							type="text"
-							id="ems_leader_invite_email_subject"
-							name="ems_leader_invite_email_subject"
-							value="<?php echo esc_attr( $invite_subject ); ?>"
-							class="large-text"
-							style="max-width: 650px;"
-						/>
-						<p class="description">
-							<?php esc_html_e( 'Subject line for the invitation email sent to unit leaders. Supports placeholders below.', 'ems-plugin' ); ?>
-						</p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="ems_leader_invite_email_body"><?php esc_html_e( 'Leader Invitation Email Body', 'ems-plugin' ); ?></label></th>
-					<td>
-						<textarea
-							id="ems_leader_invite_email_body"
-							name="ems_leader_invite_email_body"
-							rows="10"
-							class="large-text code"
-							style="max-width: 650px;"
-						><?php echo esc_textarea( $invite_body ); ?></textarea>
-						<p class="description">
-							<?php esc_html_e( 'Available placeholders:', 'ems-plugin' ); ?>
-							<code>{{unit_name}}</code> / <code>{{units}}</code> <?php esc_html_e( '(formats multiple units as "Unit A, Unit B and Unit C")', 'ems-plugin' ); ?>,
-							<code>{{set_password_url}}</code>,
-							<code>{{dashboard_url}}</code>,
-							<code>{{site_name}}</code>,
-							<code>{{user_email}}</code>
-						</p>
-					</td>
-				</tr>
 			</table>
 			<p class="submit">
 				<input type="submit" name="ems_save_access_control" class="button button-primary" value="<?php esc_attr_e( 'Save Access Control Settings', 'ems-plugin' ); ?>" />
@@ -1160,5 +1136,57 @@ class Settings_Page {
 		</script>
 		<?php
 	}
+
+	private function render_leader_invite_tab(): void {
+		$invite_subject = (string) get_option( 'ems_leader_invite_email_subject', \EMS\Data\Unit_Repository::DEFAULT_INVITE_SUBJECT );
+		$invite_body    = (string) get_option( 'ems_leader_invite_email_body', \EMS\Data\Unit_Repository::DEFAULT_INVITE_BODY );
+		?>
+		<form method="post">
+			<?php wp_nonce_field( 'ems_settings_leader_invite' ); ?>
+			<table class="form-table">
+				<tr>
+					<th scope="row"><label for="ems_leader_invite_email_subject"><?php esc_html_e( 'Leader Invitation Email Subject', 'ems-plugin' ); ?></label></th>
+					<td>
+						<input
+							type="text"
+							id="ems_leader_invite_email_subject"
+							name="ems_leader_invite_email_subject"
+							value="<?php echo esc_attr( $invite_subject ); ?>"
+							class="large-text"
+							style="max-width: 650px;"
+						/>
+						<p class="description">
+							<?php esc_html_e( 'Subject line for the invitation email sent to unit leaders. Supports placeholders below.', 'ems-plugin' ); ?>
+						</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ems_leader_invite_email_body"><?php esc_html_e( 'Leader Invitation Email Body', 'ems-plugin' ); ?></label></th>
+					<td>
+						<textarea
+							id="ems_leader_invite_email_body"
+							name="ems_leader_invite_email_body"
+							rows="10"
+							class="large-text code"
+							style="max-width: 650px;"
+						><?php echo esc_textarea( $invite_body ); ?></textarea>
+						<p class="description">
+							<?php esc_html_e( 'Available placeholders:', 'ems-plugin' ); ?>
+							<code>{{unit_name}}</code> / <code>{{units}}</code> <?php esc_html_e( '(formats multiple units as "Unit A, Unit B and Unit C")', 'ems-plugin' ); ?>,
+							<code>{{set_password_url}}</code>,
+							<code>{{dashboard_url}}</code>,
+							<code>{{site_name}}</code>,
+							<code>{{user_email}}</code>
+						</p>
+					</td>
+				</tr>
+			</table>
+			<p class="submit">
+				<input type="submit" name="ems_save_leader_invite" class="button button-primary" value="<?php esc_attr_e( 'Save Leader Invitation Email Settings', 'ems-plugin' ); ?>" />
+			</p>
+		</form>
+		<?php
+	}
 }
+
 
