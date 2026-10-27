@@ -98,26 +98,43 @@ export const LeaderDashboard: React.FC = () => {
 
     const explorerRows = useMemo(() => {
         const buckets = groupSignupsByExplorerIdentity(filteredSignups);
-        return buckets.map((bucket, idx) => {
-            const participantEntries = bucket.items.filter((i: any) => i.type === 'participant');
-            const expeditionEntries = bucket.items.filter((i: any) => i.type === 'expedition');
-            const entries = [...participantEntries, ...expeditionEntries];
-            const primary = entries[0] || bucket.items[0];
-            const expedWithPrefs = expeditionEntries.find((e: any) => e.expedition_preferences?.exped_type);
+        const rows: any[] = [];
 
-            const baseKey = bucket.scoutId !== 0 ? `scout_${bucket.scoutId}` : `explorer_${primary.type}_${primary.id}_${idx}`;
-            return {
-                rowKey: `${baseKey}_p${participantEntries.length}_e${expeditionEntries.length}`,
-                scout_id: bucket.scoutId,
-                explorer_first_name: primary.explorer_first_name || '',
-                explorer_last_name: primary.explorer_last_name || '',
-                unit_name: entries.find((e: any) => e.unit_name && e.unit_name !== 'Unassigned')?.unit_name || primary.unit_name || 'Unassigned',
-                dofe_level: (primary.dofe_level || '').toLowerCase(),
-                expedition_preferences: expedWithPrefs ? expedWithPrefs.expedition_preferences : null,
-                participantEntries,
-                expeditionEntries,
-            };
+        buckets.forEach((bucket, idx) => {
+            const rawLevels = Array.from(
+                new Set(bucket.items.map((i: any) => (i.dofe_level || '').trim().toLowerCase()))
+            ).filter(Boolean);
+            const levels = rawLevels.length > 0 ? rawLevels : [''];
+
+            levels.forEach((lvl) => {
+                const participantEntries = bucket.items.filter(
+                    (i: any) => i.type === 'participant' && (lvl === '' || (i.dofe_level || '').trim().toLowerCase() === lvl)
+                );
+                const expeditionEntries = bucket.items.filter(
+                    (i: any) => i.type === 'expedition' && (lvl === '' || (i.dofe_level || '').trim().toLowerCase() === lvl)
+                );
+                const entries = [...participantEntries, ...expeditionEntries];
+                if (entries.length === 0) return;
+
+                const primary = entries[0] || bucket.items[0];
+                const expedWithPrefs = expeditionEntries.find((e: any) => e.expedition_preferences?.exped_type);
+
+                const baseKey = bucket.scoutId !== 0 ? `scout_${bucket.scoutId}` : `explorer_${primary.type}_${primary.id}_${idx}`;
+                rows.push({
+                    rowKey: `${baseKey}_lvl_${lvl || 'none'}_p${participantEntries.length}_e${expeditionEntries.length}`,
+                    scout_id: bucket.scoutId,
+                    explorer_first_name: primary.explorer_first_name || '',
+                    explorer_last_name: primary.explorer_last_name || '',
+                    unit_name: entries.find((e: any) => e.unit_name && e.unit_name !== 'Unassigned')?.unit_name || primary.unit_name || 'Unassigned',
+                    dofe_level: lvl || (primary.dofe_level || '').toLowerCase(),
+                    expedition_preferences: expedWithPrefs ? expedWithPrefs.expedition_preferences : null,
+                    participantEntries,
+                    expeditionEntries,
+                });
+            });
         });
+
+        return rows;
     }, [filteredSignups]);
 
     const uniqueUnits = useMemo(() => {
@@ -368,7 +385,7 @@ export const LeaderDashboard: React.FC = () => {
                         {renderHeader('Explorer Name', 'explorer_first_name')}
                         {renderHeader('Level', 'dofe_level')}
                         {renderHeader('Participant Place', 'participant')}
-                        {renderHeader('Expedition Preference', 'expedition_signup')}
+                        {renderHeader('Expedition Signup', 'expedition_signup')}
                         {renderHeader('Expedition Type', 'expedition')}
                         {renderHeader('Unit', 'unit_name')}
                         {renderHeader('OSM Sync', 'osm_sync')}
@@ -390,7 +407,12 @@ export const LeaderDashboard: React.FC = () => {
                                             <div className="ems-table-group-header__content">
                                                 <span className="ems-table-group-header__title">{g.title}</span>
                                                 <span className="ems-table-group-header__badge">
-                                                    {g.items.length} {g.items.length === 1 ? 'explorer' : 'explorers'}
+                                                    {(() => {
+                                                        const uniqueCount = new Set(
+                                                            g.items.map((s: any) => s.scout_id !== 0 ? `scout_${s.scout_id}` : `guest_${s.explorer_first_name}_${s.explorer_last_name}`)
+                                                        ).size;
+                                                        return `${uniqueCount} ${uniqueCount === 1 ? 'explorer' : 'explorers'}`;
+                                                    })()}
                                                 </span>
                                             </div>
                                         </td>
@@ -417,7 +439,7 @@ export const LeaderDashboard: React.FC = () => {
                                         </td>
                                         <td className="ems-table-cell--center">
                                             {row.expeditionEntries.length > 0 ? (
-                                                <span title="Expedition Preference submitted" className="ems-fa-full">
+                                                <span title="Expedition Signup submitted" className="ems-fa-full">
                                                     ✓{row.expeditionEntries.length > 1 ? ` (${row.expeditionEntries.length})` : ''}
                                                 </span>
                                             ) : (
