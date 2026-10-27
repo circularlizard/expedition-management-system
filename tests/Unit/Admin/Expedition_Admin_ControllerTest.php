@@ -1249,6 +1249,178 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertInstanceOf( \WP_Error::class, $response );
         $this->assertSame( 404, $response->get_error_data()['status'] );
     }
+
+    public function test_get_planning_matrix_returns_cohort_events_and_explorers(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $expeditions = \Mockery::mock( Expedition_Repository::class );
+        $expeditions->shouldReceive( 'list_all_chronological' )->andReturn( [
+            [
+                'ID'             => 101,
+                'post_title'     => 'Silver Practice 1',
+                'ems_event_code' => 'H-SP1',
+                'ems_level'      => 'silver',
+                'ems_type'       => 'practice',
+                'ems_transport'  => 'hillwalking',
+                'ems_status'     => 'active',
+                'ems_start_date' => '2027-05-28',
+                'ems_end_date'   => '2027-05-30',
+            ],
+            [
+                'ID'             => 102,
+                'post_title'     => 'Silver Practice 2',
+                'ems_event_code' => 'H-SP2',
+                'ems_level'      => 'silver',
+                'ems_type'       => 'practice',
+                'ems_transport'  => 'hillwalking',
+                'ems_status'     => 'active',
+                'ems_start_date' => '2027-06-04',
+                'ems_end_date'   => '2027-06-06',
+            ],
+            [
+                'ID'             => 103,
+                'post_title'     => 'Silver Qualifier 1',
+                'ems_event_code' => 'H-SQ1',
+                'ems_level'      => 'silver',
+                'ems_type'       => 'qualifying',
+                'ems_transport'  => 'hillwalking',
+                'ems_status'     => 'active',
+                'ems_start_date' => '2027-08-11',
+                'ems_end_date'   => '2027-08-15',
+            ],
+        ] );
+
+        $teams = \Mockery::mock( Team_Repository::class );
+        $teams->shouldReceive( 'list_by_expedition' )->with( 101 )->andReturn( [
+            [ 'ID' => 201, 'ems_team_code' => 'Team 1' ]
+        ] );
+        $teams->shouldReceive( 'get_unallocated_team' )->with( 101 )->andReturn(
+            [ 'ID' => 202, 'ems_team_code' => 'UNALLOCATED' ]
+        );
+        $teams->shouldReceive( 'list_by_expedition' )->with( 102 )->andReturn( [] );
+        $teams->shouldReceive( 'get_unallocated_team' )->with( 102 )->andReturn(
+            [ 'ID' => 203, 'ems_team_code' => 'UNALLOCATED' ]
+        );
+
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+        $team_members->shouldReceive( 'list_by_team' )->with( 201 )->andReturn( [ [ 'scout_id' => 3001 ] ] );
+        $team_members->shouldReceive( 'list_by_team' )->with( 202 )->andReturn( [] );
+        $team_members->shouldReceive( 'list_by_team' )->with( 203 )->andReturn( [] );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'get_expedition_signups' )->with( 'pending' )->andReturn( [
+            [
+                'scout_id'                 => 3001,
+                'explorer_first_name'      => 'Fraser',
+                'explorer_last_name'       => 'Myles',
+                'unit_name'                => 'BO-Kelso',
+                'dofe_level'               => 'silver',
+                'signup_status'            => 'submitted',
+                'additional_support_needs' => '',
+                'first_aid_status'         => 'first-aid-yes',
+                'expedition_preferences'   => json_encode( [
+                    'exped_type'           => 'Hillwalking',
+                    'exped_practice_dates' => [ 'H-SP1', 'H-SP2' ],
+                    'exped_team_names'     => 'Shawn Gray, Holly Parker',
+                ] ),
+            ],
+            [
+                'scout_id'                 => 3002,
+                'explorer_first_name'      => 'Shawn',
+                'explorer_last_name'       => 'Gray',
+                'unit_name'                => 'BO-Kelso',
+                'dofe_level'               => 'silver',
+                'signup_status'            => 'submitted',
+                'additional_support_needs' => 'Asthma inhaler',
+                'first_aid_status'         => 'none',
+                'expedition_preferences'   => json_encode( [
+                    'exped_type'           => 'Hillwalking',
+                    'exped_practice_dates' => [ 'H-SP1' ],
+                    'exped_team_names'     => 'Fraser Myles',
+                ] ),
+            ],
+            [
+                'scout_id'                 => 3003,
+                'explorer_first_name'      => 'Goldie',
+                'explorer_last_name'       => 'Locks',
+                'unit_name'                => 'PE-Castle',
+                'dofe_level'               => 'gold',
+                'signup_status'            => 'submitted',
+                'additional_support_needs' => '',
+                'first_aid_status'         => 'none',
+                'expedition_preferences'   => json_encode( [
+                    'exped_type'           => 'Hillwalking',
+                    'exped_practice_dates' => [ 'H-GP1' ],
+                ] ),
+            ],
+        ] );
+
+        global $wpdb;
+        $wpdb = \Mockery::mock( 'stdClass' );
+        $wpdb->prefix = 'wp_';
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->shouldReceive( 'prepare' )->andReturnUsing( function( $query, ...$args ) {
+            return vsprintf( str_replace( '%d', '%s', $query ), $args );
+        } );
+        // Fraser (3001) is in team 201 (H-SP1 Team 1)
+        $wpdb->shouldReceive( 'get_results' )->with( \Mockery::pattern( '/WHERE scout_id = 3001/' ), ARRAY_A )
+            ->andReturn( [ [ 'team_post_id' => 201 ] ] );
+        // Shawn (3002) is not in any team
+        $wpdb->shouldReceive( 'get_results' )->with( \Mockery::pattern( '/WHERE scout_id = 3002/' ), ARRAY_A )
+            ->andReturn( [] );
+
+        Functions\when( 'get_post' )->alias( function( $id ) {
+            if ( $id === 201 ) {
+                return (object) [ 'ID' => 201, 'post_type' => 'team', 'post_parent' => 101 ];
+            }
+            return null;
+        } );
+
+        Functions\when( 'get_post_meta' )->alias( function( $post_id, $key, $single = false ) {
+            if ( $post_id === 201 && $key === 'ems_team_code' ) return 'Team 1';
+            if ( $post_id === 101 && $key === 'ems_event_code' ) return 'H-SP1';
+            return '';
+        } );
+
+        $controller = $this->create_controller( null, $expeditions, $teams, $team_members, null, null, $signups );
+
+        $request = new \WP_REST_Request( 'GET', '/ems/v1/planning-board/matrix' );
+        $request->set_param( 'level', 'silver' );
+        $request->set_param( 'type', 'practice' );
+        $request->set_param( 'transport', 'hillwalking' );
+
+        $response = $controller->get_planning_matrix( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        $this->assertArrayHasKey( 'events', $data );
+        $this->assertArrayHasKey( 'explorers', $data );
+
+        // Should return 2 Silver Practice events (H-SP1 and H-SP2), ignoring H-SQ1
+        $this->assertCount( 2, $data['events'] );
+        $this->assertSame( 'H-SP1', $data['events'][0]['event_code'] );
+        $this->assertSame( 'H-SP2', $data['events'][1]['event_code'] );
+
+        // Should return 2 Silver explorers (Fraser and Shawn), ignoring Goldie
+        $this->assertCount( 2, $data['explorers'] );
+
+        $fraser = $data['explorers'][0];
+        $this->assertSame( 'Fraser', $fraser['first_name'] );
+        $this->assertSame( 'BO-Kelso', $fraser['unit_name'] );
+        $this->assertSame( 'Shawn Gray, Holly Parker', $fraser['team_preferences'] );
+        $this->assertSame( [ 'H-SP1', 'H-SP2' ], $fraser['available_events'] );
+        $this->assertSame( 'H-SP1', $fraser['allocated_event_code'] );
+        $this->assertSame( 'Team 1', $fraser['allocated_team_code'] );
+        $this->assertFalse( $fraser['has_asn'] );
+
+        $shawn = $data['explorers'][1];
+        $this->assertSame( 'Shawn', $shawn['first_name'] );
+        $this->assertSame( [ 'H-SP1' ], $shawn['available_events'] );
+        $this->assertNull( $shawn['allocated_event_code'] );
+        $this->assertNull( $shawn['allocated_team_code'] );
+        $this->assertTrue( $shawn['has_asn'] );
+    }
 }
 
 
