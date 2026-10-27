@@ -50,6 +50,8 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [expeditionTypeFilter, setExpeditionTypeFilter] = useState<string>('all');
     const [unitFilter, setUnitFilter] = useState<string>('all');
+    const [districtFilter, setDistrictFilter] = useState<string>('all');
+    const [searchQuery, setSearchQuery] = useState<string>('');
     const [anomalyFilter, setAnomalyFilter] = useState<'all' | 'no_expedition' | 'no_participant' | 'duplicate' | 'unmatched_osm'>('all');
 
     // Grouping & Sorting
@@ -72,7 +74,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, typeFilter, levelFilter, expeditionTypeFilter, unitFilter, anomalyFilter, sortKey, sortOrder, grouping]);
+    }, [statusFilter, typeFilter, levelFilter, expeditionTypeFilter, unitFilter, districtFilter, searchQuery, anomalyFilter, sortKey, sortOrder, grouping]);
 
     useEffect(() => {
         if (selectedSignup && inspectorRef.current) {
@@ -319,6 +321,34 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     const allExplorerBuckets = useMemo(() => groupSignupsByExplorerIdentity(signups), [signups]);
 
+    const unitDistrictMap = useMemo(() => {
+        const map: Record<string, string> = {};
+        const unitsList = (window.emsSignupsBoard?.units || config.units || availableUnits || []);
+        unitsList.forEach((u: any) => {
+            const dist = (u.district || '').trim();
+            if (dist) {
+                if (u.name) map[u.name] = dist;
+                if (u.short_code) map[u.short_code] = dist;
+                if (u.unit_id) map[String(u.unit_id)] = dist;
+            }
+        });
+        return map;
+    }, [config.units, availableUnits]);
+
+    const uniqueDistricts = useMemo(() => {
+        const set = new Set<string>();
+        const unitsList = (window.emsSignupsBoard?.units || config.units || availableUnits || []);
+        unitsList.forEach((u: any) => {
+            const dist = (u.district || '').trim();
+            if (dist) set.add(dist);
+        });
+        signups.forEach((s: any) => {
+            const dist = (s.district || unitDistrictMap[s.unit_name] || unitDistrictMap[String(s.unit_id)] || '').trim();
+            if (dist && dist.toLowerCase() !== 'unassigned') set.add(dist);
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [config.units, availableUnits, signups, unitDistrictMap]);
+
     // Filter signups in memory
     const filteredSignups = signups.filter(s => {
         if (typeFilter !== 'all' && s.type !== typeFilter) return false;
@@ -328,6 +358,20 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
             if (expedType !== normalize(expeditionTypeFilter)) return false;
         }
         if (unitFilter !== 'all' && (s.unit_name || 'Unassigned') !== unitFilter) return false;
+        if (districtFilter !== 'all') {
+            const itemDistrict = (s.district || unitDistrictMap[s.unit_name] || unitDistrictMap[String(s.unit_id)] || '').trim() || 'Unassigned';
+            if (normalize(itemDistrict) !== normalize(districtFilter)) return false;
+        }
+        if (searchQuery.trim() !== '') {
+            const q = normalize(searchQuery);
+            const first = normalize(s.explorer_first_name);
+            const last = normalize(s.explorer_last_name);
+            const full = `${first} ${last}`.trim();
+            const rev = `${last} ${first}`.trim();
+            if (!first.includes(q) && !last.includes(q) && !full.includes(q) && !rev.includes(q)) {
+                return false;
+            }
+        }
         if (anomalyFilter !== 'all') {
             const key = getSignupRecordKey(s);
             if (anomalyFilter === 'no_expedition' && !dashboardMetrics.participantWithoutExpedition.signupKeys.has(key)) return false;
@@ -823,6 +867,36 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                             <option key={u} value={u}>{u}</option>
                                         ))}
                                     </select>
+                                </div>
+
+                                {/* District selector */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="district-filter" className="ems-toolbar__label">Filter District:</label>
+                                    <select
+                                        id="district-filter"
+                                        value={districtFilter}
+                                        onChange={(e) => setDistrictFilter(e.target.value)}
+                                        className="ems-select"
+                                    >
+                                        <option value="all">All Districts</option>
+                                        {uniqueDistricts.map(d => (
+                                            <option key={d} value={d}>{d}</option>
+                                        ))}
+                                        <option value="unassigned">Unassigned</option>
+                                    </select>
+                                </div>
+
+                                {/* Search Explorer */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="explorer-search" className="ems-toolbar__label">Search Explorer:</label>
+                                    <input
+                                        type="text"
+                                        id="explorer-search"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Search by name..."
+                                        className="ems-input"
+                                    />
                                 </div>
 
                                 {/* Quick View / Anomaly selector */}

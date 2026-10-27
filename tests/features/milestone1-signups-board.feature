@@ -101,6 +101,21 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     When the administrator selects the other signup entry for "Mary Jones" in the Inspector Panel selector
     Then the Inspector Panel should switch to display the details for that selected signup entry
 
+  Scenario: Searching by explorer name in the Signups Table
+    Given active signups exist for "Alice Smith", "Bob Jones", and "Charlie Brown"
+    When the administrator opens the Signups Table tab
+    And searches for "Bob" in the explorer search box
+    Then only the row for "Bob Jones" should be displayed in the table
+    When the administrator clears the explorer search box
+    Then rows for "Alice Smith", "Bob Jones", and "Charlie Brown" should be displayed in the table
 
-
+  Scenario: Filtering the Signups Table by district
+    Given master units exist with assigned districts:
+      | unit_name   | district  |
+      | Kelso ESU   | Borders   |
+      | Peebles ESU | Tweeddale |
+    And active signups exist for "Alice Smith" in unit "Kelso ESU" and "Bob Jones" in unit "Peebles ESU"
+    When the administrator opens the Signups Table tab
+    And selects district "Borders" from the district filter
+    Then only the row for "Alice Smith" should be displayed in the table
 
