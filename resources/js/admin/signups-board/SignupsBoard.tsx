@@ -7,7 +7,8 @@ import {
     faTriangleExclamation,
     faXmark,
     faClipboardList,
-    faCampground
+    faCampground,
+    faCheck
 } from '@fortawesome/free-solid-svg-icons';
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
 import { computeSignupsDashboardMetrics, getSignupRecordKey, groupSignupsByExplorerIdentity } from './dashboardMetrics';
@@ -73,10 +74,25 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
     const [editedDofeNumber, setEditedDofeNumber] = useState<string>('');
     const [editedUnitId, setEditedUnitId] = useState<string>('');
+    const [savingField, setSavingField] = useState<'level' | 'unit' | null>(null);
+    const [levelSaveSuccess, setLevelSaveSuccess] = useState<boolean>(false);
+    const [unitSaveSuccess, setUnitSaveSuccess] = useState<boolean>(false);
     const [reconcileSearch, setReconcileSearch] = useState<string>('');
     const [unlinkError, setUnlinkError] = useState<string | null>(null);
     const inspectorRef = useRef<HTMLDivElement>(null);
     const availableUnits: any[] = config.units || [];
+
+    useEffect(() => {
+        if (!levelSaveSuccess) return;
+        const timer = setTimeout(() => setLevelSaveSuccess(false), 2500);
+        return () => clearTimeout(timer);
+    }, [levelSaveSuccess]);
+
+    useEffect(() => {
+        if (!unitSaveSuccess) return;
+        const timer = setTimeout(() => setUnitSaveSuccess(false), 2500);
+        return () => clearTimeout(timer);
+    }, [unitSaveSuccess]);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState<number>(1);
@@ -129,6 +145,9 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     useEffect(() => {
         if (selectedSignup) {
+            setLevelSaveSuccess(false);
+            setUnitSaveSuccess(false);
+            setSavingField(null);
             setEditedDofeNumber(selectedSignup.dofe_number || '');
             if (selectedSignup.unit_id) {
                 setEditedUnitId(String(selectedSignup.unit_id));
@@ -221,8 +240,48 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         }
     };
 
+    const handleUpdateLevel = async (signupId: number, signupType: string, newLevel: string) => {
+        if (!newLevel) return;
+        setSavingField('level');
+        setLevelSaveSuccess(false);
+        try {
+            const response = await fetch(`${config.root_url}/signups/level`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    signup_id: signupId,
+                    signup_type: signupType,
+                    dofe_level: newLevel
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || (data.code && data.message)) {
+                throw new Error(data.message || 'Failed to update level');
+            }
+            setSelectedSignup((prev: any) =>
+                prev
+                    ? {
+                          ...prev,
+                          dofe_level: data.dofe_level,
+                      }
+                    : null
+            );
+            setLevelSaveSuccess(true);
+            fetchData();
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setSavingField(null);
+        }
+    };
+
     const handleUpdateUnit = async (signupId: number, signupType: string, unitId: number) => {
         if (!unitId) return;
+        setSavingField('unit');
+        setUnitSaveSuccess(false);
         try {
             const response = await fetch(`${config.root_url}/signups/unit`, {
                 method: 'POST',
@@ -250,9 +309,12 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                       }
                     : null
             );
+            setUnitSaveSuccess(true);
             fetchData();
         } catch (err: any) {
             alert(err.message);
+        } finally {
+            setSavingField(null);
         }
     };
 
@@ -1385,23 +1447,43 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
                             <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Level</span>
-                                <div className="ems-mt-4">
-                                    <span className={`ems-pill ems-pill--${selectedSignup.dofe_level}`}>
-                                        {selectedSignup.dofe_level}
-                                    </span>
+                                <div className="ems-flex-center ems-gap-8 ems-mt-4">
+                                    <select
+                                        aria-label="Change Level"
+                                        value={selectedSignup.dofe_level || 'bronze'}
+                                        onChange={(e) => handleUpdateLevel(selectedSignup.id, selectedSignup.type, e.target.value)}
+                                        disabled={savingField === 'level'}
+                                        className="ems-select ems-select-sm"
+                                    >
+                                        <option value="bronze">Bronze</option>
+                                        <option value="silver">Silver</option>
+                                        <option value="gold">Gold</option>
+                                    </select>
+                                    {savingField === 'level' && (
+                                        <span className="ems-spinner ems-spinner-sm" aria-label="Saving level…" />
+                                    )}
+                                    {levelSaveSuccess && (
+                                        <span className="ems-field-status ems-field-status--success" data-testid="level-save-success">
+                                            <FontAwesomeIcon icon={faCheck} /> Saved
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="ems-signups-detail-item ems-signups-detail-item--full">
                                 <span className="ems-signups-inspector__label">Unit</span>
-                                <div className="ems-signups-inspector__value ems-font-semibold">
-                                    {selectedSignup.unit_name || 'Unassigned'}
-                                </div>
-                                <div className="ems-flex-center ems-gap-8 ems-mt-8">
+                                <div className="ems-flex-center ems-gap-8 ems-mt-4">
                                     <select
                                         aria-label="Change Unit"
                                         value={editedUnitId}
-                                        onChange={(e) => setEditedUnitId(e.target.value)}
+                                        onChange={(e) => {
+                                            const newUnitId = e.target.value;
+                                            setEditedUnitId(newUnitId);
+                                            if (newUnitId) {
+                                                handleUpdateUnit(selectedSignup.id, selectedSignup.type, Number(newUnitId));
+                                            }
+                                        }}
+                                        disabled={savingField === 'unit'}
                                         className="ems-select"
                                     >
                                         <option value="">Select unit...</option>
@@ -1412,14 +1494,14 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                             </option>
                                         ))}
                                     </select>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleUpdateUnit(selectedSignup.id, selectedSignup.type, Number(editedUnitId))}
-                                        disabled={!editedUnitId}
-                                        className="button button-secondary"
-                                    >
-                                        Update Unit
-                                    </button>
+                                    {savingField === 'unit' && (
+                                        <span className="ems-spinner ems-spinner-sm" aria-label="Saving unit…" />
+                                    )}
+                                    {unitSaveSuccess && (
+                                        <span className="ems-field-status ems-field-status--success" data-testid="unit-save-success">
+                                            <FontAwesomeIcon icon={faCheck} /> Saved
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>

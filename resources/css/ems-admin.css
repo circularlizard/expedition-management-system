@@ -406,6 +406,26 @@
     flex-shrink: 0;
 }
 
+.ems-spinner-sm {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+}
+
+.ems-field-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    transition: opacity 0.3s ease;
+}
+
+.ems-field-status--success {
+    color: #16a34a;
+}
+
 @keyframes ems-spin {
     to { transform: rotate(360deg); }
 }
