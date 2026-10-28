@@ -484,4 +484,55 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertNotNull( $participant_update );
         $this->assertNotNull( $expedition_update );
     }
+
+    public function test_update_expedition_signup_asn_validation_updates_status(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $updated = [];
+
+            public function update( $table, $data, $where, $format = null, $where_format = null ) {
+                $this->updated[] = compact( 'table', 'data', 'where' );
+                return 1;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+
+        // Validate (1)
+        $result = $repo->update_expedition_signup_asn_validation( 42, 1 );
+        $this->assertTrue( $result );
+        $this->assertCount( 1, $wpdb->updated );
+        $this->assertSame( 'wp_ems_expedition_signups', $wpdb->updated[0]['table'] );
+        $this->assertSame( [ 'id' => 42 ], $wpdb->updated[0]['where'] );
+        $this->assertSame( 1, $wpdb->updated[0]['data']['asn_validated'] );
+
+        // Invalidate (0)
+        $repo->update_expedition_signup_asn_validation( 42, 0 );
+        $this->assertSame( 0, $wpdb->updated[1]['data']['asn_validated'] );
+
+        // Reset to unreviewed (null)
+        $repo->update_expedition_signup_asn_validation( 42, null );
+        $this->assertNull( $wpdb->updated[2]['data']['asn_validated'] );
+    }
+
+    public function test_update_scout_asn_validation_updates_all_expeditions_for_scout(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $updated = [];
+
+            public function update( $table, $data, $where, $format = null, $where_format = null ) {
+                $this->updated[] = compact( 'table', 'data', 'where' );
+                return 1;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+
+        $result = $repo->update_scout_asn_validation( 30005, 1 );
+        $this->assertTrue( $result );
+        $this->assertCount( 1, $wpdb->updated );
+        $this->assertSame( 'wp_ems_expedition_signups', $wpdb->updated[0]['table'] );
+        $this->assertSame( [ 'scout_id' => 30005 ], $wpdb->updated[0]['where'] );
+        $this->assertSame( 1, $wpdb->updated[0]['data']['asn_validated'] );
+    }
 }

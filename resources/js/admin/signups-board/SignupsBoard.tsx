@@ -8,7 +8,8 @@ import {
     faXmark,
     faClipboardList,
     faCampground,
-    faCheck
+    faCheck,
+    faCircleQuestion
 } from '@fortawesome/free-solid-svg-icons';
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
 import { computeSignupsDashboardMetrics, getSignupRecordKey, groupSignupsByExplorerIdentity } from './dashboardMetrics';
@@ -73,9 +74,10 @@ export default function SignupsBoard() {
     // Selected signup & Inspector Panel
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
     const [editedUnitId, setEditedUnitId] = useState<string>('');
-    const [savingField, setSavingField] = useState<'level' | 'unit' | null>(null);
+    const [savingField, setSavingField] = useState<'level' | 'unit' | 'asn' | null>(null);
     const [levelSaveSuccess, setLevelSaveSuccess] = useState<boolean>(false);
     const [unitSaveSuccess, setUnitSaveSuccess] = useState<boolean>(false);
+    const [asnSaveSuccess, setAsnSaveSuccess] = useState<boolean>(false);
     const [reconcileSearch, setReconcileSearch] = useState<string>('');
     const [unlinkError, setUnlinkError] = useState<string | null>(null);
     const inspectorRef = useRef<HTMLDivElement>(null);
@@ -95,6 +97,12 @@ export default function SignupsBoard() {
         const timer = setTimeout(() => setUnitSaveSuccess(false), 3500);
         return () => clearTimeout(timer);
     }, [unitSaveSuccess]);
+
+    useEffect(() => {
+        if (!asnSaveSuccess) return;
+        const timer = setTimeout(() => setAsnSaveSuccess(false), 3500);
+        return () => clearTimeout(timer);
+    }, [asnSaveSuccess]);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState<number>(1);
@@ -150,6 +158,7 @@ export default function SignupsBoard() {
             if (prevEntryKeyRef.current !== selectedEntryKey) {
                 setLevelSaveSuccess(false);
                 setUnitSaveSuccess(false);
+                setAsnSaveSuccess(false);
                 setSavingField(null);
                 setUnlinkError(null);
                 setReconcileSearch('');
@@ -324,6 +333,41 @@ export default function SignupsBoard() {
         }
     };
 
+    const handleUpdateAsnValidation = async (signupId: number, validated: number | null) => {
+        setSavingField('asn');
+        setAsnSaveSuccess(false);
+        try {
+            const response = await fetch(`${config.root_url}/signups/expeditions/${signupId}/asn-validation`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce
+                },
+                body: JSON.stringify({
+                    asn_validated: validated
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || (data.code && data.message)) {
+                throw new Error(data.message || 'Failed to update ASN validation');
+            }
+            setSelectedSignup((prev: any) =>
+                prev
+                    ? {
+                          ...prev,
+                          asn_validated: data.asn_validated,
+                      }
+                    : null
+            );
+            setAsnSaveSuccess(true);
+            fetchData();
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setSavingField(null);
+        }
+    };
+
     const handleProcessParticipant = async (signupId: number, dofeNumber: string) => {
         try {
             const response = await fetch(`${config.root_url}/signups/participants/${signupId}/process`, {
@@ -483,6 +527,8 @@ export default function SignupsBoard() {
 
                 const primary = entries[0] || bucket.items[0];
                 const expedWithPrefs = expeditionEntries.find((e: any) => e.expedition_preferences?.exped_type);
+                const expedWithAsn = expeditionEntries.find((e: any) => e.additional_support_needs && e.additional_support_needs.trim() !== '');
+                const asnEntry = expedWithAsn || expeditionEntries[0];
                 const dofeWithNum = entries.find((e: any) => e.dofe_number);
                 const transferReq = entries.some((e: any) => e.dofe_registered === 'y-other');
                 const latestCreatedAt = entries.reduce((latest: string, e: any) => {
@@ -504,6 +550,8 @@ export default function SignupsBoard() {
                     dofe_number: dofeWithNum ? dofeWithNum.dofe_number : null,
                     dofe_registered: transferReq ? 'y-other' : (primary.dofe_registered || 'n'),
                     expedition_preferences: expedWithPrefs ? expedWithPrefs.expedition_preferences : null,
+                    additional_support_needs: asnEntry?.additional_support_needs || '',
+                    asn_validated: asnEntry?.asn_validated !== undefined ? asnEntry.asn_validated : null,
                     created_at: latestCreatedAt,
                     participantEntries,
                     expeditionEntries,
@@ -542,6 +590,12 @@ export default function SignupsBoard() {
         }
         if (key === 'expedition') {
             return (item.expedition_preferences?.exped_type || '').toLowerCase();
+        }
+        if (key === 'asn_validated') {
+            if (!item.additional_support_needs || item.additional_support_needs.trim() === '') return -1;
+            if (item.asn_validated === 1) return 2;
+            if (item.asn_validated === 0) return 1;
+            return 0;
         }
         if (key === 'prior_completions') {
             if (item.dofe_level === 'bronze') return -1;
@@ -1045,6 +1099,7 @@ export default function SignupsBoard() {
                                             {renderHeader('Participant Place', 'participant')}
                                             {renderHeader('Expedition Signup', 'expedition_signup')}
                                             {renderHeader('Expedition Type', 'expedition')}
+                                            {renderHeader('ASN', 'asn_validated')}
                                             {renderHeader('Unit', 'unit_name')}
                                             {renderHeader('Email', 'explorer_email')}
                                             {renderHeader('DofE Number', 'dofe_number')}
@@ -1053,7 +1108,7 @@ export default function SignupsBoard() {
                                     <tbody>
                                         {paginatedGroupedSignups.length === 0 || (paginatedGroupedSignups.length === 1 && paginatedGroupedSignups[0].items.length === 0) ? (
                                             <tr>
-                                                <td colSpan={9} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
+                                                <td colSpan={10} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                                     No signup records found for this filter state.
                                                 </td>
                                             </tr>
@@ -1062,7 +1117,7 @@ export default function SignupsBoard() {
                                                 <React.Fragment key={g.title || 'flat'}>
                                                     {g.title && (
                                                         <tr className="ems-table-group-header">
-                                                            <td colSpan={9}><strong>{g.title}</strong></td>
+                                                            <td colSpan={10}><strong>{g.title}</strong></td>
                                                         </tr>
                                                     )}
                                                     {g.items.map((row: any) => {
@@ -1143,6 +1198,25 @@ export default function SignupsBoard() {
                                                                         </span>
                                                                     ) : (
                                                                         <span key="no-exped-type">—</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="ems-table-cell--center">
+                                                                    {row.additional_support_needs && row.additional_support_needs.trim() !== '' ? (
+                                                                        row.asn_validated === 1 ? (
+                                                                            <span className="ems-pill ems-pill--asn-validated" title="ASN Validated" data-testid="asn-pill-validated">
+                                                                                <FontAwesomeIcon icon={faCheck} className="ems-pill-icon" /> ✓
+                                                                            </span>
+                                                                        ) : row.asn_validated === 0 ? (
+                                                                            <span className="ems-pill ems-pill--asn-rejected" title="ASN Not Validated" data-testid="asn-pill-rejected">
+                                                                                <FontAwesomeIcon icon={faXmark} className="ems-pill-icon" /> ✕
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="ems-pill ems-pill--asn-pending" title="ASN Unreviewed" data-testid="asn-pill-pending">
+                                                                                <FontAwesomeIcon icon={faCircleQuestion} className="ems-pill-icon" /> ?
+                                                                            </span>
+                                                                        )
+                                                                    ) : (
+                                                                        <span>—</span>
                                                                     )}
                                                                 </td>
                                                                 <td>{row.unit_name || 'Unassigned'}</td>
@@ -1609,6 +1683,37 @@ export default function SignupsBoard() {
                                         <span className="ems-signups-inspector__label">Additional Support Needs</span>
                                         <div className="ems-signups-inspector__support-box">
                                             {selectedSignup.additional_support_needs || 'None declared.'}
+                                        </div>
+                                    </div>
+
+                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
+                                        <label htmlFor="inspector-asn-validation" className="ems-signups-inspector__label">Leader Validation</label>
+                                        <div className="ems-flex-center ems-gap-8 ems-mt-4">
+                                            <select
+                                                id="inspector-asn-validation"
+                                                aria-label="Leader Validation"
+                                                value={selectedSignup.asn_validated === 1 ? '1' : selectedSignup.asn_validated === 0 ? '0' : ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                                                    handleUpdateAsnValidation(selectedSignup.id, val);
+                                                }}
+                                                disabled={savingField === 'asn'}
+                                                className="ems-select ems-select-sm"
+                                            >
+                                                <option value="">Unreviewed</option>
+                                                <option value="1">Validated</option>
+                                                <option value="0">Not Validated</option>
+                                            </select>
+                                            {savingField === 'asn' && (
+                                                <span className="ems-field-status ems-field-status--saving" aria-label="Saving validation…">
+                                                    <span className="ems-spinner ems-spinner-sm" /> Saving…
+                                                </span>
+                                            )}
+                                            {asnSaveSuccess && (
+                                                <span className="ems-field-status ems-field-status--success" data-testid="asn-save-success">
+                                                    <FontAwesomeIcon icon={faCheck} /> Saved
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 

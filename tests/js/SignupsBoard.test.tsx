@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import SignupsBoard from '../../resources/js/admin/signups-board/SignupsBoard';
 
 const mockConfig = {
@@ -986,6 +986,167 @@ describe('SignupsBoard', () => {
         const dofeInput = await screen.findByLabelText(/eDofE Number/i);
         expect(dofeInput).toBeInTheDocument();
         expect(dofeInput).toHaveAttribute('readonly');
+    });
+
+    it('displays dedicated ASN column with status pills for unreviewed, validated, rejected, and none', async () => {
+        (global as any).window.emsSignupsBoard = mockConfig;
+        const asnSignups = [
+            {
+                id: 101,
+                type: 'expedition',
+                scout_id: 4001,
+                parent_user_id: 1,
+                unit_name: 'Kelso',
+                explorer_first_name: 'Alice',
+                explorer_last_name: 'Smith',
+                dofe_level: 'silver',
+                additional_support_needs: 'Requires inhaler',
+                asn_validated: null,
+                signup_status: 'submitted',
+                created_at: '2026-06-13 20:00:00',
+            },
+            {
+                id: 102,
+                type: 'expedition',
+                scout_id: 4002,
+                parent_user_id: 2,
+                unit_name: 'Selkirk',
+                explorer_first_name: 'Bob',
+                explorer_last_name: 'Jones',
+                dofe_level: 'silver',
+                additional_support_needs: 'No',
+                asn_validated: 0,
+                signup_status: 'submitted',
+                created_at: '2026-06-13 20:01:00',
+            },
+            {
+                id: 103,
+                type: 'expedition',
+                scout_id: 4003,
+                parent_user_id: 3,
+                unit_name: 'Peebles',
+                explorer_first_name: 'Charlie',
+                explorer_last_name: 'Brown',
+                dofe_level: 'silver',
+                additional_support_needs: 'Mild asthma',
+                asn_validated: 1,
+                signup_status: 'submitted',
+                created_at: '2026-06-13 20:02:00',
+            },
+            {
+                id: 104,
+                type: 'expedition',
+                scout_id: 4004,
+                parent_user_id: 4,
+                unit_name: 'Hawick',
+                explorer_first_name: 'David',
+                explorer_last_name: 'Clark',
+                dofe_level: 'silver',
+                additional_support_needs: '',
+                asn_validated: null,
+                signup_status: 'submitted',
+                created_at: '2026-06-13 20:03:00',
+            },
+        ];
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => asnSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => [] });
+
+        render(<SignupsBoard />);
+
+        const tableTabBtn = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTabBtn);
+
+        await waitFor(() => {
+            expect(screen.getByRole('columnheader', { name: /ASN/i })).toBeInTheDocument();
+            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+        });
+
+        // Alice Smith row -> amber pill with ?
+        const aliceRow = screen.getByText('Alice Smith').closest('tr')!;
+        const alicePill = within(aliceRow).getByTestId('asn-pill-pending');
+        expect(alicePill).toHaveClass('ems-pill--asn-pending');
+        expect(alicePill).toHaveTextContent('?');
+
+        // Bob Jones row -> red pill with ✕
+        const bobRow = screen.getByText('Bob Jones').closest('tr')!;
+        const bobPill = within(bobRow).getByTestId('asn-pill-rejected');
+        expect(bobPill).toHaveClass('ems-pill--asn-rejected');
+        expect(bobPill).toHaveTextContent('✕');
+
+        // Charlie Brown row -> green pill with ✓
+        const charlieRow = screen.getByText('Charlie Brown').closest('tr')!;
+        const charliePill = within(charlieRow).getByTestId('asn-pill-validated');
+        expect(charliePill).toHaveClass('ems-pill--asn-validated');
+        expect(charliePill).toHaveTextContent('✓');
+
+        // David Clark row -> shows — in ASN column
+        const davidRow = screen.getByText('David Clark').closest('tr')!;
+        const cells = within(davidRow).getAllByRole('cell');
+        // ASN column is 7th cell (0: sync, 1: name, 2: level, 3: place, 4: exped, 5: type, 6: ASN, 7: unit, ...)
+        expect(cells[6]).toHaveTextContent('—');
+    });
+
+    it('updates ASN validation status from the Expedition Signup Inspector Panel with success indicator', async () => {
+        (global as any).window.emsSignupsBoard = mockConfig;
+        const asnSignup = [
+            {
+                id: 42,
+                type: 'expedition',
+                scout_id: 4042,
+                parent_user_id: 1,
+                unit_name: 'Kelso',
+                explorer_first_name: 'Alice',
+                explorer_last_name: 'Smith',
+                dofe_level: 'silver',
+                additional_support_needs: 'Requires dietary support',
+                asn_validated: null,
+                signup_status: 'submitted',
+                created_at: '2026-06-13 20:00:00',
+            }
+        ];
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => asnSignup })
+            .mockResolvedValueOnce({ ok: true, json: async () => [] });
+
+        render(<SignupsBoard />);
+
+        const tableTabBtn = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTabBtn);
+
+        await waitFor(() => expect(screen.getByText('Alice Smith')).toBeInTheDocument());
+
+        // Open Inspector for Alice Smith
+        const row = screen.getByText('Alice Smith').closest('tr')!;
+        fireEvent.click(row);
+
+        // Leader validation select in inspector
+        const asnSelect = await screen.findByRole('combobox', { name: /Leader Validation/i });
+        expect(asnSelect).toBeInTheDocument();
+        expect(screen.getByText('Requires dietary support')).toBeInTheDocument();
+
+        // Mock update API call
+        (global.fetch as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ updated: true, id: 42, asn_validated: 1 })
+        }).mockResolvedValueOnce({ ok: true, json: async () => [{ ...asnSignup[0], asn_validated: 1 }] })
+          .mockResolvedValueOnce({ ok: true, json: async () => [] });
+
+        // Change validation to Validated (1)
+        fireEvent.change(asnSelect, { target: { value: '1' } });
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/signups/expeditions/42/asn-validation'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ asn_validated: 1 }),
+                })
+            );
+            expect(screen.getByTestId('asn-save-success')).toBeInTheDocument();
+        });
     });
 });
 

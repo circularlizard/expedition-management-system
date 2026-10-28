@@ -1523,6 +1523,48 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 'Dana, Charlie', $data['explorers'][0]['team_preferences'] );
         $this->assertSame( [], $data['explorers'][0]['available_events'] );
     }
+
+    public function test_update_expedition_signup_asn_validation_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'update_expedition_signup_asn_validation' )
+            ->with( 42, 1 )
+            ->once()
+            ->andReturn( true );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = new \WP_REST_Request( 'POST', '/ems/v1/signups/expeditions/42/asn-validation' );
+        $request->set_param( 'id', 42 );
+        $request->set_param( 'asn_validated', 1 );
+        $request->set_body_params( [ 'asn_validated' => 1 ] );
+
+        $response = $controller->update_expedition_signup_asn_validation( $request );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['updated'] );
+        $this->assertSame( 1, $response->get_data()['asn_validated'] );
+    }
+
+    public function test_update_scout_asn_validation_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'update_scout_asn_validation' )
+            ->with( 30005, 0 )
+            ->once()
+            ->andReturn( true );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = new \WP_REST_Request( 'POST', '/ems/v1/planning-board/explorers/30005/asn-validation' );
+        $request->set_param( 'scout_id', 30005 );
+        $request->set_param( 'asn_validated', 0 );
+        $request->set_body_params( [ 'asn_validated' => 0 ] );
+
+        $response = $controller->update_scout_asn_validation( $request );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertTrue( $response->get_data()['updated'] );
+        $this->assertSame( 0, $response->get_data()['asn_validated'] );
+    }
 }
 
 
