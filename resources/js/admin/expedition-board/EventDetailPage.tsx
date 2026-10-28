@@ -979,6 +979,9 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
                     </div>
                     <div className="ems-event-detail__stat-pill">
                         <FontAwesomeIcon icon={faUser} className="ems-btn-icon" /> {event.member_count ?? 0} Member{ (event.member_count ?? 0) !== 1 ? 's' : ''}
+                        {Boolean(event.pool_count) && (
+                            <span className="ems-meta-text"> ({event.pool_count} pool)</span>
+                        )}
                     </div>
                 </div>
             </div>

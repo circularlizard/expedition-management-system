@@ -660,8 +660,13 @@ class Expedition_Admin_Controller {
 				$team['members']      = $this->hydrate_members( $members );
 				$teams[]              = $team;
 			}
+			$unallocated_team = $this->teams->get_unallocated_team( $event['ID'] );
+			$pool_members     = $unallocated_team ? $this->team_members->list_by_team( (int) $unallocated_team['ID'] ) : array();
+			$pool_count       = count( $pool_members );
+
 			$event['teams']        = $teams;
-			$event['member_count'] = array_sum( array_column( $teams, 'member_count' ) );
+			$event['pool_count']   = $pool_count;
+			$event['member_count'] = array_sum( array_column( $teams, 'member_count' ) ) + $pool_count;
 			$events[]              = $event;
 		}
 
@@ -730,8 +735,13 @@ class Expedition_Admin_Controller {
 				$team['size_warning'] = $team['member_count'] < 4 || $team['member_count'] > 7;
 				$teams[]              = $team;
 			}
+			$unallocated_team = $this->teams->get_unallocated_team( $event['ID'] );
+			$pool_members     = $unallocated_team ? $this->team_members->list_by_team( (int) $unallocated_team['ID'] ) : array();
+			$pool_count       = count( $pool_members );
+
 			$event['teams']        = $teams;
-			$event['member_count'] = array_sum( array_column( $teams, 'member_count' ) );
+			$event['pool_count']   = $pool_count;
+			$event['member_count'] = array_sum( array_column( $teams, 'member_count' ) ) + $pool_count;
 			$events[]              = $event;
 		}
 
@@ -1727,16 +1737,27 @@ class Expedition_Admin_Controller {
 				);
 			}
 
+			$pool_count      = 0;
+			$total_allocated = 0;
+			foreach ( $teams_data as $td ) {
+				if ( $td['team_code'] === 'UNALLOCATED' ) {
+					$pool_count += (int) $td['member_count'];
+				}
+				$total_allocated += (int) $td['member_count'];
+			}
+
 			$matched_events[] = array(
-				'id'         => $event_id,
-				'event_code' => $event_code,
-				'title'      => $event['post_title'] ?? '',
-				'level'      => $level,
-				'type'       => $type,
-				'transport'  => $transport,
-				'start_date' => $event['ems_start_date'] ?? '',
-				'end_date'   => $event['ems_end_date'] ?? '',
-				'teams'      => $teams_data,
+				'id'           => $event_id,
+				'event_code'   => $event_code,
+				'title'        => $event['post_title'] ?? '',
+				'level'        => $level,
+				'type'         => $type,
+				'transport'    => $transport,
+				'start_date'   => $event['ems_start_date'] ?? '',
+				'end_date'     => $event['ems_end_date'] ?? '',
+				'pool_count'   => $pool_count,
+				'member_count' => $total_allocated,
+				'teams'        => $teams_data,
 			);
 		}
 

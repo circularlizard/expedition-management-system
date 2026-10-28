@@ -64,6 +64,7 @@ export interface Expedition {
     ems_first_aid_requirements?: string;
     teams: Team[];
     member_count?: number;
+    pool_count?: number;
 }
 
 export interface Season {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import EventPlanningBoard from '../../resources/js/admin/expedition-board/EventPlanningBoard';
 
 const mockMatrixData = {
@@ -279,7 +279,7 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
     });
   });
 
-  it('renders single event detail view when event prop is provided', async () => {
+  it('leaves single event view functional when event prop is provided', async () => {
     render(<EventPlanningBoard event={mockSingleEvent as any} />);
 
     // Single event view displays the split panes with Available Explorers and Expedition Teams
@@ -287,6 +287,26 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
       expect(screen.getByText(/Available Explorers/i)).toBeInTheDocument();
       expect(screen.getByText(/Expedition Teams/i)).toBeInTheDocument();
     });
+  });
+
+  it('leaves columns blank for unavailable events and allows switching event via clickable badge in asserted columns', async () => {
+    render(<EventPlanningBoard />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Fraser Myles/).length).toBeGreaterThan(0);
+    });
+
+    // Fraser Myles is allocated to H-SP1, but also asserted availability for H-SP2.
+    // In H-SP2 column, a switch button "In H-SP1 ⇄" should be rendered.
+    const switchBtn = screen.getByRole('button', { name: /In H-SP1/i });
+    expect(switchBtn).toBeInTheDocument();
+
+    // Clicking switchBtn opens the popover for H-SP2 allowing direct switch
+    fireEvent.click(switchBtn);
+    const dialog = screen.getByRole('dialog', { name: /Assign Explorer/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/H-SP2/i)).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(/Switching from H-SP1/i);
   });
 
   it('renders without forbidden inline structural styles', async () => {
