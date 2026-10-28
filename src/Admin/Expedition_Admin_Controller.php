@@ -187,28 +187,6 @@ class Expedition_Admin_Controller {
 				),
 			)
 		);
-
-		register_rest_route(
-			'ems/v1',
-			'/events/(?P<source_id>\d+)/populate/(?P<target_id>\d+)',
-			array(
-				'methods'             => \WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'populate_event' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-				'args'                => array(
-					'source_id' => array(
-						'type'              => 'integer',
-						'required'          => true,
-						'sanitize_callback' => 'absint',
-					),
-					'target_id' => array(
-						'type'              => 'integer',
-						'required'          => true,
-						'sanitize_callback' => 'absint',
-					),
-				),
-			)
-		);
 	}
 
 	private function register_member_routes(): void {
@@ -506,31 +484,6 @@ class Expedition_Admin_Controller {
 		} catch ( \RuntimeException $e ) {
 			return $this->error( 'ems_team_duplicate_failed', $e->getMessage(), 500 );
 		}
-	}
-
-	public function populate_event( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
-		$source_id = (int) $request->get_param( 'source_id' );
-		$target_id = (int) $request->get_param( 'target_id' );
-
-		$source = $this->expeditions->get_by_id( $source_id );
-		$target = $this->expeditions->get_by_id( $target_id );
-
-		if ( ! $source || ! $target ) {
-			return $this->error( 'ems_event_not_found', 'Event not found.', 404 );
-		}
-
-		if ( $this->event_type( $source_id ) === $this->event_type( $target_id ) ) {
-			return $this->error( 'ems_same_event_type', 'Populate only works between different event types.', 422 );
-		}
-
-		$created = $this->teams->populate_from_event( $source_id, $target_id, $target['ems_event_code'] );
-		foreach ( $created as $new_team_id ) {
-			$members = $this->team_members->list_by_team( $new_team_id );
-			foreach ( $members as $member ) {
-				$this->explorers->touch_last_local_update( (int) $member['scout_id'] );
-			}
-		}
-		return new \WP_REST_Response( $this->teams->list_by_expedition( $target_id ), 201 );
 	}
 
 	public function add_member( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
@@ -955,16 +908,6 @@ class Expedition_Admin_Controller {
 	}
 
 	private function register_planning_routes(): void {
-		register_rest_route(
-			'ems/v1',
-			'/planning-board',
-			array(
-				'methods'             => \WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'list_planning_board' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-
 		register_rest_route(
 			'ems/v1',
 			'/planning-board/availability/(?P<event_code>[a-zA-Z0-9\-]+)',
@@ -1885,94 +1828,6 @@ class Expedition_Admin_Controller {
 				'explorers' => $matched_explorers,
 			)
 		);
-	}
-
-	public function list_planning_board( \WP_REST_Request $request ): \WP_REST_Response {
-		$raw_events = $this->expeditions->list_all_chronological();
-		$filtered   = array();
-
-		// Normalise query params
-		$req_level = strtolower( trim( (string) $request->get_param( 'level' ) ) );
-		$req_type  = strtolower( trim( (string) $request->get_param( 'type' ) ) );
-		// The CPT stores 'qualifying'; the UI sends 'qualifier' — accept both.
-		if ( $req_type === 'qualifier' ) {
-			$req_type = 'qualifying';
-		}
-
-		foreach ( $raw_events as $event ) {
-			$level  = strtolower( $event['ems_level'] ?? '' );
-			$type   = strtolower( $event['ems_type'] ?? '' );
-			$status = strtolower( $event['ems_status'] ?? '' );
-
-			if ( $status === 'archived' ) {
-				continue;
-			}
-			if ( $level !== 'silver' && $level !== 'gold' ) {
-				continue;
-			}
-			// Apply level filter when provided
-			if ( $req_level !== '' && $level !== $req_level ) {
-				continue;
-			}
-			// Apply type filter when provided
-			if ( $req_type !== '' && $type !== $req_type ) {
-				continue;
-			}
-
-			$event_code = $event['ems_event_code'] ?? '';
-			if ( empty( $event_code ) ) {
-				continue;
-			}
-
-			// Get available count from signups
-			$signups_list    = $this->signups->get_expedition_signups( 'pending' );
-			$available_count = 0;
-			foreach ( $signups_list as $signup ) {
-				if ( ( $signup['signup_status'] ?? '' ) === 'archived' ) {
-					continue;
-				}
-				$prefs = ! empty( $signup['expedition_preferences'] ) ? json_decode( $signup['expedition_preferences'], true ) : null;
-				if ( ! is_array( $prefs ) ) {
-					continue;
-				}
-
-				$practice  = $prefs['exped_practice_dates'] ?? array();
-				$qualifier = $prefs['exped_qualifier_dates'] ?? array();
-
-				if ( in_array( $event_code, $practice, true ) || in_array( $event_code, $qualifier, true ) ) {
-					++$available_count;
-				}
-			}
-
-			// Get allocated count: get all teams of this event, then count team members
-			$allocated_count = 0;
-			$teams_list      = $this->teams->list_by_expedition( $event['ID'] );
-
-			$unallocated = $this->teams->get_unallocated_team( $event['ID'] );
-			if ( $unallocated ) {
-				$teams_list[] = $unallocated;
-			}
-
-			foreach ( $teams_list as $team ) {
-				$members          = $this->team_members->list_by_team( $team['ID'] );
-				$allocated_count += count( $members );
-			}
-
-			$filtered[] = array(
-				'id'              => (int) $event['ID'],
-				'title'           => $event['post_title'],
-				'event_code'      => $event_code,
-				'type'            => $event['ems_type'] ?? '',
-				'level'           => $level,
-				'start_date'      => $event['ems_start_date'] ?? '',
-				'end_date'        => $event['ems_end_date'] ?? '',
-				'available_count' => $available_count,
-				'allocated_count' => $allocated_count,
-				'first_aid_level' => get_post_meta( $event['ID'], 'ems_first_aid_level', true ) ?: 'none',
-			);
-		}
-
-		return new \WP_REST_Response( $filtered );
 	}
 
 	public function list_planning_availability( \WP_REST_Request $request ): \WP_REST_Response {
