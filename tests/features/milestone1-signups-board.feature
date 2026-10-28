@@ -135,3 +135,9 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     Then the signup unit should update to "Kelso ESU"
     And an inline success checkmark should display beside the unit field
 
+  Scenario: DofE number in the Inspector Panel is read-only
+    Given a participant signup exists with ID 10 and dofe_number "123456"
+    When the administrator opens the Inspector Panel for signup 10
+    Then the eDofE Number field should be read-only with value "123456"
+
+
