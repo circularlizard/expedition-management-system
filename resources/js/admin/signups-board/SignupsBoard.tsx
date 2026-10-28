@@ -81,16 +81,19 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     const [unlinkError, setUnlinkError] = useState<string | null>(null);
     const inspectorRef = useRef<HTMLDivElement>(null);
     const availableUnits: any[] = config.units || [];
+    const prevEntryKeyRef = useRef<string | null>(null);
+
+    const selectedEntryKey = selectedSignup ? `${selectedSignup.type}_${selectedSignup.id}` : null;
 
     useEffect(() => {
         if (!levelSaveSuccess) return;
-        const timer = setTimeout(() => setLevelSaveSuccess(false), 2500);
+        const timer = setTimeout(() => setLevelSaveSuccess(false), 3500);
         return () => clearTimeout(timer);
     }, [levelSaveSuccess]);
 
     useEffect(() => {
         if (!unitSaveSuccess) return;
-        const timer = setTimeout(() => setUnitSaveSuccess(false), 2500);
+        const timer = setTimeout(() => setUnitSaveSuccess(false), 3500);
         return () => clearTimeout(timer);
     }, [unitSaveSuccess]);
 
@@ -145,9 +148,14 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     useEffect(() => {
         if (selectedSignup) {
-            setLevelSaveSuccess(false);
-            setUnitSaveSuccess(false);
-            setSavingField(null);
+            if (prevEntryKeyRef.current !== selectedEntryKey) {
+                setLevelSaveSuccess(false);
+                setUnitSaveSuccess(false);
+                setSavingField(null);
+                setUnlinkError(null);
+                setReconcileSearch('');
+                prevEntryKeyRef.current = selectedEntryKey;
+            }
             setEditedDofeNumber(selectedSignup.dofe_number || '');
             if (selectedSignup.unit_id) {
                 setEditedUnitId(String(selectedSignup.unit_id));
@@ -159,10 +167,10 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                 );
                 setEditedUnitId(matchedUnit ? String(matchedUnit.unit_id) : '');
             }
-            setUnlinkError(null);
-            setReconcileSearch('');
+        } else {
+            prevEntryKeyRef.current = null;
         }
-    }, [selectedSignup]);
+    }, [selectedSignup, selectedEntryKey]);
 
     useEffect(() => {
         if (!loading && signups && signups.length > 0) {
@@ -1460,7 +1468,9 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         <option value="gold">Gold</option>
                                     </select>
                                     {savingField === 'level' && (
-                                        <span className="ems-spinner ems-spinner-sm" aria-label="Saving level…" />
+                                        <span className="ems-field-status ems-field-status--saving" aria-label="Saving level…">
+                                            <span className="ems-spinner ems-spinner-sm" /> Saving…
+                                        </span>
                                     )}
                                     {levelSaveSuccess && (
                                         <span className="ems-field-status ems-field-status--success" data-testid="level-save-success">
@@ -1495,7 +1505,9 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         ))}
                                     </select>
                                     {savingField === 'unit' && (
-                                        <span className="ems-spinner ems-spinner-sm" aria-label="Saving unit…" />
+                                        <span className="ems-field-status ems-field-status--saving" aria-label="Saving unit…">
+                                            <span className="ems-spinner ems-spinner-sm" /> Saving…
+                                        </span>
                                     )}
                                     {unitSaveSuccess && (
                                         <span className="ems-field-status ems-field-status--success" data-testid="unit-save-success">
