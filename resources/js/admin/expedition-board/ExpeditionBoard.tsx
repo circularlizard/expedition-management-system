@@ -4,7 +4,7 @@ import { useOSMEvents } from './useOSMEvents';
 import { EventsDashboard } from './EventsDashboard';
 import { EventDetailPage } from './EventDetailPage';
 import { Expedition } from './types';
-import EventPlanningBoard from './EventPlanningBoard';
+import CohortPlanningMatrix from './CohortPlanningMatrix';
 import { EventForm } from './EventForm';
 
 type BoardTab = 'dashboard' | 'detail' | 'planning' | 'create';
@@ -138,7 +138,7 @@ const ExpeditionBoard: React.FC = () => {
                     </div>
                 )}
                 {activeTab === 'planning' && (
-                    <EventPlanningBoard />
+                    <CohortPlanningMatrix />
                 )}
             </div>
         </div>

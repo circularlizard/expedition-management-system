@@ -57,7 +57,6 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
   const rootUrl = config.root_url;
   const nonce   = config.nonce;
 
-  const [events,      setEvents]      = useState<PlanningEvent[]>([]);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
 
@@ -101,26 +100,10 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
       .catch(e => console.error('Failed to load synced explorers:', e));
   }, [rootUrl, nonce, selectedEvent]);
 
-  // ── Load planning board events list ─────────────────────────────────────────────
+  // ── Sync event selection ───────────────────────────────────────────────────
   useEffect(() => {
-    if (event) {
-      setSelectedEvent(event);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setSelectedEvent(null);
-    setExplorers([]);
-    setSelectedScoutIds([]);
-
-    fetch(`${rootUrl}/planning-board`, {
-      headers: { 'X-WP-Nonce': nonce },
-    })
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(data => setEvents(Array.isArray(data) ? data : []))
-      .catch(e => setError(`Failed to load planning board: ${e}`))
-      .finally(() => setLoading(false));
-  }, [rootUrl, nonce, event]);
+    setSelectedEvent(event);
+  }, [event]);
 
   // ── Load explorers availability reactively ─────────────────────────────────
   useEffect(() => {
@@ -197,10 +180,6 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
       setAddingExplorer(false);
     }
   };
-
-  const handleSelectEvent = useCallback((ev: PlanningEvent) => {
-    setSelectedEvent(ev);
-  }, []);
 
   // ── Checkbox helpers ───────────────────────────────────────────────────────
   const handleSelectExplorer = (scout_id: number) =>
@@ -463,41 +442,13 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
         </div>
       )}
 
-      {/* ── Toolbar / Event Selector at the Top ── */}
-      {!event && (
-        <div className="ems-toolbar">
-          <div className="ems-toolbar__group">
-            <label className="ems-toolbar__label ems-planning-select-label" htmlFor="epb-event-select">Select Event</label>
-            <select
-              id="epb-event-select"
-              className="ems-select ems-planning-select"
-              aria-label="Select Event"
-              value={selectedEvent?.event_code || ''}
-              onChange={e => {
-                const ev = events.find(x => x.event_code === e.target.value);
-                if (ev) handleSelectEvent(ev);
-              }}
-            >
-              <option value="">-- Choose an Event --</option>
-              {events.map(ev => (
-                <option key={ev.id} value={ev.event_code}>
-                  {ev.title} ({ev.event_code}) - {ev.available_count} Available
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {loading && <Spinner />}
-        </div>
-      )}
-
       {/* ── Two-column split ── */}
       <div className={`ems-split ems-planning-split ${rosterCollapsed ? 'ems-planning-split--collapsed-roster' : ''}`}>
 
         {/* Left Column — Availability Roster */}
         <div className="ems-split__left ems-planning-split__left">
           <h3 className="ems-section-heading ems-mb-16">Available Explorers</h3>
-          {selectedEvent ? (
+          {selectedEvent && (
             <>
               {/* Unlisted Explorer Search & Add */}
               <div className="ems-unlisted-search ems-mb-12" style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
@@ -709,10 +660,6 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
                 </div>
               )}
             </>
-          ) : (
-            <div className="ems-empty">
-              Select an event from the dropdown to view availability roster.
-            </div>
           )}
         </div>
 
