@@ -251,9 +251,11 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
 
         $teams = \Mockery::mock( Team_Repository::class );
         $teams->shouldReceive( 'list_by_expedition' )->with( 20 )->andReturn( [ [ 'ID' => 30, 'ems_team_code' => 'H-SP1-1' ] ] );
+        $teams->shouldReceive( 'get_unallocated_team' )->with( 20 )->andReturn( [ 'ID' => 31, 'ems_team_code' => 'UNALLOCATED' ] );
 
         $team_members = \Mockery::mock( Team_Member_Repository::class );
         $team_members->shouldReceive( 'list_by_team' )->with( 30 )->andReturn( [ [ 'scout_id' => 1 ], [ 'scout_id' => 2 ], [ 'scout_id' => 3 ], [ 'scout_id' => 4 ] ] );
+        $team_members->shouldReceive( 'list_by_team' )->with( 31 )->andReturn( [ [ 'scout_id' => 5 ], [ 'scout_id' => 6 ] ] );
 
         $explorers = \Mockery::mock( OSM_Explorer_Repository::class );
         $explorers->shouldReceive( 'find_by_scout_id' )->andReturn( [ 'first_name' => 'Alice', 'last_name' => 'MacLeod', 'scout_id' => 3417257, 'patrol' => 'Eagles' ] );
@@ -269,6 +271,40 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertCount( 1, $seasons_data[0]['events'] );
         $this->assertSame( 4, $seasons_data[0]['events'][0]['teams'][0]['member_count'] );
         $this->assertFalse( $seasons_data[0]['events'][0]['teams'][0]['size_warning'] );
+        $this->assertSame( 6, $seasons_data[0]['events'][0]['member_count'] );
+        $this->assertSame( 2, $seasons_data[0]['events'][0]['pool_count'] );
+    }
+
+    public function test_get_events_includes_unallocated_pool_in_member_count(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $expeditions = \Mockery::mock( Expedition_Repository::class );
+        $expeditions->shouldReceive( 'list_upcoming' )->andReturn( [
+            [ 'ID' => 10, 'ems_event_code' => 'H-SP1', 'ems_status' => 'active' ]
+        ] );
+
+        $teams = \Mockery::mock( Team_Repository::class );
+        $teams->shouldReceive( 'list_by_expedition' )->with( 10 )->andReturn( [
+            [ 'ID' => 20, 'ems_team_code' => 'H-SP1-1' ]
+        ] );
+        $teams->shouldReceive( 'get_unallocated_team' )->with( 10 )->andReturn( [
+            'ID' => 21, 'ems_team_code' => 'UNALLOCATED'
+        ] );
+
+        $team_members = \Mockery::mock( Team_Member_Repository::class );
+        $team_members->shouldReceive( 'list_by_team' )->with( 20 )->andReturn( [ [ 'scout_id' => 1 ], [ 'scout_id' => 2 ], [ 'scout_id' => 3 ], [ 'scout_id' => 4 ] ] );
+        $team_members->shouldReceive( 'list_by_team' )->with( 21 )->andReturn( [ [ 'scout_id' => 5 ] ] );
+
+        $controller = $this->create_controller( null, $expeditions, $teams, $team_members );
+        $request    = new \WP_REST_Request( 'GET', '/ems/v1/events' );
+        $request->set_param( 'tab', 'upcoming' );
+        $response = $controller->list_events( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $events = $response->get_data()['events'];
+        $this->assertCount( 1, $events );
+        $this->assertSame( 5, $events[0]['member_count'] );
+        $this->assertSame( 1, $events[0]['pool_count'] );
     }
 
     public function test_get_board_empty_season(): void {

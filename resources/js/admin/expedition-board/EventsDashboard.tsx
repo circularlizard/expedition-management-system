@@ -264,7 +264,12 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                         <strong>{(event.teams ?? []).length}</strong>
                                     </td>
                                     <td className="ems-table-cell--center">
-                                        {event.member_count ?? 0}
+                                        <strong>{event.member_count ?? 0}</strong>
+                                        {Boolean(event.pool_count) && (
+                                            <div className="ems-meta-text ems-small-text" title={`${event.pool_count} in unallocated event pool`}>
+                                                ({event.pool_count} in pool)
+                                            </div>
+                                        )}
                                     </td>
                                     <td>{statusBadge(event.ems_route_status || 'draft')}</td>
                                     <td className="ems-table-cell--right">

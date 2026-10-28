@@ -472,12 +472,21 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                 <th>Explorer</th>
                 <th>Unit</th>
                 <th>Teammate Wishlist</th>
-                {events.map(ev => (
-                  <th key={ev.id} className="ems-matrix-th-event">
-                    <div>{ev.event_code}</div>
-                    <span className="ems-matrix-th-date">{formatDateShort(ev.start_date)}</span>
-                  </th>
-                ))}
+                {events.map(ev => {
+                  const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
+                  const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
+                  return (
+                    <th key={ev.id} className="ems-matrix-th-event">
+                      <div>{ev.event_code}</div>
+                      <span className="ems-matrix-th-date">{formatDateShort(ev.start_date)}</span>
+                      <div className="ems-matrix-th-stats">
+                        <span className="ems-matrix-stat-pill" title={`${assignedCount - poolCount} in teams, ${poolCount} in event pool`}>
+                          {assignedCount} alloc{poolCount > 0 ? ` (${poolCount} pool)` : ''}
+                        </span>
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -538,14 +547,18 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                               <FontAwesomeIcon icon={faLock} className="ems-matrix-badge-icon" />{' '}
                               {exp.allocated_team_code === 'UNALLOCATED' ? 'Pool' : exp.allocated_team_code}
                             </button>
+                          ) : !isAvailable ? (
+                            <span className="ems-matrix-dash" aria-label="Not available">—</span>
                           ) : isAssignedOther ? (
-                            <span
+                            <button
+                              type="button"
                               className="ems-matrix-badge ems-matrix-badge--other"
-                              title={`Allocated to ${exp.allocated_event_code}`}
+                              onClick={() => setActivePopover({ explorer: exp, event: ev })}
+                              title={`Currently in ${exp.allocated_event_code} - click to switch to ${ev.event_code}`}
                             >
-                              {exp.allocated_event_code}
-                            </span>
-                          ) : isAvailable ? (
+                              In {exp.allocated_event_code} ⇄
+                            </button>
+                          ) : (
                             <button
                               type="button"
                               className="ems-matrix-badge ems-matrix-badge--available"
@@ -554,8 +567,6 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                             >
                               Available +
                             </button>
-                          ) : (
-                            <span className="ems-matrix-dash" aria-label="Not available">—</span>
                           )}
                         </td>
                       );
@@ -572,9 +583,17 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                 {events.map(ev => {
                   const availableCount = explorers.filter(e => e.available_events.includes(ev.event_code)).length;
                   const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
+                  const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
+                  const teamCount = assignedCount - poolCount;
+
                   return (
                     <td key={ev.id} className="ems-matrix-footer-cell">
-                      {assignedCount} / {availableCount}
+                      <div><strong>{assignedCount}</strong> / {availableCount}</div>
+                      {poolCount > 0 && (
+                        <div className="ems-meta-text ems-small-text">
+                          ({teamCount} team{teamCount === 1 ? '' : 's'}, {poolCount} pool)
+                        </div>
+                      )}
                     </td>
                   );
                 })}
@@ -594,6 +613,12 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
             </h4>
             <div className="ems-assign-popover__subtitle">
               Event: <strong>{activePopover.event.event_code}</strong> ({activePopover.event.title})
+              {activePopover.explorer.allocated_event_code &&
+                activePopover.explorer.allocated_event_code !== activePopover.event.event_code && (
+                  <div className="ems-popover-switch-alert">
+                    Switching from <strong>{activePopover.explorer.allocated_event_code}</strong>
+                  </div>
+                )}
             </div>
 
             <div className="ems-assign-popover__list">
