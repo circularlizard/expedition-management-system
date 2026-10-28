@@ -2909,11 +2909,6 @@ input.ems-form-input {
     cursor: grabbing;
 }
 
-.ems-planning-select-label {
-    display: block;
-    margin-bottom: 6px;
-}
-
 .ems-planning-card--dashed .ems-planning-new-team-inner {
     text-align: center;
 }
@@ -2984,11 +2979,6 @@ input.ems-form-input {
 .ems-planning-card__header {
     cursor: pointer;
     user-select: none;
-}
-
-.ems-planning-select {
-    width: 320px;
-    margin: 0;
 }
 
 .ems-planning-card--collapsed {
