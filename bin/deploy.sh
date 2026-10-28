@@ -5,8 +5,10 @@ set -e
 # Usage: bash bin/deploy.sh
 
 PLUGIN_NAME="ems-plugin"
-TARGET_DIR="wordpress/wp-content/plugins/$PLUGIN_NAME"
-STAGING_DIR="temp/ems-plugin-deploy"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WP_ENV_DIR="${WP_ENV_DIR:-$(cd "$SCRIPT_DIR/../../wordpress-env" 2>/dev/null && pwd)}"
+TARGET_DIR="${WP_PLUGINS_DIR:-$WP_ENV_DIR/wordpress/wp-content/plugins}/$PLUGIN_NAME"
+STAGING_DIR="$SCRIPT_DIR/../temp/ems-plugin-deploy"
 
 echo "==> Deploying EMS plugin to $TARGET_DIR..."
 
@@ -61,7 +63,9 @@ rsync -a --delete "$STAGING_DIR/$PLUGIN_NAME/" "$TARGET_DIR/"
 rm -rf "$STAGING_DIR"
 
 # 7. Use WP-CLI to ensure plugin is activated
-echo "==> Refreshing plugin status..."
-docker compose run --rm wpcli plugin activate $PLUGIN_NAME --quiet
+if [ -d "$WP_ENV_DIR" ] && command -v docker >/dev/null 2>&1; then
+  echo "==> Refreshing plugin status..."
+  (cd "$WP_ENV_DIR" && docker compose run --rm wpcli plugin activate $PLUGIN_NAME --quiet 2>/dev/null) || true
+fi
 
 echo "==> Done! Plugin deployed and activated."

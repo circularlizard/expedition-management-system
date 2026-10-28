@@ -220,7 +220,7 @@ Gherkin UI scenarios are implemented with **Vitest + React Testing Library**. Th
 
 | Script | Purpose |
 |---|---|
-| `bash bin/deploy.sh` | Build JS, install prod deps, sync to local WP (`wordpress/wp-content/plugins/ems-plugin/`), activate via WP-CLI |
+| `bash bin/deploy.sh` | Build JS, install prod deps, sync to local WP (`wordpress-env/wordpress/wp-content/plugins/ems-plugin/`), activate via WP-CLI |
 | `bash bin/package.sh` | Bump patch version, build JS, produce `dist/ems-plugin-{VERSION}.zip` for manual upload |
 
 `npm run build` is acceptable during active development to enable JS tests. However, **every development phase must finish with `bash bin/deploy.sh`** to sync the built assets and PHP to the local WordPress install. Never leave a phase complete without running the deploy script.
@@ -252,7 +252,7 @@ The version lives in **one place**: `ems-plugin.php` (in the `* Version:` file h
     - If bumping manually outside packaging, edit `ems-plugin.php` (header and constant) and run `bash bin/deploy.sh`.
 
 ### Key Constraints:
-- Never edit the version copy in `wordpress/wp-content/plugins/ems-plugin/ems-plugin.php` directly — that directory is synced by `bin/deploy.sh`.
+- Never edit the version copy in `wordpress-env/wordpress/wp-content/plugins/ems-plugin/ems-plugin.php` directly — that directory is synced by `bin/deploy.sh`.
 - Whenever a manual version edit is made in `ems-plugin.php`, always run `bash bin/deploy.sh` to compile assets, update the local WordPress environment, and refresh plugin status.
 
 ---
