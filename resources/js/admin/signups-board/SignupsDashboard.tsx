@@ -1,4 +1,17 @@
 import React, { useState, useMemo } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faClipboardList,
+    faAward,
+    faCompass,
+    faPersonHiking,
+    faBicycle,
+    faWater,
+    faCampground,
+    faFileLines,
+    faTriangleExclamation,
+    faChartLine
+} from '@fortawesome/free-solid-svg-icons';
 import {
     computeSignupsDashboardMetrics,
     computeWeeklyCumulativeSeries,
@@ -149,7 +162,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                 {/* 1. Breakdown by Signup Type */}
                 <div className="ems-overview-card">
                     <div className="ems-overview-card__title">
-                        <span>📋</span> Signups by Type
+                        <span><FontAwesomeIcon icon={faClipboardList} /></span> Signups by Type
                     </div>
                     <div className="ems-dashboard-hero-row">
                         <div>
@@ -223,7 +236,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                 {/* 2. Breakdown by DofE Level */}
                 <div className="ems-overview-card">
                     <div className="ems-overview-card__title">
-                        <span>🏅</span> Signups by DofE Level
+                        <span><FontAwesomeIcon icon={faAward} /></span> Signups by DofE Level
                     </div>
                     <div className="ems-dashboard-stat-list">
                         {(['bronze', 'silver', 'gold'] as const).map((lvl) => {
@@ -264,7 +277,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                 {/* 3. Breakdown by Expedition Type */}
                 <div className="ems-overview-card">
                     <div className="ems-overview-card__title">
-                        <span>🧭</span> Signups by Expedition Type
+                        <span><FontAwesomeIcon icon={faCompass} /></span> Signups by Expedition Type
                     </div>
                     <div className="ems-dashboard-stat-list">
                         <div
@@ -278,7 +291,9 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             }
                         >
                             <div className="ems-flex-between">
-                                <span className="ems-font-semibold">🥾 Hillwalking</span>
+                                <span className="ems-font-semibold">
+                                    <FontAwesomeIcon icon={faPersonHiking} className="ems-pill-icon" /> Hillwalking
+                                </span>
                                 <strong data-testid="metric-exped-hillwalking">
                                     {metrics.byExpeditionType.hillwalking}
                                 </strong>
@@ -301,7 +316,9 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             }
                         >
                             <div className="ems-flex-between">
-                                <span className="ems-font-semibold">🚲 Biking</span>
+                                <span className="ems-font-semibold">
+                                    <FontAwesomeIcon icon={faBicycle} className="ems-pill-icon" /> Biking
+                                </span>
                                 <strong data-testid="metric-exped-biking">
                                     {metrics.byExpeditionType.biking}
                                 </strong>
@@ -324,7 +341,9 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             }
                         >
                             <div className="ems-flex-between">
-                                <span className="ems-font-semibold">🛶 Paddling</span>
+                                <span className="ems-font-semibold">
+                                    <FontAwesomeIcon icon={faWater} className="ems-pill-icon" /> Paddling
+                                </span>
                                 <strong data-testid="metric-exped-paddling">
                                     {metrics.byExpeditionType.paddling}
                                 </strong>
@@ -344,7 +363,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                 {/* 1. Unpaired Signups: Place Only vs Expedition Only */}
                 <div className="ems-overview-card ems-dashboard-action-card">
                     <div className="ems-overview-card__title">
-                        <span>⛺</span> Unpaired Signups (Place vs Expedition)
+                        <span><FontAwesomeIcon icon={faCampground} /></span> Unpaired Signups (Place vs Expedition)
                     </div>
 
                     {/* Case A: Participant Place Only (No Expedition) */}
@@ -539,7 +558,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                     }
                 >
                     <div className="ems-overview-card__title">
-                        <span>📑</span> Duplicate Signups
+                        <span><FontAwesomeIcon icon={faFileLines} /></span> Duplicate Signups
                     </div>
                     <div className="ems-dashboard-hero-row">
                         <div>
@@ -585,7 +604,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                     }
                 >
                     <div className="ems-overview-card__title">
-                        <span>⚠️</span> No Synced OSM Record
+                        <span><FontAwesomeIcon icon={faTriangleExclamation} /></span> No Synced OSM Record
                     </div>
                     <div className="ems-dashboard-hero-row">
                         <div>
@@ -614,7 +633,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                 <div className="ems-dashboard-chart-header">
                     <div>
                         <h3 className="ems-m-0 ems-font-semibold">
-                            📈 Cumulative Signups by Week
+                            <FontAwesomeIcon icon={faChartLine} className="ems-btn-icon" /> Cumulative Signups by Week
                         </h3>
                         <div className="ems-meta-text ems-mt-4">
                             School year {cumulativeSeries.schoolYearLabel}

@@ -1,5 +1,7 @@
 import '../../../css/ems-admin.css';
 import React, { useState, useEffect } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCalendarDays, faUser } from '@fortawesome/free-solid-svg-icons';
 import { createRoot } from 'react-dom/client';
 import { EventRosterPanel, Expedition } from './EventRosterPanel';
 
@@ -389,13 +391,13 @@ function VolunteersDashboard() {
                     className={`nav-tab ${activeTab === 'staffing' ? 'nav-tab-active' : ''}`} 
                     onClick={() => setActiveTab('staffing')}
                 >
-                    📅 Event Staffing Console
+                    <FontAwesomeIcon icon={faCalendarDays} className="ems-btn-icon" /> Event Staffing Console
                 </button>
                 <button 
                     className={`nav-tab ${activeTab === 'registry' ? 'nav-tab-active' : ''}`} 
                     onClick={() => setActiveTab('registry')}
                 >
-                    👤 Volunteer Registry
+                    <FontAwesomeIcon icon={faUser} className="ems-btn-icon" /> Volunteer Registry
                 </button>
             </nav>
 
@@ -462,7 +464,7 @@ function VolunteersDashboard() {
                                         </span>
                                     </div>
                                     <div style={{ fontSize: '11px', marginTop: '6px', color: '#666', fontWeight: 500 }}>
-                                        👤 {confCount} Confirmed {pendCount > 0 ? `| ${pendCount} Pending` : ''}
+                                        <FontAwesomeIcon icon={faUser} className="ems-btn-icon" /> {confCount} Confirmed {pendCount > 0 ? `| ${pendCount} Pending` : ''}
                                         {confCount === 0 && pendCount === 0 && ' | No volunteers registered'}
                                     </div>
                                 </div>

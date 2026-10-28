@@ -1,4 +1,15 @@
 import React, { useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faCrown,
+    faGraduationCap,
+    faUsers,
+    faEnvelope,
+    faPhone,
+    faSun,
+    faMoon,
+    faTriangleExclamation
+} from '@fortawesome/free-solid-svg-icons';
 export interface Expedition {
     ID: number;
     post_title: string;
@@ -199,20 +210,20 @@ export const EventRosterPanel: React.FC<EventRosterPanelProps> = ({
             {/* Staffing Targets & Health Metrics */}
             <div style={{ display: 'flex', gap: '15px', background: '#fafafa', border: '1px solid #ddd', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '12px' }}>
                 <div><strong>Staffing Metrics:</strong></div>
-                <div>👑 LIC: {selectedEvent.ems_lic_name ? '1/1' : '0/1'}</div>
-                <div>🎓 Assessors: {assignedVolunteers.filter(v => v.preferred_roles?.includes('assessor')).length} / {selectedEvent.ems_req_assessors || 0}</div>
-                <div>👥 Volunteers: {assignedVolunteers.filter(v => !v.preferred_roles?.includes('assessor')).length} / {selectedEvent.ems_req_volunteers || 0}</div>
+                <div><FontAwesomeIcon icon={faCrown} /> LIC: {selectedEvent.ems_lic_name ? '1/1' : '0/1'}</div>
+                <div><FontAwesomeIcon icon={faGraduationCap} /> Assessors: {assignedVolunteers.filter(v => v.preferred_roles?.includes('assessor')).length} / {selectedEvent.ems_req_assessors || 0}</div>
+                <div><FontAwesomeIcon icon={faUsers} /> Volunteers: {assignedVolunteers.filter(v => !v.preferred_roles?.includes('assessor')).length} / {selectedEvent.ems_req_volunteers || 0}</div>
             </div>
 
 
             {/* Leader in Charge details card */}
             <div style={{ background: '#f0f6fc', border: '1px solid #ccd0d4', padding: '12px', borderRadius: '6px', marginBottom: '16px' }}>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '13px', color: '#1d2327' }}>👑 Leader in Charge (LIC)</h4>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '13px', color: '#1d2327' }}><FontAwesomeIcon icon={faCrown} /> Leader in Charge (LIC)</h4>
                 {selectedEvent.ems_lic_name ? (
                     <div>
                         <strong>{selectedEvent.ems_lic_name}</strong>
-                        {selectedEvent.ems_lic_email && <div style={{ fontSize: '12px', color: '#555', marginTop: '2px' }}>📧 {selectedEvent.ems_lic_email}</div>}
-                        {selectedEvent.ems_lic_phone && <div style={{ fontSize: '12px', color: '#555', marginTop: '2px' }}>📞 {selectedEvent.ems_lic_phone}</div>}
+                        {selectedEvent.ems_lic_email && <div style={{ fontSize: '12px', color: '#555', marginTop: '2px' }}><FontAwesomeIcon icon={faEnvelope} /> {selectedEvent.ems_lic_email}</div>}
+                        {selectedEvent.ems_lic_phone && <div style={{ fontSize: '12px', color: '#555', marginTop: '2px' }}><FontAwesomeIcon icon={faPhone} /> {selectedEvent.ems_lic_phone}</div>}
                     </div>
                 ) : (
                     <span style={{ color: '#d63638', fontStyle: 'italic' }}>No Leader in Charge assigned to this event.</span>
@@ -237,11 +248,11 @@ export const EventRosterPanel: React.FC<EventRosterPanelProps> = ({
                                         return (
                                             <React.Fragment key={d}>
                                                 <th style={{ textAlign: 'center', backgroundColor: '#fef3c7', color: '#78350f', fontSize: '11px', padding: '8px 4px' }}>
-                                                    ☀ {dateLabel}<br/>(Day)
+                                                    <FontAwesomeIcon icon={faSun} /> {dateLabel}<br/>(Day)
                                                 </th>
                                                 {!isLastDay && (
                                                     <th style={{ textAlign: 'center', backgroundColor: '#334155', color: '#f8fafc', fontSize: '11px', padding: '8px 4px' }}>
-                                                        🌙 {dateLabel}<br/>(Night)
+                                                        <FontAwesomeIcon icon={faMoon} /> {dateLabel}<br/>(Night)
                                                     </th>
                                                 )}
                                             </React.Fragment>
@@ -329,11 +340,11 @@ export const EventRosterPanel: React.FC<EventRosterPanelProps> = ({
                                         return (
                                             <React.Fragment key={d}>
                                                 <th style={{ textAlign: 'center', backgroundColor: '#fef3c7', color: '#78350f', fontSize: '11px', padding: '8px 4px' }}>
-                                                    ☀ {dateLabel}<br/>(Day)
+                                                    <FontAwesomeIcon icon={faSun} /> {dateLabel}<br/>(Day)
                                                 </th>
                                                 {!isLastDay && (
                                                     <th style={{ textAlign: 'center', backgroundColor: '#334155', color: '#f8fafc', fontSize: '11px', padding: '8px 4px' }}>
-                                                        🌙 {dateLabel}<br/>(Night)
+                                                        <FontAwesomeIcon icon={faMoon} /> {dateLabel}<br/>(Night)
                                                     </th>
                                                 )}
                                             </React.Fragment>
@@ -359,7 +370,7 @@ export const EventRosterPanel: React.FC<EventRosterPanelProps> = ({
                                                     <span style={{ color: '#00a32a' }}>✓ Safe</span>
                                                 ) : (
                                                     <span className="ems-badge" style={{ backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontSize: '11px' }} title={validation.reason}>
-                                                        ⚠ {validation.reason}
+                                                        <FontAwesomeIcon icon={faTriangleExclamation} /> {validation.reason}
                                                     </span>
                                                 )}
                                             </td>
@@ -432,7 +443,7 @@ export const EventRosterPanel: React.FC<EventRosterPanelProps> = ({
                                         <strong>{v.first_name} {v.last_name}</strong> ({v.email})
                                         {!validation.valid && (
                                             <span style={{ color: '#d63638', marginLeft: '10px', fontSize: '11px' }}>
-                                                ⚠ {validation.reason}
+                                                <FontAwesomeIcon icon={faTriangleExclamation} /> {validation.reason}
                                             </span>
                                         )}
                                     </div>

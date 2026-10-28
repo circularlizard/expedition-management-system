@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faMapPin, faMap, faLightbulb } from '@fortawesome/free-solid-svg-icons';
 
 interface OSMMapPickerProps {
     startValue: string;
@@ -216,20 +218,22 @@ export const OSMMapPicker: React.FC<OSMMapPickerProps> = ({
     return (
         <div className="ems-map-picker">
             <div className="ems-map-picker__header">
-                <span className="ems-map-picker__title">📍 Interactive OSM Map Picker</span>
+                <span className="ems-map-picker__title">
+                    <FontAwesomeIcon icon={faMapPin} className="ems-btn-icon" /> Interactive OSM Map Picker
+                </span>
                 <button
                     type="button"
                     className={`button ${mode === 'setStart' ? 'button-primary' : ''}`}
                     onClick={() => setMode(mode === 'setStart' ? 'idle' : 'setStart')}
                 >
-                    {mode === 'setStart' ? 'Click map to set Start...' : '🗺️ Set Start Point'}
+                    {mode === 'setStart' ? 'Click map to set Start...' : <><FontAwesomeIcon icon={faMap} className="ems-btn-icon" /> Set Start Point</>}
                 </button>
                 <button
                     type="button"
                     className={`button ${mode === 'setEnd' ? 'button-primary' : ''}`}
                     onClick={() => setMode(mode === 'setEnd' ? 'idle' : 'setEnd')}
                 >
-                    {mode === 'setEnd' ? 'Click map to set End...' : '🗺️ Set End Point'}
+                    {mode === 'setEnd' ? 'Click map to set End...' : <><FontAwesomeIcon icon={faMap} className="ems-btn-icon" /> Set End Point</>}
                 </button>
                 {mode !== 'idle' && (
                     <button type="button" className="button-link ems-import-error" onClick={() => setMode('idle')}>
@@ -249,7 +253,7 @@ export const OSMMapPicker: React.FC<OSMMapPickerProps> = ({
                 />
             )}
             <p className="ems-map-help">
-                💡 Click one of the buttons above, then click on the map to set the starting or ending coordinates (lat, lng).
+                <FontAwesomeIcon icon={faLightbulb} className="ems-btn-icon" /> Click one of the buttons above, then click on the map to set the starting or ending coordinates (lat, lng).
             </p>
         </div>
     );

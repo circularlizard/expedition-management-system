@@ -1,4 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faPlus,
+  faLock,
+  faUsers,
+  faXmark,
+  faMagnifyingGlass,
+  faClipboardList,
+  faPersonHiking,
+  faBicycle,
+  faWater
+} from '@fortawesome/free-solid-svg-icons';
 
 export interface MatrixTeam {
   id: number;
@@ -68,13 +80,13 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
   const allowedTransports = useMemo(() => {
     if (level === 'bronze') {
       return [
-        { key: 'hillwalking', label: '🥾 Hillwalking' },
-        { key: 'paddling', label: '🚣 Paddling' },
+        { key: 'hillwalking', label: 'Hillwalking', icon: faPersonHiking },
+        { key: 'paddling', label: 'Paddling', icon: faWater },
       ];
     }
     return [
-      { key: 'hillwalking', label: '🥾 Hillwalking' },
-      { key: 'biking', label: '🚴 Biking' },
+      { key: 'hillwalking', label: 'Hillwalking', icon: faPersonHiking },
+      { key: 'biking', label: 'Biking', icon: faBicycle },
     ];
   }, [level]);
 
@@ -328,7 +340,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                 className={`ems-scope-btn ${transport === t.key ? 'ems-scope-btn--active' : ''}`}
                 onClick={() => setTransport(t.key)}
               >
-                {t.label}
+                <FontAwesomeIcon icon={t.icon} className="ems-scope-btn-icon" /> {t.label}
               </button>
             ))}
           </div>
@@ -354,7 +366,9 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
       {/* ── LAYER 2: Cohort Refinement & Search ── */}
       <div className="ems-planning-refine-bar" role="search" aria-label="Cohort Refinement">
         <div className="ems-search-box">
-          <span className="ems-search-icon" aria-hidden="true">🔍</span>
+          <span className="ems-search-icon" aria-hidden="true">
+            <FontAwesomeIcon icon={faMagnifyingGlass} />
+          </span>
           <input
             type="text"
             className="ems-form-input ems-search-input"
@@ -521,7 +535,8 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                               onClick={() => setActivePopover({ explorer: exp, event: ev })}
                               title="Assigned to this event - click to manage team"
                             >
-                              🔒 {exp.allocated_team_code === 'UNALLOCATED' ? 'Pool' : exp.allocated_team_code}
+                              <FontAwesomeIcon icon={faLock} className="ems-matrix-badge-icon" />{' '}
+                              {exp.allocated_team_code === 'UNALLOCATED' ? 'Pool' : exp.allocated_team_code}
                             </button>
                           ) : isAssignedOther ? (
                             <span
@@ -590,7 +605,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                   executeAllocation([activePopover.explorer.scout_id], activePopover.event.event_code, 'new_team')
                 }
               >
-                ➕ Create New Team
+                <FontAwesomeIcon icon={faPlus} className="ems-popover-icon" /> Create New Team
               </button>
 
               <button
@@ -601,7 +616,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                   executeAllocation([activePopover.explorer.scout_id], activePopover.event.event_code, 'unallocated')
                 }
               >
-                📋 Event Pool (Unallocated)
+                <FontAwesomeIcon icon={faClipboardList} className="ems-popover-icon" /> Event Pool (Unallocated)
               </button>
 
               {activePopover.event.teams
@@ -621,7 +636,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                       )
                     }
                   >
-                    👥 Assign to {t.team_code} ({t.member_count}/7)
+                    <FontAwesomeIcon icon={faUsers} className="ems-popover-icon" /> Assign to {t.team_code} ({t.member_count}/7)
                   </button>
                 ))}
 
@@ -634,7 +649,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                     executeAllocation([activePopover.explorer.scout_id], activePopover.event.event_code, 'remove')
                   }
                 >
-                  ❌ Remove from this event
+                  <FontAwesomeIcon icon={faXmark} className="ems-popover-icon" /> Remove from this event
                 </button>
               )}
             </div>

@@ -1,5 +1,7 @@
 import '../../css/ems-admin.css';
 import React, { useState, useEffect } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFolder } from '@fortawesome/free-solid-svg-icons';
 import { createRoot } from 'react-dom/client';
 import { OSMReadOnlyMap } from '../admin/expedition-board/OSMReadOnlyMap';
 
@@ -870,7 +872,9 @@ export function PortalApp() {
                                                             )}
 
                                                             <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #0073aa', borderRadius: '6px', background: '#fcfdff', textAlign: 'center' }}>
-                                                                <p style={{ margin: 0, fontWeight: 'bold', color: '#0073aa' }}>📁 Route Card & GPX Upload Area</p>
+                                                                <p style={{ margin: 0, fontWeight: 'bold', color: '#0073aa' }}>
+                                                                    <FontAwesomeIcon icon={faFolder} /> Route Card & GPX Upload Area
+                                                                </p>
                                                                 <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>Route card PDF/GPX submission tools will be wired here (Milestone 9).</p>
                                                             </div>
                                                         </div>
