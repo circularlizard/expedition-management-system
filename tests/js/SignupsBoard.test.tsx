@@ -964,6 +964,29 @@ describe('SignupsBoard', () => {
             expect(screen.getByTestId('unit-save-success')).toBeInTheDocument();
         });
     });
+
+    it('renders the DofE number field in the inspector panel as read-only', async () => {
+        (global as any).window.emsSignupsBoard = mockConfig;
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        // Wait for board to load and switch to Signups Table tab
+        const tableTabBtn = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTabBtn);
+        await waitFor(() => expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0));
+
+        // Open Inspector for Mary Jones by clicking row
+        const row = screen.getAllByText('Mary Jones')[0].closest('tr')!;
+        fireEvent.click(row);
+
+        // eDofE Number input should exist and have readonly attribute
+        const dofeInput = await screen.findByLabelText(/eDofE Number/i);
+        expect(dofeInput).toBeInTheDocument();
+        expect(dofeInput).toHaveAttribute('readonly');
+    });
 });
 
 
