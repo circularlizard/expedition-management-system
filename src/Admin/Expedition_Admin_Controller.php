@@ -1095,6 +1095,16 @@ class Expedition_Admin_Controller {
 			)
 		);
 
+		register_rest_route(
+			'ems/v1',
+			'/signups/level',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_signup_level' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
 		// Participant Places Endpoints
 		register_rest_route(
 			'ems/v1',
@@ -1373,6 +1383,30 @@ class Expedition_Admin_Controller {
 				'unit_id'      => $result['unit_id'],
 				'unit_name'    => $result['unit_name'],
 				'leader_email' => $result['leader_email'],
+			),
+			200
+		);
+	}
+
+	public function update_signup_level( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$body        = $request->get_json_params() ?: array();
+		$signup_id   = isset( $body['signup_id'] ) ? (int) $body['signup_id'] : 0;
+		$signup_type = isset( $body['signup_type'] ) ? sanitize_text_field( (string) $body['signup_type'] ) : '';
+		$dofe_level  = isset( $body['dofe_level'] ) ? sanitize_text_field( (string) $body['dofe_level'] ) : '';
+
+		if ( $signup_id <= 0 || ! in_array( $signup_type, array( 'participant', 'expedition' ), true ) || ! in_array( strtolower( $dofe_level ), array( 'bronze', 'silver', 'gold' ), true ) ) {
+			return $this->error( 'ems_invalid_parameters', 'Invalid signup or level parameters.', 400 );
+		}
+
+		$result = $this->signups->update_signup_level( $signup_id, $signup_type, $dofe_level );
+		if ( ! $result ) {
+			return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'updated'    => true,
+				'dofe_level' => $result['dofe_level'],
 			),
 			200
 		);

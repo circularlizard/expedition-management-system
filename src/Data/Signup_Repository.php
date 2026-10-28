@@ -615,6 +615,103 @@ class Signup_Repository {
 		);
 	}
 
+	/**
+	 * Update the DofE level on a signup entry and any paired signups for the same explorer.
+	 *
+	 * @return array{dofe_level: string}|false
+	 */
+	public function update_signup_level( int $signup_id, string $signup_type, string $dofe_level ): array|false {
+		$valid_levels = array( 'bronze', 'silver', 'gold' );
+		$level        = strtolower( trim( $dofe_level ) );
+		if ( ! in_array( $level, $valid_levels, true ) ) {
+			return false;
+		}
+
+		if ( $signup_type === 'participant' ) {
+			$signup = $this->get_participant_signup( $signup_id );
+		} else {
+			$signup = $this->get_expedition_signup( $signup_id );
+		}
+
+		if ( ! $signup ) {
+			return false;
+		}
+
+		$now          = current_time( 'mysql' );
+		$scout_id     = (int) ( $signup['scout_id'] ?? 0 );
+		$first_name   = (string) ( $signup['explorer_first_name'] ?? '' );
+		$last_name    = (string) ( $signup['explorer_last_name'] ?? '' );
+		$email        = (string) ( $signup['explorer_email'] ?? '' );
+		$parent_email = (string) ( $signup['parent_email'] ?? '' );
+
+		$this->wpdb->query( 'START TRANSACTION' );
+
+		if ( $scout_id > 0 ) {
+			$p_sql = $this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_participant_signups
+				SET dofe_level = %s, updated_at = %s
+				WHERE scout_id = %d",
+				$level,
+				$now,
+				$scout_id
+			);
+			$e_sql = $this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_expedition_signups
+				SET dofe_level = %s, updated_at = %s
+				WHERE scout_id = %d",
+				$level,
+				$now,
+				$scout_id
+			);
+		} else {
+			$p_id  = $signup_type === 'participant' ? $signup_id : 0;
+			$e_id  = $signup_type === 'expedition' ? $signup_id : 0;
+			$p_sql = $this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_participant_signups
+				SET dofe_level = %s, updated_at = %s
+				WHERE id = %d OR (
+					scout_id = 0 AND (
+						(explorer_email = %s AND explorer_email != '') OR
+						(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+					)
+				)",
+				$level,
+				$now,
+				$p_id,
+				$email,
+				$first_name,
+				$last_name,
+				$parent_email
+			);
+			$e_sql = $this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_expedition_signups
+				SET dofe_level = %s, updated_at = %s
+				WHERE id = %d OR (
+					scout_id = 0 AND (
+						(explorer_email = %s AND explorer_email != '') OR
+						(LOWER(explorer_first_name) = LOWER(%s) AND LOWER(explorer_last_name) = LOWER(%s) AND parent_email = %s)
+					)
+				)",
+				$level,
+				$now,
+				$e_id,
+				$email,
+				$first_name,
+				$last_name,
+				$parent_email
+			);
+		}
+
+		$this->wpdb->query( $p_sql );
+		$this->wpdb->query( $e_sql );
+
+		$this->wpdb->query( 'COMMIT' );
+
+		return array(
+			'dofe_level' => $level,
+		);
+	}
+
 	public function has_additional_support_needs( int $scout_id ): bool {
 		$exp_asn = $this->wpdb->get_var(
 			$this->wpdb->prepare(

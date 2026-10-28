@@ -602,7 +602,6 @@ describe('SignupsBoard', () => {
         });
 
         fireEvent.change(screen.getByLabelText(/Change Unit/i), { target: { value: '20' } });
-        fireEvent.click(screen.getByRole('button', { name: /Update Unit/i }));
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith(
@@ -858,6 +857,111 @@ describe('SignupsBoard', () => {
                     }),
                 })
             );
+        });
+    });
+
+    it('updates signup level directly from inspector dropdown and shows transient green tick', async () => {
+        (global as any).window.emsSignupsBoard = {
+            ...mockConfig,
+            units: [
+                { unit_id: 10, short_code: 'Kelso', name: 'Kelso ESU', leader_email: 'leader@kelso.scouts.org.uk' },
+                { unit_id: 20, short_code: 'TW-Peebles', name: 'Peebles ESU', leader_email: 'leader@peebles.scouts.org' },
+            ],
+        };
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        // Wait for board to load and switch to Signups Table tab
+        const tableTabBtn = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTabBtn);
+        await waitFor(() => expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0));
+
+        // Open Inspector for Mary Jones by clicking row
+        const row = screen.getAllByText('Mary Jones')[0].closest('tr')!;
+        fireEvent.click(row);
+
+        // Level dropdown should exist in inspector
+        const levelSelect = await screen.findByRole('combobox', { name: /Change Level/i });
+        expect(levelSelect).toBeInTheDocument();
+
+        // Mock level update response
+        (global.fetch as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ updated: true, dofe_level: 'silver' })
+        }).mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+          .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        // Change level to silver
+        fireEvent.change(levelSelect, { target: { value: 'silver' } });
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/signups/level'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: expect.stringContaining('"dofe_level":"silver"'),
+                })
+            );
+            // Inline success checkmark
+            expect(screen.getByTestId('level-save-success')).toBeInTheDocument();
+        });
+    });
+
+    it('updates signup unit directly on dropdown change without an Update Unit button and shows transient green tick', async () => {
+        (global as any).window.emsSignupsBoard = {
+            ...mockConfig,
+            units: [
+                { unit_id: 10, short_code: 'Kelso', name: 'Kelso ESU', leader_email: 'leader@kelso.scouts.org.uk' },
+                { unit_id: 20, short_code: 'TW-Peebles', name: 'Peebles ESU', leader_email: 'leader@peebles.scouts.org' },
+            ],
+        };
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        // Wait for board to load and switch to Signups Table tab
+        const tableTabBtn = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTabBtn);
+        await waitFor(() => expect(screen.getAllByText('Mary Jones').length).toBeGreaterThan(0));
+
+        // Open Inspector for Mary Jones by clicking row
+        const row = screen.getAllByText('Mary Jones')[0].closest('tr')!;
+        fireEvent.click(row);
+
+        // Unit dropdown should exist in inspector
+        const unitSelect = await screen.findByRole('combobox', { name: /Change Unit/i });
+        expect(unitSelect).toBeInTheDocument();
+
+        // Update Unit button should NOT exist
+        expect(screen.queryByRole('button', { name: /Update Unit/i })).not.toBeInTheDocument();
+
+        // Mock unit update response
+        (global.fetch as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ updated: true, unit_id: 20, unit_name: 'TW-Peebles', leader_email: 'leader@peebles.scouts.org' })
+        }).mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+          .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        // Change unit to Peebles (20)
+        fireEvent.change(unitSelect, { target: { value: '20' } });
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/signups/unit'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: expect.stringContaining('"unit_id":20'),
+                })
+            );
+            // Inline success checkmark
+            expect(screen.getByTestId('unit-save-success')).toBeInTheDocument();
         });
     });
 });

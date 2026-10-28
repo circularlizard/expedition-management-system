@@ -1286,6 +1286,68 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 404, $response->get_error_data()['status'] );
     }
 
+    public function test_update_signup_level_success(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'update_signup_level' )
+            ->with( 10, 'participant', 'silver' )
+            ->once()
+            ->andReturn( [
+                'dofe_level' => 'silver',
+            ] );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 10,
+            'signup_type' => 'participant',
+            'dofe_level'  => 'silver',
+        ] );
+        $response = $controller->update_signup_level( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertTrue( $data['updated'] );
+        $this->assertSame( 'silver', $data['dofe_level'] );
+    }
+
+    public function test_update_signup_level_returns_400_on_invalid_params(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups    = \Mockery::mock( Signup_Repository::class );
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 10,
+            'signup_type' => 'invalid',
+            'dofe_level'  => 'platinum',
+        ] );
+        $response = $controller->update_signup_level( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 400, $response->get_error_data()['status'] );
+    }
+
+    public function test_update_signup_level_returns_404_when_not_found(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'update_signup_level' )
+            ->with( 999, 'participant', 'silver' )
+            ->once()
+            ->andReturn( false );
+
+        $controller = $this->create_controller( null, null, null, null, null, null, $signups );
+        $request    = $this->json_request( [
+            'signup_id'   => 999,
+            'signup_type' => 'participant',
+            'dofe_level'  => 'silver',
+        ] );
+        $response = $controller->update_signup_level( $request );
+
+        $this->assertInstanceOf( \WP_Error::class, $response );
+        $this->assertSame( 404, $response->get_error_data()['status'] );
+    }
+
     public function test_get_planning_matrix_returns_cohort_events_and_explorers(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
 
