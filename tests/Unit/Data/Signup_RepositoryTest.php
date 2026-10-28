@@ -432,4 +432,56 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertSame( 'yes', $wpdb->updated[0]['data']['dofe_registered'] );
         $this->assertSame( 'Dyslexia', $wpdb->updated[0]['data']['additional_support_needs'] );
     }
+
+    public function test_update_signup_level_updates_both_paired_signups_for_same_explorer(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $queries = [];
+
+            public function prepare( string $sql, ...$args ): string {
+                return vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
+            }
+
+            public function get_row( string $sql, string $output = ARRAY_A ) {
+                if ( str_contains( $sql, 'wp_ems_participant_signups' ) ) {
+                    return [
+                        'id'                  => 10,
+                        'scout_id'            => 30001,
+                        'explorer_first_name' => 'Tom',
+                        'explorer_last_name'  => 'Strachan',
+                        'explorer_email'      => 'tom@example.com',
+                        'parent_email'        => 'jane@example.com',
+                        'dofe_level'          => 'bronze',
+                    ];
+                }
+                return null;
+            }
+
+            public function query( string $sql ) {
+                $this->queries[] = $sql;
+                return true;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+        $result = $repo->update_signup_level( 10, 'participant', 'silver' );
+
+        $this->assertIsArray( $result );
+        $this->assertSame( 'silver', $result['dofe_level'] );
+        $this->assertContains( 'START TRANSACTION', $wpdb->queries );
+        $this->assertContains( 'COMMIT', $wpdb->queries );
+
+        $participant_update = null;
+        $expedition_update  = null;
+        foreach ( $wpdb->queries as $q ) {
+            if ( str_contains( $q, 'wp_ems_participant_signups' ) && str_contains( $q, "dofe_level = 'silver'" ) ) {
+                $participant_update = $q;
+            }
+            if ( str_contains( $q, 'wp_ems_expedition_signups' ) && str_contains( $q, "dofe_level = 'silver'" ) ) {
+                $expedition_update = $q;
+            }
+        }
+        $this->assertNotNull( $participant_update );
+        $this->assertNotNull( $expedition_update );
+    }
 }
