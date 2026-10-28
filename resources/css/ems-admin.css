@@ -3450,6 +3450,7 @@ input.ems-form-input--title {
     background: #f1f5f9;
     color: #334155;
     border: 1px solid #cbd5e1;
+    white-space: nowrap;
 }
 
 .ems-pill--bronze {
@@ -3475,6 +3476,14 @@ input.ems-form-input--title {
     color: #92400e;
     border-color: #fcd34d;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 8px;
+    white-space: nowrap;
+    line-height: 1;
 }
 
 .ems-pill--asn-rejected {
@@ -3482,6 +3491,14 @@ input.ems-form-input--title {
     color: #991b1b;
     border-color: #fca5a5;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 8px;
+    white-space: nowrap;
+    line-height: 1;
 }
 
 .ems-pill--asn-validated {
@@ -3489,6 +3506,18 @@ input.ems-form-input--title {
     color: #166534;
     border-color: #86efac;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 8px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.ems-signups-asn-cell {
+    white-space: nowrap;
 }
 
 .ems-osm-sync-icon {
@@ -4050,8 +4079,9 @@ tr.ems-table-group-header:hover td,
     border: 1px solid #cbd5e1;
     padding: 20px;
     z-index: 1000;
-    width: 440px;
+    width: 480px;
     max-width: 90vw;
+    box-sizing: border-box;
 }
 
 .ems-asn-dialog__header {

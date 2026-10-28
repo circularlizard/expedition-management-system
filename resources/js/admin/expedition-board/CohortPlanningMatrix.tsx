@@ -804,40 +804,30 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                 </div>
               </div>
             </div>
-            <div className="ems-flex-between ems-gap-8 ems-flex-wrap">
-              <div className="ems-flex-center ems-gap-8">
-                <button
-                  type="button"
-                  className="button ems-btn--asn-validate"
-                  disabled={asnUpdating}
-                  onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 1)}
-                >
-                  <FontAwesomeIcon icon={faCheck} /> Validated
-                </button>
-                <button
-                  type="button"
-                  className="button ems-btn--asn-reject"
-                  disabled={asnUpdating}
-                  onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 0)}
-                >
-                  <FontAwesomeIcon icon={faXmark} /> Not Validated
-                </button>
-                <button
-                  type="button"
-                  className="button ems-btn--asn-unreview"
-                  disabled={asnUpdating}
-                  onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, null)}
-                >
-                  <FontAwesomeIcon icon={faCircleQuestion} /> Unreviewed
-                </button>
-              </div>
+            <div className="ems-flex-center ems-gap-8 ems-flex-wrap">
               <button
                 type="button"
-                className="button button-secondary"
+                className="button ems-btn--asn-validate"
                 disabled={asnUpdating}
-                onClick={() => setAsnDialogExplorer(null)}
+                onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 1)}
               >
-                Close
+                <FontAwesomeIcon icon={faCheck} /> Validated
+              </button>
+              <button
+                type="button"
+                className="button ems-btn--asn-reject"
+                disabled={asnUpdating}
+                onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 0)}
+              >
+                <FontAwesomeIcon icon={faXmark} /> Not Validated
+              </button>
+              <button
+                type="button"
+                className="button ems-btn--asn-unreview"
+                disabled={asnUpdating}
+                onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, null)}
+              >
+                <FontAwesomeIcon icon={faCircleQuestion} /> Unreviewed
               </button>
             </div>
           </div>
