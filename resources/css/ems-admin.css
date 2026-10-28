@@ -2488,6 +2488,14 @@ input.ems-form-input {
     box-sizing: border-box;
 }
 
+.ems-signups-inspector__input:read-only,
+.ems-signups-inspector__input[readonly] {
+    background-color: #f6f7f7;
+    color: #646970;
+    border-color: #dcdcde;
+    cursor: default;
+}
+
 .ems-signups-inspector__transfer-alert {
     padding: 10px 12px;
     background: #fdf3f4;

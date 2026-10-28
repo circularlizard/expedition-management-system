@@ -1553,10 +1553,10 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         <input 
                                             id="inspector-dofe-num"
                                             type="text" 
-                                            value={editedDofeNumber} 
-                                            onChange={(e) => setEditedDofeNumber(e.target.value)}
-                                            placeholder="Enter eDofE number..."
-                                            className="ems-signups-inspector__input"
+                                            value={selectedSignup.dofe_number || ''} 
+                                            readOnly
+                                            placeholder="—"
+                                            className="ems-signups-inspector__input ems-monospace"
                                         />
                                     </div>
 
@@ -1694,7 +1694,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                             <button onClick={() => setSelectedSignup(null)} className="button">Close</button>
                             {selectedSignup.type === 'participant' && !selectedSignup.dofe_number && (
                                 <button 
-                                    onClick={() => handleProcessParticipant(selectedSignup.id, editedDofeNumber)}
+                                    onClick={() => handleProcessParticipant(selectedSignup.id, selectedSignup.dofe_number || '')}
                                     className="button button-primary"
                                     disabled={!selectedSignup.scout_id} // Disable slot allocation for unmatched guest signups
                                     title={!selectedSignup.scout_id ? 'You must match this guest to an OSM profile before allocating a place.' : ''}
