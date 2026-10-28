@@ -150,21 +150,6 @@ class Expedition_Repository {
 		return $this->to_array( $post );
 	}
 
-	public function list_by_season( int $season_id ): array {
-		$posts = get_posts(
-			array(
-				'post_type'   => 'expedition',
-				'post_status' => 'publish',
-				'numberposts' => -1,
-				'post_parent' => $season_id,
-				'orderby'     => 'date',
-				'order'       => 'DESC',
-			)
-		);
-
-		return array_map( array( $this, 'to_array' ), $posts );
-	}
-
 	public function list_all(): array {
 		$posts = get_posts(
 			array(
