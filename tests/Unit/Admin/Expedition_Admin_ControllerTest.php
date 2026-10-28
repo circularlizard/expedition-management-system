@@ -940,46 +940,6 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertSame( 'expedition', $data[1]['type'] );
     }
 
-    public function test_list_planning_board_success(): void {
-        Functions\when( 'current_user_can' )->justReturn( true );
-
-        $expeditions = \Mockery::mock( Expedition_Repository::class );
-        $expeditions->shouldReceive( 'list_all_chronological' )->andReturn( [
-            [ 'ID' => 101, 'ems_event_code' => 'H-SP1', 'ems_status' => 'active', 'ems_level' => 'silver', 'ems_type' => 'practice', 'post_title' => 'Hill Practice 1' ],
-            [ 'ID' => 102, 'ems_event_code' => 'H-BP1', 'ems_status' => 'active', 'ems_level' => 'bronze', 'ems_type' => 'practice', 'post_title' => 'Bronze Practice' ],
-        ] );
-
-        $signups = \Mockery::mock( Signup_Repository::class );
-        $signups->shouldReceive( 'get_expedition_signups' )->with( 'pending' )->andReturn( [
-            [ 'scout_id' => 4001, 'dofe_level' => 'silver', 'expedition_preferences' => '{"exped_type":"Hillwalking","exped_practice_dates":["H-SP1"],"exped_qualifier_dates":[]}' ],
-            [ 'scout_id' => 4002, 'dofe_level' => 'silver', 'expedition_preferences' => '{"exped_type":"Hillwalking","exped_practice_dates":["H-SP1"],"exped_qualifier_dates":[]}' ],
-        ] );
-
-        $teams = \Mockery::mock( Team_Repository::class );
-        $teams->shouldReceive( 'list_by_expedition' )->with( 101 )->andReturn( [
-            [ 'ID' => 201, 'ems_team_code' => 'H-SP1-1' ]
-        ] );
-        $teams->shouldReceive( 'get_unallocated_team' )->with( 101 )->andReturn(
-            [ 'ID' => 202, 'ems_team_code' => 'UNALLOCATED' ]
-        );
-
-        $team_members = \Mockery::mock( Team_Member_Repository::class );
-        $team_members->shouldReceive( 'list_by_team' )->with( 201 )->andReturn( [ [ 'scout_id' => 4001 ] ] );
-        $team_members->shouldReceive( 'list_by_team' )->with( 202 )->andReturn( [] );
-
-        Functions\when( 'get_post_meta' )->justReturn( 'none' );
-
-        $controller = $this->create_controller( null, $expeditions, $teams, $team_members, null, null, $signups );
-        $response = $controller->list_planning_board( new \WP_REST_Request() );
-
-        $this->assertSame( 200, $response->get_status() );
-        $data = $response->get_data();
-        $this->assertCount( 1, $data ); // Bronze event excluded
-        $this->assertSame( 'H-SP1', $data[0]['event_code'] );
-        $this->assertSame( 2, $data[0]['available_count'] );
-        $this->assertSame( 1, $data[0]['allocated_count'] );
-    }
-
     public function test_list_planning_board_availability_success(): void {
         Functions\when( 'current_user_can' )->justReturn( true );
 

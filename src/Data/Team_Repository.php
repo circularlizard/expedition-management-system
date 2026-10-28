@@ -184,18 +184,6 @@ class Team_Repository {
 		}
 	}
 
-	public function populate_from_event( int $source_event_id, int $target_event_id, string $target_event_code ): array {
-		$source_teams = $this->list_by_expedition( $source_event_id );
-		$created_ids  = array();
-
-		foreach ( $source_teams as $team ) {
-			$new_id        = $this->duplicate( $team['ID'], $target_event_id, $target_event_code );
-			$created_ids[] = $new_id;
-		}
-
-		return $created_ids;
-	}
-
 	public function get_event_code( int $event_id ): string {
 		return $this->event_code( $event_id );
 	}
