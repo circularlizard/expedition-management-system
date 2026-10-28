@@ -81,10 +81,6 @@ export const EventRosterPanel: React.FC<EventRosterPanelProps> = ({
         return dates;
     };
 
-    const getVolunteerAvailabilityForEvent = (vol: Volunteer, eventId: number) => {
-        return vol.availability.filter(a => a.expedition_post_id === eventId);
-    };
-
     const checkConstraints = (volunteer: Volunteer, targetEvent: Expedition): { valid: boolean; reason?: string } => {
         const activeConfirmed = volunteer.availability.filter(a => a.confirmed === 1 && a.expedition_post_id !== targetEvent.ID);
         
