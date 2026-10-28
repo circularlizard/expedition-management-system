@@ -5,6 +5,8 @@ import {
   faLock,
   faUsers,
   faXmark,
+  faCheck,
+  faCircleQuestion,
   faMagnifyingGlass,
   faClipboardList,
   faPersonHiking,
@@ -44,6 +46,7 @@ export interface MatrixExplorer {
   has_asn: boolean;
   additional_support_needs: string;
   first_aid_status: string;
+  asn_validated?: number | null;
 }
 
 export interface CohortPlanningMatrixProps {
@@ -113,6 +116,8 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
   const [bulkEventCode, setBulkEventCode] = useState('');
   const [bulkTargetMode, setBulkTargetMode] = useState<string>('new_team');
   const [allocating, setAllocating] = useState(false);
+  const [asnDialogExplorer, setAsnDialogExplorer] = useState<MatrixExplorer | null>(null);
+  const [asnUpdating, setAsnUpdating] = useState(false);
 
   // ── Fetch Matrix Data ───────────────────────────────────────────────────────
   const fetchMatrix = useCallback(async () => {
@@ -120,6 +125,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
     setError(null);
     setSelectedScoutIds([]);
     setActivePopover(null);
+    setAsnDialogExplorer(null);
 
     try {
       const params = new URLSearchParams({
@@ -286,6 +292,35 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
   const selectedBulkEvent = useMemo(() => {
     return events.find(e => e.event_code === bulkEventCode) || null;
   }, [events, bulkEventCode]);
+
+  const handleUpdateAsnValidation = async (scoutId: number, val: number | null) => {
+    setAsnUpdating(true);
+    try {
+      const resp = await fetch(`${rootUrl}/planning-board/explorers/${scoutId}/asn-validation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce,
+        },
+        body: JSON.stringify({ asn_validated: val }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || (data.code && data.message)) {
+        throw new Error(data.message || 'Failed to update ASN validation');
+      }
+      setExplorers(prev => prev.map(exp => {
+        if (exp.scout_id === scoutId) {
+          return { ...exp, asn_validated: val };
+        }
+        return exp;
+      }));
+      setAsnDialogExplorer(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update ASN validation');
+    } finally {
+      setAsnUpdating(false);
+    }
+  };
 
   return (
     <div className="ems-planning-matrix">
@@ -509,20 +544,31 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                       )}
                       <td>
                         <div className="ems-table__name">
-                          <span className="ems-explorer-fullname">{`${exp.first_name} ${exp.last_name}`}</span>
-                          {exp.first_aid_status && exp.first_aid_status !== 'none' && (
-                            <span className="ems-matrix-tag ems-matrix-tag--fa" title={`First Aid: ${exp.first_aid_status}`}>
-                              FA
-                            </span>
-                          )}
-                          {exp.has_asn && (
-                            <span
-                              className="ems-matrix-tag ems-matrix-tag--asn"
-                              title={`ASN: ${exp.additional_support_needs || 'Yes'}`}
-                              onClick={() => onViewAsn && onViewAsn(exp.scout_id)}
-                            >
-                              ASN
-                            </span>
+                          <span
+                            className="ems-explorer-fullname ems-cursor-pointer"
+                            onClick={() => setAsnDialogExplorer(exp)}
+                            title="Click to view/validate ASN"
+                          >
+                            {`${exp.first_name} ${exp.last_name}`}
+                          </span>
+                          {exp.additional_support_needs && exp.additional_support_needs.trim() !== '' && (
+                            exp.asn_validated === 1 ? (
+                              <span
+                                className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-validated ems-cursor-pointer"
+                                title={`ASN Validated: ${exp.additional_support_needs}`}
+                                onClick={() => setAsnDialogExplorer(exp)}
+                              >
+                                ✓ ASN
+                              </span>
+                            ) : (exp.asn_validated === null || exp.asn_validated === undefined) ? (
+                              <span
+                                className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-pending ems-cursor-pointer"
+                                title={`ASN Unreviewed: ${exp.additional_support_needs}`}
+                                onClick={() => setAsnDialogExplorer(exp)}
+                              >
+                                ? ASN
+                              </span>
+                            ) : null
                           )}
                         </div>
                       </td>
@@ -707,6 +753,93 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
             >
               Cancel
             </button>
+          </div>
+        </>
+      )}
+
+      {/* ── ASN Leader Validation Dialogue ── */}
+      {asnDialogExplorer && (
+        <>
+          <div
+            className="ems-popover-backdrop"
+            onClick={() => !asnUpdating && setAsnDialogExplorer(null)}
+          />
+          <div
+            className="ems-asn-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="ASN Leader Validation"
+          >
+            <div className="ems-asn-dialog__header">
+              <h3 className="ems-asn-dialog__title">
+                ASN Leader Validation — {asnDialogExplorer.first_name} {asnDialogExplorer.last_name}
+              </h3>
+              <button
+                type="button"
+                className="ems-asn-dialog__close"
+                onClick={() => setAsnDialogExplorer(null)}
+                disabled={asnUpdating}
+                aria-label="Close"
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            </div>
+            <div className="ems-asn-dialog__body">
+              <div className="ems-mb-12">
+                <span className="ems-signups-inspector__label">Declared Support Needs:</span>
+                <div className="ems-signups-inspector__support-box ems-mt-4">
+                  {asnDialogExplorer.additional_support_needs || 'None declared.'}
+                </div>
+              </div>
+              <div className="ems-mb-16">
+                <span className="ems-signups-inspector__label">Current Status:</span>
+                <div className="ems-mt-4">
+                  {asnDialogExplorer.asn_validated === 1 ? (
+                    <span className="ems-pill ems-pill--asn-validated">Validated</span>
+                  ) : asnDialogExplorer.asn_validated === 0 ? (
+                    <span className="ems-pill ems-pill--asn-rejected">Not Validated</span>
+                  ) : (
+                    <span className="ems-pill ems-pill--asn-pending">Unreviewed</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="ems-flex-between ems-gap-8 ems-flex-wrap">
+              <div className="ems-flex-center ems-gap-8">
+                <button
+                  type="button"
+                  className="button ems-btn--asn-validate"
+                  disabled={asnUpdating}
+                  onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 1)}
+                >
+                  <FontAwesomeIcon icon={faCheck} /> Validated
+                </button>
+                <button
+                  type="button"
+                  className="button ems-btn--asn-reject"
+                  disabled={asnUpdating}
+                  onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 0)}
+                >
+                  <FontAwesomeIcon icon={faXmark} /> Not Validated
+                </button>
+                <button
+                  type="button"
+                  className="button ems-btn--asn-unreview"
+                  disabled={asnUpdating}
+                  onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, null)}
+                >
+                  <FontAwesomeIcon icon={faCircleQuestion} /> Unreviewed
+                </button>
+              </div>
+              <button
+                type="button"
+                className="button button-secondary"
+                disabled={asnUpdating}
+                onClick={() => setAsnDialogExplorer(null)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </>
       )}

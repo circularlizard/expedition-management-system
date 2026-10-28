@@ -76,6 +76,10 @@ class Table_Installer {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN dofe_number VARCHAR(50) DEFAULT NULL AFTER dofe_registered" );
 		}
+		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'asn_validated' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN asn_validated TINYINT(1) DEFAULT NULL AFTER additional_support_needs" );
+		}
 
 		$avail_table = $wpdb->prefix . 'ems_volunteer_availability';
 		if ( ! $this->column_exists( $wpdb, $avail_table, 'volunteer_id' ) ) {
@@ -585,6 +589,7 @@ class Table_Installer {
             dofe_number            VARCHAR(50)              DEFAULT NULL,
             expedition_preferences TEXT                     DEFAULT NULL,
             additional_support_needs TEXT                   DEFAULT NULL,
+            asn_validated          TINYINT(1)               DEFAULT NULL,
             first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
             first_aid_expiry       DATE                     DEFAULT NULL,
             signup_status          VARCHAR(30)     NOT NULL DEFAULT 'submitted',

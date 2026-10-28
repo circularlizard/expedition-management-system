@@ -995,6 +995,23 @@ class Expedition_Admin_Controller {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+
+		register_rest_route(
+			'ems/v1',
+			'/planning-board/explorers/(?P<scout_id>\d+)/asn-validation',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_scout_asn_validation' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array(
+					'scout_id' => array(
+						'type'              => 'integer',
+						'required'          => true,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
 	}
 
 	private function register_signup_routes(): void {
@@ -1140,6 +1157,23 @@ class Expedition_Admin_Controller {
 				),
 			)
 		);
+
+		register_rest_route(
+			'ems/v1',
+			'/signups/expeditions/(?P<id>\d+)/asn-validation',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_expedition_signup_asn_validation' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array(
+					'id' => array(
+						'type'              => 'integer',
+						'required'          => true,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
 	}
 
 	public function list_participant_signups( \WP_REST_Request $request ): \WP_REST_Response {
@@ -1240,6 +1274,7 @@ class Expedition_Admin_Controller {
 				'dofe_number'              => $row['dofe_number'],
 				'expedition_preferences'   => $prefs,
 				'additional_support_needs' => $row['additional_support_needs'],
+				'asn_validated'            => isset( $row['asn_validated'] ) && $row['asn_validated'] !== null ? (int) $row['asn_validated'] : null,
 				'first_aid_status'         => $row['first_aid_status'],
 				'first_aid_expiry'         => $row['first_aid_expiry'],
 				'signup_status'            => $row['signup_status'],
@@ -1352,6 +1387,54 @@ class Expedition_Admin_Controller {
 				'dofe_level' => $result['dofe_level'],
 			),
 			200
+		);
+	}
+
+	public function update_expedition_signup_asn_validation( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id   = (int) $request->get_param( 'id' );
+		$body = $request->get_json_params() ?: array();
+
+		$raw_val = $body['asn_validated'] ?? $request->get_param( 'asn_validated' );
+		$val     = null;
+		if ( $raw_val !== null && $raw_val !== '' ) {
+			$val = (int) $raw_val;
+		}
+
+		$success = $this->signups->update_expedition_signup_asn_validation( $id, $val );
+		if ( ! $success ) {
+			return $this->error( 'ems_asn_validation_failed', 'Failed to update ASN validation.', 500 );
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'updated'       => true,
+				'id'            => $id,
+				'asn_validated' => $val,
+			)
+		);
+	}
+
+	public function update_scout_asn_validation( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$scout_id = (int) $request->get_param( 'scout_id' );
+		$body     = $request->get_json_params() ?: array();
+
+		$raw_val = $body['asn_validated'] ?? $request->get_param( 'asn_validated' );
+		$val     = null;
+		if ( $raw_val !== null && $raw_val !== '' ) {
+			$val = (int) $raw_val;
+		}
+
+		$success = $this->signups->update_scout_asn_validation( $scout_id, $val );
+		if ( ! $success ) {
+			return $this->error( 'ems_asn_validation_failed', 'Failed to update ASN validation.', 500 );
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'updated'       => true,
+				'scout_id'      => $scout_id,
+				'asn_validated' => $val,
+			)
 		);
 	}
 
@@ -1818,6 +1901,7 @@ class Expedition_Admin_Controller {
 				'allocated_team_id'        => $allocated_team_id,
 				'has_asn'                  => ! empty( $signup['additional_support_needs'] ),
 				'additional_support_needs' => $signup['additional_support_needs'] ?? '',
+				'asn_validated'            => isset( $signup['asn_validated'] ) && $signup['asn_validated'] !== null ? (int) $signup['asn_validated'] : null,
 				'first_aid_status'         => $signup['first_aid_status'] ?? 'none',
 			);
 		}

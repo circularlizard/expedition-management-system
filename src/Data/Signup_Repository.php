@@ -832,4 +832,64 @@ class Signup_Repository {
 
 		return $result !== false;
 	}
+
+	/**
+	 * Update leader validation for an expedition signup.
+	 *
+	 * @param int $id Signup ID.
+	 * @param int|null $validated 1 for validated, 0 for not validated, null for unreviewed.
+	 */
+	public function update_expedition_signup_asn_validation( int $id, ?int $validated ): bool {
+		$now = current_time( 'mysql' );
+
+		$update_data = array(
+			'asn_validated' => $validated !== null ? (int) $validated : null,
+			'updated_at'    => $now,
+		);
+
+		$format = array(
+			$validated !== null ? '%d' : null,
+			'%s',
+		);
+
+		$result = $this->wpdb->update(
+			"{$this->wpdb->prefix}ems_expedition_signups",
+			$update_data,
+			array( 'id' => $id ),
+			$format,
+			array( '%d' )
+		);
+
+		return $result !== false;
+	}
+
+	/**
+	 * Update leader validation for all expedition signups of a scout.
+	 *
+	 * @param int $scout_id Scout ID.
+	 * @param int|null $validated 1 for validated, 0 for not validated, null for unreviewed.
+	 */
+	public function update_scout_asn_validation( int $scout_id, ?int $validated ): bool {
+		$now = current_time( 'mysql' );
+
+		$update_data = array(
+			'asn_validated' => $validated !== null ? (int) $validated : null,
+			'updated_at'    => $now,
+		);
+
+		$format = array(
+			$validated !== null ? '%d' : null,
+			'%s',
+		);
+
+		$result = $this->wpdb->update(
+			"{$this->wpdb->prefix}ems_expedition_signups",
+			$update_data,
+			array( 'scout_id' => $scout_id ),
+			$format,
+			array( '%d' )
+		);
+
+		return $result !== false;
+	}
 }

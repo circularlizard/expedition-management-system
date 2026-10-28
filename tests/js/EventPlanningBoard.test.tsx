@@ -360,4 +360,186 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
       });
     });
   });
+
+  it('does not display the FA (First Aid) flag on explorers in the cohort planning matrix', async () => {
+    render(<EventPlanningBoard />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Fraser Myles/).length).toBeGreaterThan(0);
+    });
+
+    // Fraser Myles has first_aid_status: 'first-aid-yes', but FA badge should be removed
+    expect(screen.queryByText('FA')).not.toBeInTheDocument();
+  });
+
+  it('displays amber pill for unreviewed ASN and green pill for validated ASN, hiding not validated or empty ASN', async () => {
+    const customMatrix = {
+      events: mockMatrixData.events,
+      explorers: [
+        {
+          scout_id: 4001,
+          first_name: 'Alice',
+          last_name: 'Smith',
+          unit_name: 'Kelso',
+          team_preferences: '',
+          available_events: ['H-SP1'],
+          allocated_event_code: null,
+          allocated_team_code: null,
+          allocated_team_id: null,
+          has_asn: true,
+          additional_support_needs: 'Requires inhaler',
+          asn_validated: null,
+          first_aid_status: 'none'
+        },
+        {
+          scout_id: 4002,
+          first_name: 'Bob',
+          last_name: 'Jones',
+          unit_name: 'Selkirk',
+          team_preferences: '',
+          available_events: ['H-SP1'],
+          allocated_event_code: null,
+          allocated_team_code: null,
+          allocated_team_id: null,
+          has_asn: true,
+          additional_support_needs: 'No',
+          asn_validated: 0,
+          first_aid_status: 'none'
+        },
+        {
+          scout_id: 4003,
+          first_name: 'Charlie',
+          last_name: 'Brown',
+          unit_name: 'Peebles',
+          team_preferences: '',
+          available_events: ['H-SP1'],
+          allocated_event_code: null,
+          allocated_team_code: null,
+          allocated_team_id: null,
+          has_asn: true,
+          additional_support_needs: 'Mild asthma',
+          asn_validated: 1,
+          first_aid_status: 'none'
+        },
+        {
+          scout_id: 4004,
+          first_name: 'David',
+          last_name: 'Clark',
+          unit_name: 'Hawick',
+          team_preferences: '',
+          available_events: ['H-SP1'],
+          allocated_event_code: null,
+          allocated_team_code: null,
+          allocated_team_id: null,
+          has_asn: false,
+          additional_support_needs: '',
+          asn_validated: null,
+          first_aid_status: 'none'
+        }
+      ]
+    };
+
+    (global.fetch as any).mockImplementation((url: string) => {
+      if (url.includes('/planning-board/matrix')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => customMatrix
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<EventPlanningBoard />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Alice Smith/).length).toBeGreaterThan(0);
+    });
+
+    // Alice Smith has amber ASN pill (? ASN)
+    const aliceRow = screen.getByText('Alice Smith').closest('tr')!;
+    const aliceAsn = within(aliceRow).getByText('? ASN');
+    expect(aliceAsn).toHaveClass('ems-matrix-tag--asn-pending');
+
+    // Charlie Brown has green ASN pill (✓ ASN)
+    const charlieRow = screen.getByText('Charlie Brown').closest('tr')!;
+    const charlieAsn = within(charlieRow).getByText('✓ ASN');
+    expect(charlieAsn).toHaveClass('ems-matrix-tag--asn-validated');
+
+    // Bob Jones (asn_validated = 0) does not display an ASN pill
+    const bobRow = screen.getByText('Bob Jones').closest('tr')!;
+    expect(within(bobRow).queryByText(/ASN/i)).not.toBeInTheDocument();
+
+    // David Clark (no ASN declared) does not display an ASN pill
+    const davidRow = screen.getByText('David Clark').closest('tr')!;
+    expect(within(davidRow).queryByText(/ASN/i)).not.toBeInTheDocument();
+  });
+
+  it('clicking explorer name opens leader validation dialogue and updates ASN validation status to green pill', async () => {
+    const explorerAlice = {
+      scout_id: 4001,
+      first_name: 'Alice',
+      last_name: 'Smith',
+      unit_name: 'Kelso',
+      team_preferences: '',
+      available_events: ['H-SP1'],
+      allocated_event_code: null,
+      allocated_team_code: null,
+      allocated_team_id: null,
+      has_asn: true,
+      additional_support_needs: 'Requires inhaler',
+      asn_validated: null,
+      first_aid_status: 'none'
+    };
+
+    (global.fetch as any).mockImplementation((url: string, opts?: any) => {
+      if (url.includes('/planning-board/matrix')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            events: mockMatrixData.events,
+            explorers: [explorerAlice]
+          })
+        });
+      }
+      if (url.includes('/planning-board/explorers/4001/asn-validation') && opts?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            scout_id: 4001,
+            asn_validated: 1,
+            updated: true
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<EventPlanningBoard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+    });
+
+    // Alice initially has amber tag
+    const aliceRow = screen.getByText('Alice Smith').closest('tr')!;
+    expect(within(aliceRow).getByText('? ASN')).toHaveClass('ems-matrix-tag--asn-pending');
+
+    // Click explorer name
+    fireEvent.click(screen.getByText('Alice Smith'));
+
+    // Dialogue opens
+    const dialog = await screen.findByRole('dialog', { name: /ASN Leader Validation/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('Requires inhaler')).toBeInTheDocument();
+
+    // Click "Validated" in dialogue
+    const validateBtn = within(dialog).getByRole('button', { name: /^validated$/i });
+    fireEvent.click(validateBtn);
+
+    // Dialogue closes and Alice now displays green ASN tag
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /ASN Leader Validation/i })).not.toBeInTheDocument();
+      expect(within(aliceRow).getByText('✓ ASN')).toHaveClass('ems-matrix-tag--asn-validated');
+    });
+  });
 });
