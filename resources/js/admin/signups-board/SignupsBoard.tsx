@@ -1200,19 +1200,19 @@ export default function SignupsBoard() {
                                                                         <span key="no-exped-type">—</span>
                                                                     )}
                                                                 </td>
-                                                                <td className="ems-table-cell--center">
+                                                                <td className="ems-table-cell--center ems-signups-asn-cell">
                                                                     {row.additional_support_needs && row.additional_support_needs.trim() !== '' ? (
                                                                         row.asn_validated === 1 ? (
                                                                             <span className="ems-pill ems-pill--asn-validated" title="ASN Validated" data-testid="asn-pill-validated">
-                                                                                <FontAwesomeIcon icon={faCheck} className="ems-pill-icon" /> ✓
+                                                                                ✓
                                                                             </span>
                                                                         ) : row.asn_validated === 0 ? (
                                                                             <span className="ems-pill ems-pill--asn-rejected" title="ASN Not Validated" data-testid="asn-pill-rejected">
-                                                                                <FontAwesomeIcon icon={faXmark} className="ems-pill-icon" /> ✕
+                                                                                ✕
                                                                             </span>
                                                                         ) : (
                                                                             <span className="ems-pill ems-pill--asn-pending" title="ASN Unreviewed" data-testid="asn-pill-pending">
-                                                                                <FontAwesomeIcon icon={faCircleQuestion} className="ems-pill-icon" /> ?
+                                                                                ?
                                                                             </span>
                                                                         )
                                                                     ) : (
