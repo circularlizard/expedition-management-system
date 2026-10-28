@@ -106,7 +106,6 @@ const ExpeditionBoard: React.FC = () => {
                     <EventDetailPage
                         event={selectedEvent}
                         onBack={handleBack}
-                        explorers={explorers}
                         osmEvents={osmEvents}
                         allEvents={data.seasons[0]?.events ?? []}
                         onEventUpdated={handleEventUpdated}

@@ -19,7 +19,6 @@ import { OSMMapPicker } from './OSMMapPicker';
 interface EventDetailPageProps {
     event: Expedition;
     onBack: () => void;
-    explorers?: Explorer[];
     osmEvents?: OSMEvent[];
     allEvents?: Expedition[];
     onEventUpdated?: (updated: Expedition) => void;
@@ -357,11 +356,6 @@ const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => voi
         </div>
     );
 };
-
-/* Teams */
-function sortByName(members: Member[]): Member[] {
-    return [...members].sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
-}
 
 // Removed legacy TeamsTab and TeamCard components. Shared EventPlanningBoard is used instead.
 
@@ -881,7 +875,6 @@ const VolunteersTab: React.FC<{ event: Expedition, allEvents?: Expedition[] }> =
 export const EventDetailPage: React.FC<EventDetailPageProps> = ({
     event: initialEvent,
     onBack,
-    explorers = [],
     osmEvents = [],
     allEvents = [],
     onEventUpdated,

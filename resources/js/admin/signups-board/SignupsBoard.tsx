@@ -46,7 +46,7 @@ const firstNamesSimilar = (nameA: string, nameB: string): boolean => {
     return na.length >= 3 && nb.length >= 3 && na.substring(0, 3) === nb.substring(0, 3);
 };
 
-export default function SignupsBoard({ type: _ignoredProp }: { type?: string } = {}) {
+export default function SignupsBoard() {
     const config = window.emsSignupsBoard || { root_url: '', nonce: '' };
 
     const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'table'>('dashboard');
@@ -72,7 +72,6 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
 
     // Selected signup & Inspector Panel
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
-    const [editedDofeNumber, setEditedDofeNumber] = useState<string>('');
     const [editedUnitId, setEditedUnitId] = useState<string>('');
     const [savingField, setSavingField] = useState<'level' | 'unit' | null>(null);
     const [levelSaveSuccess, setLevelSaveSuccess] = useState<boolean>(false);
@@ -156,7 +155,6 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                 setReconcileSearch('');
                 prevEntryKeyRef.current = selectedEntryKey;
             }
-            setEditedDofeNumber(selectedSignup.dofe_number || '');
             if (selectedSignup.unit_id) {
                 setEditedUnitId(String(selectedSignup.unit_id));
             } else {
