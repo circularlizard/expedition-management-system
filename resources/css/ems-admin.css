@@ -4222,6 +4222,23 @@ tr.ems-table-group-header:hover td,
     border: 1px solid #fde68a;
 }
 
+.ems-matrix-tag--pref {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.ems-matrix-th-pref {
+    min-width: 140px;
+    font-weight: 600;
+}
+
+.ems-matrix-pref-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
 .ems-matrix-footer-cell {
     background: #f8fafc;
     font-weight: 600;

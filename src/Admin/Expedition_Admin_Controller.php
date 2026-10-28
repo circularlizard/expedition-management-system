@@ -1800,13 +1800,16 @@ class Expedition_Admin_Controller {
 
 			$scout_id = (int) $signup['scout_id'];
 
-			$allocations = $wpdb->get_results(
-				$wpdb->prepare(
-					"SELECT team_post_id FROM {$table} WHERE scout_id = %d",
-					$scout_id
-				),
-				ARRAY_A
-			) ?: array();
+			$allocations = array();
+			if ( ! empty( $event_ids ) && $wpdb ) {
+				$allocations = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT team_post_id FROM {$table} WHERE scout_id = %d",
+						$scout_id
+					),
+					ARRAY_A
+				) ?: array();
+			}
 
 			$allocated_event_code = null;
 			$allocated_team_code  = null;
