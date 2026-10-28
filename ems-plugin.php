@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Expedition Management System (EMS)
  * Description: Manages DofE expeditions, teams, and route planning.
- * Version: 1.0.8
+ * Version: 1.0.9
  * Author: SE Scotland DofE (David Strachan)
  * Text Domain: ems-plugin
  * Requires PHP: 8.2
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'EMS_PLUGIN_FILE', __FILE__ );
-define( 'EMS_VERSION', '1.0.8' );
+define( 'EMS_VERSION', '1.0.9' );
 define( 'EMS_DEBUG', true );
 
 // Autoload classes
