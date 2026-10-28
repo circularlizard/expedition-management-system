@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTriangleExclamation, faCheck, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 
 interface SectionInfo {
 	name: string;
@@ -242,7 +244,7 @@ export const PushbackDashboard: React.FC = () => {
 				{failedQueue && (
 					<div className="notice notice-error inline ems-notice-container">
 						<p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>
-							⚠ Last Sync Attempt Failed (at {failedQueue.last_failed_at})
+							<FontAwesomeIcon icon={faTriangleExclamation} /> Last Sync Attempt Failed (at {failedQueue.last_failed_at})
 						</p>
 						<p style={{ margin: '0 0 12px 0' }}>
 							Error: <code>{failedQueue.error_message}</code>
@@ -335,7 +337,7 @@ export const PushbackDashboard: React.FC = () => {
 													</span>
 													{up.overwrite && (
 														<span className="ems-status-badge ems-status-badge--danger ems-status-badge--mini">
-															⚠ Overwrite
+															<FontAwesomeIcon icon={faTriangleExclamation} /> Overwrite
 														</span>
 													)}
 												</td>
@@ -387,7 +389,7 @@ export const PushbackDashboard: React.FC = () => {
 													{invites.length > 0 && (
 														<div>
 															<h4 style={{ color: '#b25e00', margin: '0 0 8px 0', fontSize: '13px' }}>
-																➜ Pushback Actions to Perform ({invites.length})
+																<FontAwesomeIcon icon={faArrowRight} /> Pushback Actions to Perform ({invites.length})
 															</h4>
 															<table className="wp-list-table widefat fixed striped">
 																<thead>
@@ -426,7 +428,7 @@ export const PushbackDashboard: React.FC = () => {
 													{alerts.length > 0 && (
 														<div>
 															<h4 style={{ color: '#d63638', margin: '0 0 8px 0', fontSize: '13px' }}>
-																⚠ Warnings & Mismatches ({alerts.length})
+																<FontAwesomeIcon icon={faTriangleExclamation} /> Warnings & Mismatches ({alerts.length})
 															</h4>
 															<table className="wp-list-table widefat fixed striped">
 																<thead>
@@ -455,7 +457,7 @@ export const PushbackDashboard: React.FC = () => {
 																			</td>
 																			<td>
 																				<span className="ems-error-callout" style={{ display: 'inline-block', margin: 0, padding: '2px 8px', borderRadius: '4px' }}>
-																					⚠ {inv.inconsistency}
+																					<FontAwesomeIcon icon={faTriangleExclamation} /> {inv.inconsistency}
 																				</span>
 																			</td>
 																		</tr>
@@ -469,7 +471,7 @@ export const PushbackDashboard: React.FC = () => {
 													{consistent.length > 0 && (
 														<div>
 															<h4 style={{ color: '#00a32a', margin: '0 0 8px 0', fontSize: '13px' }}>
-																✓ Already Synced / Consistent ({consistent.length})
+																<FontAwesomeIcon icon={faCheck} /> Already Synced / Consistent ({consistent.length})
 															</h4>
 															<table className="wp-list-table widefat fixed striped">
 																<thead>

@@ -103,6 +103,25 @@ class PluginTest extends EMSTestCase {
         $this->assertStringContainsString( 'Login with OSM', $output );
     }
 
+    public function test_disable_emoji_cdn_removes_core_emoji_actions(): void {
+        $removed = [];
+        Functions\when( 'remove_action' )->alias( function( $tag, $fn, $priority = 10 ) use ( &$removed ) {
+            $removed[] = [ 'action', $tag, $fn ];
+            return true;
+        } );
+        Functions\when( 'remove_filter' )->alias( function( $tag, $fn, $priority = 10 ) use ( &$removed ) {
+            $removed[] = [ 'filter', $tag, $fn ];
+            return true;
+        } );
+
+        $plugin = new Plugin();
+        $plugin->disable_emoji_cdn();
+
+        $this->assertContains( [ 'action', 'admin_print_scripts', 'print_emoji_detection_script' ], $removed );
+        $this->assertContains( [ 'action', 'admin_print_styles', 'print_emoji_styles' ], $removed );
+        $this->assertContains( [ 'action', 'wp_head', 'print_emoji_detection_script' ], $removed );
+    }
+
     public function test_render_signup_banner_shortcode_custom_text(): void {
         Functions\when( 'get_option' )->alias( fn( $key, $default = null ) => $default );
         Functions\when( 'update_option' )->justReturn( true );

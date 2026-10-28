@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTriangleExclamation, faBriefcaseMedical } from '@fortawesome/free-solid-svg-icons';
 import CohortPlanningMatrix from './CohortPlanningMatrix';
 
 interface PlanningEvent {
@@ -359,7 +361,7 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
                     }
                   }}
                 >
-                  ⚠️
+                  <FontAwesomeIcon icon={faTriangleExclamation} />
                 </span>
               )}
               {m.first_aid_level === 'full_first_aid' && <span className="ems-fa-full" title="Full First Aid">⊕</span>}
@@ -413,7 +415,7 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
                     }
                   }}
                 >
-                  ⚠️
+                  <FontAwesomeIcon icon={faTriangleExclamation} />
                 </span>
               )}
               {m.first_aid_level === 'full_first_aid' && <span className="ems-fa-full" title="Full First Aid">⊕</span>}
@@ -503,7 +505,7 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
                   <input
                     type="text"
                     className="ems-form-input"
-                    placeholder="🔍 Add unlisted synced explorer..."
+                    placeholder="Add unlisted synced explorer..."
                     value={searchQuery}
                     onChange={e => {
                       setSearchQuery(e.target.value);
@@ -809,12 +811,12 @@ export default function EventPlanningBoard({ event = null, onTeamChanged, onView
                       <>
                         {showWarnings && sizeWarning && (
                           <div className="ems-alert ems-alert--warning" style={{ fontSize: '11px', padding: '6px 8px', marginBottom: '8px' }}>
-                            ⚠️ Team size must be 4–7 members (currently {size})
+                            <FontAwesomeIcon icon={faTriangleExclamation} /> Team size must be 4–7 members (currently {size})
                           </div>
                         )}
                         {showWarnings && faWarning && (
                           <div className="ems-alert ems-alert--danger" style={{ fontSize: '11px', padding: '6px 8px', marginBottom: '8px' }}>
-                            ⚕️ Requires at least 2 qualified First Aiders
+                            <FontAwesomeIcon icon={faBriefcaseMedical} /> Requires at least 2 qualified First Aiders
                           </div>
                         )}
                         {renderTeamMembersList(team.ems_team_code)}

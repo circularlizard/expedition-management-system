@@ -1,4 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faPersonHiking,
+    faBicycle,
+    faWater,
+    faTriangleExclamation,
+    faXmark,
+    faClipboardList,
+    faCampground
+} from '@fortawesome/free-solid-svg-icons';
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
 import { computeSignupsDashboardMetrics, getSignupRecordKey, groupSignupsByExplorerIdentity } from './dashboardMetrics';
 
@@ -663,12 +673,12 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
     // Helper to render completions badges
     const renderPriorCompletions = (signup: any) => {
         if (signup.dofe_level === 'bronze') {
-            return <span title="No Prior Award">❌</span>;
+            return <span title="No Prior Award"><FontAwesomeIcon icon={faXmark} className="ems-text-muted" /></span>;
         }
 
         const completions = signup.dofe_level === 'silver' ? signup.bronze_completion : signup.silver_completion;
         if (!completions) {
-            return <span title="No Prior Award">❌</span>;
+            return <span title="No Prior Award"><FontAwesomeIcon icon={faXmark} className="ems-text-muted" /></span>;
         }
 
         const completedList: JSX.Element[] = [];
@@ -702,7 +712,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
         }
 
         if (completedList.length === 0) {
-            return <span title="No Prior Award">❌</span>;
+            return <span title="No Prior Award"><FontAwesomeIcon icon={faXmark} className="ems-text-muted" /></span>;
         }
 
         return <div className="ems-signups-completed-list">{completedList}</div>;
@@ -1004,7 +1014,9 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                                     {row.scout_id !== 0 ? (
                                                                         <span title="Synced with OSM" className="ems-fa-full">✓</span>
                                                                     ) : (
-                                                                        <span title="Guest Roster / Unmatched" className="ems-fa-warning">⚠️</span>
+                                                                        <span title="Guest Roster / Unmatched" className="ems-fa-warning">
+                                                                            <FontAwesomeIcon icon={faTriangleExclamation} />
+                                                                        </span>
                                                                     )}
                                                                 </td>
                                                                 <td>
@@ -1051,12 +1063,15 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                                 </td>
                                                                 <td>
                                                                     {row.expedition_preferences?.exped_type ? (
-                                                                        <span key="has-exped-type">
-                                                                            {`${normalize(row.expedition_preferences.exped_type) === 'hillwalking'
-                                                                                ? '🥾 '
-                                                                                : normalize(row.expedition_preferences.exped_type) === 'biking'
-                                                                                ? '🚲 '
-                                                                                : '🛶 '}${row.expedition_preferences.exped_type}`}
+                                                                        <span key="has-exped-type" className="ems-pill ems-pill--transport">
+                                                                            {normalize(row.expedition_preferences.exped_type) === 'hillwalking' ? (
+                                                                                <FontAwesomeIcon icon={faPersonHiking} className="ems-pill-icon" />
+                                                                            ) : normalize(row.expedition_preferences.exped_type) === 'biking' ? (
+                                                                                <FontAwesomeIcon icon={faBicycle} className="ems-pill-icon" />
+                                                                            ) : (
+                                                                                <FontAwesomeIcon icon={faWater} className="ems-pill-icon" />
+                                                                            )}
+                                                                            {row.expedition_preferences.exped_type}
                                                                         </span>
                                                                     ) : (
                                                                         <span key="no-exped-type">—</span>
@@ -1068,7 +1083,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                                                     <span>{row.dofe_number || '—'}</span>
                                                                     {row.dofe_registered === 'y-other' && (
                                                                         <div className="ems-signups-transfer-warning">
-                                                                            ⚠️ Transfer Req.
+                                                                            <FontAwesomeIcon icon={faTriangleExclamation} /> Transfer Req.
                                                                         </div>
                                                                     )}
                                                                 </td>
@@ -1160,8 +1175,12 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                     {/* Header */}
                     <div className={`ems-signups-inspector__header ems-signups-inspector__header--${selectedSignup.type}`}>
                         <div className="ems-flex-center ems-gap-6">
-                            <span style={{ fontSize: '18px' }}>
-                                {selectedSignup.type === 'participant' ? '📋' : '🏕️'}
+                            <span style={{ fontSize: '16px' }}>
+                                {selectedSignup.type === 'participant' ? (
+                                    <FontAwesomeIcon icon={faClipboardList} />
+                                ) : (
+                                    <FontAwesomeIcon icon={faCampground} />
+                                )}
                             </span>
                             <h3 className="ems-m-0 ems-font-semibold" style={{ fontSize: '15px', color: '#1d2327' }}>
                                 {selectedSignup.type === 'participant' ? 'Participant Place Details' : 'Expedition Signup Details'}
@@ -1274,7 +1293,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         }
                                         return (
                                             <div className="ems-signups-unmatched-alert">
-                                                ⚠️ Unmatched guest registration.
+                                                <FontAwesomeIcon icon={faTriangleExclamation} /> Unmatched guest registration.
                                             </div>
                                         );
                                     })()}
@@ -1426,7 +1445,7 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                         <div className="ems-signups-detail-item ems-signups-detail-item--full">
                                             <div className="ems-signups-inspector__transfer-alert">
                                                 <div className="ems-flex-center ems-gap-4">
-                                                    <span>⚠️</span> <strong>Transfer Required</strong>
+                                                    <FontAwesomeIcon icon={faTriangleExclamation} /> <strong>Transfer Required</strong>
                                                 </div>
                                                 <div className="ems-font-normal ems-meta-text ems-small-text ems-mt-4">
                                                     From: <strong className="ems-font-semibold">{selectedSignup.dofe_org || 'Unknown Organisation'}</strong>
@@ -1468,7 +1487,14 @@ export default function SignupsBoard({ type: _ignoredProp }: { type?: string } =
                                     <div className="ems-signups-detail-item">
                                         <span className="ems-signups-inspector__label">Expedition Mode</span>
                                         <div className="ems-signups-inspector__value ems-font-semibold ems-flex-center ems-gap-4">
-                                            {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? '🥾' : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? '🚲' : '🛶'} {selectedSignup.expedition_preferences?.exped_type || '—'}
+                                            {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? (
+                                                <FontAwesomeIcon icon={faPersonHiking} className="ems-pill-icon" />
+                                            ) : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? (
+                                                <FontAwesomeIcon icon={faBicycle} className="ems-pill-icon" />
+                                            ) : (
+                                                <FontAwesomeIcon icon={faWater} className="ems-pill-icon" />
+                                            )}{' '}
+                                            {selectedSignup.expedition_preferences?.exped_type || '—'}
                                         </div>
                                     </div>
 

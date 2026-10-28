@@ -1,3 +1,4 @@
+@import "@fortawesome/fontawesome-svg-core/styles.css";
 /**
  * EMS Admin Shared Stylesheet
  *
@@ -3981,6 +3982,31 @@ tr.ems-table-group-header:hover td,
     background: #0284c7 !important;
     color: #ffffff !important;
     font-weight: 600;
+}
+
+.ems-scope-btn-icon,
+.ems-btn-icon {
+    margin-right: 5px;
+    font-size: 13px;
+    vertical-align: -0.1em;
+}
+
+.ems-matrix-badge-icon {
+    margin-right: 4px;
+    font-size: 11px;
+    vertical-align: -0.1em;
+}
+
+.ems-popover-icon {
+    margin-right: 6px;
+    font-size: 12px;
+    vertical-align: -0.1em;
+}
+
+.ems-pill-icon {
+    margin-right: 4px;
+    font-size: 12px;
+    vertical-align: -0.1em;
 }
 
 .ems-planning-refine-bar {
