@@ -77,18 +77,11 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
   const [stage, setStage] = useState<'practice' | 'qualifying'>('practice');
 
   // Available transports per level
-  const allowedTransports = useMemo(() => {
-    if (level === 'bronze') {
-      return [
-        { key: 'hillwalking', label: 'Hillwalking', icon: faPersonHiking },
-        { key: 'paddling', label: 'Paddling', icon: faWater },
-      ];
-    }
-    return [
-      { key: 'hillwalking', label: 'Hillwalking', icon: faPersonHiking },
-      { key: 'biking', label: 'Biking', icon: faBicycle },
-    ];
-  }, [level]);
+  const allowedTransports = useMemo(() => [
+    { key: 'hillwalking', label: 'Hillwalking', icon: faPersonHiking },
+    { key: 'biking', label: 'Biking', icon: faBicycle },
+    { key: 'paddling', label: 'Paddling', icon: faWater },
+  ], []);
 
   // Adjust transport when switching level
   useEffect(() => {
@@ -441,13 +434,6 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
         <div className="ems-planning-spinner">
           <span className="ems-spinner" aria-label="Loading cohort matrix…" />
         </div>
-      ) : events.length === 0 ? (
-        <div className="notice notice-info ems-m-0">
-          <p>
-            No events found for <strong>{level.toUpperCase()} {stage.toUpperCase()}</strong> ({transport}).
-            Create events in the Events Dashboard to plan this cohort.
-          </p>
-        </div>
       ) : filteredExplorers.length === 0 ? (
         <div className="notice notice-warning ems-m-0">
           <p>
@@ -455,152 +441,187 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
           </p>
         </div>
       ) : (
-        <div className="ems-matrix-table-wrap">
-          <table className="ems-table ems-matrix-table">
-            <thead>
-              <tr>
-                <th className="ems-planning-checkbox-col">
-                  <input
-                    type="checkbox"
-                    className="ems-checkbox"
-                    checked={allSelected}
-                    ref={el => { if (el) el.indeterminate = someSelected; }}
-                    onChange={toggleSelectAll}
-                    aria-label="Select all visible explorers"
-                  />
-                </th>
-                <th>Explorer</th>
-                <th>Unit</th>
-                <th>Teammate Wishlist</th>
-                {events.map(ev => {
-                  const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
-                  const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
-                  return (
-                    <th key={ev.id} className="ems-matrix-th-event">
-                      <div>{ev.event_code}</div>
-                      <span className="ems-matrix-th-date">{formatDateShort(ev.start_date)}</span>
-                      <div className="ems-matrix-th-stats">
-                        <span className="ems-matrix-stat-pill" title={`${assignedCount - poolCount} in teams, ${poolCount} in event pool`}>
-                          {assignedCount} alloc{poolCount > 0 ? ` (${poolCount} pool)` : ''}
-                        </span>
-                      </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredExplorers.map(exp => {
-                const isSelected = selectedScoutIds.includes(exp.scout_id);
-                return (
-                  <tr key={exp.scout_id} className={isSelected ? 'ems-table-row--selected' : ''}>
-                    <td className="ems-table-cell--center">
+        <>
+          {events.length === 0 && (
+            <div className="notice notice-info ems-mb-16">
+              <p>
+                No planned events found for <strong>{level.toUpperCase()} {stage.toUpperCase()}</strong> ({transport}).
+                Displaying signed-up explorers and their stated preferences below.
+              </p>
+            </div>
+          )}
+
+          <div className="ems-matrix-table-wrap">
+            <table className="ems-table ems-matrix-table">
+              <thead>
+                <tr>
+                  {events.length > 0 && (
+                    <th className="ems-planning-checkbox-col">
                       <input
                         type="checkbox"
                         className="ems-checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectExplorer(exp.scout_id)}
-                        aria-label={`Select ${exp.first_name} ${exp.last_name}`}
+                        checked={allSelected}
+                        ref={el => { if (el) el.indeterminate = someSelected; }}
+                        onChange={toggleSelectAll}
+                        aria-label="Select all visible explorers"
                       />
-                    </td>
-                    <td>
-                      <div className="ems-table__name">
-                        <span className="ems-explorer-fullname">{`${exp.first_name} ${exp.last_name}`}</span>
-                        {exp.first_aid_status && exp.first_aid_status !== 'none' && (
-                          <span className="ems-matrix-tag ems-matrix-tag--fa" title={`First Aid: ${exp.first_aid_status}`}>
-                            FA
-                          </span>
-                        )}
-                        {exp.has_asn && (
-                          <span
-                            className="ems-matrix-tag ems-matrix-tag--asn"
-                            title={`ASN: ${exp.additional_support_needs || 'Yes'}`}
-                            onClick={() => onViewAsn && onViewAsn(exp.scout_id)}
-                          >
-                            ASN
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
-                    </td>
-                    <td>
-                      <div className="ems-matrix-wishlist">
-                        {exp.team_preferences || '—'}
-                      </div>
-                    </td>
-                    {events.map(ev => {
-                      const isAvailable = exp.available_events.includes(ev.event_code);
-                      const isAssignedHere = exp.allocated_event_code === ev.event_code;
-                      const isAssignedOther = exp.allocated_event_code && exp.allocated_event_code !== ev.event_code;
-
+                    </th>
+                  )}
+                  <th>Explorer</th>
+                  <th>Unit</th>
+                  <th>Teammate Wishlist</th>
+                  {events.length === 0 ? (
+                    <th className="ems-matrix-th-pref">Stated Availability</th>
+                  ) : (
+                    events.map(ev => {
+                      const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
+                      const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
                       return (
-                        <td key={ev.id} className="ems-matrix-cell-event">
-                          {isAssignedHere ? (
-                            <button
-                              type="button"
-                              className="ems-matrix-badge ems-matrix-badge--assigned"
-                              onClick={() => setActivePopover({ explorer: exp, event: ev })}
-                              title="Assigned to this event - click to manage team"
+                        <th key={ev.id} className="ems-matrix-th-event">
+                          <div>{ev.event_code}</div>
+                          <span className="ems-matrix-th-date">{formatDateShort(ev.start_date)}</span>
+                          <div className="ems-matrix-th-stats">
+                            <span className="ems-matrix-stat-pill" title={`${assignedCount - poolCount} in teams, ${poolCount} in event pool`}>
+                              {assignedCount} alloc{poolCount > 0 ? ` (${poolCount} pool)` : ''}
+                            </span>
+                          </div>
+                        </th>
+                      );
+                    })
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredExplorers.map(exp => {
+                  const isSelected = selectedScoutIds.includes(exp.scout_id);
+                  return (
+                    <tr key={exp.scout_id} className={isSelected ? 'ems-table-row--selected' : ''}>
+                      {events.length > 0 && (
+                        <td className="ems-table-cell--center">
+                          <input
+                            type="checkbox"
+                            className="ems-checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectExplorer(exp.scout_id)}
+                            aria-label={`Select ${exp.first_name} ${exp.last_name}`}
+                          />
+                        </td>
+                      )}
+                      <td>
+                        <div className="ems-table__name">
+                          <span className="ems-explorer-fullname">{`${exp.first_name} ${exp.last_name}`}</span>
+                          {exp.first_aid_status && exp.first_aid_status !== 'none' && (
+                            <span className="ems-matrix-tag ems-matrix-tag--fa" title={`First Aid: ${exp.first_aid_status}`}>
+                              FA
+                            </span>
+                          )}
+                          {exp.has_asn && (
+                            <span
+                              className="ems-matrix-tag ems-matrix-tag--asn"
+                              title={`ASN: ${exp.additional_support_needs || 'Yes'}`}
+                              onClick={() => onViewAsn && onViewAsn(exp.scout_id)}
                             >
-                              <FontAwesomeIcon icon={faLock} className="ems-matrix-badge-icon" />{' '}
-                              {exp.allocated_team_code === 'UNALLOCATED' ? 'Pool' : exp.allocated_team_code}
-                            </button>
-                          ) : !isAvailable ? (
-                            <span className="ems-matrix-dash" aria-label="Not available">—</span>
-                          ) : isAssignedOther ? (
-                            <button
-                              type="button"
-                              className="ems-matrix-badge ems-matrix-badge--other"
-                              onClick={() => setActivePopover({ explorer: exp, event: ev })}
-                              title={`Currently in ${exp.allocated_event_code} - click to switch to ${ev.event_code}`}
-                            >
-                              In {exp.allocated_event_code} ⇄
-                            </button>
+                              ASN
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
+                      </td>
+                      <td>
+                        <div className="ems-matrix-wishlist">
+                          {exp.team_preferences || '—'}
+                        </div>
+                      </td>
+                      {events.length === 0 ? (
+                        <td>
+                          {exp.available_events && exp.available_events.length > 0 ? (
+                            <div className="ems-matrix-pref-list">
+                              {exp.available_events.map(evCode => (
+                                <span key={evCode} className="ems-matrix-tag ems-matrix-tag--pref">
+                                  {evCode}
+                                </span>
+                              ))}
+                            </div>
                           ) : (
-                            <button
-                              type="button"
-                              className="ems-matrix-badge ems-matrix-badge--available"
-                              onClick={() => setActivePopover({ explorer: exp, event: ev })}
-                              title="Available for this date - click to assign"
-                            >
-                              Available +
-                            </button>
+                            <span className="ems-matrix-dash" title="Any / None specified">—</span>
                           )}
                         </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={4} className="ems-matrix-footer-cell">
-                  Cohort Totals: {filteredExplorers.length} visible ({explorers.filter(e => !e.allocated_event_code).length} unallocated)
-                </td>
-                {events.map(ev => {
-                  const availableCount = explorers.filter(e => e.available_events.includes(ev.event_code)).length;
-                  const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
-                  const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
-                  const teamCount = assignedCount - poolCount;
+                      ) : (
+                        events.map(ev => {
+                          const isAvailable = exp.available_events.includes(ev.event_code);
+                          const isAssignedHere = exp.allocated_event_code === ev.event_code;
+                          const isAssignedOther = exp.allocated_event_code && exp.allocated_event_code !== ev.event_code;
 
-                  return (
-                    <td key={ev.id} className="ems-matrix-footer-cell">
-                      <div><strong>{assignedCount}</strong> / {availableCount}</div>
-                      {poolCount > 0 && (
-                        <div className="ems-meta-text ems-small-text">
-                          ({teamCount} team{teamCount === 1 ? '' : 's'}, {poolCount} pool)
-                        </div>
+                          return (
+                            <td key={ev.id} className="ems-matrix-cell-event">
+                              {isAssignedHere ? (
+                                <button
+                                  type="button"
+                                  className="ems-matrix-badge ems-matrix-badge--assigned"
+                                  onClick={() => setActivePopover({ explorer: exp, event: ev })}
+                                  title="Assigned to this event - click to manage team"
+                                >
+                                  <FontAwesomeIcon icon={faLock} className="ems-matrix-badge-icon" />{' '}
+                                  {exp.allocated_team_code === 'UNALLOCATED' ? 'Pool' : exp.allocated_team_code}
+                                </button>
+                              ) : !isAvailable ? (
+                                <span className="ems-matrix-dash" aria-label="Not available">—</span>
+                              ) : isAssignedOther ? (
+                                <button
+                                  type="button"
+                                  className="ems-matrix-badge ems-matrix-badge--other"
+                                  onClick={() => setActivePopover({ explorer: exp, event: ev })}
+                                  title={`Currently in ${exp.allocated_event_code} - click to switch to ${ev.event_code}`}
+                                >
+                                  In {exp.allocated_event_code} ⇄
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="ems-matrix-badge ems-matrix-badge--available"
+                                  onClick={() => setActivePopover({ explorer: exp, event: ev })}
+                                  title="Available for this date - click to assign"
+                                >
+                                  Available +
+                                </button>
+                              )}
+                            </td>
+                          );
+                        })
                       )}
-                    </td>
+                    </tr>
                   );
                 })}
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={events.length === 0 ? 4 : 4} className="ems-matrix-footer-cell">
+                    Cohort Totals: {filteredExplorers.length} visible ({explorers.filter(e => !e.allocated_event_code).length} unallocated)
+                  </td>
+                  {events.map(ev => {
+                    const availableCount = explorers.filter(e => e.available_events.includes(ev.event_code)).length;
+                    const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
+                    const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
+                    const teamCount = assignedCount - poolCount;
+
+                    return (
+                      <td key={ev.id} className="ems-matrix-footer-cell">
+                        <div><strong>{assignedCount}</strong> / {availableCount}</div>
+                        {poolCount > 0 && (
+                          <div className="ems-meta-text ems-small-text">
+                            ({teamCount} team{teamCount === 1 ? '' : 's'}, {poolCount} pool)
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </>
       )}
 
       {/* ── Cell Popover: Quick Allocation ── */}
@@ -691,7 +712,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
       )}
 
       {/* ── Sticky Bottom Multi-Select Action Bar ── */}
-      {selectedScoutIds.length > 0 && (
+      {selectedScoutIds.length > 0 && events.length > 0 && (
         <div className="ems-planning-action-bar" role="region" aria-label="Bulk Allocation Bar">
           <div className="ems-action-bar-info">
             <strong>{selectedScoutIds.length}</strong> explorer{selectedScoutIds.length > 1 ? 's' : ''} selected
