@@ -119,3 +119,19 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     And selects district "Borders" from the district filter
     Then only the row for "Alice Smith" should be displayed in the table
 
+  Scenario: Updating a signup level directly from the Inspector Panel with inline confirmation
+    Given a participant signup exists with ID 10, scout_id 101, and dofe_level "bronze"
+    And a linked expedition signup exists with ID 20, scout_id 101, and dofe_level "bronze"
+    When the administrator opens the Inspector Panel for signup 10
+    And changes the level dropdown from "bronze" to "silver"
+    Then the signup level should update to "silver" on both participant signup 10 and expedition signup 20
+    And an inline success checkmark should display beside the level field
+
+  Scenario: Updating a signup unit directly from the Inspector Panel dropdown without a separate save button
+    Given a participant signup exists with ID 10, scout_id 101, and unit "Unassigned"
+    And master unit 5 exists with name "Kelso ESU"
+    When the administrator opens the Inspector Panel for signup 10
+    And selects unit 5 from the unit dropdown
+    Then the signup unit should update to "Kelso ESU"
+    And an inline success checkmark should display beside the unit field
+
