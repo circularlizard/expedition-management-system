@@ -1457,6 +1457,50 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
         $this->assertNull( $shawn['allocated_team_code'] );
         $this->assertTrue( $shawn['has_asn'] );
     }
+
+    public function test_get_planning_matrix_returns_signups_when_no_events_exist(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $expeditions = \Mockery::mock( Expedition_Repository::class );
+        $expeditions->shouldReceive( 'list_all_chronological' )->andReturn( [] );
+
+        $signups = \Mockery::mock( Signup_Repository::class );
+        $signups->shouldReceive( 'get_expedition_signups' )->with( 'pending' )->andReturn( [
+            [
+                'scout_id'                 => 4003,
+                'explorer_first_name'      => 'Charlie',
+                'explorer_last_name'       => 'Dana',
+                'unit_name'                => 'Longcraigs',
+                'dofe_level'               => 'bronze',
+                'signup_status'            => 'submitted',
+                'additional_support_needs' => '',
+                'first_aid_status'         => 'none',
+                'expedition_preferences'   => json_encode( [
+                    'exped_type_bronze' => 'Paddling',
+                    'exped_team_names'  => 'Dana, Charlie',
+                ] ),
+            ],
+        ] );
+
+        $controller = $this->create_controller( null, $expeditions, null, null, null, null, $signups );
+
+        $request = new \WP_REST_Request( 'GET', '/ems/v1/planning-board/matrix' );
+        $request->set_param( 'level', 'bronze' );
+        $request->set_param( 'type', 'practice' );
+        $request->set_param( 'transport', 'paddling' );
+
+        $response = $controller->get_planning_matrix( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        $this->assertSame( [], $data['events'] );
+        $this->assertCount( 1, $data['explorers'] );
+        $this->assertSame( 'Charlie', $data['explorers'][0]['first_name'] );
+        $this->assertSame( 'Longcraigs', $data['explorers'][0]['unit_name'] );
+        $this->assertSame( 'Dana, Charlie', $data['explorers'][0]['team_preferences'] );
+        $this->assertSame( [], $data['explorers'][0]['available_events'] );
+    }
 }
 
 

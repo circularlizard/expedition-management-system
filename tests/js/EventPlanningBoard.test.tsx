@@ -309,6 +309,38 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
     expect(dialog).toHaveTextContent(/Switching from H-SP1/i);
   });
 
+  it('displays the list of signed-up explorers in the table even when there are no planned events', async () => {
+    global.fetch = vi.fn().mockImplementation((url) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/planning-board/matrix')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            events: [],
+            explorers: mockMatrixData.explorers
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<EventPlanningBoard />);
+
+    // Table should still render with the signed-up explorers
+    await waitFor(() => {
+      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.getAllByText(/Fraser Myles/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Shawn Gray/).length).toBeGreaterThan(0);
+    });
+
+    // Info notice should be displayed indicating no events are planned
+    expect(screen.getByText(/No planned events found/i)).toBeInTheDocument();
+
+    // Table should show Stated Availability column header and explorer preferences
+    expect(screen.getByRole('columnheader', { name: /Stated Availability/i })).toBeInTheDocument();
+    expect(screen.getByText(/Shawn Gray, Holly Parker/i)).toBeInTheDocument();
+  });
+
   it('renders without forbidden inline structural styles', async () => {
     const { container } = render(<EventPlanningBoard />);
 

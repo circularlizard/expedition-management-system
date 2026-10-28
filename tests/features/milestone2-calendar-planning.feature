@@ -47,3 +47,14 @@ Feature: Milestone 2 - Event Planning and Scheduling Board
     When the administrator allocates explorer 4001 to event 102 as "new_team"
     Then explorer 4001 should be assigned to a new sequential team on event 102
     And team 201 should be deleted because it is empty
+
+  Scenario: Displaying signed-up explorers when no planned events exist for the cohort
+    Given no events exist for level "bronze", type "practice", transport "paddling"
+    And a signup exists with scout_id 4003, dofe_level "bronze", and preferences:
+      """
+      {"exped_type":"Paddling","exped_team_names":"Charlie, Dana"}
+      """
+    When the administrator views the planning matrix for level "bronze", stage "practice", transport "paddling"
+    Then the planning matrix should return 0 events
+    And the planning matrix should return explorer 4003
+    And the matrix table should display explorer 4003 and their teammate wishlist
