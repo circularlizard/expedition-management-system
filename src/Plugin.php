@@ -29,6 +29,7 @@ class Plugin {
 
 	private function init_hooks(): void {
 		add_action( 'init', array( $this->cpt_registry, 'register' ) );
+		add_action( 'init', array( $this, 'disable_emoji_cdn' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_and_enqueue_frontend_assets' ) );
 		add_action( 'init', array( new \EMS\Core\Role_Manager(), 'register_roles' ) );
 		add_action( 'ems_daily_log_cleanup', array( '\\EMS\\Core\\Log_Rotator', 'purge_old_logs' ) );
@@ -944,6 +945,20 @@ class Plugin {
 			</script>
 			<?php
 		}
+	}
+
+	/**
+	 * Disables WordPress Twemoji replacement scripts and styles that fetch SVG emojis
+	 * from external CDNs (s.w.org), which are frequently blocked by restrictive VPNs.
+	 */
+	public function disable_emoji_cdn(): void {
+		remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
+		remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+		remove_action( 'wp_print_styles', 'print_emoji_styles' );
+		remove_action( 'admin_print_styles', 'print_emoji_styles' );
+		remove_filter( 'the_content_feed', 'wp_staticize_emoji' );
+		remove_filter( 'comment_text_rss', 'wp_staticize_emoji' );
+		remove_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );
 	}
 }
 

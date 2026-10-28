@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPersonHiking, faBicycle, faWater } from '@fortawesome/free-solid-svg-icons';
 import { Expedition, OSMEvent } from './types';
 import { EventForm } from './EventForm';
 
@@ -41,9 +43,17 @@ function levelPill(level?: string): React.ReactNode {
     );
 }
 
-function transportLabel(t?: string): string {
-    const m: Record<string, string> = { hillwalking: '🥾 Hillwalking', biking: '🚴 Biking', paddling: '🚣 Paddling' };
-    return m[t || ''] || (t || '—');
+function transportLabel(t?: string): React.ReactNode {
+    if (t === 'hillwalking') {
+        return <><FontAwesomeIcon icon={faPersonHiking} className="ems-pill-icon" /> Hillwalking</>;
+    }
+    if (t === 'biking') {
+        return <><FontAwesomeIcon icon={faBicycle} className="ems-pill-icon" /> Biking</>;
+    }
+    if (t === 'paddling') {
+        return <><FontAwesomeIcon icon={faWater} className="ems-pill-icon" /> Paddling</>;
+    }
+    return t || '—';
 }
 
 function formatDate(d?: string): string {

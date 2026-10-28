@@ -1,4 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faPersonHiking,
+    faBicycle,
+    faWater,
+    faUsers,
+    faUser,
+    faLock
+} from '@fortawesome/free-solid-svg-icons';
 import { Expedition, Team, Member, Explorer, FirstAidLevel, OSMEvent } from './types';
 import { EventForm } from './EventForm';
 import { OSMReadOnlyMap } from './OSMReadOnlyMap';
@@ -34,9 +43,17 @@ function capitalize(s: string): string {
     return s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '—';
 }
 
-function transportLabel(t?: string): string {
-    const m: Record<string, string> = { hillwalking: '🥾 Hillwalking', biking: '🚴 Biking', paddling: '🚣 Paddling' };
-    return m[t || ''] || (t || '—');
+function transportLabel(t?: string): React.ReactNode {
+    if (t === 'hillwalking') {
+        return <><FontAwesomeIcon icon={faPersonHiking} className="ems-pill-icon" /> Hillwalking</>;
+    }
+    if (t === 'biking') {
+        return <><FontAwesomeIcon icon={faBicycle} className="ems-pill-icon" /> Biking</>;
+    }
+    if (t === 'paddling') {
+        return <><FontAwesomeIcon icon={faWater} className="ems-pill-icon" /> Paddling</>;
+    }
+    return t || '—';
 }
 
 function statusBadge(status?: string): React.ReactNode {
@@ -461,7 +478,7 @@ const TrainingTab: React.FC<{ eventId: number }> = ({ eventId }) => {
                                         return (
                                             <td key={c.id}>
                                                 <span className={`ems-status-badge ems-status-badge--${isComplete ? 'success' : 'danger'}`}>
-                                                    {isComplete ? '✅ Complete' : '❌ Incomplete'}
+                                                    {isComplete ? 'Complete' : 'Incomplete'}
                                                 </span>
                                             </td>
                                         );
@@ -662,14 +679,14 @@ const QRCodesTab: React.FC<{ event: Expedition }> = ({ event }) => {
             <div className="ems-qr-container">
                 {explorerLink && (
                     <div className="ems-qr-item">
-                        <div className="ems-qr-item__title">🧭 Explorers Group</div>
+                        <div className="ems-qr-item__title">Explorers Group</div>
                         <a href={explorerLink} target="_blank" rel="noopener noreferrer" className="ems-qr-item__link">Open link ↗</a>
                         <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(explorerLink)}`} alt="Explorers WhatsApp QR Code" className="ems-qr-item__image" />
                     </div>
                 )}
                 {parentLink && (
                     <div className="ems-qr-item">
-                        <div className="ems-qr-item__title">👨‍👩‍👧 Parents Group</div>
+                        <div className="ems-qr-item__title">Parents Group</div>
                         <a href={parentLink} target="_blank" rel="noopener noreferrer" className="ems-qr-item__link">Open link ↗</a>
                         <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(parentLink)}`} alt="Parents WhatsApp QR Code" className="ems-qr-item__image" />
                     </div>
@@ -738,7 +755,9 @@ const ASNDrawer: React.FC<ASNDrawerProps> = ({ scoutId, onClose, onSaved }) => {
     return (
         <div className="ems-asn-drawer">
             <div className="ems-asn-drawer__header">
-                <span className="ems-asn-drawer__title">🔒 Support Needs (Confidential)</span>
+                <span className="ems-asn-drawer__title">
+                    <FontAwesomeIcon icon={faLock} className="ems-btn-icon" /> Support Needs (Confidential)
+                </span>
                 <button type="button" className="ems-asn-drawer__close" onClick={onClose}>×</button>
             </div>
 
@@ -955,8 +974,12 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
                     </div>
                 </div>
                 <div className="ems-event-detail__stats-pills">
-                    <div className="ems-event-detail__stat-pill">👥 {visibleTeams.filter(t => t.ems_team_code !== 'UNALLOCATED').length} Team{visibleTeams.filter(t => t.ems_team_code !== 'UNALLOCATED').length !== 1 ? 's' : ''}</div>
-                    <div className="ems-event-detail__stat-pill">👤 {event.member_count ?? 0} Member{ (event.member_count ?? 0) !== 1 ? 's' : ''}</div>
+                    <div className="ems-event-detail__stat-pill">
+                        <FontAwesomeIcon icon={faUsers} className="ems-btn-icon" /> {visibleTeams.filter(t => t.ems_team_code !== 'UNALLOCATED').length} Team{visibleTeams.filter(t => t.ems_team_code !== 'UNALLOCATED').length !== 1 ? 's' : ''}
+                    </div>
+                    <div className="ems-event-detail__stat-pill">
+                        <FontAwesomeIcon icon={faUser} className="ems-btn-icon" /> {event.member_count ?? 0} Member{ (event.member_count ?? 0) !== 1 ? 's' : ''}
+                    </div>
                 </div>
             </div>
 
