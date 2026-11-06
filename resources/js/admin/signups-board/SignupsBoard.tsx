@@ -1069,9 +1069,21 @@ export default function SignupsBoard() {
                                                                     {row.additional_support_needs && row.additional_support_needs.trim() !== '' ? (
                                                                         row.asn_validated === 1 ? (
                                                                             <span
-                                                                                className="ems-pill ems-pill--asn-validated ems-cursor-pointer"
-                                                                                title="ASN Validated — click to review"
-                                                                                data-testid="asn-pill-validated"
+                                                                                className="ems-pill ems-pill--asn-action ems-cursor-pointer"
+                                                                                title="Action Needed — click to review"
+                                                                                data-testid="asn-pill-action"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setAsnModalRow(row);
+                                                                                }}
+                                                                            >
+                                                                                !
+                                                                            </span>
+                                                                        ) : row.asn_validated === 0 ? (
+                                                                            <span
+                                                                                className="ems-pill ems-pill--asn-no-action ems-cursor-pointer"
+                                                                                title="No Action Needed — click to review"
+                                                                                data-testid="asn-pill-no-action"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     setAsnModalRow(row);
@@ -1079,22 +1091,10 @@ export default function SignupsBoard() {
                                                                             >
                                                                                 ✓
                                                                             </span>
-                                                                        ) : row.asn_validated === 0 ? (
-                                                                            <span
-                                                                                className="ems-pill ems-pill--asn-rejected ems-cursor-pointer"
-                                                                                title="ASN Not Validated — click to review"
-                                                                                data-testid="asn-pill-rejected"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    setAsnModalRow(row);
-                                                                                }}
-                                                                            >
-                                                                                ✕
-                                                                            </span>
                                                                         ) : (
                                                                             <span
                                                                                 className="ems-pill ems-pill--asn-pending ems-cursor-pointer"
-                                                                                title="ASN Unreviewed — click to review"
+                                                                                title="Unreviewed — click to review"
                                                                                 data-testid="asn-pill-pending"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
@@ -1615,11 +1615,11 @@ export default function SignupsBoard() {
                                     </div>
 
                                     <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                        <label htmlFor="inspector-asn-validation" className="ems-signups-inspector__label">Leader Validation</label>
+                                        <label htmlFor="inspector-asn-validation" className="ems-signups-inspector__label">Accommodation Status</label>
                                         <div className="ems-flex-center ems-gap-8 ems-mt-4">
                                             <select
                                                 id="inspector-asn-validation"
-                                                aria-label="Leader Validation"
+                                                aria-label="Accommodation Status"
                                                 value={selectedSignup.asn_validated === 1 ? '1' : selectedSignup.asn_validated === 0 ? '0' : ''}
                                                 onChange={(e) => {
                                                     const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
@@ -1629,8 +1629,8 @@ export default function SignupsBoard() {
                                                 className="ems-select ems-select-sm"
                                             >
                                                 <option value="">Unreviewed</option>
-                                                <option value="1">Validated</option>
-                                                <option value="0">Not Validated</option>
+                                                <option value="1">Action Needed</option>
+                                                <option value="0">No Action Needed</option>
                                             </select>
                                             {savingField === 'asn' && (
                                                 <span className="ems-field-status ems-field-status--saving" aria-label="Saving validation…">
@@ -1776,9 +1776,9 @@ export default function SignupsBoard() {
                                 <span className="ems-signups-inspector__label">Current Status:</span>
                                 <div className="ems-mt-4">
                                     {asnModalRow.asn_validated === 1 ? (
-                                        <span className="ems-pill ems-pill--asn-validated">Validated</span>
+                                        <span className="ems-pill ems-pill--asn-action">Action Needed</span>
                                     ) : asnModalRow.asn_validated === 0 ? (
-                                        <span className="ems-pill ems-pill--asn-rejected">Not Validated</span>
+                                        <span className="ems-pill ems-pill--asn-no-action">No Action Needed</span>
                                     ) : (
                                         <span className="ems-pill ems-pill--asn-pending">Unreviewed</span>
                                     )}
@@ -1788,19 +1788,19 @@ export default function SignupsBoard() {
                         <div className="ems-flex-center ems-gap-8 ems-flex-wrap">
                             <button
                                 type="button"
-                                className="button ems-btn--asn-validate"
+                                className="button ems-btn--asn-action"
                                 disabled={savingField === 'asn'}
                                 onClick={() => handleModalUpdateAsn(1)}
                             >
-                                <FontAwesomeIcon icon={faCheck} /> Validated
+                                <FontAwesomeIcon icon={faTriangleExclamation} /> Action Needed
                             </button>
                             <button
                                 type="button"
-                                className="button ems-btn--asn-reject"
+                                className="button ems-btn--asn-no-action"
                                 disabled={savingField === 'asn'}
                                 onClick={() => handleModalUpdateAsn(0)}
                             >
-                                <FontAwesomeIcon icon={faXmark} /> Not Validated
+                                <FontAwesomeIcon icon={faCheck} /> No Action Needed
                             </button>
                             <button
                                 type="button"

@@ -372,7 +372,7 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
     expect(screen.queryByText('FA')).not.toBeInTheDocument();
   });
 
-  it('displays amber pill for unreviewed ASN and green pill for validated ASN, hiding not validated or empty ASN', async () => {
+  it('displays amber pill for unreviewed ASN, red pill for action needed, and green pill for no action needed', async () => {
     const customMatrix = {
       events: mockMatrixData.events,
       explorers: [
@@ -460,21 +460,22 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
     const aliceAsn = within(aliceRow).getByText('? ASN');
     expect(aliceAsn).toHaveClass('ems-matrix-tag--asn-pending');
 
-    // Charlie Brown has green ASN pill (✓ ASN)
+    // Charlie Brown (asn_validated = 1) has red ASN pill (! ASN) (Action Needed)
     const charlieRow = screen.getByText('Charlie Brown').closest('tr')!;
-    const charlieAsn = within(charlieRow).getByText('✓ ASN');
-    expect(charlieAsn).toHaveClass('ems-matrix-tag--asn-validated');
+    const charlieAsn = within(charlieRow).getByText('! ASN');
+    expect(charlieAsn).toHaveClass('ems-matrix-tag--asn-action');
 
-    // Bob Jones (asn_validated = 0) does not display an ASN pill
+    // Bob Jones (asn_validated = 0) has green ASN pill (✓ ASN) (No Action Needed)
     const bobRow = screen.getByText('Bob Jones').closest('tr')!;
-    expect(within(bobRow).queryByText(/ASN/i)).not.toBeInTheDocument();
+    const bobAsn = within(bobRow).getByText('✓ ASN');
+    expect(bobAsn).toHaveClass('ems-matrix-tag--asn-no-action');
 
     // David Clark (no ASN declared) does not display an ASN pill
     const davidRow = screen.getByText('David Clark').closest('tr')!;
     expect(within(davidRow).queryByText(/ASN/i)).not.toBeInTheDocument();
   });
 
-  it('clicking explorer name opens leader validation dialogue and updates ASN validation status to green pill', async () => {
+  it('clicking explorer name opens leader validation dialogue and updates ASN validation status to red action needed tag', async () => {
     const explorerAlice = {
       scout_id: 4001,
       first_name: 'Alice',
@@ -532,14 +533,14 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText('Requires inhaler')).toBeInTheDocument();
 
-    // Click "Validated" in dialogue
-    const validateBtn = within(dialog).getByRole('button', { name: /^validated$/i });
+    // Click "Action Needed" in dialogue
+    const validateBtn = within(dialog).getByRole('button', { name: /^action needed$/i });
     fireEvent.click(validateBtn);
 
-    // Dialogue closes and Alice now displays green ASN tag
+    // Dialogue closes and Alice now displays red ASN tag
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: /ASN Leader Validation/i })).not.toBeInTheDocument();
-      expect(within(aliceRow).getByText('✓ ASN')).toHaveClass('ems-matrix-tag--asn-validated');
+      expect(within(aliceRow).getByText('! ASN')).toHaveClass('ems-matrix-tag--asn-action');
     });
   });
 
