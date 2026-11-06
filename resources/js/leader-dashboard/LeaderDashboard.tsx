@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { groupSignupsByExplorerIdentity } from '../admin/signups-board/dashboardMetrics';
+import {
+    normalize,
+    getUnitDistrictMap,
+    getUniqueUnits,
+    getUniqueDistricts,
+    getSignupsSortValue,
+    partitionGroupedRows,
+    paginateGroupedRows
+} from '../admin/signups-board/tableUtils';
 
 declare global {
     interface Window {
@@ -18,8 +27,6 @@ declare global {
         };
     }
 }
-
-const normalize = (str: string) => (str || '').trim().toLowerCase();
 
 export const LeaderDashboard: React.FC = () => {
     const config = window.emsLeaderDashboard || {
@@ -57,29 +64,11 @@ export const LeaderDashboard: React.FC = () => {
     const availableUnits: any[] = (window.emsLeaderDashboard?.units || (config as any).units || []);
 
     const unitDistrictMap = useMemo(() => {
-        const map: Record<string, string> = {};
-        availableUnits.forEach((u: any) => {
-            const dist = (u.district || '').trim();
-            if (dist) {
-                if (u.name) map[u.name] = dist;
-                if (u.short_code) map[u.short_code] = dist;
-                if (u.unit_id) map[String(u.unit_id)] = dist;
-            }
-        });
-        return map;
+        return getUnitDistrictMap(availableUnits);
     }, [availableUnits]);
 
     const uniqueDistricts = useMemo(() => {
-        const set = new Set<string>();
-        availableUnits.forEach((u: any) => {
-            const dist = (u.district || '').trim();
-            if (dist) set.add(dist);
-        });
-        signups.forEach((s: any) => {
-            const dist = (s.district || unitDistrictMap[s.unit_name] || unitDistrictMap[String(s.unit_id)] || '').trim();
-            if (dist && dist.toLowerCase() !== 'unassigned') set.add(dist);
-        });
-        return Array.from(set).sort((a, b) => a.localeCompare(b));
+        return getUniqueDistricts(availableUnits, signups, unitDistrictMap);
     }, [availableUnits, signups, unitDistrictMap]);
 
     useEffect(() => {
@@ -184,36 +173,12 @@ export const LeaderDashboard: React.FC = () => {
         return rows;
     }, [filteredSignups]);
 
-    const uniqueUnits = useMemo(() => {
-        return Array.from(new Set(signups.map((s) => s.unit_name || 'Unassigned')))
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b));
-    }, [signups]);
-
-    const getSortValue = (item: any, key: string) => {
-        if (key === 'osm_sync') {
-            return item.scout_id !== 0 ? 1 : 0;
-        }
-        if (key === 'explorer_first_name') {
-            return `${item.explorer_first_name || ''} ${item.explorer_last_name || ''}`.toLowerCase();
-        }
-        if (key === 'participant') {
-            return item.participantEntries?.length || 0;
-        }
-        if (key === 'expedition_signup') {
-            return item.expeditionEntries?.length || 0;
-        }
-        if (key === 'expedition') {
-            return (item.expedition_preferences?.exped_type || '').toLowerCase();
-        }
-        const val = item[key];
-        return typeof val === 'string' ? val.toLowerCase() : (val ?? '');
-    };
+    const uniqueUnits = useMemo(() => getUniqueUnits(signups), [signups]);
 
     const sortedRows = useMemo(() => {
         return [...explorerRows].sort((a, b) => {
-            const valA = getSortValue(a, sortKey);
-            const valB = getSortValue(b, sortKey);
+            const valA = getSignupsSortValue(a, sortKey);
+            const valB = getSignupsSortValue(b, sortKey);
             if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
             if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
             return 0;
@@ -221,90 +186,15 @@ export const LeaderDashboard: React.FC = () => {
     }, [explorerRows, sortKey, sortOrder]);
 
     const groupedRows = useMemo(() => {
-        if (grouping === 'none') {
-            return [{ title: null, items: sortedRows }];
-        }
-
-        if (grouping === 'level') {
-            const levels = ['bronze', 'silver', 'gold'];
-            return levels
-                .map((lvl) => ({
-                    title: `${lvl.charAt(0).toUpperCase() + lvl.slice(1)} Level`,
-                    items: sortedRows.filter((s) => s.dofe_level === lvl),
-                }))
-                .filter((g) => g.items.length > 0);
-        }
-
-        if (grouping === 'expedition') {
-            const types = ['Hillwalking', 'Biking', 'Paddling'];
-            const groups = types
-                .map((t) => ({
-                    title: t,
-                    items: sortedRows.filter((s) => normalize(s.expedition_preferences?.exped_type) === normalize(t)),
-                }))
-                .filter((g) => g.items.length > 0);
-
-            const unassigned = sortedRows.filter(
-                (s) => !types.some((t) => normalize(s.expedition_preferences?.exped_type) === normalize(t))
-            );
-            if (unassigned.length > 0) {
-                groups.push({ title: 'No Preference / Participant Place', items: unassigned });
-            }
-            return groups;
-        }
-
-        if (grouping === 'esu') {
-            const units = Array.from(new Set(sortedRows.map((s) => s.unit_name || 'Unassigned'))).sort((a, b) => {
-                if (a === 'Unassigned') return 1;
-                if (b === 'Unassigned') return -1;
-                return a.localeCompare(b);
-            });
-            return units
-                .map((u) => ({
-                    title: u,
-                    items: sortedRows.filter((s) => (s.unit_name || 'Unassigned') === u),
-                }))
-                .filter((g) => g.items.length > 0);
-        }
-
-        return [{ title: null, items: sortedRows }];
+        return partitionGroupedRows(sortedRows, grouping);
     }, [grouping, sortedRows]);
 
     const totalItems = sortedRows.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
     const paginatedGroupedRows = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = currentPage * itemsPerPage;
-
-        if (grouping === 'none') {
-            return [{ title: null, items: sortedRows.slice(startIndex, endIndex) }];
-        }
-
-        const result: Array<{ title: string | null; items: any[] }> = [];
-        let offset = 0;
-
-        for (const group of groupedRows) {
-            const groupStart = offset;
-            const groupEnd = offset + group.items.length;
-            offset = groupEnd;
-
-            if (groupEnd <= startIndex || groupStart >= endIndex) {
-                continue;
-            }
-
-            const sliceStart = Math.max(0, startIndex - groupStart);
-            const sliceEnd = Math.min(group.items.length, endIndex - groupStart);
-            if (sliceEnd > sliceStart) {
-                result.push({
-                    title: group.title,
-                    items: group.items.slice(sliceStart, sliceEnd),
-                });
-            }
-        }
-
-        return result;
-    }, [grouping, sortedRows, groupedRows, currentPage, itemsPerPage]);
+        return paginateGroupedRows(groupedRows, currentPage, itemsPerPage);
+    }, [groupedRows, currentPage, itemsPerPage]);
 
     const handleSort = (key: string) => {
         if (sortKey === key) {
