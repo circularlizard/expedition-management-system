@@ -13,7 +13,7 @@ import {
   faBicycle,
   faWater
 } from '@fortawesome/free-solid-svg-icons';
-import { getUnitDistrictMap, getUniqueDistricts, normalize } from '../signups-board/tableUtils';
+import { getUnitDistrictMap, getUniqueDistricts, normalize, partitionGroupedRows } from '../signups-board/tableUtils';
 
 export interface MatrixTeam {
   id: number;
@@ -118,7 +118,9 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
   const [filterUnit, setFilterUnit] = useState('all');
   const [asnFilter, setAsnFilter] = useState('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'unallocated' | 'allocated'>('all');
-  const [sortKey, setSortKey] = useState<'name' | 'unit'>('name');
+  const [grouping, setGrouping] = useState<'none' | 'unit'>('none');
+  const [sortKey, setSortKey] = useState<string>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // ── Selection & Allocation State ───────────────────────────────────────────
   const [selectedScoutIds, setSelectedScoutIds] = useState<number[]>([]);
@@ -238,21 +240,87 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
         }
       }
       return true;
-    }).sort((a, b) => {
-      if (sortKey === 'unit') {
-        const cmp = a.unit_name.localeCompare(b.unit_name);
-        if (cmp !== 0) return cmp;
+    });
+  }, [explorers, districtFilter, filterUnit, filterStatus, asnFilter, searchQuery, unitDistrictMap]);
+
+  const getExplorerSortValue = (exp: MatrixExplorer, key: string): string => {
+    if (key === 'name') {
+      return `${exp.first_name} ${exp.last_name}`.toLowerCase();
+    }
+    if (key === 'unit') {
+      return (exp.unit_name || 'Unassigned').toLowerCase();
+    }
+    if (key === 'wishlist') {
+      return (exp.team_preferences || '').toLowerCase();
+    }
+    if (key === 'availability') {
+      return (exp.available_events || []).join(', ').toLowerCase();
+    }
+    if (key.startsWith('event_')) {
+      const eventCode = key.replace('event_', '');
+      if (exp.allocated_event_code === eventCode) {
+        if (exp.allocated_team_code && exp.allocated_team_code !== 'UNALLOCATED') {
+          return `1_${exp.allocated_team_code.toLowerCase()}`;
+        }
+        return '2_pool';
       }
-      const nameA = `${a.first_name} ${a.last_name}`;
-      const nameB = `${b.first_name} ${b.last_name}`;
+      if ((exp.available_events || []).includes(eventCode)) {
+        return '3_available';
+      }
+      return '4_unavailable';
+    }
+    return '';
+  };
+
+  const sortedExplorers = useMemo(() => {
+    return [...filteredExplorers].sort((a, b) => {
+      const valA = getExplorerSortValue(a, sortKey);
+      const valB = getExplorerSortValue(b, sortKey);
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+      const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
       return nameA.localeCompare(nameB);
     });
-  }, [explorers, districtFilter, filterUnit, filterStatus, asnFilter, searchQuery, sortKey, unitDistrictMap]);
+  }, [filteredExplorers, sortKey, sortOrder]);
+
+  const groupedExplorers = useMemo(() => {
+    return partitionGroupedRows(sortedExplorers, grouping);
+  }, [sortedExplorers, grouping]);
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
+
+  const renderHeader = (label: React.ReactNode, key: string, extraClass: string = '') => {
+    const isCurrent = sortKey === key;
+    return (
+      <th
+        onClick={() => toggleSort(key)}
+        className={`ems-osm-ref-col-header ${extraClass}`}
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+        title={`Sort by ${typeof label === 'string' ? label : key}`}
+      >
+        <div className="ems-flex-center ems-gap-6">
+          <span>{label}</span>
+          <span className={`ems-osm-ref-col-sort ${isCurrent ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
+            {isCurrent ? (sortOrder === 'asc' ? '▲' : '▼') : '⇅'}
+          </span>
+        </div>
+      </th>
+    );
+  };
 
   // ── Checkbox Selection ─────────────────────────────────────────────────────
-  const visibleScoutIds = useMemo(() => filteredExplorers.map(e => e.scout_id), [filteredExplorers]);
+  const visibleScoutIds = useMemo(() => sortedExplorers.map(e => e.scout_id), [sortedExplorers]);
   const allSelected = visibleScoutIds.length > 0 && visibleScoutIds.every(id => selectedScoutIds.includes(id));
   const someSelected = visibleScoutIds.some(id => selectedScoutIds.includes(id)) && !allSelected;
+  const totalColSpan = (events.length > 0 ? 1 : 0) + 3 + (events.length > 0 ? events.length : 1);
 
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -519,15 +587,41 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
         </div>
 
         <div className="ems-refine-group">
+          <label htmlFor="matrix-group-by" className="ems-refine-label">Group By:</label>
+          <select
+            id="matrix-group-by"
+            className="ems-select-sm"
+            value={grouping}
+            onChange={e => setGrouping(e.target.value as 'none' | 'unit')}
+          >
+            <option value="none">Ungrouped</option>
+            <option value="unit">Unit</option>
+          </select>
+        </div>
+
+        <div className="ems-refine-group">
           <label htmlFor="matrix-sort-by" className="ems-refine-label">Sort:</label>
           <select
             id="matrix-sort-by"
             className="ems-select-sm"
             value={sortKey}
-            onChange={e => setSortKey(e.target.value as 'name' | 'unit')}
+            onChange={e => {
+              setSortKey(e.target.value);
+              setSortOrder('asc');
+            }}
           >
             <option value="name">Name (A–Z)</option>
             <option value="unit">Unit</option>
+            <option value="wishlist">Wishlist</option>
+            {events.length === 0 ? (
+              <option value="availability">Availability</option>
+            ) : (
+              events.map(ev => (
+                <option key={ev.event_code} value={`event_${ev.event_code}`}>
+                  {ev.event_code}
+                </option>
+              ))
+            )}
           </select>
         </div>
 
@@ -574,18 +668,30 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                       />
                     </th>
                   )}
-                  <th>Explorer</th>
-                  <th>Unit</th>
-                  <th>Teammate Wishlist</th>
+                  {renderHeader('Explorer', 'name')}
+                  {renderHeader('Unit', 'unit')}
+                  {renderHeader('Teammate Wishlist', 'wishlist')}
                   {events.length === 0 ? (
-                    <th className="ems-matrix-th-pref">Stated Availability</th>
+                    renderHeader('Stated Availability', 'availability', 'ems-matrix-th-pref')
                   ) : (
                     events.map(ev => {
                       const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
                       const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
+                      const isCurrent = sortKey === `event_${ev.event_code}`;
                       return (
-                        <th key={ev.id} className="ems-matrix-th-event">
-                          <div>{ev.event_code}</div>
+                        <th
+                          key={ev.id}
+                          className="ems-matrix-th-event ems-osm-ref-col-header"
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => toggleSort(`event_${ev.event_code}`)}
+                          title={`Sort by ${ev.event_code} allocation status`}
+                        >
+                          <div className="ems-flex-center ems-gap-6 ems-justify-center">
+                            <span>{ev.event_code}</span>
+                            <span className={`ems-osm-ref-col-sort ${isCurrent ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
+                              {isCurrent ? (sortOrder === 'asc' ? '▲' : '▼') : '⇅'}
+                            </span>
+                          </div>
                           <span className="ems-matrix-th-date">{formatDateShort(ev.start_date)}</span>
                           <div className="ems-matrix-th-stats">
                             <span className="ems-matrix-stat-pill" title={`${assignedCount - poolCount} in teams, ${poolCount} in event pool`}>
@@ -599,10 +705,24 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                 </tr>
               </thead>
               <tbody>
-                {filteredExplorers.map(exp => {
-                  const isSelected = selectedScoutIds.includes(exp.scout_id);
-                  return (
-                    <tr key={exp.scout_id} className={isSelected ? 'ems-table-row--selected' : ''}>
+                {groupedExplorers.map(g => (
+                  <React.Fragment key={g.title || 'flat'}>
+                    {g.title && (
+                      <tr className="ems-table-group-header">
+                        <td colSpan={totalColSpan}>
+                          <div className="ems-table-group-header__content">
+                            <span className="ems-table-group-header__title">{g.title}</span>
+                            <span className="ems-table-group-header__badge">
+                              {`${g.items.length} ${g.items.length === 1 ? 'explorer' : 'explorers'}`}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {g.items.map(exp => {
+                      const isSelected = selectedScoutIds.includes(exp.scout_id);
+                      return (
+                        <tr key={exp.scout_id} className={isSelected ? 'ems-table-row--selected' : ''}>
                       {events.length > 0 && (
                         <td className="ems-table-cell--center">
                           <input
@@ -712,7 +832,9 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                     </tr>
                   );
                 })}
-              </tbody>
+              </React.Fragment>
+            ))}
+          </tbody>
               <tfoot>
                 <tr>
                   <td colSpan={events.length === 0 ? 4 : 4} className="ems-matrix-footer-cell">
