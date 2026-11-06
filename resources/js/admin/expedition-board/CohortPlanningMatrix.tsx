@@ -6,6 +6,7 @@ import {
   faUsers,
   faXmark,
   faCheck,
+  faTriangleExclamation,
   faCircleQuestion,
   faMagnifyingGlass,
   faClipboardList,
@@ -225,8 +226,8 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
       if (asnFilter !== 'all') {
         const hasNeeds = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
         if (asnFilter === 'has_asn' && !hasNeeds) return false;
-        if (asnFilter === 'validated' && (!hasNeeds || exp.asn_validated !== 1)) return false;
-        if (asnFilter === 'not_validated' && (!hasNeeds || exp.asn_validated !== 0)) return false;
+        if ((asnFilter === 'action_needed' || asnFilter === 'validated') && (!hasNeeds || exp.asn_validated !== 1)) return false;
+        if ((asnFilter === 'no_action' || asnFilter === 'not_validated') && (!hasNeeds || exp.asn_validated !== 0)) return false;
         if (asnFilter === 'unreviewed' && (!hasNeeds || (exp.asn_validated !== null && exp.asn_validated !== undefined))) return false;
       }
       // Free-text search: searches Explorer Name AND Teammate Wishlist!
@@ -566,9 +567,9 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
           >
             <option value="all">All ASN</option>
             <option value="has_asn">Declared ASN</option>
-            <option value="unreviewed">ASN Unreviewed</option>
-            <option value="validated">ASN Validated</option>
-            <option value="not_validated">ASN Not Validated</option>
+            <option value="unreviewed">Unreviewed</option>
+            <option value="action_needed">Action Needed</option>
+            <option value="no_action">No Action Needed</option>
           </select>
         </div>
 
@@ -746,13 +747,21 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                           {exp.additional_support_needs && exp.additional_support_needs.trim() !== '' && (
                             exp.asn_validated === 1 ? (
                               <span
-                                className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-validated ems-cursor-pointer"
-                                title={`ASN Validated: ${exp.additional_support_needs}`}
+                                className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-action ems-cursor-pointer"
+                                title={`ASN Action Needed: ${exp.additional_support_needs}`}
+                                onClick={() => setAsnDialogExplorer(exp)}
+                              >
+                                ! ASN
+                              </span>
+                            ) : exp.asn_validated === 0 ? (
+                              <span
+                                className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-no-action ems-cursor-pointer"
+                                title={`ASN No Action Needed: ${exp.additional_support_needs}`}
                                 onClick={() => setAsnDialogExplorer(exp)}
                               >
                                 ✓ ASN
                               </span>
-                            ) : (exp.asn_validated === null || exp.asn_validated === undefined) ? (
+                            ) : (
                               <span
                                 className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-pending ems-cursor-pointer"
                                 title={`ASN Unreviewed: ${exp.additional_support_needs}`}
@@ -760,7 +769,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                               >
                                 ? ASN
                               </span>
-                            ) : null
+                            )
                           )}
                         </div>
                       </td>
@@ -966,7 +975,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
           >
             <div className="ems-asn-dialog__header">
               <h3 className="ems-asn-dialog__title">
-                ASN Leader Validation — {asnDialogExplorer.first_name} {asnDialogExplorer.last_name}
+                ASN Review — {asnDialogExplorer.first_name} {asnDialogExplorer.last_name}
               </h3>
               <button
                 type="button"
@@ -989,9 +998,9 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
                 <span className="ems-signups-inspector__label">Current Status:</span>
                 <div className="ems-mt-4">
                   {asnDialogExplorer.asn_validated === 1 ? (
-                    <span className="ems-pill ems-pill--asn-validated">Validated</span>
+                    <span className="ems-pill ems-pill--asn-action">Action Needed</span>
                   ) : asnDialogExplorer.asn_validated === 0 ? (
-                    <span className="ems-pill ems-pill--asn-rejected">Not Validated</span>
+                    <span className="ems-pill ems-pill--asn-no-action">No Action Needed</span>
                   ) : (
                     <span className="ems-pill ems-pill--asn-pending">Unreviewed</span>
                   )}
@@ -1001,19 +1010,19 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
             <div className="ems-flex-center ems-gap-8 ems-flex-wrap">
               <button
                 type="button"
-                className="button ems-btn--asn-validate"
+                className="button ems-btn--asn-action"
                 disabled={asnUpdating}
                 onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 1)}
               >
-                <FontAwesomeIcon icon={faCheck} /> Validated
+                <FontAwesomeIcon icon={faTriangleExclamation} /> Action Needed
               </button>
               <button
                 type="button"
-                className="button ems-btn--asn-reject"
+                className="button ems-btn--asn-no-action"
                 disabled={asnUpdating}
                 onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 0)}
               >
-                <FontAwesomeIcon icon={faXmark} /> Not Validated
+                <FontAwesomeIcon icon={faCheck} /> No Action Needed
               </button>
               <button
                 type="button"

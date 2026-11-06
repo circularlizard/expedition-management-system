@@ -3581,7 +3581,8 @@ input.ems-form-input--title {
     line-height: 1;
 }
 
-.ems-pill--asn-rejected {
+.ems-pill--asn-rejected,
+.ems-pill--asn-action {
     background: #fee2e2;
     color: #991b1b;
     border-color: #fca5a5;
@@ -3596,7 +3597,8 @@ input.ems-form-input--title {
     line-height: 1;
 }
 
-.ems-pill--asn-validated {
+.ems-pill--asn-validated,
+.ems-pill--asn-no-action {
     background: #dcfce7;
     color: #166534;
     border-color: #86efac;
@@ -4024,7 +4026,14 @@ tr.ems-table-group-header:hover td,
     border: 1px solid #fde68a;
 }
 
-.ems-matrix-tag--asn-validated {
+.ems-matrix-tag--asn-action {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.ems-matrix-tag--asn-validated,
+.ems-matrix-tag--asn-no-action {
     background: #ecfdf5;
     color: #065f46;
     border: 1px solid #a7f3d0;
@@ -4208,22 +4217,26 @@ tr.ems-table-group-header:hover td,
     color: #0f172a;
 }
 
+.ems-btn--asn-no-action,
 .ems-btn--asn-validate {
     background: #16a34a !important;
     border-color: #15803d !important;
     color: #ffffff !important;
 }
 
+.ems-btn--asn-no-action:hover,
 .ems-btn--asn-validate:hover {
     background: #15803d !important;
 }
 
+.ems-btn--asn-action,
 .ems-btn--asn-reject {
     background: #dc2626 !important;
     border-color: #b91c1c !important;
     color: #ffffff !important;
 }
 
+.ems-btn--asn-action:hover,
 .ems-btn--asn-reject:hover {
     background: #b91c1c !important;
 }

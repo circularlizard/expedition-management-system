@@ -1079,17 +1079,17 @@ describe('SignupsBoard', () => {
         expect(alicePill).toHaveClass('ems-pill--asn-pending');
         expect(alicePill).toHaveTextContent('?');
 
-        // Bob Jones row -> red pill with ✕
+        // Bob Jones row (asn_validated = 0) -> green pill with ✓ (No Action Needed)
         const bobRow = screen.getByText('Bob Jones').closest('tr')!;
-        const bobPill = within(bobRow).getByTestId('asn-pill-rejected');
-        expect(bobPill).toHaveClass('ems-pill--asn-rejected');
-        expect(bobPill).toHaveTextContent('✕');
+        const bobPill = within(bobRow).getByTestId('asn-pill-no-action');
+        expect(bobPill).toHaveClass('ems-pill--asn-no-action');
+        expect(bobPill).toHaveTextContent('✓');
 
-        // Charlie Brown row -> green pill with ✓
+        // Charlie Brown row (asn_validated = 1) -> red pill with ! (Action Needed)
         const charlieRow = screen.getByText('Charlie Brown').closest('tr')!;
-        const charliePill = within(charlieRow).getByTestId('asn-pill-validated');
-        expect(charliePill).toHaveClass('ems-pill--asn-validated');
-        expect(charliePill).toHaveTextContent('✓');
+        const charliePill = within(charlieRow).getByTestId('asn-pill-action');
+        expect(charliePill).toHaveClass('ems-pill--asn-action');
+        expect(charliePill).toHaveTextContent('!');
 
         // David Clark row -> shows — in ASN column
         const davidRow = screen.getByText('David Clark').closest('tr')!;
@@ -1159,8 +1159,8 @@ describe('SignupsBoard', () => {
             })
             .mockResolvedValueOnce({ ok: true, json: async () => [] });
 
-        // Click "Validated" in modal
-        const validateBtn = within(dialog).getByRole('button', { name: /^validated$/i });
+        // Click "Action Needed" in modal
+        const validateBtn = within(dialog).getByRole('button', { name: /^action needed$/i });
         fireEvent.click(validateBtn);
 
         await waitFor(() => {
@@ -1211,7 +1211,7 @@ describe('SignupsBoard', () => {
         fireEvent.click(row);
 
         // Leader validation select in inspector
-        const asnSelect = await screen.findByRole('combobox', { name: /Leader Validation/i });
+        const asnSelect = await screen.findByRole('combobox', { name: /Accommodation Status/i });
         expect(asnSelect).toBeInTheDocument();
         expect(screen.getByText('Requires dietary support')).toBeInTheDocument();
 
