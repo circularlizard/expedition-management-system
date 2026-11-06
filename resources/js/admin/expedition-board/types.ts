@@ -86,6 +86,7 @@ export interface BoardConfig {
     nonce: string;
     admin_url?: string;
     plugin_url?: string;
+    units?: any[];
 }
 
 export interface Explorer {

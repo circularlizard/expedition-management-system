@@ -13,6 +13,7 @@ import {
   faBicycle,
   faWater
 } from '@fortawesome/free-solid-svg-icons';
+import { getUnitDistrictMap, getUniqueDistricts, normalize } from '../signups-board/tableUtils';
 
 export interface MatrixTeam {
   id: number;
@@ -38,6 +39,8 @@ export interface MatrixExplorer {
   first_name: string;
   last_name: string;
   unit_name: string;
+  unit_id?: number | null;
+  district?: string;
   team_preferences: string;
   available_events: string[];
   allocated_event_code: string | null;
@@ -73,6 +76,9 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
   const config = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
   const rootUrl = config.root_url;
   const nonce = config.nonce;
+  const units: any[] = config.units || [];
+
+  const unitDistrictMap = useMemo(() => getUnitDistrictMap(units), [units]);
 
   // ── Layer 1: Hard Filter / Cohort Scope ─────────────────────────────────────
   const [level, setLevel] = useState<'bronze' | 'silver' | 'gold'>('silver');
@@ -101,9 +107,16 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  const uniqueDistricts = useMemo(
+    () => getUniqueDistricts(units, explorers, unitDistrictMap),
+    [units, explorers, unitDistrictMap]
+  );
+
   // ── Layer 2: Refinement & Search ───────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('all');
   const [filterUnit, setFilterUnit] = useState('all');
+  const [asnFilter, setAsnFilter] = useState('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'unallocated' | 'allocated'>('all');
   const [sortKey, setSortKey] = useState<'name' | 'unit'>('name');
 
@@ -166,16 +179,35 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
 
   // ── Cohort Units for Layer 2 Filter ────────────────────────────────────────
   const cohortUnits = useMemo(() => {
-    const units = new Set<string>();
+    const unitSet = new Set<string>();
     explorers.forEach(e => {
-      if (e.unit_name) units.add(e.unit_name);
+      if (districtFilter !== 'all') {
+        const itemDistrict = (e.district || unitDistrictMap[e.unit_name] || '').trim() || 'Unassigned';
+        if (normalize(itemDistrict) !== normalize(districtFilter)) {
+          return;
+        }
+      }
+      if (e.unit_name) unitSet.add(e.unit_name);
     });
-    return Array.from(units).sort();
-  }, [explorers]);
+    return Array.from(unitSet).sort((a, b) => a.localeCompare(b));
+  }, [explorers, districtFilter, unitDistrictMap]);
+
+  useEffect(() => {
+    if (filterUnit !== 'all' && !cohortUnits.includes(filterUnit)) {
+      setFilterUnit('all');
+    }
+  }, [cohortUnits, filterUnit]);
 
   // ── Layer 2 Filtering Logic ────────────────────────────────────────────────
   const filteredExplorers = useMemo(() => {
     return explorers.filter(exp => {
+      // District filter
+      if (districtFilter !== 'all') {
+        const itemDistrict = (exp.district || unitDistrictMap[exp.unit_name] || '').trim() || 'Unassigned';
+        if (normalize(itemDistrict) !== normalize(districtFilter)) {
+          return false;
+        }
+      }
       // Unit filter
       if (filterUnit !== 'all' && exp.unit_name !== filterUnit) {
         return false;
@@ -186,6 +218,14 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
       }
       if (filterStatus === 'allocated' && !exp.allocated_event_code) {
         return false;
+      }
+      // ASN filter
+      if (asnFilter !== 'all') {
+        const hasNeeds = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
+        if (asnFilter === 'has_asn' && !hasNeeds) return false;
+        if (asnFilter === 'validated' && (!hasNeeds || exp.asn_validated !== 1)) return false;
+        if (asnFilter === 'not_validated' && (!hasNeeds || exp.asn_validated !== 0)) return false;
+        if (asnFilter === 'unreviewed' && (!hasNeeds || (exp.asn_validated !== null && exp.asn_validated !== undefined))) return false;
       }
       // Free-text search: searches Explorer Name AND Teammate Wishlist!
       if (searchQuery.trim()) {
@@ -207,7 +247,7 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
       const nameB = `${b.first_name} ${b.last_name}`;
       return nameA.localeCompare(nameB);
     });
-  }, [explorers, filterUnit, filterStatus, searchQuery, sortKey]);
+  }, [explorers, districtFilter, filterUnit, filterStatus, asnFilter, searchQuery, sortKey, unitDistrictMap]);
 
   // ── Checkbox Selection ─────────────────────────────────────────────────────
   const visibleScoutIds = useMemo(() => filteredExplorers.map(e => e.scout_id), [filteredExplorers]);
@@ -418,6 +458,22 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
         </div>
 
         <div className="ems-refine-group">
+          <label htmlFor="matrix-district-filter" className="ems-refine-label">District:</label>
+          <select
+            id="matrix-district-filter"
+            className="ems-select-sm"
+            value={districtFilter}
+            onChange={e => setDistrictFilter(e.target.value)}
+          >
+            <option value="all">All Districts</option>
+            {uniqueDistricts.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+            <option value="unassigned">Unassigned</option>
+          </select>
+        </div>
+
+        <div className="ems-refine-group">
           <label htmlFor="matrix-unit-filter" className="ems-refine-label">Unit:</label>
           <select
             id="matrix-unit-filter"
@@ -429,6 +485,22 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
             {cohortUnits.map(u => (
               <option key={u} value={u}>{u}</option>
             ))}
+          </select>
+        </div>
+
+        <div className="ems-refine-group">
+          <label htmlFor="matrix-asn-filter" className="ems-refine-label">ASN:</label>
+          <select
+            id="matrix-asn-filter"
+            className="ems-select-sm"
+            value={asnFilter}
+            onChange={e => setAsnFilter(e.target.value)}
+          >
+            <option value="all">All ASN</option>
+            <option value="has_asn">Declared ASN</option>
+            <option value="unreviewed">ASN Unreviewed</option>
+            <option value="validated">ASN Validated</option>
+            <option value="not_validated">ASN Not Validated</option>
           </select>
         </div>
 

@@ -542,4 +542,54 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
       expect(within(aliceRow).getByText('✓ ASN')).toHaveClass('ems-matrix-tag--asn-validated');
     });
   });
+
+  it('filters explorers by district and ASN in the cohort planning matrix', async () => {
+    (global as any).window.emsExpeditionBoard = {
+      root_url: '/wp-json/ems/v1',
+      nonce: 'dummy-nonce',
+      units: [
+        { unit_id: 1, name: 'BO-Kelso', district: 'Borders' },
+        { unit_id: 2, name: 'PE-Castle', district: 'Pentland' }
+      ]
+    };
+
+    (global.fetch as any).mockImplementation((url: string) => {
+      if (url.includes('/planning-board/matrix')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockMatrixData
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<EventPlanningBoard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Fraser Myles', { selector: '.ems-explorer-fullname' })).toBeInTheDocument();
+      expect(screen.getByText('Holly Parker', { selector: '.ems-explorer-fullname' })).toBeInTheDocument();
+    });
+
+    // 1. Filter by District = Borders
+    const districtSelect = screen.getByLabelText(/District:/i);
+    expect(districtSelect).toBeInTheDocument();
+    fireEvent.change(districtSelect, { target: { value: 'Borders' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Fraser Myles', { selector: '.ems-explorer-fullname' })).toBeInTheDocument();
+      expect(screen.getByText('Shawn Gray', { selector: '.ems-explorer-fullname' })).toBeInTheDocument();
+      expect(screen.queryByText('Holly Parker', { selector: '.ems-explorer-fullname' })).not.toBeInTheDocument();
+    });
+
+    // 2. Filter by ASN = has_asn
+    const asnSelect = screen.getByLabelText(/ASN:/i);
+    expect(asnSelect).toBeInTheDocument();
+    fireEvent.change(asnSelect, { target: { value: 'has_asn' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Shawn Gray', { selector: '.ems-explorer-fullname' })).toBeInTheDocument();
+      expect(screen.queryByText('Fraser Myles', { selector: '.ems-explorer-fullname' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Holly Parker', { selector: '.ems-explorer-fullname' })).not.toBeInTheDocument();
+    });
+  });
 });
