@@ -592,4 +592,59 @@ describe('EventPlanningBoard - Cohort Availability Matrix', () => {
       expect(screen.queryByText('Holly Parker', { selector: '.ems-explorer-fullname' })).not.toBeInTheDocument();
     });
   });
+
+  it('groups cohort explorers by unit with header badges', async () => {
+    render(<EventPlanningBoard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Fraser Myles', { selector: '.ems-explorer-fullname' })).toBeInTheDocument();
+    });
+
+    // Group by Unit
+    const groupBySelect = screen.getByLabelText(/Group By:/i);
+    expect(groupBySelect).toBeInTheDocument();
+    fireEvent.change(groupBySelect, { target: { value: 'unit' } });
+
+    await waitFor(() => {
+      const titles = screen.getAllByRole('cell').map(c => c.textContent);
+      expect(screen.getByText('BO-Kelso', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
+      expect(screen.getByText('PE-Castle', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
+      expect(screen.getByText('2 explorers', { selector: '.ems-table-group-header__badge' })).toBeInTheDocument();
+      expect(screen.getByText('1 explorer', { selector: '.ems-table-group-header__badge' })).toBeInTheDocument();
+    });
+  });
+
+  it('supports sorting columns in the cohort planning matrix by clicking headers', async () => {
+    render(<EventPlanningBoard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Fraser Myles', { selector: '.ems-explorer-fullname' })).toBeInTheDocument();
+    });
+
+    const getExplorerNames = () =>
+      Array.from(document.querySelectorAll('.ems-explorer-fullname')).map(el => el.textContent?.trim());
+
+    // Initial order: Name A-Z -> Fraser, Holly, Shawn
+    expect(getExplorerNames()).toEqual(['Fraser Myles', 'Holly Parker', 'Shawn Gray']);
+
+    // 1. Click "Explorer" header -> toggles to Name Z-A
+    const explorerHeader = screen.getByTitle(/Sort by Explorer/i);
+    fireEvent.click(explorerHeader);
+
+    expect(getExplorerNames()).toEqual(['Shawn Gray', 'Holly Parker', 'Fraser Myles']);
+
+    // 2. Click "Unit" header -> sorts by Unit A-Z
+    const unitHeader = screen.getByTitle(/Sort by Unit/i);
+    fireEvent.click(unitHeader);
+
+    // BO-Kelso comes before PE-Castle; within BO-Kelso, Fraser comes before Shawn
+    expect(getExplorerNames()).toEqual(['Fraser Myles', 'Shawn Gray', 'Holly Parker']);
+
+    // 3. Click "H-SP1" event header -> sorts by H-SP1 allocation status
+    const eventHeader = screen.getByTitle(/Sort by H-SP1/i);
+    fireEvent.click(eventHeader);
+
+    // Fraser (allocated to Team 1) -> Shawn (available) -> Holly (unavailable for H-SP1)
+    expect(getExplorerNames()).toEqual(['Fraser Myles', 'Shawn Gray', 'Holly Parker']);
+  });
 });
