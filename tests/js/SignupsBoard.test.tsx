@@ -1098,6 +1098,84 @@ describe('SignupsBoard', () => {
         expect(cells[6]).toHaveTextContent('—');
     });
 
+    it('opens ASN Leader Validation modal when clicking ASN pill in table and submits validation', async () => {
+        (global as any).window.emsSignupsBoard = mockConfig;
+        const asnSignups = [
+            {
+                id: 101,
+                type: 'expedition',
+                scout_id: 4001,
+                parent_user_id: 1,
+                unit_name: 'Kelso',
+                explorer_first_name: 'Alice',
+                explorer_last_name: 'Smith',
+                dofe_level: 'silver',
+                additional_support_needs: 'Requires inhaler',
+                asn_validated: null,
+                signup_status: 'submitted',
+                created_at: '2026-06-13 20:00:00',
+            },
+        ];
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => asnSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => [] });
+
+        render(<SignupsBoard />);
+
+        const tableTabBtn = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTabBtn);
+
+        await waitFor(() => {
+            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+        });
+
+        // Click the ? ASN pill in the table cell
+        const aliceRow = screen.getByText('Alice Smith').closest('tr')!;
+        const asnPendingPill = within(aliceRow).getByTestId('asn-pill-pending');
+        fireEvent.click(asnPendingPill);
+
+        // Modal should open
+        const dialog = await screen.findByRole('dialog', { name: /ASN Leader Validation/i });
+        expect(dialog).toBeInTheDocument();
+        expect(within(dialog).getByText(/Alice Smith/i)).toBeInTheDocument();
+        expect(within(dialog).getByText('Requires inhaler')).toBeInTheDocument();
+        expect(within(dialog).getByText('Unreviewed', { selector: '.ems-pill' })).toBeInTheDocument();
+
+        // Mock ASN validation response
+        (global.fetch as any)
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ id: 101, asn_validated: 1, updated: true }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => [
+                    {
+                        ...asnSignups[0],
+                        asn_validated: 1,
+                    },
+                ],
+            })
+            .mockResolvedValueOnce({ ok: true, json: async () => [] });
+
+        // Click "Validated" in modal
+        const validateBtn = within(dialog).getByRole('button', { name: /^validated$/i });
+        fireEvent.click(validateBtn);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('/signups/expeditions/101/asn-validation'),
+                expect.objectContaining({
+                    method: 'POST',
+                    body: expect.stringContaining('"asn_validated":1'),
+                })
+            );
+            // Modal closes
+            expect(screen.queryByRole('dialog', { name: /ASN Leader Validation/i })).not.toBeInTheDocument();
+        });
+    });
+
     it('updates ASN validation status from the Expedition Signup Inspector Panel with success indicator', async () => {
         (global as any).window.emsSignupsBoard = mockConfig;
         const asnSignup = [

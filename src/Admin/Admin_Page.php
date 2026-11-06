@@ -191,6 +191,10 @@ class Admin_Page {
 		wp_enqueue_editor();
 		$this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
 		$this->enqueue_admin_styles();
+		global $wpdb;
+		$units = ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'get_results' ) )
+			? ( new \EMS\Data\Unit_Repository( $wpdb ) )->list_active_units()
+			: array();
 		wp_localize_script(
 			'ems-expedition-board',
 			'emsExpeditionBoard',
@@ -200,6 +204,7 @@ class Admin_Page {
 				'admin_url'  => admin_url( 'post.php' ),
 				'sections'   => (array) get_option( 'ems_managed_sections', array() ),
 				'plugin_url' => plugin_dir_url( EMS_PLUGIN_FILE ),
+				'units'      => $units,
 			)
 		);
 	}

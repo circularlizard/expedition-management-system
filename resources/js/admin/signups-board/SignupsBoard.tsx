@@ -69,6 +69,7 @@ export default function SignupsBoard() {
 
     // Selected signup & Inspector Panel
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
+    const [asnModalRow, setAsnModalRow] = useState<any | null>(null);
     const [editedUnitId, setEditedUnitId] = useState<string>('');
     const [savingField, setSavingField] = useState<'level' | 'unit' | 'asn' | null>(null);
     const [levelSaveSuccess, setLevelSaveSuccess] = useState<boolean>(false);
@@ -362,6 +363,21 @@ export default function SignupsBoard() {
         } finally {
             setSavingField(null);
         }
+    };
+
+    const handleModalUpdateAsn = async (val: number | null) => {
+        if (!asnModalRow) return;
+        const targetEntry =
+            asnModalRow.expeditionEntries?.find(
+                (e: any) => e.additional_support_needs && e.additional_support_needs.trim() !== ''
+            ) || asnModalRow.expeditionEntries?.[0];
+        const signupId = targetEntry ? targetEntry.id : (asnModalRow.id || null);
+        if (!signupId) {
+            alert('No expedition signup found to update ASN validation.');
+            return;
+        }
+        await handleUpdateAsnValidation(signupId, val);
+        setAsnModalRow(null);
     };
 
     const handleProcessParticipant = async (signupId: number, dofeNumber: string) => {
@@ -1052,15 +1068,39 @@ export default function SignupsBoard() {
                                                                 <td className="ems-table-cell--center ems-signups-asn-cell">
                                                                     {row.additional_support_needs && row.additional_support_needs.trim() !== '' ? (
                                                                         row.asn_validated === 1 ? (
-                                                                            <span className="ems-pill ems-pill--asn-validated" title="ASN Validated" data-testid="asn-pill-validated">
+                                                                            <span
+                                                                                className="ems-pill ems-pill--asn-validated ems-cursor-pointer"
+                                                                                title="ASN Validated — click to review"
+                                                                                data-testid="asn-pill-validated"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setAsnModalRow(row);
+                                                                                }}
+                                                                            >
                                                                                 ✓
                                                                             </span>
                                                                         ) : row.asn_validated === 0 ? (
-                                                                            <span className="ems-pill ems-pill--asn-rejected" title="ASN Not Validated" data-testid="asn-pill-rejected">
+                                                                            <span
+                                                                                className="ems-pill ems-pill--asn-rejected ems-cursor-pointer"
+                                                                                title="ASN Not Validated — click to review"
+                                                                                data-testid="asn-pill-rejected"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setAsnModalRow(row);
+                                                                                }}
+                                                                            >
                                                                                 ✕
                                                                             </span>
                                                                         ) : (
-                                                                            <span className="ems-pill ems-pill--asn-pending" title="ASN Unreviewed" data-testid="asn-pill-pending">
+                                                                            <span
+                                                                                className="ems-pill ems-pill--asn-pending ems-cursor-pointer"
+                                                                                title="ASN Unreviewed — click to review"
+                                                                                data-testid="asn-pill-pending"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setAsnModalRow(row);
+                                                                                }}
+                                                                            >
                                                                                 ?
                                                                             </span>
                                                                         )
@@ -1696,6 +1736,83 @@ export default function SignupsBoard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ASN Leader Validation Dialog */}
+            {asnModalRow && (
+                <>
+                    <div
+                        className="ems-popover-backdrop"
+                        onClick={() => savingField !== 'asn' && setAsnModalRow(null)}
+                    />
+                    <div
+                        className="ems-asn-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="ASN Leader Validation"
+                    >
+                        <div className="ems-asn-dialog__header">
+                            <h3 className="ems-asn-dialog__title">
+                                ASN Leader Validation — {asnModalRow.explorer_first_name} {asnModalRow.explorer_last_name}
+                            </h3>
+                            <button
+                                type="button"
+                                className="ems-asn-dialog__close"
+                                onClick={() => setAsnModalRow(null)}
+                                disabled={savingField === 'asn'}
+                                aria-label="Close"
+                            >
+                                <FontAwesomeIcon icon={faXmark} />
+                            </button>
+                        </div>
+                        <div className="ems-asn-dialog__body">
+                            <div className="ems-mb-12">
+                                <span className="ems-signups-inspector__label">Declared Support Needs:</span>
+                                <div className="ems-signups-inspector__support-box ems-mt-4">
+                                    {asnModalRow.additional_support_needs || 'None declared.'}
+                                </div>
+                            </div>
+                            <div className="ems-mb-16">
+                                <span className="ems-signups-inspector__label">Current Status:</span>
+                                <div className="ems-mt-4">
+                                    {asnModalRow.asn_validated === 1 ? (
+                                        <span className="ems-pill ems-pill--asn-validated">Validated</span>
+                                    ) : asnModalRow.asn_validated === 0 ? (
+                                        <span className="ems-pill ems-pill--asn-rejected">Not Validated</span>
+                                    ) : (
+                                        <span className="ems-pill ems-pill--asn-pending">Unreviewed</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="ems-flex-center ems-gap-8 ems-flex-wrap">
+                            <button
+                                type="button"
+                                className="button ems-btn--asn-validate"
+                                disabled={savingField === 'asn'}
+                                onClick={() => handleModalUpdateAsn(1)}
+                            >
+                                <FontAwesomeIcon icon={faCheck} /> Validated
+                            </button>
+                            <button
+                                type="button"
+                                className="button ems-btn--asn-reject"
+                                disabled={savingField === 'asn'}
+                                onClick={() => handleModalUpdateAsn(0)}
+                            >
+                                <FontAwesomeIcon icon={faXmark} /> Not Validated
+                            </button>
+                            <button
+                                type="button"
+                                className="button ems-btn--asn-unreview"
+                                disabled={savingField === 'asn'}
+                                onClick={() => handleModalUpdateAsn(null)}
+                            >
+                                <FontAwesomeIcon icon={faCircleQuestion} /> Unreviewed
+                            </button>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );
