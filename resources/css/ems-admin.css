@@ -2140,6 +2140,101 @@ input.ems-form-input {
     margin-bottom: 12px;
 }
 
+/* Top Zone Header with Explorer Identity and Signup Selector */
+.ems-signups-inspector__top-zone {
+    background: #f1f5f9;
+    border-bottom: 2px solid #cbd5e1;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.ems-signups-inspector__top-zone .ems-signups-inspector__header {
+    background: transparent;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 20px 10px 20px;
+}
+
+.ems-signups-inspector__selector-header {
+    padding: 12px 20px 16px 20px;
+}
+
+/* Inspector Available Entries List */
+.ems-inspector-entries-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ems-inspector-entry-card {
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 13px;
+    color: #1d2327;
+}
+
+.ems-inspector-entry-card:hover {
+    background: #f6f7f7;
+    border-color: #94a3b8;
+}
+
+.ems-inspector-entry-card--active {
+    background: #f0f6fc;
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+.ems-inspector-entry-card__selected-indicator {
+    color: #15803d;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.ems-inspector-entry-banner {
+    margin-top: -20px;
+    margin-left: -20px;
+    margin-right: -20px;
+    padding: 12px 20px;
+    border-radius: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.ems-inspector-entry-banner--participant {
+    background: #e2eff9;
+    border-left: 4px solid #2271b1;
+    border-top: 1px solid #b8daef;
+    border-bottom: 1px solid #b8daef;
+}
+
+.ems-inspector-entry-banner--expedition {
+    background: #e7f6ed;
+    border-left: 4px solid #00a650;
+    border-top: 1px solid #b5e4c8;
+    border-bottom: 1px solid #b5e4c8;
+}
+
+.ems-pill--participant {
+    background: #e2eff9;
+    color: #1e3a8a;
+    border-color: #93c5fd;
+}
+
+.ems-pill--expedition {
+    background: #e7f6ed;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
 .ems-signups-inspector__footer {
     padding: 16px 20px;
     border-top: 1px solid #ccd0d4;

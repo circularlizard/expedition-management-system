@@ -174,15 +174,24 @@ describe('SignupsBoard', () => {
         fireEvent.change(groupingSelect, { target: { value: 'unit' } });
 
         await waitFor(() => {
-            expect(screen.getByText('Unit: Kelso')).toBeInTheDocument();
-            expect(screen.getByText('Unit: Selkirk')).toBeInTheDocument();
+            expect(screen.getByText('Kelso', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
+            expect(screen.getByText('Selkirk', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
+            // Group header badges show explorer counts
+            const kelsoHeader = screen.getByText('Kelso', { selector: '.ems-table-group-header__title' }).closest('tr')!;
+            expect(within(kelsoHeader).getByText(/1 explorer/i)).toBeInTheDocument();
         });
 
-        // Group by Level
+        // Group by Level (ordered logically Bronze -> Silver -> Gold)
         fireEvent.change(groupingSelect, { target: { value: 'level' } });
         await waitFor(() => {
-            expect(screen.getByText('Level: bronze')).toBeInTheDocument();
-            expect(screen.getByText('Level: silver')).toBeInTheDocument();
+            expect(screen.getByText('Bronze Level', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
+            expect(screen.getByText('Silver Level', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
+        });
+
+        // Group by Expedition Type
+        fireEvent.change(groupingSelect, { target: { value: 'expedition' } });
+        await waitFor(() => {
+            expect(screen.getByText(/No Preference \/ Participant Place/i, { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
         });
 
         // Group by Explorer
@@ -397,7 +406,8 @@ describe('SignupsBoard', () => {
 
         // Open Inspector for Mary Jones and switch to her Expedition entry
         fireEvent.click(screen.getAllByText('Mary Jones')[0]);
-        fireEvent.change(screen.getByLabelText(/Select Signup Entry/i), { target: { value: 'expedition_20' } });
+        const expedBtn = await screen.findByTestId('inspector-entry-expedition_20');
+        fireEvent.click(expedBtn);
 
         await waitFor(() => {
             // First Aid Status should be in the inspector
@@ -682,13 +692,13 @@ describe('SignupsBoard', () => {
         fireEvent.click(bronzeRow);
 
         await waitFor(() => {
-            expect(screen.getByLabelText(/Select Signup Entry/i)).toBeInTheDocument();
+            expect(screen.getByTestId('inspector-entry-participant_10')).toBeInTheDocument();
+            expect(screen.getByTestId('inspector-entry-expedition_20')).toBeInTheDocument();
             expect(screen.getByText('Participant Place Details')).toBeInTheDocument();
         });
 
-        // Switch to her Expedition Signup entry using the inspector control
-        const entrySelector = screen.getByLabelText(/Select Signup Entry/i) as HTMLSelectElement;
-        fireEvent.change(entrySelector, { target: { value: 'expedition_20' } });
+        // Switch to her Expedition Signup entry using the inspector entry list
+        fireEvent.click(screen.getByTestId('inspector-entry-expedition_20'));
 
         await waitFor(() => {
             expect(screen.getByText('Expedition Signup Details')).toBeInTheDocument();
@@ -697,7 +707,7 @@ describe('SignupsBoard', () => {
         });
 
         // Switch back from Expedition Signup to Participant Place entry
-        fireEvent.change(screen.getByLabelText(/Select Signup Entry/i), { target: { value: 'participant_10' } });
+        fireEvent.click(screen.getByTestId('inspector-entry-participant_10'));
 
         await waitFor(() => {
             expect(screen.getByText('Participant Place Details')).toBeInTheDocument();
@@ -833,9 +843,9 @@ describe('SignupsBoard', () => {
         // Click row to open Inspector
         fireEvent.click(screen.getByText('Emma Watson'));
 
-        // Select the unlinked Expedition entry in the selector
-        const entrySelector = await screen.findByLabelText(/Select Signup Entry/i);
-        fireEvent.change(entrySelector, { target: { value: 'expedition_51' } });
+        // Select the unlinked Expedition entry in the entry list
+        const expedBtn = await screen.findByTestId('inspector-entry-expedition_51');
+        fireEvent.click(expedBtn);
 
         await waitFor(() => {
             expect(screen.getByText(/Paired registration is already linked to OSM/i)).toBeInTheDocument();
@@ -1146,6 +1156,49 @@ describe('SignupsBoard', () => {
                 })
             );
             expect(screen.getByTestId('asn-save-success')).toBeInTheDocument();
+        });
+    });
+
+    it('sorts unit dropdown alphabetically, supports OSM sync sorting, and preserves sorting inside groups', async () => {
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        const tableTabBtn = await screen.findByRole('button', { name: /Signups Table/i });
+        fireEvent.click(tableTabBtn);
+
+        await waitFor(() => expect(screen.getByText('Mary Jones')).toBeInTheDocument());
+
+        // 1. Verify Unit filter dropdown options are alphabetically sorted
+        const unitSelect = screen.getByLabelText(/Unit:/i) as HTMLSelectElement;
+        const unitOptions = Array.from(unitSelect.options).map(opt => opt.value).filter(val => val !== 'all');
+        const sortedUnitOptions = [...unitOptions].sort((a, b) => a.localeCompare(b));
+        expect(unitOptions).toEqual(sortedUnitOptions);
+        expect(unitOptions).toEqual(['Kelso', 'Selkirk']);
+
+        // 2. Click OSM Sync column header to sort
+        const osmSyncHeader = screen.getByRole('columnheader', { name: /OSM Sync/i });
+        expect(osmSyncHeader).toBeInTheDocument();
+
+        // Sort descending (matched first: scout_id 30003 Mary Jones)
+        fireEvent.click(osmSyncHeader); // asc -> unmatched first
+        fireEvent.click(osmSyncHeader); // desc -> matched first (Mary Jones)
+
+        await waitFor(() => {
+            const rows = screen.getAllByRole('row');
+            const dataRows = rows.filter(r => r.textContent?.includes('Smith') || r.textContent?.includes('Jones'));
+            expect(dataRows[0].textContent).toContain('Mary Jones');
+        });
+
+        // 3. Group by Unit and verify in-group items preserve the active table sort
+        const groupingSelect = screen.getByLabelText(/Group By/i);
+        fireEvent.change(groupingSelect, { target: { value: 'unit' } });
+
+        await waitFor(() => {
+            expect(screen.getByText('Kelso', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
+            expect(screen.getByText('Selkirk', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
         });
     });
 });
