@@ -179,511 +179,65 @@ class Admin_PageTest extends EMSTestCase {
 		$this->assertSame( 10001, $stored['ems_writeback_section_id'] );
 	}
 
-	public function test_save_unit_leaders_saves_mappings(): void {
+	public function test_render_reference_page_excludes_unit_mapping_tab(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'wp_nonce_field' )->justReturn( '' );
+		Functions\when( 'admin_url' )->alias( fn( $p = '' ) => 'http://example.com/wp-admin/' . $p );
 		Functions\when( 'get_option' )->justReturn( [] );
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'update_custom_mappings' )->with( 12, [
-			'unit_id'      => 4200,
-			'district'     => 'Braid',
-			'short_code'   => 'ORION-ESU',
-			'leader_email' => 'john.doe@example.com',
-		] )->once()->andReturn( true );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
-		$page->shouldAllowMockingProtectedMethods();
-		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
-
-		ob_start();
-		$page->save_unit_leaders( [
-			'unit_leaders' => [
-				12 => [
-					'unit_id'    => 4200,
-					'district'   => 'Braid',
-					'short_code' => 'ORION-ESU',
-					'email'      => 'john.doe@example.com',
-				]
-			]
-		] );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Unit lookup configurations saved.', (string) $output );
-	}
-
-	public function test_handle_import_units_unauthorized(): void {
-		Functions\when( 'current_user_can' )->justReturn( false );
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page = new Admin_Page( $diagnostic );
-		
-		$this->expectException( \Exception::class );
-		$this->expectExceptionMessage( 'Unauthorized.' );
-
-		$reflected = new \ReflectionClass(Admin_Page::class);
-		$method = $reflected->getMethod('handle_import_units');
-		$method->setAccessible(true);
-		$method->invoke( $page );
-	}
-
-	public function test_handle_import_units_empty_file(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page = new Admin_Page( $diagnostic );
-
-		unset($_FILES['ems_units_backup_file']);
-
-		$reflected = new \ReflectionClass(Admin_Page::class);
-		$method = $reflected->getMethod('handle_import_units');
-		$method->setAccessible(true);
-
-		ob_start();
-		$method->invoke( $page );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Please upload a unit lookup backup file.', $output );
-	}
-
-	public function test_handle_import_units_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-		
-		// Create a temporary file to use as the backup file
-		$temp_file = tempnam( sys_get_temp_dir(), 'ems_test' );
-		$backup_data = array(
-			'type'    => 'ems_units_export',
-			'version' => '0.1.x',
-			'units'   => array(
-				array(
-					'id'        => 5,
-					'patrol_id' => 500,
-					'section_id'=> 600,
-					'name'      => 'Falcons',
-					'active'    => 1,
-				)
-			)
-		);
-		file_put_contents( $temp_file, json_encode( $backup_data ) );
-
-		$_FILES['ems_units_backup_file'] = array(
-			'tmp_name' => $temp_file,
-		);
-
-		// Mock wpdb functions called during Portability_Engine->import_units
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-		$wpdb->shouldReceive( 'query' )->with( 'TRUNCATE TABLE wp_ems_units' )->once()->andReturn( true );
-		$wpdb->shouldReceive( 'query' )->with( 'TRUNCATE TABLE wp_ems_unit_patrols' )->once()->andReturn( true );
-		$wpdb->shouldReceive( 'insert' )->with( 'wp_ems_units', Mockery::any() )->andReturn( true );
-		$wpdb->shouldReceive( 'insert' )->with( 'wp_ems_unit_patrols', Mockery::any() )->andReturn( true );
-		$GLOBALS['wpdb'] = $wpdb;
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page = new Admin_Page( $diagnostic );
-
-		$reflected = new \ReflectionClass(Admin_Page::class);
-		$method = $reflected->getMethod('handle_import_units');
-		$method->setAccessible(true);
-
-		ob_start();
-		$method->invoke( $page );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Unit lookup data imported successfully.', $output );
-
-		unlink( $temp_file );
-		unset( $_FILES['ems_units_backup_file'] );
-	}
-
-	public function test_register_hooks_admin_init_for_export(): void {
-		Functions\stubs( [ '__' ] );
-		Functions\when( 'add_menu_page' )->justReturn( 'hook' );
-		Functions\when( 'add_submenu_page' )->justReturn( 'hook' );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page = new Admin_Page( $diagnostic );
-		$page->register();
-
-		$this->assertTrue( \Brain\Monkey\Actions\has( 'admin_init' ) );
-	}
-
-	public function test_handle_add_custom_unit_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-		Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => $v );
-
-		$_POST['custom_unit_name'] = 'Orion ESU';
-		$_POST['custom_unit_district'] = 'Braid';
-		$_POST['custom_unit_short_code'] = 'ORION';
-		$_POST['custom_unit_id'] = '12345';
-		$_POST['custom_unit_email'] = 'john.doe@example.com';
-
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'add_custom_unit' )
-			->once()
-			->with( [
-				'name'         => 'Orion ESU',
-				'district'     => 'Braid',
-				'short_code'   => 'ORION',
-				'unit_id'      => 12345,
-				'leader_email' => 'john.doe@example.com',
-			] )
-			->andReturn( 99 );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
-		$page->shouldAllowMockingProtectedMethods();
-		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
-
-		$reflected = new \ReflectionClass(Admin_Page::class);
-		$method = $reflected->getMethod('handle_add_custom_unit');
-		$method->setAccessible(true);
-
-		ob_start();
-		$method->invoke( $page );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Custom unit created successfully.', $output );
-
-		unset( $_POST['custom_unit_name'] );
-		unset( $_POST['custom_unit_district'] );
-		unset( $_POST['custom_unit_short_code'] );
-		unset( $_POST['custom_unit_id'] );
-		unset( $_POST['custom_unit_email'] );
-	}
-
-	public function test_handle_delete_custom_unit_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'delete_custom_unit' )
-			->once()
-			->with( 99 )
-			->andReturn( true );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
-		$page->shouldAllowMockingProtectedMethods();
-		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
-
-		$reflected = new \ReflectionClass(Admin_Page::class);
-		$method = $reflected->getMethod('handle_delete_custom_unit');
-		$method->setAccessible(true);
-
-		ob_start();
-		$method->invoke( $page, 99 );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Custom unit deleted.', $output );
-	}
-
-	public function test_handle_link_patrol_to_unit_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-
-		$_POST['patrol_id'] = '12345';
-		$_POST['section_id'] = '99001';
-		$_POST['link_unit_id'] = '800';
 
 		$wpdb = Mockery::mock( 'wpdb' );
 		$wpdb->prefix = 'wp_';
-		$wpdb->shouldReceive( 'update' )
-			->once()
-			->with(
-				'wp_ems_unit_patrols',
-				[ 'unit_id' => 800 ],
-				[ 'patrol_id' => 12345, 'section_id' => 99001 ],
-				[ '%d' ],
-				[ '%d', '%d' ]
-			)
-			->andReturn( 1 );
-
+		$wpdb->shouldReceive( 'get_results' )->andReturn( [] );
 		$GLOBALS['wpdb'] = $wpdb;
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$diagnostic->shouldReceive( 'run_all' )->andReturn( [] );
 		$page = new Admin_Page( $diagnostic );
 
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method = $reflected->getMethod( 'handle_link_patrol_to_unit' );
-		$method->setAccessible( true );
-
 		ob_start();
-		$method->invoke( $page );
+		$page->render_reference_page();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Patrol linked to unit successfully.', $output );
-
-		unset( $_POST['patrol_id'] );
-		unset( $_POST['section_id'] );
-		unset( $_POST['link_unit_id'] );
+		$this->assertStringNotContainsString( 'tab=unit_mapping', (string) $output );
+		$this->assertStringContainsString( 'OSM Reference Data', (string) $output );
 	}
 
-	public function test_handle_create_unit_from_patrol_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
+	public function test_render_reference_page_redirects_unit_mapping_tab(): void {
+		$_GET['tab'] = 'unit_mapping';
 
-		$_POST['patrol_id'] = '12345';
-		$_POST['section_id'] = '99001';
-		$_POST['patrol_name'] = 'CR-Pink Panthers';
-
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-		$wpdb->shouldReceive( 'get_var' )
-			->once()
-			->andReturn( '900005' );
-		$wpdb->shouldReceive( 'update' )
-			->once()
-			->with(
-				'wp_ems_unit_patrols',
-				[ 'unit_id' => 900006 ],
-				[ 'patrol_id' => 12345, 'section_id' => 99001 ],
-				[ '%d' ],
-				[ '%d', '%d' ]
-			)
-			->andReturn( 1 );
-
-		$GLOBALS['wpdb'] = $wpdb;
-
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'add_custom_unit' )
-			->once()
-			->with( [
-				'unit_id' => 900006,
-				'district' => 'CR',
-				'name' => 'CR-Pink Panthers',
-				'short_code' => 'CR-Pink Panthers',
-				'leader_email' => '',
-			] )
-			->andReturn( true );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
-		$page->shouldAllowMockingProtectedMethods();
-		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
-
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method = $reflected->getMethod( 'handle_create_unit_from_patrol' );
-		$method->setAccessible( true );
-
-		ob_start();
-		$method->invoke( $page );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Master unit "CR-Pink Panthers" created and linked successfully.', $output );
-
-		unset( $_POST['patrol_id'] );
-		unset( $_POST['section_id'] );
-		unset( $_POST['patrol_name'] );
-	}
-
-	public function test_handle_add_district_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-
-		$_POST['ems_new_district_name'] = 'Craigalmond';
-
-		$stored_options = [];
-		Functions\when( 'get_option' )->alias( function ( $k, $default = false ) use ( &$stored_options ) {
-			return $stored_options[ $k ] ?? $default;
-		} );
-		Functions\when( 'update_option' )->alias( function ( $k, $v ) use ( &$stored_options ) {
-			$stored_options[ $k ] = $v;
+		$redirected = false;
+		Functions\when( 'admin_url' )->alias( fn( $p = '' ) => 'http://example.com/wp-admin/' . $p );
+		Functions\when( 'wp_safe_redirect' )->alias( function( $url ) use ( &$redirected ) {
+			$redirected = $url;
 			return true;
 		} );
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page       = new Admin_Page( $diagnostic );
+		$page = new Admin_Page( $diagnostic );
 
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method    = $reflected->getMethod( 'handle_add_district' );
-		$method->setAccessible( true );
+		$page->render_reference_page();
 
-		ob_start();
-		$method->invoke( $page );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'District "Craigalmond" created successfully.', $output );
-		$this->assertSame( [ 'Craigalmond' ], $stored_options['ems_districts'] );
-
-		unset( $_POST['ems_new_district_name'] );
+		$this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-units&tab=units', $redirected );
+		unset( $_GET['tab'] );
 	}
 
-	public function test_handle_delete_district_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-
-		$stored_options = [
-			'ems_districts' => [ 'Braid', 'Pentland' ],
-		];
-		Functions\when( 'get_option' )->alias( function ( $k, $default = false ) use ( &$stored_options ) {
-			return $stored_options[ $k ] ?? $default;
-		} );
-		Functions\when( 'update_option' )->alias( function ( $k, $v ) use ( &$stored_options ) {
-			$stored_options[ $k ] = $v;
-			return true;
-		} );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page       = new Admin_Page( $diagnostic );
-
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method    = $reflected->getMethod( 'handle_delete_district' );
-		$method->setAccessible( true );
-
-		ob_start();
-		$method->invoke( $page, 'Braid' );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'District "Braid" removed.', $output );
-		$this->assertSame( [ 'Pentland' ], $stored_options['ems_districts'] );
-	}
-
-	public function test_handle_consolidate_units_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'consolidate_duplicate_units' )
-			->once()
-			->andReturn( [
-				'merged_count' => 2,
-				'details'      => [ 'BR-ALBATROSS: Merged 1 duplicate(s) into Unit ID 46461' ],
-			] );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page       = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
-		$page->shouldAllowMockingProtectedMethods();
-		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
-
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method    = $reflected->getMethod( 'handle_consolidate_units' );
-		$method->setAccessible( true );
-
-		ob_start();
-		$method->invoke( $page );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Consolidation complete: Merged 2 duplicate unit record(s).', $output );
-		$this->assertStringContainsString( 'BR-ALBATROSS: Merged 1 duplicate(s) into Unit ID 46461', $output );
-	}
-
-	public function test_handle_invite_leader_by_email_success(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'invite_leader_by_email' )
-			->with( 'leader@example.com', true )
-			->once()
-			->andReturn( true );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page       = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
-		$page->shouldAllowMockingProtectedMethods();
-		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
-
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method    = $reflected->getMethod( 'handle_invite_leader_by_email' );
-		$method->setAccessible( true );
-
-		ob_start();
-		$method->invoke( $page, 'leader@example.com' );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Leader invitation email sent to leader@example.com.', $output );
-	}
-
-	public function test_handle_invite_leader_by_email_failure(): void {
-		Functions\when( 'current_user_can' )->justReturn( true );
-
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'invite_leader_by_email' )
-			->with( 'bad-email', true )
-			->once()
-			->andReturn( false );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page       = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
-		$page->shouldAllowMockingProtectedMethods();
-		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
-
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method    = $reflected->getMethod( 'handle_invite_leader_by_email' );
-		$method->setAccessible( true );
-
-		ob_start();
-		$method->invoke( $page, 'bad-email' );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Could not send invitation email to bad-email.', $output );
-	}
-
-	public function test_render_leaders_view_displays_table_and_summary(): void {
-		Functions\when( 'wp_nonce_field' )->justReturn( '' );
-		Functions\when( 'get_edit_user_link' )->alias( fn( $id ) => "http://example.com/wp-admin/user-edit.php?user_id={$id}" );
-
-		$mock_user               = Mockery::mock( \WP_User::class );
-		$mock_user->ID           = 99;
-		$mock_user->display_name = 'John Leader';
-		$mock_user->user_login   = 'johnleader';
-
-		$leaders_data = [
-			'leader@example.com' => [
-				'email'         => 'leader@example.com',
-				'units'         => [
-					[ 'id' => 1, 'unit_id' => 101, 'name' => 'Kelso ESU', 'short_code' => 'KELSO', 'district' => 'Borders' ],
-				],
-				'unit_names'    => [ 'Kelso ESU' ],
-				'districts'     => [ 'Borders' ],
-				'access_status' => [
-					'invited'       => true,
-					'invited_at'    => '2026-06-13 10:00:00',
-					'logged_in'     => true,
-					'last_login_at' => '2026-06-13 12:00:00',
-					'user_id'       => 99,
-				],
-				'user'          => $mock_user,
-			],
-		];
-
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'list_leaders_with_units' )->once()->andReturn( $leaders_data );
-
-		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page       = new Admin_Page( $diagnostic );
-
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method    = $reflected->getMethod( 'render_leaders_view' );
-		$method->setAccessible( true );
-
-		ob_start();
-		$method->invoke( $page, $repo );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'Unit Leader Invitations & Portal Access', $output );
-		$this->assertStringContainsString( 'Total Leaders: 1', $output );
-		$this->assertStringContainsString( 'leader@example.com', $output );
-		$this->assertStringContainsString( 'Kelso ESU', $output );
-		$this->assertStringContainsString( 'Borders', $output );
-		$this->assertStringContainsString( 'Logged In', $output );
-		$this->assertStringContainsString( 'Resend Invite', $output );
-	}
-
-	public function test_render_unit_leaders_tab_renders_view_switcher_and_routes_to_leaders(): void {
-		Functions\when( 'wp_nonce_field' )->justReturn( '' );
+	public function test_render_reference_page_redirects_unit_mapping_view_leaders_tab(): void {
+		$_GET['tab']  = 'unit_mapping';
 		$_GET['view'] = 'leaders';
 
-		$repo = Mockery::mock( \EMS\Data\Unit_Repository::class );
-		$repo->shouldReceive( 'list_leaders_with_units' )->once()->andReturn( [] );
+		$redirected = false;
+		Functions\when( 'admin_url' )->alias( fn( $p = '' ) => 'http://example.com/wp-admin/' . $p );
+		Functions\when( 'wp_safe_redirect' )->alias( function( $url ) use ( &$redirected ) {
+			$redirected = $url;
+			return true;
+		} );
 
 		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
-		$page       = Mockery::mock( Admin_Page::class . '[get_unit_repository]', [ $diagnostic ] );
-		$page->shouldAllowMockingProtectedMethods();
-		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+		$page = new Admin_Page( $diagnostic );
 
-		$reflected = new \ReflectionClass( Admin_Page::class );
-		$method    = $reflected->getMethod( 'render_unit_leaders_tab' );
-		$method->setAccessible( true );
+		$page->render_reference_page();
 
-		ob_start();
-		$method->invoke( $page );
-		$output = ob_get_clean();
-
-		$this->assertStringContainsString( 'View by District / Units', $output );
-		$this->assertStringContainsString( 'View by Leader & Invitations', $output );
-		$this->assertStringContainsString( 'No Leaders Found', $output );
-
-		unset( $_GET['view'] );
+		$this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-units&tab=leaders', $redirected );
+		unset( $_GET['tab'], $_GET['view'] );
 	}
 }
-

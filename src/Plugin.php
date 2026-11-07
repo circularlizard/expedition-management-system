@@ -92,7 +92,11 @@ class Plugin {
 		add_action( 'admin_menu', array( $admin_page, 'register_explorers_menu' ), 11 );
 		add_action( 'admin_menu', array( $admin_page, 'register_volunteers_menu' ), 11 );
 
-		add_action( 'admin_menu', array( $admin_page, 'register_reference_menu' ), 12 );
+		$unit_leader_page = new \EMS\Admin\Unit_Leader_Page();
+		add_action( 'admin_init', array( $unit_leader_page, 'maybe_handle_export' ) );
+		add_action( 'admin_menu', array( $unit_leader_page, 'register' ), 12 );
+
+		add_action( 'admin_menu', array( $admin_page, 'register_reference_menu' ), 13 );
 
 		$report_page = new Training_Report_Page( new TutorLMS_Client() );
 		add_action( 'admin_menu', array( $report_page, 'register' ), 14 );

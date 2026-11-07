@@ -374,45 +374,36 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertSame( 'Routed Body', $stored['ems_leader_invite_email_body'] );
     }
 
-    public function test_render_leader_invite_tab_outputs_fields_and_placeholders(): void {
+    public function test_render_settings_excludes_leader_invite_tab(): void {
         Functions\when( 'wp_nonce_field' )->justReturn( '' );
         Functions\when( 'selected' )->justReturn( '' );
         Functions\when( 'checked' )->justReturn( '' );
-        Functions\when( 'get_option' )->alias( function( $k, $default = false ) {
-            if ( $k === 'ems_leader_invite_email_subject' ) {
-                return 'Existing Subject';
-            }
-            if ( $k === 'ems_leader_invite_email_reply_to' ) {
-                return 'existing-reply@example.com';
-            }
-            if ( $k === 'ems_leader_invite_email_body' ) {
-                return 'Existing Body with {{unit_name}}';
-            }
-            return $default;
-        } );
-        Functions\when( 'esc_textarea' )->alias( fn( $v ) => $v );
+        Functions\when( 'get_option' )->justReturn( [] );
 
-        $_GET['tab'] = 'leader_invite';
         $page = new Settings_Page();
-        try {
-            ob_start();
-            $page->render();
-            $output = (string) ob_get_clean();
-        } finally {
-            unset( $_GET['tab'] );
-        }
+        ob_start();
+        $page->render();
+        $output = (string) ob_get_clean();
 
-        $this->assertStringContainsString( 'tab=leader_invite', $output );
-        $this->assertStringContainsString( 'nav-tab-active', $output );
-        $this->assertStringContainsString( 'name="ems_leader_invite_email_subject"', $output );
-        $this->assertStringContainsString( 'Existing Subject', $output );
-        $this->assertStringContainsString( 'name="ems_leader_invite_email_reply_to"', $output );
-        $this->assertStringContainsString( 'existing-reply@example.com', $output );
-        $this->assertStringContainsString( 'name="ems_leader_invite_email_body"', $output );
-        $this->assertStringContainsString( 'Existing Body with {{unit_name}}', $output );
-        $this->assertStringContainsString( 'name="ems_save_leader_invite"', $output );
-        $this->assertStringContainsString( '{{unit_name}}', $output );
-        $this->assertStringContainsString( '{{dashboard_url}}', $output );
+        $this->assertStringNotContainsString( 'tab=leader_invite', $output );
+        $this->assertStringNotContainsString( 'Leader Invite Email', $output );
+    }
+
+    public function test_render_settings_redirects_leader_invite_tab(): void {
+        $_GET['tab'] = 'leader_invite';
+
+        $redirected = false;
+        Functions\when( 'admin_url' )->alias( fn( $p = '' ) => 'http://example.com/wp-admin/' . $p );
+        Functions\when( 'wp_safe_redirect' )->alias( function( $url ) use ( &$redirected ) {
+            $redirected = $url;
+            return true;
+        } );
+
+        $page = new Settings_Page();
+        $page->render();
+
+        $this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-units&tab=email', $redirected );
+        unset( $_GET['tab'] );
     }
 
     public function test_render_access_control_tab_no_longer_contains_leader_invite_fields(): void {
