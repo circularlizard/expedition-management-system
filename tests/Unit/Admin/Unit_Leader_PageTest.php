@@ -18,6 +18,18 @@ class Unit_Leader_PageTest extends EMSTestCase {
 		Functions\when( 'esc_textarea' )->alias( fn( $v ) => $v );
 		Functions\when( 'selected' )->alias( fn( $a, $b ) => ( (string) $a === (string) $b ) ? 'selected="selected"' : '' );
 		Functions\when( 'get_option' )->justReturn( [] );
+		Functions\when( 'add_query_arg' )->alias( function( ...$args ) {
+			if ( count( $args ) === 2 && is_array( $args[0] ) ) {
+				$url   = $args[1] ?? '';
+				$query = http_build_query( $args[0] );
+			} elseif ( count( $args ) >= 3 ) {
+				$url   = $args[2] ?? '';
+				$query = http_build_query( [ $args[0] => $args[1] ] );
+			} else {
+				return $args[0] ?? '';
+			}
+			return str_contains( $url, '?' ) ? $url . '&' . $query : $url . '?' . $query;
+		} );
 	}
 
 	protected function tearDown(): void {
@@ -537,7 +549,7 @@ class Unit_Leader_PageTest extends EMSTestCase {
 	// Subtab 3: OSM Patrol Mapping ('patrols')
 	// -------------------------------------------------------------
 
-	public function test_render_patrols_tab_renders_unmatched_patrols_table_and_active_links(): void {
+	public function test_render_patrols_tab_renders_unified_table_with_views_and_patrol_rows(): void {
 		Functions\when( 'current_user_can' )->justReturn( true );
 		Functions\when( 'wp_nonce_field' )->justReturn( '' );
 		Functions\when( 'admin_url' )->alias( fn( $path = '' ) => 'http://example.com/wp-admin/' . $path );
@@ -554,15 +566,28 @@ class Unit_Leader_PageTest extends EMSTestCase {
 		$repo->shouldReceive( 'list_active_units' )->andReturn( [
 			[ 'unit_id' => 800, 'name' => 'Alpha Unit', 'short_code' => 'ALPHA' ],
 		] );
-
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-		$wpdb->shouldReceive( 'get_results' )
-			->once()
+		$repo->shouldReceive( 'count_patrols' )
+			->with( null )
+			->andReturn( [ 'all' => 2, 'unmatched' => 1, 'mapped' => 1 ] );
+		$repo->shouldReceive( 'get_patrols' )
+			->with( 'all', null, null )
 			->andReturn( [
-				[ 'patrol_id' => 991, 'section_id' => 99001, 'name' => 'Tiger Patrol' ],
+				[
+					'patrol_id'  => 991,
+					'section_id' => 99001,
+					'name'       => 'Tiger Patrol',
+					'unit_id'    => null,
+					'unit_name'  => null,
+				],
+				[
+					'patrol_id'       => 992,
+					'section_id'      => 99001,
+					'name'            => 'Eagle Patrol',
+					'unit_id'         => 800,
+					'unit_name'       => 'Alpha Unit',
+					'unit_short_code' => 'ALPHA',
+				],
 			] );
-		$GLOBALS['wpdb'] = $wpdb;
 
 		$page = Mockery::mock( Unit_Leader_Page::class . '[get_unit_repository]' );
 		$page->shouldAllowMockingProtectedMethods();
@@ -572,27 +597,48 @@ class Unit_Leader_PageTest extends EMSTestCase {
 		$page->render();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Unmatched Synced Patrols from OSM', (string) $output );
+		$this->assertStringContainsString( 'OSM Patrol Mapping', (string) $output );
+		$this->assertStringContainsString( 'All <span class="count">(2)</span>', (string) $output );
+		$this->assertStringContainsString( 'Unmatched <span class="count">(1)</span>', (string) $output );
+		$this->assertStringContainsString( 'Mapped <span class="count">(1)</span>', (string) $output );
 		$this->assertStringContainsString( 'Tiger Patrol', (string) $output );
-		$this->assertStringContainsString( 'Alpha Unit', (string) $output );
+		$this->assertStringContainsString( 'Eagle Patrol', (string) $output );
 		$this->assertStringContainsString( 'Create Master Unit', (string) $output );
+		$this->assertStringContainsString( 'Unlink', (string) $output );
+
+		unset( $_GET['tab'] );
 	}
 
-	public function test_render_patrols_tab_shows_all_matched_notice_when_no_unmatched_patrols(): void {
+	public function test_render_patrols_tab_filters_by_view_and_section(): void {
 		Functions\when( 'current_user_can' )->justReturn( true );
 		Functions\when( 'wp_nonce_field' )->justReturn( '' );
 		Functions\when( 'admin_url' )->alias( fn( $path = '' ) => 'http://example.com/wp-admin/' . $path );
-		Functions\when( 'get_option' )->justReturn( [] );
+		Functions\when( 'get_option' )->alias( function( $k, $d = [] ) {
+			if ( $k === 'ems_managed_sections' ) {
+				return [ 99001 => [ 'name' => 'Section A' ] ];
+			}
+			return $d;
+		} );
 
-		$_GET['tab'] = 'patrols';
+		$_GET['tab']        = 'patrols';
+		$_GET['view']       = 'unmatched';
+		$_GET['section_id'] = '99001';
 
 		$repo = Mockery::mock( Unit_Repository::class );
 		$repo->shouldReceive( 'list_active_units' )->andReturn( [] );
-
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-		$wpdb->shouldReceive( 'get_results' )->once()->andReturn( [] );
-		$GLOBALS['wpdb'] = $wpdb;
+		$repo->shouldReceive( 'count_patrols' )
+			->with( 99001 )
+			->andReturn( [ 'all' => 1, 'unmatched' => 1, 'mapped' => 0 ] );
+		$repo->shouldReceive( 'get_patrols' )
+			->with( 'unmatched', 99001, null )
+			->andReturn( [
+				[
+					'patrol_id'  => 991,
+					'section_id' => 99001,
+					'name'       => 'Tiger Patrol',
+					'unit_id'    => null,
+				],
+			] );
 
 		$page = Mockery::mock( Unit_Leader_Page::class . '[get_unit_repository]' );
 		$page->shouldAllowMockingProtectedMethods();
@@ -602,34 +648,30 @@ class Unit_Leader_PageTest extends EMSTestCase {
 		$page->render();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'All synced patrols are currently linked to master units.', (string) $output );
+		$this->assertStringContainsString( 'Tiger Patrol', (string) $output );
+
+		unset( $_GET['tab'], $_GET['view'], $_GET['section_id'] );
 	}
 
-	public function test_handle_link_patrol_to_unit_validates_patrol_id_and_unit_id(): void {
+	public function test_handle_link_patrol_to_unit_delegates_to_unit_repository(): void {
 		Functions\when( 'current_user_can' )->justReturn( true );
 
-		$_POST['patrol_id'] = '12345';
-		$_POST['section_id'] = '99001';
+		$_POST['patrol_id']    = '12345';
+		$_POST['section_id']   = '99001';
 		$_POST['link_unit_id'] = '800';
 
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-		$wpdb->shouldReceive( 'update' )
+		$repo = Mockery::mock( Unit_Repository::class );
+		$repo->shouldReceive( 'link_patrol' )
 			->once()
-			->with(
-				'wp_ems_unit_patrols',
-				[ 'unit_id' => 800 ],
-				[ 'patrol_id' => 12345, 'section_id' => 99001 ],
-				[ '%d' ],
-				[ '%d', '%d' ]
-			)
-			->andReturn( 1 );
+			->with( 12345, 99001, 800 )
+			->andReturn( true );
 
-		$GLOBALS['wpdb'] = $wpdb;
+		$page = Mockery::mock( Unit_Leader_Page::class . '[get_unit_repository]' );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
 
-		$page = new Unit_Leader_Page();
 		$reflected = new \ReflectionClass( Unit_Leader_Page::class );
-		$method = $reflected->getMethod( 'handle_link_patrol_to_unit' );
+		$method    = $reflected->getMethod( 'handle_link_patrol_to_unit' );
 		$method->setAccessible( true );
 
 		ob_start();
@@ -641,27 +683,45 @@ class Unit_Leader_PageTest extends EMSTestCase {
 		unset( $_POST['patrol_id'], $_POST['section_id'], $_POST['link_unit_id'] );
 	}
 
+	public function test_handle_unlink_patrol_delegates_to_unit_repository(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$_POST['patrol_id']  = '12345';
+		$_POST['section_id'] = '99001';
+
+		$repo = Mockery::mock( Unit_Repository::class );
+		$repo->shouldReceive( 'unlink_patrol' )
+			->once()
+			->with( 12345, 99001 )
+			->andReturn( true );
+
+		$page = Mockery::mock( Unit_Leader_Page::class . '[get_unit_repository]' );
+		$page->shouldAllowMockingProtectedMethods();
+		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
+
+		$reflected = new \ReflectionClass( Unit_Leader_Page::class );
+		$method    = $reflected->getMethod( 'handle_unlink_patrol' );
+		$method->setAccessible( true );
+
+		ob_start();
+		$method->invoke( $page );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'Patrol unlinked from master unit.', (string) $output );
+
+		unset( $_POST['patrol_id'], $_POST['section_id'] );
+	}
+
 	public function test_handle_create_unit_from_patrol_creates_master_unit_and_links_patrol(): void {
 		Functions\when( 'current_user_can' )->justReturn( true );
 
-		$_POST['patrol_id'] = '12345';
-		$_POST['section_id'] = '99001';
+		$_POST['patrol_id']   = '12345';
+		$_POST['section_id']  = '99001';
 		$_POST['patrol_name'] = 'CR-Pink Panthers';
 
 		$wpdb = Mockery::mock( 'wpdb' );
 		$wpdb->prefix = 'wp_';
 		$wpdb->shouldReceive( 'get_var' )->once()->andReturn( '900005' );
-		$wpdb->shouldReceive( 'update' )
-			->once()
-			->with(
-				'wp_ems_unit_patrols',
-				[ 'unit_id' => 900006 ],
-				[ 'patrol_id' => 12345, 'section_id' => 99001 ],
-				[ '%d' ],
-				[ '%d', '%d' ]
-			)
-			->andReturn( 1 );
-
 		$GLOBALS['wpdb'] = $wpdb;
 
 		$repo = Mockery::mock( Unit_Repository::class );
@@ -675,20 +735,24 @@ class Unit_Leader_PageTest extends EMSTestCase {
 				'leader_email' => '',
 			] )
 			->andReturn( true );
+		$repo->shouldReceive( 'link_patrol' )
+			->once()
+			->with( 12345, 99001, 900006 )
+			->andReturn( true );
 
 		$page = Mockery::mock( Unit_Leader_Page::class . '[get_unit_repository]' );
 		$page->shouldAllowMockingProtectedMethods();
 		$page->shouldReceive( 'get_unit_repository' )->andReturn( $repo );
 
 		$reflected = new \ReflectionClass( Unit_Leader_Page::class );
-		$method = $reflected->getMethod( 'handle_create_unit_from_patrol' );
+		$method    = $reflected->getMethod( 'handle_create_unit_from_patrol' );
 		$method->setAccessible( true );
 
 		ob_start();
 		$method->invoke( $page );
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'Master unit "CR-Pink Panthers" created and linked successfully.', (string) $output );
+		$this->assertStringContainsString( 'Created master unit "CR-Pink Panthers"', (string) $output );
 
 		unset( $_POST['patrol_id'], $_POST['section_id'], $_POST['patrol_name'] );
 	}

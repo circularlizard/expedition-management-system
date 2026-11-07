@@ -4,6 +4,7 @@ namespace EMS\Tests\Unit\Data;
 use EMS\Data\Unit_Repository;
 use EMS\Tests\EMSTestCase;
 use Brain\Monkey\Functions;
+use Mockery;
 
 class Unit_RepositoryTest extends EMSTestCase {
 
@@ -848,5 +849,109 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$this->assertSame( 'leader@example.com', $inserted_users[0]['user_email'] );
 		$this->assertCount( 1, $notified_users );
 		$this->assertSame( 777, $notified_users[0] );
+	}
+
+	public function test_get_patrols_queries_with_filters(): void {
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+
+		$wpdb->shouldReceive( 'prepare' )
+			->andReturnUsing( function( $sql, ...$args ) {
+				return vsprintf( str_replace( [ '%s', '%d' ], [ "'%s'", '%d' ], $sql ), $args );
+			} );
+
+		$wpdb->shouldReceive( 'get_results' )
+			->once()
+			->andReturnUsing( function( $query ) {
+				$this->assertStringContainsString( 'FROM wp_ems_unit_patrols p', $query );
+				$this->assertStringContainsString( 'LEFT JOIN wp_ems_units u ON p.unit_id = u.unit_id', $query );
+				$this->assertStringContainsString( 'p.unit_id IS NULL OR p.unit_id = 0 OR u.unit_id IS NULL', $query );
+				$this->assertStringContainsString( 'p.section_id = 99001', $query );
+				$this->assertStringContainsString( 'ORDER BY p.name ASC', $query );
+
+				return [
+					[
+						'id' => 1,
+						'patrol_id' => 991,
+						'section_id' => 99001,
+						'name' => 'Kestrels',
+						'unit_id' => null,
+						'unit_name' => null,
+						'unit_short_code' => null,
+					],
+				];
+			} );
+
+		$repo = new Unit_Repository( $wpdb );
+		$results = $repo->get_patrols( 'unmatched', 99001 );
+
+		$this->assertCount( 1, $results );
+		$this->assertSame( 'Kestrels', $results[0]['name'] );
+	}
+
+	public function test_count_patrols_returns_totals_by_status(): void {
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+
+		$wpdb->shouldReceive( 'prepare' )
+			->andReturnUsing( function( $sql, ...$args ) {
+				return vsprintf( str_replace( [ '%s', '%d' ], [ "'%s'", '%d' ], $sql ), $args );
+			} );
+
+		$wpdb->shouldReceive( 'get_results' )
+			->once()
+			->andReturn( [
+				[ 'status_type' => 'mapped', 'cnt' => '5' ],
+				[ 'status_type' => 'unmatched', 'cnt' => '2' ],
+			] );
+
+		$repo = new Unit_Repository( $wpdb );
+		$counts = $repo->count_patrols();
+
+		$this->assertSame( 7, $counts['all'] );
+		$this->assertSame( 2, $counts['unmatched'] );
+		$this->assertSame( 5, $counts['mapped'] );
+	}
+
+	public function test_link_patrol_updates_unit_id_in_db(): void {
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+
+		$wpdb->shouldReceive( 'update' )
+			->once()
+			->with(
+				'wp_ems_unit_patrols',
+				[ 'unit_id' => 850 ],
+				[ 'patrol_id' => 1234, 'section_id' => 99001 ],
+				[ '%d' ],
+				[ '%d', '%d' ]
+			)
+			->andReturn( 1 );
+
+		$repo = new Unit_Repository( $wpdb );
+		$result = $repo->link_patrol( 1234, 99001, 850 );
+
+		$this->assertTrue( $result );
+	}
+
+	public function test_unlink_patrol_sets_unit_id_to_null_in_db(): void {
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+
+		$wpdb->shouldReceive( 'update' )
+			->once()
+			->with(
+				'wp_ems_unit_patrols',
+				[ 'unit_id' => null ],
+				[ 'patrol_id' => 1234, 'section_id' => 99001 ],
+				[ '%d' ],
+				[ '%d', '%d' ]
+			)
+			->andReturn( 1 );
+
+		$repo = new Unit_Repository( $wpdb );
+		$result = $repo->unlink_patrol( 1234, 99001 );
+
+		$this->assertTrue( $result );
 	}
 }
