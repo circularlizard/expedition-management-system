@@ -271,6 +271,147 @@ class Unit_Repository {
 		) ?: null;
 	}
 
+	/**
+	 * Retrieves active patrols with master unit metadata, optionally filtered by status, section, or unit.
+	 *
+	 * @param string|null $status     Optional filter: 'all', 'unmatched', or 'mapped'.
+	 * @param int|null    $section_id Optional section ID to filter by.
+	 * @param int|null    $unit_id    Optional unit ID to filter by.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_patrols( ?string $status = null, ?int $section_id = null, ?int $unit_id = null ): array {
+		$where_clauses = array( 'p.active = 1' );
+		$args          = array();
+
+		if ( $status === 'unmatched' ) {
+			$where_clauses[] = '(p.unit_id IS NULL OR p.unit_id = 0 OR u.unit_id IS NULL)';
+		} elseif ( $status === 'mapped' ) {
+			$where_clauses[] = '(p.unit_id IS NOT NULL AND p.unit_id > 0 AND u.unit_id IS NOT NULL)';
+		}
+
+		if ( $section_id !== null && $section_id > 0 ) {
+			$where_clauses[] = 'p.section_id = %d';
+			$args[]          = $section_id;
+		}
+
+		if ( $unit_id !== null && $unit_id > 0 ) {
+			$where_clauses[] = 'p.unit_id = %d';
+			$args[]          = $unit_id;
+		}
+
+		$where_sql = implode( ' AND ', $where_clauses );
+		$sql       = "SELECT p.*, u.name AS unit_name, u.short_code AS unit_short_code, u.district AS unit_district 
+		              FROM {$this->wpdb->prefix}ems_unit_patrols p 
+		              LEFT JOIN {$this->wpdb->prefix}ems_units u ON p.unit_id = u.unit_id 
+		              WHERE {$where_sql} 
+		              ORDER BY p.name ASC";
+
+		if ( ! empty( $args ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$sql = $this->wpdb->prepare( $sql, ...$args );
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+		return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+	}
+
+	/**
+	 * Counts active patrols grouped by status ('all', 'unmatched', 'mapped').
+	 *
+	 * @param int|null $section_id Optional section ID to scope counts.
+	 * @return array{all: int, unmatched: int, mapped: int}
+	 */
+	public function count_patrols( ?int $section_id = null ): array {
+		$where = 'WHERE p.active = 1';
+		$args  = array();
+
+		if ( $section_id !== null && $section_id > 0 ) {
+			$where .= ' AND p.section_id = %d';
+			$args[] = $section_id;
+		}
+
+		$sql = "SELECT 
+			CASE 
+				WHEN (p.unit_id IS NOT NULL AND p.unit_id > 0 AND u.unit_id IS NOT NULL) THEN 'mapped' 
+				ELSE 'unmatched' 
+			END AS status_type, 
+			COUNT(*) AS cnt 
+			FROM {$this->wpdb->prefix}ems_unit_patrols p 
+			LEFT JOIN {$this->wpdb->prefix}ems_units u ON p.unit_id = u.unit_id 
+			{$where} 
+			GROUP BY status_type";
+
+		if ( ! empty( $args ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$sql = $this->wpdb->prepare( $sql, ...$args );
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$rows = $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
+
+		$counts = array(
+			'all'       => 0,
+			'unmatched' => 0,
+			'mapped'    => 0,
+		);
+
+		foreach ( $rows as $row ) {
+			$type = $row['status_type'] ?? '';
+			$cnt  = (int) ( $row['cnt'] ?? 0 );
+			if ( isset( $counts[ $type ] ) ) {
+				$counts[ $type ] = $cnt;
+			}
+			$counts['all'] += $cnt;
+		}
+
+		return $counts;
+	}
+
+	/**
+	 * Links an OSM patrol to a master unit.
+	 *
+	 * @param int $patrol_id  The OSM patrol ID.
+	 * @param int $section_id The OSM section ID.
+	 * @param int $unit_id    The master unit ID.
+	 * @return bool True if updated or already linked.
+	 */
+	public function link_patrol( int $patrol_id, int $section_id, int $unit_id ): bool {
+		$result = $this->wpdb->update(
+			$this->wpdb->prefix . 'ems_unit_patrols',
+			array( 'unit_id' => $unit_id ),
+			array(
+				'patrol_id'  => $patrol_id,
+				'section_id' => $section_id,
+			),
+			array( '%d' ),
+			array( '%d', '%d' )
+		);
+
+		return $result !== false;
+	}
+
+	/**
+	 * Unlinks an OSM patrol from its master unit (sets unit_id to null).
+	 *
+	 * @param int $patrol_id  The OSM patrol ID.
+	 * @param int $section_id The OSM section ID.
+	 * @return bool True if updated.
+	 */
+	public function unlink_patrol( int $patrol_id, int $section_id ): bool {
+		$result = $this->wpdb->update(
+			$this->wpdb->prefix . 'ems_unit_patrols',
+			array( 'unit_id' => null ),
+			array(
+				'patrol_id'  => $patrol_id,
+				'section_id' => $section_id,
+			),
+			array( '%d' ),
+			array( '%d', '%d' )
+		);
+
+		return $result !== false;
+	}
+
 	public function list_active_units(): array {
 		/** @var array<int, array<string, mixed>> $units */
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

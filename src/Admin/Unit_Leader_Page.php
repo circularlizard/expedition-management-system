@@ -101,6 +101,8 @@ class Unit_Leader_Page {
 			$this->handle_invite_single_unit( (int) $_POST['ems_invite_single_unit'], $_POST );
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'link_patrol' && check_admin_referer( 'ems_link_patrol' ) ) {
 			$this->handle_link_patrol_to_unit();
+		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'unlink_patrol' && check_admin_referer( 'ems_unlink_patrol' ) ) {
+			$this->handle_unlink_patrol();
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'create_unit_from_patrol' && check_admin_referer( 'ems_create_unit_from_patrol' ) ) {
 			$this->handle_create_unit_from_patrol();
 		} elseif ( isset( $_POST['ems_save_leader_invite'] ) && check_admin_referer( 'ems_settings_leader_invite' ) ) {
@@ -317,12 +319,12 @@ class Unit_Leader_Page {
 							<table class="wp-list-table widefat striped ems-district-units-table" style="margin-top: 10px;">
 								<thead>
 									<tr>
-										<th style="width: 18%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
+										<th style="width: 20%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
 										<th style="width: 8%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
 										<th style="width: 12%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
-										<th style="width: 22%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
-										<th style="width: 22%;"><?php esc_html_e( 'Matched OSM Patrols', 'ems-plugin' ); ?></th>
-										<th style="width: 12%;"><?php esc_html_e( 'Move District', 'ems-plugin' ); ?></th>
+										<th style="width: 24%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+										<th style="width: 16%;"><?php esc_html_e( 'OSM Patrols', 'ems-plugin' ); ?></th>
+										<th style="width: 14%;"><?php esc_html_e( 'Move District', 'ems-plugin' ); ?></th>
 										<th style="width: 6%; text-align: center;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
 									</tr>
 								</thead>
@@ -338,6 +340,8 @@ class Unit_Leader_Page {
 											$row_id        = (int) $u['id'];
 											$cur_dist      = $u['district'] ?? '';
 											$leader_email  = $u['leader_email'] ?? '';
+											$patrol_count  = ! empty( $u['matched_patrols'] ) ? count( $u['matched_patrols'] ) : 0;
+											$patrol_names  = ! empty( $u['matched_patrols'] ) ? implode( ', ', array_column( $u['matched_patrols'], 'name' ) ) : '';
 											?>
 											<tr class="ems-unit-row" data-unit-row-id="<?php echo $row_id; ?>">
 												<input type="hidden" class="ems-unit-district-hidden" 
@@ -360,22 +364,18 @@ class Unit_Leader_Page {
 															value="<?php echo esc_attr( $leader_email ); ?>" />
 												</td>
 												<td>
-													<?php if ( ! empty( $u['matched_patrols'] ) ) : ?>
-														<div style="display: flex; flex-direction: column; gap: 6px;">
-															<?php foreach ( $u['matched_patrols'] as $patrol ) : 
-																$sec_id   = (int) $patrol['section_id'];
-																$sec_name = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
-																?>
-																<div style="background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; padding: 4px 8px; font-size: 12px; line-height: 1.35;">
-																	<div style="font-weight: 600; color: #1d2327;"><?php echo esc_html( $patrol['name'] ); ?></div>
-																	<div style="color: #646970; font-size: 11px; margin-top: 2px;">
-																		<span><?php echo esc_html( $sec_name ); ?></span> &bull; <code>ID: <?php echo (int) $patrol['patrol_id']; ?></code>
-																	</div>
-																</div>
-															<?php endforeach; ?>
-														</div>
+													<?php if ( $patrol_count > 0 ) : ?>
+														<a href="<?php echo esc_url( admin_url( 'admin.php?page=ems-units&tab=patrols&unit_id=' . (int) ( $u['unit_id'] ?? 0 ) ) ); ?>" 
+														   class="ems-status-badge ems-status-badge--active" 
+														   title="<?php echo esc_attr( $patrol_names ); ?>" 
+														   style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+															<span class="dashicons dashicons-groups" style="font-size: 14px; width: 14px; height: 14px; line-height: 14px;"></span>
+															<?php echo sprintf( esc_html( _n( '%d Patrol', '%d Patrols', $patrol_count, 'ems-plugin' ) ), $patrol_count ); ?>
+														</a>
 													<?php else : ?>
-														<span class="description" style="color: #8c8f94; font-style: italic;"><?php esc_html_e( 'None matched', 'ems-plugin' ); ?></span>
+														<span class="ems-status-badge ems-status-badge--archived" style="display: inline-flex; align-items: center; gap: 4px;">
+															<?php esc_html_e( 'No Patrols', 'ems-plugin' ); ?>
+														</span>
 													<?php endif; ?>
 												</td>
 												<td>
@@ -722,79 +722,171 @@ class Unit_Leader_Page {
 	 * @return void
 	 */
 	public function render_patrols_tab(): void {
-		global $wpdb;
 		$unit_repo        = $this->get_unit_repository();
 		$units            = $unit_repo->list_active_units();
 		$managed_sections = (array) get_option( 'ems_managed_sections', array() );
 
-		// Query unmatched patrols
-		$unmatched_patrols = $wpdb->get_results(
-			"SELECT p.* FROM {$wpdb->prefix}ems_unit_patrols p
-			 LEFT JOIN {$wpdb->prefix}ems_units u ON p.unit_id = u.unit_id
-			 WHERE (p.unit_id IS NULL OR p.unit_id = 0 OR u.unit_id IS NULL) AND p.active = 1
-			 ORDER BY p.name",
-			ARRAY_A
-		) ?: array();
+		$current_view = isset( $_GET['view'] ) ? sanitize_key( wp_unslash( $_GET['view'] ) ) : 'all';
+		$valid_views  = array( 'all', 'unmatched', 'mapped' );
+		if ( ! in_array( $current_view, $valid_views, true ) ) {
+			$current_view = 'all';
+		}
+
+		$filter_section_id = isset( $_GET['section_id'] ) && (int) $_GET['section_id'] > 0 ? (int) $_GET['section_id'] : null;
+		$filter_unit_id    = isset( $_GET['unit_id'] ) && (int) $_GET['unit_id'] > 0 ? (int) $_GET['unit_id'] : null;
+
+		$counts  = $unit_repo->count_patrols( $filter_section_id );
+		$patrols = $unit_repo->get_patrols( $current_view, $filter_section_id, $filter_unit_id );
+
+		$base_url = admin_url( 'admin.php?page=ems-units&tab=patrols' );
+		if ( $filter_section_id ) {
+			$base_url = add_query_arg( 'section_id', $filter_section_id, $base_url );
+		}
+		if ( $filter_unit_id ) {
+			$base_url = add_query_arg( 'unit_id', $filter_unit_id, $base_url );
+		}
 		?>
 		<div class="card" style="margin-top: 15px; padding: 20px; max-width: 100%;">
-			<h3 style="margin-top: 0; color: #b58100;"><?php esc_html_e( 'Unmatched Synced Patrols from OSM', 'ems-plugin' ); ?></h3>
-			<p>
-				<?php esc_html_e( 'These patrols were synced from OSM but are not linked to any master unit. You can link them to an existing unit or create a new master unit from them.', 'ems-plugin' ); ?>
-			</p>
+			<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+				<div>
+					<h3 style="margin-top: 0; margin-bottom: 4px;"><?php esc_html_e( 'OSM Patrol Mapping', 'ems-plugin' ); ?></h3>
+					<p class="description" style="margin: 0;">
+						<?php esc_html_e( 'Manage links between patrols synced from Online Scout Manager (OSM) and EMS master units.', 'ems-plugin' ); ?>
+					</p>
+				</div>
 
-			<?php if ( empty( $unmatched_patrols ) ) : ?>
-				<div class="notice notice-success inline" style="margin-top: 12px;">
-					<p><?php esc_html_e( 'All synced patrols are currently linked to master units. No unmatched patrols found.', 'ems-plugin' ); ?></p>
+				<!-- Filter by Section & Unit Form -->
+				<form method="get" style="display: inline-flex; align-items: center; gap: 8px;">
+					<input type="hidden" name="page" value="ems-units" />
+					<input type="hidden" name="tab" value="patrols" />
+					<?php if ( $current_view !== 'all' ) : ?>
+						<input type="hidden" name="view" value="<?php echo esc_attr( $current_view ); ?>" />
+					<?php endif; ?>
+
+					<select name="section_id" style="height: 32px; font-size: 13px;">
+						<option value=""><?php esc_html_e( '— All Sections —', 'ems-plugin' ); ?></option>
+						<?php foreach ( $managed_sections as $sec_id => $sec_data ) : ?>
+							<option value="<?php echo (int) $sec_id; ?>" <?php selected( $filter_section_id, (int) $sec_id ); ?>>
+								<?php echo esc_html( $sec_data['name'] ?? "Section #{$sec_id}" ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+
+					<select name="unit_id" style="height: 32px; font-size: 13px;">
+						<option value=""><?php esc_html_e( '— All Master Units —', 'ems-plugin' ); ?></option>
+						<?php foreach ( $units as $u ) : ?>
+							<option value="<?php echo (int) $u['unit_id']; ?>" <?php selected( $filter_unit_id, (int) $u['unit_id'] ); ?>>
+								<?php echo esc_html( $u['name'] . ' (' . $u['short_code'] . ')' ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+
+					<button type="submit" class="button"><?php esc_html_e( 'Filter', 'ems-plugin' ); ?></button>
+					<?php if ( $filter_section_id || $filter_unit_id ) : ?>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=ems-units&tab=patrols&view=' . $current_view ) ); ?>" class="button button-link">
+							<?php esc_html_e( 'Reset Filters', 'ems-plugin' ); ?>
+						</a>
+					<?php endif; ?>
+				</form>
+			</div>
+
+			<!-- Views List -->
+			<ul class="subsubsub" style="margin-bottom: 12px;">
+				<li class="all">
+					<a href="<?php echo esc_url( add_query_arg( 'view', 'all', $base_url ) ); ?>" class="<?php echo $current_view === 'all' ? 'current' : ''; ?>">
+						<?php esc_html_e( 'All', 'ems-plugin' ); ?> <span class="count">(<?php echo (int) $counts['all']; ?>)</span>
+					</a> |
+				</li>
+				<li class="unmatched">
+					<a href="<?php echo esc_url( add_query_arg( 'view', 'unmatched', $base_url ) ); ?>" class="<?php echo $current_view === 'unmatched' ? 'current' : ''; ?>" style="<?php echo $counts['unmatched'] > 0 ? 'font-weight: 600; color: #b58100;' : ''; ?>">
+						<?php esc_html_e( 'Unmatched', 'ems-plugin' ); ?> <span class="count">(<?php echo (int) $counts['unmatched']; ?>)</span>
+					</a> |
+				</li>
+				<li class="mapped">
+					<a href="<?php echo esc_url( add_query_arg( 'view', 'mapped', $base_url ) ); ?>" class="<?php echo $current_view === 'mapped' ? 'current' : ''; ?>">
+						<?php esc_html_e( 'Mapped', 'ems-plugin' ); ?> <span class="count">(<?php echo (int) $counts['mapped']; ?>)</span>
+					</a>
+				</li>
+			</ul>
+
+			<?php if ( empty( $patrols ) ) : ?>
+				<div class="notice notice-info inline" style="margin-top: 15px;">
+					<p><?php esc_html_e( 'No patrols found matching the current filter criteria.', 'ems-plugin' ); ?></p>
 				</div>
 			<?php else : ?>
 				<table class="wp-list-table widefat striped" style="margin-top: 15px;">
 					<thead>
 						<tr>
-							<th style="width: 25%;"><?php esc_html_e( 'Patrol Name', 'ems-plugin' ); ?></th>
-							<th style="width: 20%;"><?php esc_html_e( 'Section', 'ems-plugin' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'Patrol ID', 'ems-plugin' ); ?></th>
-							<th style="width: 25%;"><?php esc_html_e( 'Link to Existing Unit', 'ems-plugin' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
+							<th style="width: 22%;"><?php esc_html_e( 'Patrol Name', 'ems-plugin' ); ?></th>
+							<th style="width: 20%;"><?php esc_html_e( 'OSM Section', 'ems-plugin' ); ?></th>
+							<th style="width: 12%;"><?php esc_html_e( 'Patrol ID', 'ems-plugin' ); ?></th>
+							<th style="width: 28%;"><?php esc_html_e( 'Assigned Master Unit', 'ems-plugin' ); ?></th>
+							<th style="width: 18%;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
-						<?php foreach ( $unmatched_patrols as $patrol ) : 
-							$patrol_id = (int) $patrol['patrol_id'];
-							$sec_id    = (int) $patrol['section_id'];
-							$sec_name  = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
+						<?php foreach ( $patrols as $p ) :
+							$patrol_id   = (int) $p['patrol_id'];
+							$sec_id      = (int) $p['section_id'];
+							$sec_name    = $managed_sections[ $sec_id ]['name'] ?? "Section #{$sec_id}";
+							$is_mapped   = ! empty( $p['unit_id'] ) && ! empty( $p['unit_name'] );
+							$cur_unit_id = (int) ( $p['unit_id'] ?? 0 );
 							?>
 							<tr>
-								<td><strong><?php echo esc_html( $patrol['name'] ); ?></strong></td>
-								<td><?php echo esc_html( $sec_name ); ?></td>
+								<td>
+									<strong><?php echo esc_html( $p['name'] ); ?></strong>
+									<?php if ( ! $is_mapped ) : ?>
+										<span class="ems-status-badge ems-status-badge--pending" style="font-size: 11px; margin-left: 6px;">
+											<?php esc_html_e( 'Unmatched', 'ems-plugin' ); ?>
+										</span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<span><?php echo esc_html( $sec_name ); ?></span>
+									<span style="color: #646970; font-size: 11px;">(ID: <?php echo $sec_id; ?>)</span>
+								</td>
 								<td><code><?php echo $patrol_id; ?></code></td>
 								<td>
 									<form method="post" style="display: inline-flex; align-items: center; gap: 6px; width: 100%; margin: 0;">
 										<?php wp_nonce_field( 'ems_link_patrol' ); ?>
 										<input type="hidden" name="patrol_id" value="<?php echo $patrol_id; ?>" />
 										<input type="hidden" name="section_id" value="<?php echo $sec_id; ?>" />
-										<select name="link_unit_id" required style="max-width: 200px; width: 100%; height: 30px; line-height: 1; padding: 2px 6px;">
-											<option value=""><?php esc_html_e( '— Select Unit —', 'ems-plugin' ); ?></option>
+										<select name="link_unit_id" required style="width: 100%; max-width: 250px; height: 30px; font-size: 12px; line-height: 1; padding: 2px 6px;">
+											<option value=""><?php esc_html_e( '— Select Master Unit —', 'ems-plugin' ); ?></option>
 											<?php foreach ( $units as $u ) : ?>
-												<option value="<?php echo esc_attr( $u['unit_id'] ); ?>">
+												<option value="<?php echo esc_attr( $u['unit_id'] ); ?>" <?php selected( $cur_unit_id, (int) $u['unit_id'] ); ?>>
 													<?php echo esc_html( $u['name'] . ' (' . $u['short_code'] . ')' ); ?>
 												</option>
 											<?php endforeach; ?>
 										</select>
 										<button type="submit" name="ems_action" value="link_patrol" class="button button-small" style="height: 30px; line-height: 28px;">
-											<?php esc_html_e( 'Link', 'ems-plugin' ); ?>
+											<?php echo $is_mapped ? esc_html__( 'Update', 'ems-plugin' ) : esc_html__( 'Link', 'ems-plugin' ); ?>
 										</button>
 									</form>
 								</td>
 								<td>
-									<form method="post" style="display: inline; margin: 0;">
-										<?php wp_nonce_field( 'ems_create_unit_from_patrol' ); ?>
-										<input type="hidden" name="patrol_id" value="<?php echo $patrol_id; ?>" />
-										<input type="hidden" name="section_id" value="<?php echo $sec_id; ?>" />
-										<input type="hidden" name="patrol_name" value="<?php echo esc_attr( $patrol['name'] ); ?>" />
-										<button type="submit" name="ems_action" value="create_unit_from_patrol" class="button button-secondary button-small" style="height: 30px; line-height: 28px;">
-											<?php esc_html_e( 'Create Master Unit', 'ems-plugin' ); ?>
-										</button>
-									</form>
+									<div style="display: flex; align-items: center; gap: 6px;">
+										<?php if ( $is_mapped ) : ?>
+											<form method="post" style="display: inline; margin: 0;">
+												<?php wp_nonce_field( 'ems_unlink_patrol' ); ?>
+												<input type="hidden" name="patrol_id" value="<?php echo $patrol_id; ?>" />
+												<input type="hidden" name="section_id" value="<?php echo $sec_id; ?>" />
+												<button type="submit" name="ems_action" value="unlink_patrol" class="button button-link-delete button-small" style="height: 30px; line-height: 28px; color: #b32d2e;" onclick="return confirm('<?php echo esc_attr( __( 'Unlink this patrol from its master unit?', 'ems-plugin' ) ); ?>');">
+													<?php esc_html_e( 'Unlink', 'ems-plugin' ); ?>
+												</button>
+											</form>
+										<?php else : ?>
+											<form method="post" style="display: inline; margin: 0;">
+												<?php wp_nonce_field( 'ems_create_unit_from_patrol' ); ?>
+												<input type="hidden" name="patrol_id" value="<?php echo $patrol_id; ?>" />
+												<input type="hidden" name="section_id" value="<?php echo $sec_id; ?>" />
+												<input type="hidden" name="patrol_name" value="<?php echo esc_attr( $p['name'] ); ?>" />
+												<button type="submit" name="ems_action" value="create_unit_from_patrol" class="button button-secondary button-small" style="height: 30px; line-height: 28px;">
+													<?php esc_html_e( 'Create Master Unit', 'ems-plugin' ); ?>
+												</button>
+											</form>
+										<?php endif; ?>
+									</div>
 								</td>
 							</tr>
 						<?php endforeach; ?>
@@ -1078,7 +1170,7 @@ class Unit_Leader_Page {
 	}
 
 	/**
-	 * Handles linking an unmatched patrol to a unit.
+	 * Handles linking a patrol to a master unit.
 	 *
 	 * @return void
 	 */
@@ -1087,7 +1179,6 @@ class Unit_Leader_Page {
 			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
 		}
 
-		global $wpdb;
 		$patrol_id  = (int) ( $_POST['patrol_id'] ?? 0 );
 		$section_id = (int) ( $_POST['section_id'] ?? 0 );
 		$unit_id    = (int) ( $_POST['link_unit_id'] ?? 0 );
@@ -1097,20 +1188,34 @@ class Unit_Leader_Page {
 			return;
 		}
 
-		$table_name = $wpdb->prefix . 'ems_unit_patrols';
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$wpdb->update(
-			$table_name,
-			array( 'unit_id' => $unit_id ),
-			array(
-				'patrol_id'  => $patrol_id,
-				'section_id' => $section_id,
-			),
-			array( '%d' ),
-			array( '%d', '%d' )
-		);
+		$unit_repo = $this->get_unit_repository();
+		$unit_repo->link_patrol( $patrol_id, $section_id, $unit_id );
 
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Patrol linked to unit successfully.', 'ems-plugin' ) . '</p></div>';
+	}
+
+	/**
+	 * Handles unlinking a patrol from a master unit.
+	 *
+	 * @return void
+	 */
+	private function handle_unlink_patrol(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$patrol_id  = (int) ( $_POST['patrol_id'] ?? 0 );
+		$section_id = (int) ( $_POST['section_id'] ?? 0 );
+
+		if ( ! $patrol_id || ! $section_id ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Missing patrol or section ID.', 'ems-plugin' ) . '</p></div>';
+			return;
+		}
+
+		$unit_repo = $this->get_unit_repository();
+		$unit_repo->unlink_patrol( $patrol_id, $section_id );
+
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Patrol unlinked from master unit.', 'ems-plugin' ) . '</p></div>';
 	}
 
 	/**
@@ -1156,20 +1261,9 @@ class Unit_Leader_Page {
 				)
 			);
 
-			$patrols_table = $wpdb->prefix . 'ems_unit_patrols';
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-			$wpdb->update(
-				$patrols_table,
-				array( 'unit_id' => $new_unit_id ),
-				array(
-					'patrol_id'  => $patrol_id,
-					'section_id' => $section_id,
-				),
-				array( '%d' ),
-				array( '%d', '%d' )
-			);
+			$unit_repo->link_patrol( $patrol_id, $section_id, $new_unit_id );
 
-			echo '<div class="notice notice-success is-dismissible"><p>' . sprintf( esc_html__( 'Master unit "%s" created and linked successfully.', 'ems-plugin' ), esc_html( $patrol_name ) ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . sprintf( esc_html__( 'Created master unit "%s" and linked patrol successfully.', 'ems-plugin' ), esc_html( $patrol_name ) ) . '</p></div>';
 		} catch ( \Exception $e ) {
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $e->getMessage() ) . '</p></div>';
 		}
