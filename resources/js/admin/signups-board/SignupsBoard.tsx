@@ -208,6 +208,18 @@ export default function SignupsBoard() {
         setActiveViewTab('table');
     };
 
+    const handleClearFilters = () => {
+        setTypeFilter('all');
+        setLevelFilter('all');
+        setExpeditionTypeFilter('all');
+        setUnitFilter('all');
+        setDistrictFilter('all');
+        setSearchQuery('');
+        setAnomalyFilter('all');
+        setCurrentPage(1);
+        setSelectedSignup(null);
+    };
+
     const handleReconcile = async (signupId: number, signupType: string, scoutId: number) => {
         try {
             const response = await fetch(`${config.root_url}/signups/reconcile`, {
@@ -907,6 +919,15 @@ export default function SignupsBoard() {
                                         <option value="unmatched_osm">No Synced OSM Record</option>
                                     </select>
                                 </div>
+
+                                <button
+                                    type="button"
+                                    className="button button-secondary"
+                                    onClick={handleClearFilters}
+                                    data-testid="clear-filters-btn"
+                                >
+                                    Clear Filters
+                                </button>
 
                                 <button
                                     type="button"

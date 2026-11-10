@@ -443,5 +443,20 @@ describe('LeaderDashboard Component', () => {
             const unitSelect = screen.getByLabelText(/Unit:/i) as HTMLSelectElement;
             expect(unitSelect.value).toBe('Kelso ESU');
         });
+
+        // Click Clear Filters
+        const clearBtn = screen.getByRole('button', { name: /Clear Filters/i });
+        fireEvent.click(clearBtn);
+
+        await waitFor(() => {
+            const levelSelect = screen.getByLabelText(/Filter Level:/i) as HTMLSelectElement;
+            expect(levelSelect.value).toBe('all');
+            const expedTypeSelect = screen.getByLabelText(/Expedition Type:/i) as HTMLSelectElement;
+            expect(expedTypeSelect.value).toBe('all');
+            const unitSelect = screen.getByLabelText(/Unit:/i) as HTMLSelectElement;
+            expect(unitSelect.value).toBe('all');
+            const districtSelect = screen.getByLabelText(/Filter District:/i) as HTMLSelectElement;
+            expect(districtSelect.value).toBe('all');
+        });
     });
 });
