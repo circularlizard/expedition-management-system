@@ -416,6 +416,9 @@ describe('LeaderDashboard Component', () => {
         expect(within(jedburghRow).getByTestId('cell-total')).toHaveTextContent('1');
 
         const bordersSubtotal = screen.getByTestId('matrix-subtotal-Borders');
+        expect(bordersSubtotal.classList.contains('ems-table-group-header')).toBe(true);
+        expect(within(bordersSubtotal).getByText('Borders Subtotal')).toHaveClass('ems-table-group-header__title');
+        expect(within(bordersSubtotal).getByText('2 units')).toHaveClass('ems-table-group-header__badge');
         expect(within(bordersSubtotal).getByTestId('subtotal-total')).toHaveTextContent('4');
 
         const peeblesRow = screen.getByTestId('matrix-row-Peebles ESU');
