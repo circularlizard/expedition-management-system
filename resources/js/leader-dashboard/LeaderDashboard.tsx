@@ -333,7 +333,7 @@ export const LeaderDashboard: React.FC = () => {
                     className={`ems-tab-nav__button ${activeTab === 'summary' ? 'ems-tab-nav__button--active' : ''}`}
                     onClick={() => setActiveTab('summary')}
                 >
-                    Expedition Summary
+                    Unit Summary
                 </button>
             </div>
 

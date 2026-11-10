@@ -278,7 +278,7 @@ describe('LeaderDashboard Component', () => {
         });
     });
 
-    it('renders expedition summary matrix table tab and navigates to filtered explorer list on cell click', async () => {
+    it('renders unit summary matrix table tab and navigates to filtered explorer list on cell click', async () => {
         (global as any).window.emsLeaderDashboard.units = [
             { unit_id: 1, name: 'Kelso ESU', district: 'Borders' },
             { unit_id: 2, name: 'Jedburgh ESU', district: 'Borders' },
@@ -392,7 +392,7 @@ describe('LeaderDashboard Component', () => {
         render(<LeaderDashboard />);
 
         // Wait for data load and check tabs
-        const summaryTabBtn = await screen.findByRole('button', { name: /Expedition Summary/i });
+        const summaryTabBtn = await screen.findByRole('button', { name: /Unit Summary/i });
         expect(summaryTabBtn).toBeInTheDocument();
         const explorersTabBtn = screen.getByRole('button', { name: /Explorer Signups/i });
         expect(explorersTabBtn).toBeInTheDocument();
