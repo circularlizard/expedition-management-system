@@ -1301,11 +1301,16 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                         {/* District Subtotal */}
                                         <tr
                                             key={`subtotal_${group.district}`}
-                                            className="ems-matrix-row-subtotal"
+                                            className="ems-matrix-row-subtotal ems-table-group-header"
                                             data-testid={`matrix-subtotal-${group.district}`}
                                         >
                                             <td colSpan={2} className="ems-matrix-col-subtotal-label">
-                                                <strong>{group.district} Subtotal</strong>
+                                                <div className="ems-table-group-header__content">
+                                                    <span className="ems-table-group-header__title">{group.district} Subtotal</span>
+                                                    <span className="ems-table-group-header__badge">
+                                                        {group.units.length} {group.units.length === 1 ? 'unit' : 'units'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-hillwalking">
                                                 {group.subtotal.counts.bronze.hillwalking > 0 ? (

@@ -4314,10 +4314,47 @@ tr.ems-table-group-header:hover td,
     font-variant-numeric: tabular-nums;
 }
 
-.ems-matrix-table tr.ems-matrix-row-subtotal {
-    background: #f8fafc;
+.ems-matrix-table tr.ems-matrix-row-subtotal,
+.ems-matrix-table tr.ems-matrix-row-subtotal td,
+.ems-matrix-table tr.ems-matrix-row-subtotal th,
+.ems-leader-dashboard .ems-matrix-table tr.ems-matrix-row-subtotal,
+.ems-leader-dashboard .ems-matrix-table tr.ems-matrix-row-subtotal td {
+    background-color: lightsteelblue !important;
+    color: #0f172a !important;
+    font-weight: 700;
+    border-top: 1px solid #94a3b8 !important;
+    border-bottom: 1px solid #94a3b8 !important;
+    border-left: 1px solid #94a3b8 !important;
+    border-right: 1px solid #94a3b8 !important;
+    padding: 8px 10px !important;
+}
+
+.ems-matrix-table tr.ems-matrix-row-subtotal:hover,
+.ems-matrix-table tr.ems-matrix-row-subtotal:hover td,
+.ems-matrix-table tr.ems-matrix-row-subtotal:hover th,
+.ems-leader-dashboard .ems-matrix-table tr.ems-matrix-row-subtotal:hover,
+.ems-leader-dashboard .ems-matrix-table tr.ems-matrix-row-subtotal:hover td {
+    background-color: #9fb9d6 !important;
+}
+
+.ems-matrix-table tr.ems-matrix-row-subtotal .ems-matrix-col-subtotal-label {
+    background-color: lightsteelblue !important;
+    color: #0f172a !important;
+    font-weight: 700;
+}
+
+.ems-matrix-table tr.ems-matrix-row-subtotal .ems-matrix-btn-cell {
+    color: #1e3a5f !important;
+    font-weight: 700;
+}
+
+.ems-matrix-table tr.ems-matrix-row-subtotal .ems-matrix-btn-cell:hover {
+    color: #0f172a !important;
+}
+
+.ems-matrix-table tr.ems-matrix-row-subtotal .ems-matrix-muted-zero {
+    color: #475569 !important;
     font-weight: 600;
-    border-top: 2px solid #cbd5e1;
 }
 
 .ems-matrix-table tr.ems-matrix-row-grand-total {
