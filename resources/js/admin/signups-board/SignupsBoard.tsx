@@ -196,6 +196,12 @@ export default function SignupsBoard() {
         setTypeFilter(filters.typeFilter ?? 'all');
         setLevelFilter(filters.levelFilter ?? 'all');
         setExpeditionTypeFilter(filters.expeditionTypeFilter ?? 'all');
+        if (filters.unitFilter !== undefined) {
+            setUnitFilter(filters.unitFilter);
+        }
+        if (filters.districtFilter !== undefined) {
+            setDistrictFilter(filters.districtFilter);
+        }
         setAnomalyFilter(filters.anomalyFilter ?? 'all');
         setGrouping(filters.grouping ?? 'none');
         setSelectedSignup(null);
@@ -741,6 +747,7 @@ export default function SignupsBoard() {
                 {activeViewTab === 'dashboard' ? (
                     <SignupsDashboard
                         signups={signups}
+                        units={availableUnits}
                         onNavigateToTable={handleNavigateToTable}
                     />
                 ) : (

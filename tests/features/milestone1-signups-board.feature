@@ -140,4 +140,32 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     When the administrator opens the Inspector Panel for signup 10
     Then the eDofE Number field should be read-only with value "123456"
 
+  Scenario: Signups Dashboard displays expedition signups by district and unit split by level and exped type
+    Given master units exist with assigned districts:
+      | unit_name    | district  |
+      | Kelso ESU    | Borders   |
+      | Jedburgh ESU | Borders   |
+      | Peebles ESU  | Tweeddale |
+    And the following active signups exist:
+      | id | type        | scout_id | explorer_name  | unit_name    | dofe_level | exped_type  |
+      | 20 | expedition  | 30001    | Explorer One   | Kelso ESU    | bronze     | Hillwalking |
+      | 21 | expedition  | 30002    | Explorer Two   | Kelso ESU    | bronze     | Hillwalking |
+      | 22 | expedition  | 30003    | Explorer Three | Kelso ESU    | bronze     | Paddling    |
+      | 23 | expedition  | 30004    | Explorer Four  | Kelso ESU    | silver     | Biking      |
+      | 24 | expedition  | 30005    | Explorer Five  | Jedburgh ESU | silver     | Hillwalking |
+      | 25 | expedition  | 30006    | Explorer Six   | Jedburgh ESU | silver     | Hillwalking |
+      | 26 | expedition  | 30007    | Explorer Seven | Peebles ESU  | gold       | Hillwalking |
+      | 27 | expedition  | 30008    | Explorer Eight | Peebles ESU  | gold       | Biking      |
+    When the administrator views the Signups Dashboard tab
+    Then the "Expedition Signups by District and Unit" matrix table should be displayed
+    And the table should show rows for "Kelso ESU" and "Jedburgh ESU" under "Borders" and "Peebles ESU" under "Tweeddale"
+    And "Kelso ESU" should show 2 Bronze Hillwalking, 1 Bronze Paddling, 1 Silver Biking, and 4 Total signups
+    And "Jedburgh ESU" should show 2 Silver Hillwalking and 2 Total signups
+    And the subtotal for district "Borders" should show 6 total expedition signups
+    And "Peebles ESU" should show 1 Gold Hillwalking, 1 Gold Biking, and 2 Total signups
+    And the grand total row should show 8 total expedition signups
+    When the administrator clicks the count cell for "Kelso ESU" Bronze Hillwalking
+    Then the view should switch to the Signups Table filtered to unit "Kelso ESU", level "bronze", and expedition type "hillwalking"
+
+
 

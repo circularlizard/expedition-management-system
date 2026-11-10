@@ -4251,6 +4251,125 @@ tr.ems-table-group-header:hover td,
     background: #b45309 !important;
 }
 
+/* ─── Expedition Signups Matrix Table by District and Unit ───────────────── */
+.ems-matrix-table-wrap {
+    overflow-x: auto;
+    margin-top: 16px;
+    border: 1px solid var(--ems-border, #E7E5E4);
+    border-radius: var(--ems-radius, 8px);
+}
+
+.ems-matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+}
+
+.ems-matrix-table th,
+.ems-matrix-table td {
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.ems-matrix-table thead th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+    font-size: 12px;
+}
+
+.ems-matrix-table thead th.ems-matrix-th-level {
+    text-align: center;
+    border-bottom: 2px solid #cbd5e1;
+}
+
+.ems-matrix-table thead th.ems-matrix-th-bronze {
+    background: #fdf6ec;
+    color: #935a13;
+    border-top: 3px solid #d97706;
+}
+
+.ems-matrix-table thead th.ems-matrix-th-silver {
+    background: #f1f5f9;
+    color: #475569;
+    border-top: 3px solid #64748b;
+}
+
+.ems-matrix-table thead th.ems-matrix-th-gold {
+    background: #fefce8;
+    color: #854d0e;
+    border-top: 3px solid #eab308;
+}
+
+.ems-matrix-table thead th.ems-matrix-th-sub {
+    font-size: 11px;
+    text-align: center;
+    background: #f8fafc;
+    font-weight: 500;
+}
+
+.ems-matrix-table td.ems-matrix-cell-number {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.ems-matrix-table tr.ems-matrix-row-subtotal {
+    background: #f8fafc;
+    font-weight: 600;
+    border-top: 2px solid #cbd5e1;
+}
+
+.ems-matrix-table tr.ems-matrix-row-grand-total {
+    background: #f1f5f9;
+    font-weight: 700;
+    border-top: 2px solid #94a3b8;
+}
+
+.ems-matrix-col-district {
+    font-weight: 600;
+    color: #334155;
+    background: #ffffff;
+}
+
+.ems-matrix-col-unit {
+    color: #1e293b;
+    background: #ffffff;
+}
+
+.ems-matrix-col-subtotal-label {
+    color: #1e293b;
+    background: #f8fafc;
+}
+
+.ems-matrix-btn-cell {
+    background: transparent;
+    border: none;
+    font-weight: 600;
+    color: var(--ems-primary, #2271b1);
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 13px;
+    padding: 2px 4px;
+}
+
+.ems-matrix-btn-cell:hover {
+    color: #135e96;
+}
+
+.ems-matrix-muted-zero {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.ems-matrix-toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+
 
 
 

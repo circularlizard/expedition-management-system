@@ -81,6 +81,180 @@ export interface CumulativeSeriesResult {
     weeks: WeeklyBucket[];
 }
 
+export type MatrixLevel = 'bronze' | 'silver' | 'gold';
+export type MatrixExpedType = 'hillwalking' | 'biking' | 'paddling';
+
+export interface ExpedTypeCounts {
+    hillwalking: number;
+    biking: number;
+    paddling: number;
+    other: number;
+    total: number;
+}
+
+export interface MatrixRowData {
+    unit: string;
+    district: string;
+    counts: Record<MatrixLevel, ExpedTypeCounts>;
+    total: number;
+}
+
+export interface DistrictMatrixGroup {
+    district: string;
+    units: MatrixRowData[];
+    subtotal: {
+        counts: Record<MatrixLevel, ExpedTypeCounts>;
+        total: number;
+    };
+}
+
+export interface ExpeditionMatrixResult {
+    groups: DistrictMatrixGroup[];
+    grandTotal: {
+        counts: Record<MatrixLevel, ExpedTypeCounts>;
+        total: number;
+    };
+    totalExpeditions: number;
+    hasOtherExpedType: boolean;
+}
+
+export const createEmptyExpedTypeCounts = (): ExpedTypeCounts => ({
+    hillwalking: 0,
+    biking: 0,
+    paddling: 0,
+    other: 0,
+    total: 0,
+});
+
+export const createEmptyLevelMap = (): Record<MatrixLevel, ExpedTypeCounts> => ({
+    bronze: createEmptyExpedTypeCounts(),
+    silver: createEmptyExpedTypeCounts(),
+    gold: createEmptyExpedTypeCounts(),
+});
+
+export function computeExpeditionDistrictUnitMatrix(
+    signups: any[],
+    unitDistrictMap: Record<string, string> = {}
+): ExpeditionMatrixResult {
+    const unitMap: Record<string, { unit: string; district: string; counts: Record<MatrixLevel, ExpedTypeCounts>; total: number }> = {};
+    let hasOtherExpedType = false;
+
+    signups.forEach((s) => {
+        if (s.type !== 'expedition') return;
+
+        const rawUnit = (s.unit_name || '').trim();
+        const unit = rawUnit || 'Unassigned';
+        const rawDistrict = (s.district || unitDistrictMap[unit] || unitDistrictMap[String(s.unit_id)] || '').trim();
+        const district = rawDistrict || 'Unassigned';
+
+        const key = `${district}__${unit}`;
+        if (!unitMap[key]) {
+            unitMap[key] = {
+                unit,
+                district,
+                counts: createEmptyLevelMap(),
+                total: 0,
+            };
+        }
+
+        const rawLevel = normalize(s.dofe_level);
+        const level: MatrixLevel | null =
+            rawLevel === 'bronze' || rawLevel === 'silver' || rawLevel === 'gold' ? rawLevel : null;
+
+        const rawExpedType = normalize(s.expedition_preferences?.exped_type);
+        const expedType: MatrixExpedType | 'other' =
+            rawExpedType === 'hillwalking' || rawExpedType === 'biking' || rawExpedType === 'paddling'
+                ? rawExpedType
+                : 'other';
+
+        if (expedType === 'other') {
+            hasOtherExpedType = true;
+        }
+
+        unitMap[key].total++;
+
+        if (level) {
+            unitMap[key].counts[level].total++;
+            if (expedType === 'other') {
+                unitMap[key].counts[level].other++;
+            } else {
+                unitMap[key].counts[level][expedType]++;
+            }
+        }
+    });
+
+    // Group rows by district
+    const districtGroupsMap: Record<string, MatrixRowData[]> = {};
+    Object.values(unitMap).forEach((row) => {
+        if (!districtGroupsMap[row.district]) {
+            districtGroupsMap[row.district] = [];
+        }
+        districtGroupsMap[row.district].push(row);
+    });
+
+    // Sort districts: alphabetical, with Unassigned last
+    const sortedDistricts = Object.keys(districtGroupsMap).sort((a, b) => {
+        if (a === 'Unassigned') return 1;
+        if (b === 'Unassigned') return -1;
+        return a.localeCompare(b);
+    });
+
+    const grandTotal = {
+        counts: createEmptyLevelMap(),
+        total: 0,
+    };
+
+    const levels: MatrixLevel[] = ['bronze', 'silver', 'gold'];
+    const expedTypes: MatrixExpedType[] = ['hillwalking', 'biking', 'paddling'];
+
+    const groups: DistrictMatrixGroup[] = sortedDistricts.map((district) => {
+        const units = districtGroupsMap[district].sort((a, b) => {
+            if (a.unit === 'Unassigned') return 1;
+            if (b.unit === 'Unassigned') return -1;
+            return a.unit.localeCompare(b.unit);
+        });
+
+        const subtotal = {
+            counts: createEmptyLevelMap(),
+            total: 0,
+        };
+
+        units.forEach((u) => {
+            subtotal.total += u.total;
+            levels.forEach((lvl) => {
+                subtotal.counts[lvl].total += u.counts[lvl].total;
+                subtotal.counts[lvl].other += u.counts[lvl].other;
+                expedTypes.forEach((et) => {
+                    subtotal.counts[lvl][et] += u.counts[lvl][et];
+                });
+            });
+        });
+
+        // Accumulate grand total
+        grandTotal.total += subtotal.total;
+        levels.forEach((lvl) => {
+            grandTotal.counts[lvl].total += subtotal.counts[lvl].total;
+            grandTotal.counts[lvl].other += subtotal.counts[lvl].other;
+            expedTypes.forEach((et) => {
+                grandTotal.counts[lvl][et] += subtotal.counts[lvl][et];
+            });
+        });
+
+        return {
+            district,
+            units,
+            subtotal,
+        };
+    });
+
+    return {
+        groups,
+        grandTotal,
+        totalExpeditions: grandTotal.total,
+        hasOtherExpedType,
+    };
+}
+
 const normalize = (str: string | null | undefined): string => {
     return (str || '').trim().toLowerCase();
 };

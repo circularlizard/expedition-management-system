@@ -1279,6 +1279,163 @@ describe('SignupsBoard', () => {
             expect(screen.getByText('Selkirk', { selector: '.ems-table-group-header__title' })).toBeInTheDocument();
         });
     });
+
+    it('renders expedition signups matrix table by district and unit split by level and exped type', async () => {
+        (global as any).window.emsSignupsBoard = {
+            ...mockConfig,
+            units: [
+                { unit_id: 1, name: 'Kelso ESU', district: 'Borders' },
+                { unit_id: 2, name: 'Jedburgh ESU', district: 'Borders' },
+                { unit_id: 3, name: 'Peebles ESU', district: 'Tweeddale' },
+            ]
+        };
+
+        const expedSignups = [
+            {
+                id: 20,
+                type: 'expedition',
+                scout_id: 30001,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'One',
+                dofe_level: 'bronze',
+                expedition_preferences: { exped_type: 'Hillwalking' },
+                signup_status: 'submitted',
+                created_at: '2026-08-01 10:00:00',
+            },
+            {
+                id: 21,
+                type: 'expedition',
+                scout_id: 30002,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'Two',
+                dofe_level: 'bronze',
+                expedition_preferences: { exped_type: 'Hillwalking' },
+                signup_status: 'submitted',
+                created_at: '2026-08-02 10:00:00',
+            },
+            {
+                id: 22,
+                type: 'expedition',
+                scout_id: 30003,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'Three',
+                dofe_level: 'bronze',
+                expedition_preferences: { exped_type: 'Paddling' },
+                signup_status: 'submitted',
+                created_at: '2026-08-03 10:00:00',
+            },
+            {
+                id: 23,
+                type: 'expedition',
+                scout_id: 30004,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'Four',
+                dofe_level: 'silver',
+                expedition_preferences: { exped_type: 'Biking' },
+                signup_status: 'submitted',
+                created_at: '2026-08-04 10:00:00',
+            },
+            {
+                id: 24,
+                type: 'expedition',
+                scout_id: 30005,
+                unit_name: 'Jedburgh ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'Five',
+                dofe_level: 'silver',
+                expedition_preferences: { exped_type: 'Hillwalking' },
+                signup_status: 'submitted',
+                created_at: '2026-08-05 10:00:00',
+            },
+            {
+                id: 25,
+                type: 'expedition',
+                scout_id: 30006,
+                unit_name: 'Jedburgh ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'Six',
+                dofe_level: 'silver',
+                expedition_preferences: { exped_type: 'Hillwalking' },
+                signup_status: 'submitted',
+                created_at: '2026-08-06 10:00:00',
+            },
+            {
+                id: 26,
+                type: 'expedition',
+                scout_id: 30007,
+                unit_name: 'Peebles ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'Seven',
+                dofe_level: 'gold',
+                expedition_preferences: { exped_type: 'Hillwalking' },
+                signup_status: 'submitted',
+                created_at: '2026-08-07 10:00:00',
+            },
+            {
+                id: 27,
+                type: 'expedition',
+                scout_id: 30008,
+                unit_name: 'Peebles ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'Eight',
+                dofe_level: 'gold',
+                expedition_preferences: { exped_type: 'Biking' },
+                signup_status: 'submitted',
+                created_at: '2026-08-08 10:00:00',
+            },
+        ];
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => expedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => [] });
+
+        render(<SignupsBoard />);
+
+        expect(await screen.findByText('Expedition Signups by District and Unit')).toBeInTheDocument();
+
+        const matrixTable = screen.getByTestId('expedition-district-unit-matrix');
+        expect(matrixTable).toBeInTheDocument();
+
+        const kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
+        expect(kelsoRow).toBeInTheDocument();
+        expect(within(kelsoRow).getByTestId('cell-bronze-hillwalking')).toHaveTextContent('2');
+        expect(within(kelsoRow).getByTestId('cell-bronze-paddling')).toHaveTextContent('1');
+        expect(within(kelsoRow).getByTestId('cell-silver-biking')).toHaveTextContent('1');
+        expect(within(kelsoRow).getByTestId('cell-total')).toHaveTextContent('4');
+
+        const jedburghRow = screen.getByTestId('matrix-row-Jedburgh ESU');
+        expect(within(jedburghRow).getByTestId('cell-silver-hillwalking')).toHaveTextContent('2');
+        expect(within(jedburghRow).getByTestId('cell-total')).toHaveTextContent('2');
+
+        const peeblesRow = screen.getByTestId('matrix-row-Peebles ESU');
+        expect(within(peeblesRow).getByTestId('cell-gold-hillwalking')).toHaveTextContent('1');
+        expect(within(peeblesRow).getByTestId('cell-gold-biking')).toHaveTextContent('1');
+        expect(within(peeblesRow).getByTestId('cell-total')).toHaveTextContent('2');
+
+        const bordersSubtotal = screen.getByTestId('matrix-subtotal-Borders');
+        expect(within(bordersSubtotal).getByTestId('subtotal-total')).toHaveTextContent('6');
+
+        const grandTotalRow = screen.getByTestId('matrix-grand-total');
+        expect(within(grandTotalRow).getByTestId('grand-total-total')).toHaveTextContent('8');
+
+        // Click count cell for Kelso ESU Bronze Hillwalking to drill down to table
+        const kelsoHwCell = within(kelsoRow).getByTestId('cell-bronze-hillwalking');
+        const clickTarget = kelsoHwCell.querySelector('button') || kelsoHwCell;
+        fireEvent.click(clickTarget);
+
+        await waitFor(() => {
+            const levelSelect = screen.getByLabelText(/Filter Level:/i) as HTMLSelectElement;
+            expect(levelSelect.value).toBe('bronze');
+            const expedTypeSelect = screen.getByLabelText(/Expedition Type:/i) as HTMLSelectElement;
+            expect(expedTypeSelect.value).toBe('hillwalking');
+            const unitSelect = screen.getByLabelText(/Unit:/i) as HTMLSelectElement;
+            expect(unitSelect.value).toBe('Kelso ESU');
+        });
+    });
 });
 
 
