@@ -4346,10 +4346,20 @@ tr.ems-table-group-header:hover td,
 .ems-matrix-table tr.ems-matrix-row-subtotal .ems-matrix-btn-cell {
     color: #1e3a5f !important;
     font-weight: 700;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    text-decoration: none !important;
 }
 
 .ems-matrix-table tr.ems-matrix-row-subtotal .ems-matrix-btn-cell:hover {
     color: #0f172a !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    text-decoration: underline !important;
 }
 
 .ems-matrix-table tr.ems-matrix-row-subtotal .ems-matrix-muted-zero {
@@ -4361,6 +4371,23 @@ tr.ems-table-group-header:hover td,
     background: #f1f5f9;
     font-weight: 700;
     border-top: 2px solid #94a3b8;
+}
+
+.ems-matrix-table tr.ems-matrix-row-grand-total .ems-matrix-btn-cell {
+    font-weight: 700;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    text-decoration: none !important;
+}
+
+.ems-matrix-table tr.ems-matrix-row-grand-total .ems-matrix-btn-cell:hover {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    text-decoration: underline !important;
 }
 
 .ems-matrix-col-district {
@@ -4379,19 +4406,57 @@ tr.ems-table-group-header:hover td,
     background: #f8fafc;
 }
 
-.ems-matrix-btn-cell {
-    background: transparent;
-    border: none;
+.ems-matrix-btn-cell,
+.ems-matrix-table button.ems-matrix-btn-cell,
+.ems-matrix-table a.ems-matrix-btn-cell,
+.ems-leader-dashboard .ems-matrix-table button,
+.ems-leader-dashboard .ems-matrix-table a,
+.ems-leader-dashboard .ems-matrix-btn-cell {
+    background: transparent !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
     font-weight: 600;
-    color: var(--ems-primary, #2271b1);
+    color: var(--ems-primary, #2271b1) !important;
     cursor: pointer;
-    text-decoration: underline;
+    text-decoration: none !important;
     font-size: 13px;
     padding: 2px 4px;
+    line-height: inherit;
+    vertical-align: middle;
 }
 
-.ems-matrix-btn-cell:hover {
-    color: #135e96;
+.ems-matrix-btn-cell:hover,
+.ems-matrix-table button.ems-matrix-btn-cell:hover,
+.ems-matrix-table a.ems-matrix-btn-cell:hover,
+.ems-leader-dashboard .ems-matrix-table button:hover,
+.ems-leader-dashboard .ems-matrix-table a:hover,
+.ems-leader-dashboard .ems-matrix-btn-cell:hover {
+    color: #135e96 !important;
+    text-decoration: underline !important;
+    border: none !important;
+    border-width: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+.ems-matrix-btn-cell:focus,
+.ems-matrix-btn-cell:active,
+.ems-matrix-table button.ems-matrix-btn-cell:focus,
+.ems-matrix-table button.ems-matrix-btn-cell:active,
+.ems-leader-dashboard .ems-matrix-table button:focus,
+.ems-leader-dashboard .ems-matrix-table button:active,
+.ems-leader-dashboard .ems-matrix-table a:focus,
+.ems-leader-dashboard .ems-matrix-table a:active {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
 }
 
 .ems-matrix-muted-zero {
