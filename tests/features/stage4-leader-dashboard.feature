@@ -70,7 +70,7 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     And selects district "Tweeddale" from the district filter
     Then only the row for "Bob Smith" should be displayed in the table
 
-  Scenario: Leader Dashboard provides an Expedition Summary tab displaying signups matrix by district and unit
+  Scenario: Leader Dashboard provides a Unit Summary tab displaying signups matrix by district and unit
     Given the following active signups exist for the leader dashboard:
       | id | type        | scout_id | explorer_first_name | explorer_last_name | dofe_level | unit_name    | district  | exped_type  |
       | 10 | participant | 30003    | Zack                | Adams              | bronze     | Kelso ESU    | Borders   |             |
@@ -81,8 +81,8 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
       | 24 | expedition  | 30007    | Alex                | Morgan             | gold       | Peebles ESU  | Tweeddale | Hillwalking |
       | 25 | expedition  | 30008    | Jordan              | Lee                | gold       | Peebles ESU  | Tweeddale | Biking      |
     When an authorized unit leader views the "[ems-leader-dashboard]" page
-    Then tab navigation should be displayed with "Explorer Signups" and "Expedition Summary" tabs
-    When the leader switches to the "Expedition Summary" tab
+    Then tab navigation should be displayed with "Explorer Signups" and "Unit Summary" tabs
+    When the leader switches to the "Unit Summary" tab
     Then the "Expedition Signups by District and Unit" matrix table should be displayed
     And the table should show rows for "Kelso ESU" and "Jedburgh ESU" under "Borders" and "Peebles ESU" under "Tweeddale"
     And "Kelso ESU" should show 1 Bronze Hillwalking, 1 Bronze Paddling, 1 Silver Biking, and 3 Total signups
