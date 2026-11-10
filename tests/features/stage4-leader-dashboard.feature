@@ -93,6 +93,15 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     When the leader clicks the count cell for "Kelso ESU" Bronze Hillwalking
     Then the view should switch to the "Explorer Signups" tab filtered to unit "Kelso ESU", level "bronze", and expedition type "hillwalking"
 
+  Scenario: Resetting filters on the Explorer Signups table with Clear Filters button
+    Given active signups exist in the Leader Dashboard for "Zack Adams" (Bronze Hillwalking in "Kelso ESU") and "Alex Morgan" (Gold Biking in "Peebles ESU")
+    When an authorized unit leader views the "Explorer Signups" tab
+    And filters the table by level "bronze" and expedition type "hillwalking"
+    Then only the row for "Zack Adams" should be displayed in the table
+    When the leader clicks the "Clear Filters" button
+    Then all explorer filters should be reset to default
+    And rows for both "Zack Adams" and "Alex Morgan" should be displayed in the table
+
 
   Scenario: Customising the Unit Leader invitation email subject and body with placeholders
     Given the administrator has configured "ems_leader_invite_email_subject" as "Welcome to {{site_name}} - {{unit_name}} Leader Access"

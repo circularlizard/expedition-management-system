@@ -133,6 +133,15 @@ export const LeaderDashboard: React.FC = () => {
         setActiveTab('explorers');
     };
 
+    const handleClearFilters = () => {
+        setLevelFilter('all');
+        setExpeditionTypeFilter('all');
+        setUnitFilter('all');
+        setDistrictFilter('all');
+        setSearchQuery('');
+        setCurrentPage(1);
+    };
+
     useEffect(() => {
         if (!config.user_data.logged_in || !config.user_data.can_access) {
             setLoading(false);
@@ -1165,6 +1174,15 @@ export const LeaderDashboard: React.FC = () => {
                         className="ems-input"
                     />
                 </div>
+
+                <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={handleClearFilters}
+                    data-testid="clear-filters-btn"
+                >
+                    Clear Filters
+                </button>
             </div>
 
             <table>

@@ -167,5 +167,14 @@ Feature: Milestone 1 - Signups Board & Reconciliation
     When the administrator clicks the count cell for "Kelso ESU" Bronze Hillwalking
     Then the view should switch to the Signups Table filtered to unit "Kelso ESU", level "bronze", and expedition type "hillwalking"
 
+  Scenario: Resetting filters on the Signups Table with Clear Filters button
+    Given active signups exist for "Alice Smith" (Bronze Hillwalking in "Kelso ESU") and "Bob Jones" (Gold Biking in "Peebles ESU")
+    When the administrator opens the Signups Table tab
+    And filters the table by level "bronze", expedition type "hillwalking", and district "Borders"
+    Then only the row for "Alice Smith" should be displayed in the table
+    When the administrator clicks the "Clear Filters" button
+    Then all filters should be reset to default
+    And rows for both "Alice Smith" and "Bob Jones" should be displayed in the table
+
 
 
