@@ -70,6 +70,30 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     And selects district "Tweeddale" from the district filter
     Then only the row for "Bob Smith" should be displayed in the table
 
+  Scenario: Leader Dashboard provides an Expedition Summary tab displaying signups matrix by district and unit
+    Given the following active signups exist for the leader dashboard:
+      | id | type        | scout_id | explorer_first_name | explorer_last_name | dofe_level | unit_name    | district  | exped_type  |
+      | 10 | participant | 30003    | Zack                | Adams              | bronze     | Kelso ESU    | Borders   |             |
+      | 20 | expedition  | 30003    | Zack                | Adams              | bronze     | Kelso ESU    | Borders   | Hillwalking |
+      | 21 | expedition  | 30004    | Sam                 | Taylor             | bronze     | Kelso ESU    | Borders   | Paddling    |
+      | 22 | expedition  | 30005    | Chris               | Evans              | silver     | Kelso ESU    | Borders   | Biking      |
+      | 23 | expedition  | 30006    | Dana                | White              | silver     | Jedburgh ESU | Borders   | Hillwalking |
+      | 24 | expedition  | 30007    | Alex                | Morgan             | gold       | Peebles ESU  | Tweeddale | Hillwalking |
+      | 25 | expedition  | 30008    | Jordan              | Lee                | gold       | Peebles ESU  | Tweeddale | Biking      |
+    When an authorized unit leader views the "[ems-leader-dashboard]" page
+    Then tab navigation should be displayed with "Explorer Signups" and "Expedition Summary" tabs
+    When the leader switches to the "Expedition Summary" tab
+    Then the "Expedition Signups by District and Unit" matrix table should be displayed
+    And the table should show rows for "Kelso ESU" and "Jedburgh ESU" under "Borders" and "Peebles ESU" under "Tweeddale"
+    And "Kelso ESU" should show 1 Bronze Hillwalking, 1 Bronze Paddling, 1 Silver Biking, and 3 Total signups
+    And "Jedburgh ESU" should show 1 Silver Hillwalking and 1 Total signup
+    And the subtotal for district "Borders" should show 4 total expedition signups
+    And "Peebles ESU" should show 1 Gold Hillwalking, 1 Gold Biking, and 2 Total signups
+    And the grand total row should show 6 total expedition signups
+    When the leader clicks the count cell for "Kelso ESU" Bronze Hillwalking
+    Then the view should switch to the "Explorer Signups" tab filtered to unit "Kelso ESU", level "bronze", and expedition type "hillwalking"
+
+
   Scenario: Customising the Unit Leader invitation email subject and body with placeholders
     Given the administrator has configured "ems_leader_invite_email_subject" as "Welcome to {{site_name}} - {{unit_name}} Leader Access"
     And the administrator has configured "ems_leader_invite_email_body" with placeholders "{{unit_name}}", "{{set_password_url}}", "{{dashboard_url}}", and "{{user_email}}"
