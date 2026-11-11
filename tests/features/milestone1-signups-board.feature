@@ -157,8 +157,10 @@ Feature: Milestone 1 - Signups Board & Reconciliation
       | 26 | expedition  | 30007    | Explorer Seven | Peebles ESU  | gold       | Hillwalking |
       | 27 | expedition  | 30008    | Explorer Eight | Peebles ESU  | gold       | Biking      |
     When the administrator views the Signups Dashboard tab
-    Then the "Expedition Signups by District and Unit" matrix table should be displayed
-    And the table should show rows for "Kelso ESU" and "Jedburgh ESU" under "Borders" and "Peebles ESU" under "Tweeddale"
+    Then the Unit Summary matrix table should be displayed with district subtotals positioned above unit rows
+    And the Unit Summary should provide a switcher between "All Signups", "Expedition Preferences", and "Participant Places"
+    When the administrator switches the summary to "Expedition Preferences"
+    Then the table should show rows for "Kelso ESU" and "Jedburgh ESU" under "Borders" and "Peebles ESU" under "Tweeddale"
     And "Kelso ESU" should show 2 Bronze Hillwalking, 1 Bronze Paddling, 1 Silver Biking, and 4 Total signups
     And "Jedburgh ESU" should show 2 Silver Hillwalking and 2 Total signups
     And the subtotal for district "Borders" should show 6 total expedition signups

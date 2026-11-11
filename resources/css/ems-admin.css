@@ -1087,30 +1087,67 @@ input.ems-form-input {
     font-size: 16px;
 }
 
-/* Tab navigation */
+/* Tab navigation - WordPress Nav Tab Pattern (works in admin and frontend shortcodes) */
+.nav-tab-wrapper,
+.ems-nav-tab-wrapper,
 .ems-tab-nav {
-    display: flex;
-    border-bottom: 1px solid #dcdcde;
-    margin-bottom: 16px;
-    align-items: center;
-    gap: 0;
+    border-bottom: 1px solid #c3c4c7 !important;
+    padding-top: 9px !important;
+    padding-bottom: 0 !important;
+    line-height: inherit !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    margin-bottom: 20px !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
 }
 
+.nav-tab,
+.ems-nav-tab-wrapper button.nav-tab,
+.ems-leader-dashboard .nav-tab,
+.ems-leader-dashboard button.nav-tab,
 .ems-tab-nav__button {
-    padding: 8px 20px;
-    border: none;
-    border-bottom: 3px solid transparent;
-    background: none;
-    color: #50575e;
-    font-weight: 400;
-    font-size: 14px;
-    cursor: pointer;
+    border: 1px solid #c3c4c7 !important;
+    border-bottom: none !important;
+    background: #dcdcde !important;
+    color: #50575e !important;
+    padding: 7px 16px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    border-radius: 4px 4px 0 0 !important;
+    cursor: pointer !important;
+    margin-bottom: -1px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
 }
 
+.nav-tab:hover,
+.ems-nav-tab-wrapper button.nav-tab:hover,
+.ems-leader-dashboard .nav-tab:hover,
+.ems-leader-dashboard button.nav-tab:hover,
+.ems-tab-nav__button:hover {
+    background: #f0f0f1 !important;
+    color: #1d2327 !important;
+}
+
+.nav-tab-active,
+.nav-tab.nav-tab-active,
+.ems-nav-tab-wrapper button.nav-tab-active,
+.ems-leader-dashboard .nav-tab-active,
+.ems-leader-dashboard button.nav-tab.nav-tab-active,
 .ems-tab-nav__button--active {
-    border-bottom-color: var(--ems-theme-color);
-    color: var(--ems-theme-color);
-    font-weight: 600;
+    background: #ffffff !important;
+    color: #1d2327 !important;
+    border-color: #c3c4c7 !important;
+    border-bottom: 1px solid #ffffff !important;
+    margin-bottom: -1px !important;
+    font-weight: 600 !important;
 }
 
 .ems-tab-nav__checkbox-label {

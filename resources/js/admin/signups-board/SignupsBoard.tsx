@@ -736,10 +736,10 @@ export default function SignupsBoard() {
                 {error && <div className="ems-error-notice">{error}</div>}
 
                 {/* Top View Tab Navigation */}
-                <div className="ems-tab-nav">
+                <nav className="nav-tab-wrapper ems-nav-tab-wrapper" aria-label="Signups view">
                     <button
                         type="button"
-                        className={`ems-tab-nav__button ${activeViewTab === 'dashboard' ? 'ems-tab-nav__button--active' : ''}`}
+                        className={`nav-tab ${activeViewTab === 'dashboard' ? 'nav-tab-active' : ''}`}
                         onClick={() => {
                             setSelectedSignup(null);
                             setActiveViewTab('dashboard');
@@ -749,12 +749,12 @@ export default function SignupsBoard() {
                     </button>
                     <button
                         type="button"
-                        className={`ems-tab-nav__button ${activeViewTab === 'table' ? 'ems-tab-nav__button--active' : ''}`}
+                        className={`nav-tab ${activeViewTab === 'table' ? 'nav-tab-active' : ''}`}
                         onClick={() => setActiveViewTab('table')}
                     >
                         Signups Table ({explorerRows.length})
                     </button>
-                </div>
+                </nav>
 
                 {activeViewTab === 'dashboard' ? (
                     <SignupsDashboard

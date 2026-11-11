@@ -81,10 +81,12 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
       | 24 | expedition  | 30007    | Alex                | Morgan             | gold       | Peebles ESU  | Tweeddale | Hillwalking |
       | 25 | expedition  | 30008    | Jordan              | Lee                | gold       | Peebles ESU  | Tweeddale | Biking      |
     When an authorized unit leader views the "[ems-leader-dashboard]" page
-    Then tab navigation should be displayed with "Explorer Signups" and "Unit Summary" tabs
+    Then tab navigation should be displayed with "Explorer Signups" and "Unit Summary" tabs styled as WordPress tabs
     When the leader switches to the "Unit Summary" tab
-    Then the "Expedition Signups by District and Unit" matrix table should be displayed
-    And the table should show rows for "Kelso ESU" and "Jedburgh ESU" under "Borders" and "Peebles ESU" under "Tweeddale"
+    Then the Unit Summary should show district subtotal headers positioned above their unit rows
+    And the Unit Summary should provide a signup type switcher between "All Signups", "Expedition Preferences", and "Participant Places"
+    When the leader switches to "Expedition Preferences"
+    Then the table should show rows for "Kelso ESU" and "Jedburgh ESU" under "Borders" and "Peebles ESU" under "Tweeddale"
     And "Kelso ESU" should show 1 Bronze Hillwalking, 1 Bronze Paddling, 1 Silver Biking, and 3 Total signups
     And "Jedburgh ESU" should show 1 Silver Hillwalking and 1 Total signup
     And the subtotal for district "Borders" should show 4 total expedition signups
@@ -92,6 +94,8 @@ Feature: Stage 4 - Unit Leader Invitations & Front-End Leader Dashboard
     And the grand total row should show 6 total expedition signups
     When the leader clicks the count cell for "Kelso ESU" Bronze Hillwalking
     Then the view should switch to the "Explorer Signups" tab filtered to unit "Kelso ESU", level "bronze", and expedition type "hillwalking"
+    When the leader switches back to the "Unit Summary" tab and selects "Participant Places"
+    Then the Unit Summary should display participant place counts by level
 
   Scenario: Resetting filters on the Explorer Signups table with Clear Filters button
     Given active signups exist in the Leader Dashboard for "Zack Adams" (Bronze Hillwalking in "Kelso ESU") and "Alex Morgan" (Gold Biking in "Peebles ESU")
