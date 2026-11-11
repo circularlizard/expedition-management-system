@@ -393,19 +393,47 @@ describe('LeaderDashboard Component', () => {
 
         // Wait for data load and check tabs
         const summaryTabBtn = await screen.findByRole('button', { name: /Unit Summary/i });
-        expect(summaryTabBtn).toBeInTheDocument();
         const explorersTabBtn = screen.getByRole('button', { name: /Explorer Signups/i });
-        expect(explorersTabBtn).toBeInTheDocument();
+        expect(summaryTabBtn).toHaveClass('nav-tab');
+        expect(explorersTabBtn).toHaveClass('nav-tab');
+        expect(explorersTabBtn).toHaveClass('nav-tab-active');
+        expect(summaryTabBtn).not.toHaveClass('nav-tab-active');
 
         // Switch to summary tab
         fireEvent.click(summaryTabBtn);
+        expect(summaryTabBtn).toHaveClass('nav-tab-active');
+        expect(explorersTabBtn).not.toHaveClass('nav-tab-active');
 
         // Check matrix table
         const matrixTable = screen.getByTestId('leader-expedition-matrix');
         expect(matrixTable).toBeInTheDocument();
 
-        // Check rows
-        const kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
+        let kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
+        const bordersSubtotal = screen.getByTestId('matrix-subtotal-Borders');
+        expect(bordersSubtotal.classList.contains('ems-table-group-header')).toBe(true);
+        expect(within(bordersSubtotal).getByText('Borders Subtotal')).toHaveClass('ems-table-group-header__title');
+        expect(within(bordersSubtotal).getByText('2 units')).toHaveClass('ems-table-group-header__badge');
+
+        // Subtotal row is positioned ABOVE unit rows
+        expect(bordersSubtotal.compareDocumentPosition(kelsoRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+        // 1. Default mode: All Signups
+        expect(within(kelsoRow).getByTestId('cell-bronze-participant')).toHaveTextContent('1');
+        expect(within(kelsoRow).getByTestId('cell-bronze-expedition')).toHaveTextContent('2');
+        expect(within(kelsoRow).getByTestId('cell-silver-expedition')).toHaveTextContent('1');
+        expect(within(kelsoRow).getByTestId('cell-total')).toHaveTextContent('4');
+
+        // 2. Switcher: Participant Places
+        const participantPill = screen.getByLabelText(/Participant Places/i);
+        fireEvent.click(participantPill);
+        kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
+        expect(within(kelsoRow).getByTestId('cell-bronze')).toHaveTextContent('1');
+        expect(within(kelsoRow).getByTestId('cell-total')).toHaveTextContent('1');
+
+        // 3. Switcher: Expedition Preferences
+        const expedPill = screen.getByLabelText(/Expedition Preferences/i);
+        fireEvent.click(expedPill);
+        kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
         expect(within(kelsoRow).getByTestId('cell-bronze-hillwalking')).toHaveTextContent('1');
         expect(within(kelsoRow).getByTestId('cell-bronze-paddling')).toHaveTextContent('1');
         expect(within(kelsoRow).getByTestId('cell-silver-biking')).toHaveTextContent('1');
@@ -415,10 +443,6 @@ describe('LeaderDashboard Component', () => {
         expect(within(jedburghRow).getByTestId('cell-silver-hillwalking')).toHaveTextContent('1');
         expect(within(jedburghRow).getByTestId('cell-total')).toHaveTextContent('1');
 
-        const bordersSubtotal = screen.getByTestId('matrix-subtotal-Borders');
-        expect(bordersSubtotal.classList.contains('ems-table-group-header')).toBe(true);
-        expect(within(bordersSubtotal).getByText('Borders Subtotal')).toHaveClass('ems-table-group-header__title');
-        expect(within(bordersSubtotal).getByText('2 units')).toHaveClass('ems-table-group-header__badge');
         expect(within(bordersSubtotal).getByTestId('subtotal-total')).toHaveTextContent('4');
 
         const peeblesRow = screen.getByTestId('matrix-row-Peebles ESU');

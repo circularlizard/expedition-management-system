@@ -78,6 +78,27 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     const [hoveredWeekIdx, setHoveredWeekIdx] = useState<number | null>(null);
     const [matrixDistrictFilter, setMatrixDistrictFilter] = useState<string>('all');
     const [matrixSearchQuery, setMatrixSearchQuery] = useState<string>('');
+    const [matrixTypeFilter, setMatrixTypeFilter] = useState<'all' | 'expedition' | 'participant'>('all');
+
+    const renderCountBtn = (
+        count: number,
+        drilldown: TableDrilldownFilters,
+        _testid?: string,
+        isBold = false
+    ) => {
+        if (count <= 0) {
+            return <span className="ems-matrix-muted-zero">0</span>;
+        }
+        return (
+            <button
+                type="button"
+                className={`ems-matrix-btn-cell ${isBold ? 'ems-font-bold' : ''}`}
+                onClick={() => onNavigateToTable(drilldown)}
+            >
+                {count}
+            </button>
+        );
+    };
 
     const allUnits = units && units.length > 0 ? units : (typeof window !== 'undefined' && window.emsSignupsBoard?.units) ? window.emsSignupsBoard.units : [];
     const unitDistrictMap = useMemo(() => getUnitDistrictMap(allUnits), [allUnits]);
@@ -951,19 +972,53 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                 </div>
             </div>
 
-            {/* Row 4: Expedition Signups by District and Unit Matrix Table */}
+            {/* Row 4: Unit Summary Matrix Table */}
             <div className="ems-overview-card" data-testid="expedition-signups-matrix-card">
                 <div className="ems-dashboard-chart-header">
                     <div>
                         <div className="ems-overview-card__title">
-                            <span><FontAwesomeIcon icon={faCompass} /></span> Expedition Signups by District and Unit
+                            <span><FontAwesomeIcon icon={faCompass} /></span> Unit Summary
                         </div>
                         <div className="ems-meta-text">
-                            Breakdown of expedition preference registrations across scouting districts and explorer units split by DofE level and expedition mode.
+                            Breakdown of explorer registrations across scouting districts and explorer units split by DofE level and expedition mode.
                         </div>
                     </div>
 
                     <div className="ems-matrix-toolbar-controls">
+                        <div className="ems-flex-center ems-gap-6">
+                            <span className="ems-toolbar__label">View:</span>
+                            <label className={`ems-filter-pill ${matrixTypeFilter === 'all' ? 'ems-filter-pill--active' : ''}`}>
+                                <input
+                                    type="radio"
+                                    name="adminMatrixTypeFilter"
+                                    value="all"
+                                    checked={matrixTypeFilter === 'all'}
+                                    onChange={() => setMatrixTypeFilter('all')}
+                                />
+                                All Signups
+                            </label>
+                            <label className={`ems-filter-pill ${matrixTypeFilter === 'expedition' ? 'ems-filter-pill--active' : ''}`}>
+                                <input
+                                    type="radio"
+                                    name="adminMatrixTypeFilter"
+                                    value="expedition"
+                                    checked={matrixTypeFilter === 'expedition'}
+                                    onChange={() => setMatrixTypeFilter('expedition')}
+                                />
+                                Expedition Preferences
+                            </label>
+                            <label className={`ems-filter-pill ${matrixTypeFilter === 'participant' ? 'ems-filter-pill--active' : ''}`}>
+                                <input
+                                    type="radio"
+                                    name="adminMatrixTypeFilter"
+                                    value="participant"
+                                    checked={matrixTypeFilter === 'participant'}
+                                    onChange={() => setMatrixTypeFilter('participant')}
+                                />
+                                Participant Places
+                            </label>
+                        </div>
+
                         {availableMatrixDistricts.length > 1 && (
                             <div className="ems-flex-center ems-gap-6">
                                 <label htmlFor="matrix-district-filter" className="ems-toolbar__label">
@@ -1003,10 +1058,14 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                     </div>
                 </div>
 
-                {matrixData.totalExpeditions === 0 ? (
+                {(matrixTypeFilter === 'expedition'
+                    ? matrixData.totalExpeditions === 0
+                    : matrixTypeFilter === 'participant'
+                    ? matrixData.totalParticipant === 0
+                    : matrixData.totalSignups === 0) ? (
                     <div className="ems-empty-state ems-mt-16">
                         <FontAwesomeIcon icon={faCampground} className="ems-empty-state__icon" />
-                        <p className="ems-empty-state__text">No expedition signups found.</p>
+                        <p className="ems-empty-state__text">No signups found.</p>
                     </div>
                 ) : (
                     <div className="ems-matrix-table-wrap">
@@ -1016,289 +1075,80 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             aria-label="Expedition signups by district and unit"
                         >
                             <thead>
-                                <tr>
-                                    <th rowSpan={2} scope="col">District</th>
-                                    <th rowSpan={2} scope="col">Unit</th>
-                                    <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-bronze">
-                                        <FontAwesomeIcon icon={faAward} /> Bronze
-                                    </th>
-                                    <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-silver">
-                                        <FontAwesomeIcon icon={faAward} /> Silver
-                                    </th>
-                                    <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-gold">
-                                        <FontAwesomeIcon icon={faAward} /> Gold
-                                    </th>
-                                    <th rowSpan={2} scope="col" className="ems-matrix-th-level">Total</th>
-                                </tr>
-                                <tr>
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faPersonHiking} /> HW
-                                    </th>
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faBicycle} /> Bike
-                                    </th>
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faWater} /> Paddle
-                                    </th>
-
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faPersonHiking} /> HW
-                                    </th>
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faBicycle} /> Bike
-                                    </th>
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faWater} /> Paddle
-                                    </th>
-
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faPersonHiking} /> HW
-                                    </th>
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faBicycle} /> Bike
-                                    </th>
-                                    <th scope="col" className="ems-matrix-th-sub">
-                                        <FontAwesomeIcon icon={faWater} /> Paddle
-                                    </th>
-                                </tr>
+                                {matrixTypeFilter === 'expedition' ? (
+                                    <>
+                                        <tr>
+                                            <th rowSpan={2} scope="col">District</th>
+                                            <th rowSpan={2} scope="col">Unit</th>
+                                            <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-bronze">
+                                                <FontAwesomeIcon icon={faAward} /> Bronze
+                                            </th>
+                                            <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-silver">
+                                                <FontAwesomeIcon icon={faAward} /> Silver
+                                            </th>
+                                            <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-gold">
+                                                <FontAwesomeIcon icon={faAward} /> Gold
+                                            </th>
+                                            <th rowSpan={2} scope="col" className="ems-matrix-th-level">Total</th>
+                                        </tr>
+                                        <tr>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faPersonHiking} /> HW</th>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faBicycle} /> Bike</th>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faWater} /> Paddle</th>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faPersonHiking} /> HW</th>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faBicycle} /> Bike</th>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faWater} /> Paddle</th>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faPersonHiking} /> HW</th>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faBicycle} /> Bike</th>
+                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faWater} /> Paddle</th>
+                                        </tr>
+                                    </>
+                                ) : matrixTypeFilter === 'participant' ? (
+                                    <tr>
+                                        <th scope="col">District</th>
+                                        <th scope="col">Unit</th>
+                                        <th scope="col" className="ems-matrix-th-level ems-matrix-th-bronze">
+                                            <FontAwesomeIcon icon={faAward} /> Bronze
+                                        </th>
+                                        <th scope="col" className="ems-matrix-th-level ems-matrix-th-silver">
+                                            <FontAwesomeIcon icon={faAward} /> Silver
+                                        </th>
+                                        <th scope="col" className="ems-matrix-th-level ems-matrix-th-gold">
+                                            <FontAwesomeIcon icon={faAward} /> Gold
+                                        </th>
+                                        <th scope="col" className="ems-matrix-th-level">Total</th>
+                                    </tr>
+                                ) : (
+                                    <>
+                                        <tr>
+                                            <th rowSpan={2} scope="col">District</th>
+                                            <th rowSpan={2} scope="col">Unit</th>
+                                            <th colSpan={2} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-bronze">
+                                                <FontAwesomeIcon icon={faAward} /> Bronze
+                                            </th>
+                                            <th colSpan={2} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-silver">
+                                                <FontAwesomeIcon icon={faAward} /> Silver
+                                            </th>
+                                            <th colSpan={2} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-gold">
+                                                <FontAwesomeIcon icon={faAward} /> Gold
+                                            </th>
+                                            <th rowSpan={2} scope="col" className="ems-matrix-th-level">Total</th>
+                                        </tr>
+                                        <tr>
+                                            <th scope="col" className="ems-matrix-th-sub">Places</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Exped</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Places</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Exped</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Places</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Exped</th>
+                                        </tr>
+                                    </>
+                                )}
                             </thead>
                             <tbody>
                                 {filteredMatrixGroups.map((group) => (
                                     <React.Fragment key={group.district}>
-                                        {group.units.map((row) => (
-                                            <tr key={`${group.district}_${row.unit}`} data-testid={`matrix-row-${row.unit}`}>
-                                                <th scope="row" className="ems-matrix-col-district">{group.district}</th>
-                                                <td className="ems-matrix-col-unit">{row.unit}</td>
-
-                                                {/* Bronze */}
-                                                <td className="ems-matrix-cell-number" data-testid="cell-bronze-hillwalking">
-                                                    {row.counts.bronze.hillwalking > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'bronze',
-                                                                    expeditionTypeFilter: 'hillwalking',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.bronze.hillwalking}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-                                                <td className="ems-matrix-cell-number" data-testid="cell-bronze-biking">
-                                                    {row.counts.bronze.biking > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'bronze',
-                                                                    expeditionTypeFilter: 'biking',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.bronze.biking}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-                                                <td className="ems-matrix-cell-number" data-testid="cell-bronze-paddling">
-                                                    {row.counts.bronze.paddling > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'bronze',
-                                                                    expeditionTypeFilter: 'paddling',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.bronze.paddling}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-
-                                                {/* Silver */}
-                                                <td className="ems-matrix-cell-number" data-testid="cell-silver-hillwalking">
-                                                    {row.counts.silver.hillwalking > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'silver',
-                                                                    expeditionTypeFilter: 'hillwalking',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.silver.hillwalking}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-                                                <td className="ems-matrix-cell-number" data-testid="cell-silver-biking">
-                                                    {row.counts.silver.biking > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'silver',
-                                                                    expeditionTypeFilter: 'biking',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.silver.biking}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-                                                <td className="ems-matrix-cell-number" data-testid="cell-silver-paddling">
-                                                    {row.counts.silver.paddling > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'silver',
-                                                                    expeditionTypeFilter: 'paddling',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.silver.paddling}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-
-                                                {/* Gold */}
-                                                <td className="ems-matrix-cell-number" data-testid="cell-gold-hillwalking">
-                                                    {row.counts.gold.hillwalking > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'gold',
-                                                                    expeditionTypeFilter: 'hillwalking',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.gold.hillwalking}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-                                                <td className="ems-matrix-cell-number" data-testid="cell-gold-biking">
-                                                    {row.counts.gold.biking > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'gold',
-                                                                    expeditionTypeFilter: 'biking',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.gold.biking}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-                                                <td className="ems-matrix-cell-number" data-testid="cell-gold-paddling">
-                                                    {row.counts.gold.paddling > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    levelFilter: 'gold',
-                                                                    expeditionTypeFilter: 'paddling',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.counts.gold.paddling}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-
-                                                {/* Unit Total */}
-                                                <td className="ems-matrix-cell-number" data-testid="cell-total">
-                                                    {row.total > 0 ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ems-matrix-btn-cell ems-font-bold"
-                                                            onClick={() =>
-                                                                onNavigateToTable({
-                                                                    typeFilter: 'expedition',
-                                                                    unitFilter: row.unit,
-                                                                    districtFilter: group.district,
-                                                                    anomalyFilter: 'all',
-                                                                })
-                                                            }
-                                                        >
-                                                            {row.total}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="ems-matrix-muted-zero">0</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-
-                                        {/* District Subtotal */}
+                                        {/* District Subtotal (Positioned ABOVE the unit rows) */}
                                         <tr
                                             key={`subtotal_${group.district}`}
                                             className="ems-matrix-row-subtotal ems-table-group-header"
@@ -1312,218 +1162,168 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-hillwalking">
-                                                {group.subtotal.counts.bronze.hillwalking > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'bronze',
-                                                                expeditionTypeFilter: 'hillwalking',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.bronze.hillwalking}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-biking">
-                                                {group.subtotal.counts.bronze.biking > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'bronze',
-                                                                expeditionTypeFilter: 'biking',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.bronze.biking}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-paddling">
-                                                {group.subtotal.counts.bronze.paddling > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'bronze',
-                                                                expeditionTypeFilter: 'paddling',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.bronze.paddling}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
+                                            {matrixTypeFilter === 'expedition' ? (
+                                                <>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-hillwalking">
+                                                        {renderCountBtn(group.subtotal.counts.bronze.hillwalking, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'hillwalking', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-biking">
+                                                        {renderCountBtn(group.subtotal.counts.bronze.biking, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'biking', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-paddling">
+                                                        {renderCountBtn(group.subtotal.counts.bronze.paddling, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'paddling', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
 
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-silver-hillwalking">
-                                                {group.subtotal.counts.silver.hillwalking > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'silver',
-                                                                expeditionTypeFilter: 'hillwalking',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.silver.hillwalking}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-silver-biking">
-                                                {group.subtotal.counts.silver.biking > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'silver',
-                                                                expeditionTypeFilter: 'biking',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.silver.biking}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-silver-paddling">
-                                                {group.subtotal.counts.silver.paddling > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'silver',
-                                                                expeditionTypeFilter: 'paddling',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.silver.paddling}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-silver-hillwalking">
+                                                        {renderCountBtn(group.subtotal.counts.silver.hillwalking, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'hillwalking', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-silver-biking">
+                                                        {renderCountBtn(group.subtotal.counts.silver.biking, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'biking', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-silver-paddling">
+                                                        {renderCountBtn(group.subtotal.counts.silver.paddling, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'paddling', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
 
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-gold-hillwalking">
-                                                {group.subtotal.counts.gold.hillwalking > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'gold',
-                                                                expeditionTypeFilter: 'hillwalking',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.gold.hillwalking}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-gold-biking">
-                                                {group.subtotal.counts.gold.biking > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'gold',
-                                                                expeditionTypeFilter: 'biking',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.gold.biking}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-gold-paddling">
-                                                {group.subtotal.counts.gold.paddling > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                levelFilter: 'gold',
-                                                                expeditionTypeFilter: 'paddling',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.counts.gold.paddling}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-gold-hillwalking">
+                                                        {renderCountBtn(group.subtotal.counts.gold.hillwalking, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'hillwalking', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-gold-biking">
+                                                        {renderCountBtn(group.subtotal.counts.gold.biking, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'biking', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-gold-paddling">
+                                                        {renderCountBtn(group.subtotal.counts.gold.paddling, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'paddling', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
 
-                                            <td className="ems-matrix-cell-number" data-testid="subtotal-total">
-                                                {group.subtotal.total > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ems-matrix-btn-cell ems-font-bold"
-                                                        onClick={() =>
-                                                            onNavigateToTable({
-                                                                typeFilter: 'expedition',
-                                                                districtFilter: group.district,
-                                                                anomalyFilter: 'all',
-                                                            })
-                                                        }
-                                                    >
-                                                        {group.subtotal.total}
-                                                    </button>
-                                                ) : (
-                                                    <span className="ems-matrix-muted-zero">0</span>
-                                                )}
-                                            </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-total">
+                                                        {renderCountBtn(group.subtotal.expeditionTotal, { typeFilter: 'expedition', districtFilter: group.district, anomalyFilter: 'all' }, undefined, true)}
+                                                    </td>
+                                                </>
+                                            ) : matrixTypeFilter === 'participant' ? (
+                                                <>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-bronze">
+                                                        {renderCountBtn(group.subtotal.counts.bronze.participant, { typeFilter: 'participant', levelFilter: 'bronze', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-silver">
+                                                        {renderCountBtn(group.subtotal.counts.silver.participant, { typeFilter: 'participant', levelFilter: 'silver', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-gold">
+                                                        {renderCountBtn(group.subtotal.counts.gold.participant, { typeFilter: 'participant', levelFilter: 'gold', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-total">
+                                                        {renderCountBtn(group.subtotal.participantTotal, { typeFilter: 'participant', districtFilter: group.district, anomalyFilter: 'all' }, undefined, true)}
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-participant">
+                                                        {renderCountBtn(group.subtotal.counts.bronze.participant, { typeFilter: 'participant', levelFilter: 'bronze', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-bronze-expedition">
+                                                        {renderCountBtn(group.subtotal.counts.bronze.expedition, { typeFilter: 'expedition', levelFilter: 'bronze', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-silver-participant">
+                                                        {renderCountBtn(group.subtotal.counts.silver.participant, { typeFilter: 'participant', levelFilter: 'silver', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-silver-expedition">
+                                                        {renderCountBtn(group.subtotal.counts.silver.expedition, { typeFilter: 'expedition', levelFilter: 'silver', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-gold-participant">
+                                                        {renderCountBtn(group.subtotal.counts.gold.participant, { typeFilter: 'participant', levelFilter: 'gold', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-gold-expedition">
+                                                        {renderCountBtn(group.subtotal.counts.gold.expedition, { typeFilter: 'expedition', levelFilter: 'gold', districtFilter: group.district, anomalyFilter: 'all' })}
+                                                    </td>
+                                                    <td className="ems-matrix-cell-number" data-testid="subtotal-total">
+                                                        {renderCountBtn(group.subtotal.total, { typeFilter: 'all', districtFilter: group.district, anomalyFilter: 'all' }, undefined, true)}
+                                                    </td>
+                                                </>
+                                            )}
                                         </tr>
+
+                                        {/* Unit Rows */}
+                                        {group.units.map((row) => (
+                                            <tr key={`${group.district}_${row.unit}`} data-testid={`matrix-row-${row.unit}`}>
+                                                <th scope="row" className="ems-matrix-col-district">{group.district}</th>
+                                                <td className="ems-matrix-col-unit">{row.unit}</td>
+
+                                                {matrixTypeFilter === 'expedition' ? (
+                                                    <>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-bronze-hillwalking">
+                                                            {renderCountBtn(row.counts.bronze.hillwalking, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'hillwalking', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-bronze-biking">
+                                                            {renderCountBtn(row.counts.bronze.biking, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'biking', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-bronze-paddling">
+                                                            {renderCountBtn(row.counts.bronze.paddling, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'paddling', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-silver-hillwalking">
+                                                            {renderCountBtn(row.counts.silver.hillwalking, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'hillwalking', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-silver-biking">
+                                                            {renderCountBtn(row.counts.silver.biking, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'biking', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-silver-paddling">
+                                                            {renderCountBtn(row.counts.silver.paddling, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'paddling', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-gold-hillwalking">
+                                                            {renderCountBtn(row.counts.gold.hillwalking, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'hillwalking', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-gold-biking">
+                                                            {renderCountBtn(row.counts.gold.biking, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'biking', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-gold-paddling">
+                                                            {renderCountBtn(row.counts.gold.paddling, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'paddling', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-total">
+                                                            {renderCountBtn(row.expeditionTotal, { typeFilter: 'expedition', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' }, undefined, true)}
+                                                        </td>
+                                                    </>
+                                                ) : matrixTypeFilter === 'participant' ? (
+                                                    <>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-bronze">
+                                                            {renderCountBtn(row.counts.bronze.participant, { typeFilter: 'participant', levelFilter: 'bronze', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-silver">
+                                                            {renderCountBtn(row.counts.silver.participant, { typeFilter: 'participant', levelFilter: 'silver', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-gold">
+                                                            {renderCountBtn(row.counts.gold.participant, { typeFilter: 'participant', levelFilter: 'gold', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-total">
+                                                            {renderCountBtn(row.participantTotal, { typeFilter: 'participant', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' }, undefined, true)}
+                                                        </td>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-bronze-participant">
+                                                            {renderCountBtn(row.counts.bronze.participant, { typeFilter: 'participant', levelFilter: 'bronze', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-bronze-expedition">
+                                                            {renderCountBtn(row.counts.bronze.expedition, { typeFilter: 'expedition', levelFilter: 'bronze', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-silver-participant">
+                                                            {renderCountBtn(row.counts.silver.participant, { typeFilter: 'participant', levelFilter: 'silver', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-silver-expedition">
+                                                            {renderCountBtn(row.counts.silver.expedition, { typeFilter: 'expedition', levelFilter: 'silver', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-gold-participant">
+                                                            {renderCountBtn(row.counts.gold.participant, { typeFilter: 'participant', levelFilter: 'gold', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-gold-expedition">
+                                                            {renderCountBtn(row.counts.gold.expedition, { typeFilter: 'expedition', levelFilter: 'gold', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
+                                                        </td>
+                                                        <td className="ems-matrix-cell-number" data-testid="cell-total">
+                                                            {renderCountBtn(row.total, { typeFilter: 'all', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' }, undefined, true)}
+                                                        </td>
+                                                    </>
+                                                )}
+                                            </tr>
+                                        ))}
                                     </React.Fragment>
                                 ))}
                             </tbody>
@@ -1532,207 +1332,82 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                     <td colSpan={2} className="ems-matrix-col-subtotal-label">
                                         <strong>Total</strong>
                                     </td>
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-bronze-hillwalking">
-                                        {matrixData.grandTotal.counts.bronze.hillwalking > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'bronze',
-                                                        expeditionTypeFilter: 'hillwalking',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.bronze.hillwalking}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-bronze-biking">
-                                        {matrixData.grandTotal.counts.bronze.biking > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'bronze',
-                                                        expeditionTypeFilter: 'biking',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.bronze.biking}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-bronze-paddling">
-                                        {matrixData.grandTotal.counts.bronze.paddling > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'bronze',
-                                                        expeditionTypeFilter: 'paddling',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.bronze.paddling}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
+                                    {matrixTypeFilter === 'expedition' ? (
+                                        <>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-bronze-hillwalking">
+                                                {renderCountBtn(matrixData.grandTotal.counts.bronze.hillwalking, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'hillwalking', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-bronze-biking">
+                                                {renderCountBtn(matrixData.grandTotal.counts.bronze.biking, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'biking', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-bronze-paddling">
+                                                {renderCountBtn(matrixData.grandTotal.counts.bronze.paddling, { typeFilter: 'expedition', levelFilter: 'bronze', expeditionTypeFilter: 'paddling', anomalyFilter: 'all' })}
+                                            </td>
 
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-silver-hillwalking">
-                                        {matrixData.grandTotal.counts.silver.hillwalking > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'silver',
-                                                        expeditionTypeFilter: 'hillwalking',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.silver.hillwalking}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-silver-biking">
-                                        {matrixData.grandTotal.counts.silver.biking > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'silver',
-                                                        expeditionTypeFilter: 'biking',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.silver.biking}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-silver-paddling">
-                                        {matrixData.grandTotal.counts.silver.paddling > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'silver',
-                                                        expeditionTypeFilter: 'paddling',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.silver.paddling}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-silver-hillwalking">
+                                                {renderCountBtn(matrixData.grandTotal.counts.silver.hillwalking, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'hillwalking', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-silver-biking">
+                                                {renderCountBtn(matrixData.grandTotal.counts.silver.biking, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'biking', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-silver-paddling">
+                                                {renderCountBtn(matrixData.grandTotal.counts.silver.paddling, { typeFilter: 'expedition', levelFilter: 'silver', expeditionTypeFilter: 'paddling', anomalyFilter: 'all' })}
+                                            </td>
 
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-gold-hillwalking">
-                                        {matrixData.grandTotal.counts.gold.hillwalking > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'gold',
-                                                        expeditionTypeFilter: 'hillwalking',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.gold.hillwalking}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-gold-biking">
-                                        {matrixData.grandTotal.counts.gold.biking > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'gold',
-                                                        expeditionTypeFilter: 'biking',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.gold.biking}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-gold-paddling">
-                                        {matrixData.grandTotal.counts.gold.paddling > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        levelFilter: 'gold',
-                                                        expeditionTypeFilter: 'paddling',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.counts.gold.paddling}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-gold-hillwalking">
+                                                {renderCountBtn(matrixData.grandTotal.counts.gold.hillwalking, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'hillwalking', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-gold-biking">
+                                                {renderCountBtn(matrixData.grandTotal.counts.gold.biking, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'biking', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-gold-paddling">
+                                                {renderCountBtn(matrixData.grandTotal.counts.gold.paddling, { typeFilter: 'expedition', levelFilter: 'gold', expeditionTypeFilter: 'paddling', anomalyFilter: 'all' })}
+                                            </td>
 
-                                    <td className="ems-matrix-cell-number" data-testid="grand-total-total">
-                                        {matrixData.grandTotal.total > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="ems-matrix-btn-cell ems-font-bold"
-                                                onClick={() =>
-                                                    onNavigateToTable({
-                                                        typeFilter: 'expedition',
-                                                        anomalyFilter: 'all',
-                                                    })
-                                                }
-                                            >
-                                                {matrixData.grandTotal.total}
-                                            </button>
-                                        ) : (
-                                            <span className="ems-matrix-muted-zero">0</span>
-                                        )}
-                                    </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-total">
+                                                {renderCountBtn(matrixData.grandTotal.expeditionTotal, { typeFilter: 'expedition', anomalyFilter: 'all' }, undefined, true)}
+                                            </td>
+                                        </>
+                                    ) : matrixTypeFilter === 'participant' ? (
+                                        <>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-bronze">
+                                                {renderCountBtn(matrixData.grandTotal.counts.bronze.participant, { typeFilter: 'participant', levelFilter: 'bronze', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-silver">
+                                                {renderCountBtn(matrixData.grandTotal.counts.silver.participant, { typeFilter: 'participant', levelFilter: 'silver', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-gold">
+                                                {renderCountBtn(matrixData.grandTotal.counts.gold.participant, { typeFilter: 'participant', levelFilter: 'gold', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-total">
+                                                {renderCountBtn(matrixData.grandTotal.participantTotal, { typeFilter: 'participant', anomalyFilter: 'all' }, undefined, true)}
+                                            </td>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-bronze-participant">
+                                                {renderCountBtn(matrixData.grandTotal.counts.bronze.participant, { typeFilter: 'participant', levelFilter: 'bronze', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-bronze-expedition">
+                                                {renderCountBtn(matrixData.grandTotal.counts.bronze.expedition, { typeFilter: 'expedition', levelFilter: 'bronze', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-silver-participant">
+                                                {renderCountBtn(matrixData.grandTotal.counts.silver.participant, { typeFilter: 'participant', levelFilter: 'silver', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-silver-expedition">
+                                                {renderCountBtn(matrixData.grandTotal.counts.silver.expedition, { typeFilter: 'expedition', levelFilter: 'silver', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-gold-participant">
+                                                {renderCountBtn(matrixData.grandTotal.counts.gold.participant, { typeFilter: 'participant', levelFilter: 'gold', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-gold-expedition">
+                                                {renderCountBtn(matrixData.grandTotal.counts.gold.expedition, { typeFilter: 'expedition', levelFilter: 'gold', anomalyFilter: 'all' })}
+                                            </td>
+                                            <td className="ems-matrix-cell-number" data-testid="grand-total-total">
+                                                {renderCountBtn(matrixData.grandTotal.total, { typeFilter: 'all', anomalyFilter: 'all' }, undefined, true)}
+                                            </td>
+                                        </>
+                                    )}
                                 </tr>
                             </tfoot>
                         </table>

@@ -89,6 +89,8 @@ export interface ExpedTypeCounts {
     biking: number;
     paddling: number;
     other: number;
+    participant: number;
+    expedition: number;
     total: number;
 }
 
@@ -96,6 +98,8 @@ export interface MatrixRowData {
     unit: string;
     district: string;
     counts: Record<MatrixLevel, ExpedTypeCounts>;
+    participantTotal: number;
+    expeditionTotal: number;
     total: number;
 }
 
@@ -104,6 +108,8 @@ export interface DistrictMatrixGroup {
     units: MatrixRowData[];
     subtotal: {
         counts: Record<MatrixLevel, ExpedTypeCounts>;
+        participantTotal: number;
+        expeditionTotal: number;
         total: number;
     };
 }
@@ -112,9 +118,13 @@ export interface ExpeditionMatrixResult {
     groups: DistrictMatrixGroup[];
     grandTotal: {
         counts: Record<MatrixLevel, ExpedTypeCounts>;
+        participantTotal: number;
+        expeditionTotal: number;
         total: number;
     };
+    totalParticipant: number;
     totalExpeditions: number;
+    totalSignups: number;
     hasOtherExpedType: boolean;
 }
 
@@ -123,6 +133,8 @@ export const createEmptyExpedTypeCounts = (): ExpedTypeCounts => ({
     biking: 0,
     paddling: 0,
     other: 0,
+    participant: 0,
+    expedition: 0,
     total: 0,
 });
 
@@ -136,11 +148,11 @@ export function computeExpeditionDistrictUnitMatrix(
     signups: any[],
     unitDistrictMap: Record<string, string> = {}
 ): ExpeditionMatrixResult {
-    const unitMap: Record<string, { unit: string; district: string; counts: Record<MatrixLevel, ExpedTypeCounts>; total: number }> = {};
+    const unitMap: Record<string, { unit: string; district: string; counts: Record<MatrixLevel, ExpedTypeCounts>; participantTotal: number; expeditionTotal: number; total: number }> = {};
     let hasOtherExpedType = false;
 
     signups.forEach((s) => {
-        if (s.type !== 'expedition') return;
+        if (s.type !== 'expedition' && s.type !== 'participant') return;
 
         const rawUnit = (s.unit_name || '').trim();
         const unit = rawUnit || 'Unassigned';
@@ -153,6 +165,8 @@ export function computeExpeditionDistrictUnitMatrix(
                 unit,
                 district,
                 counts: createEmptyLevelMap(),
+                participantTotal: 0,
+                expeditionTotal: 0,
                 total: 0,
             };
         }
@@ -161,24 +175,34 @@ export function computeExpeditionDistrictUnitMatrix(
         const level: MatrixLevel | null =
             rawLevel === 'bronze' || rawLevel === 'silver' || rawLevel === 'gold' ? rawLevel : null;
 
-        const rawExpedType = normalize(s.expedition_preferences?.exped_type);
-        const expedType: MatrixExpedType | 'other' =
-            rawExpedType === 'hillwalking' || rawExpedType === 'biking' || rawExpedType === 'paddling'
-                ? rawExpedType
-                : 'other';
-
-        if (expedType === 'other') {
-            hasOtherExpedType = true;
-        }
-
         unitMap[key].total++;
 
-        if (level) {
-            unitMap[key].counts[level].total++;
+        if (s.type === 'participant') {
+            unitMap[key].participantTotal++;
+            if (level) {
+                unitMap[key].counts[level].participant++;
+                unitMap[key].counts[level].total++;
+            }
+        } else if (s.type === 'expedition') {
+            unitMap[key].expeditionTotal++;
+            const rawExpedType = normalize(s.expedition_preferences?.exped_type);
+            const expedType: MatrixExpedType | 'other' =
+                rawExpedType === 'hillwalking' || rawExpedType === 'biking' || rawExpedType === 'paddling'
+                    ? rawExpedType
+                    : 'other';
+
             if (expedType === 'other') {
-                unitMap[key].counts[level].other++;
-            } else {
-                unitMap[key].counts[level][expedType]++;
+                hasOtherExpedType = true;
+            }
+
+            if (level) {
+                unitMap[key].counts[level].expedition++;
+                unitMap[key].counts[level].total++;
+                if (expedType === 'other') {
+                    unitMap[key].counts[level].other++;
+                } else {
+                    unitMap[key].counts[level][expedType]++;
+                }
             }
         }
     });
@@ -201,6 +225,8 @@ export function computeExpeditionDistrictUnitMatrix(
 
     const grandTotal = {
         counts: createEmptyLevelMap(),
+        participantTotal: 0,
+        expeditionTotal: 0,
         total: 0,
     };
 
@@ -216,13 +242,19 @@ export function computeExpeditionDistrictUnitMatrix(
 
         const subtotal = {
             counts: createEmptyLevelMap(),
+            participantTotal: 0,
+            expeditionTotal: 0,
             total: 0,
         };
 
         units.forEach((u) => {
             subtotal.total += u.total;
+            subtotal.participantTotal += u.participantTotal;
+            subtotal.expeditionTotal += u.expeditionTotal;
             levels.forEach((lvl) => {
                 subtotal.counts[lvl].total += u.counts[lvl].total;
+                subtotal.counts[lvl].participant += u.counts[lvl].participant;
+                subtotal.counts[lvl].expedition += u.counts[lvl].expedition;
                 subtotal.counts[lvl].other += u.counts[lvl].other;
                 expedTypes.forEach((et) => {
                     subtotal.counts[lvl][et] += u.counts[lvl][et];
@@ -232,8 +264,12 @@ export function computeExpeditionDistrictUnitMatrix(
 
         // Accumulate grand total
         grandTotal.total += subtotal.total;
+        grandTotal.participantTotal += subtotal.participantTotal;
+        grandTotal.expeditionTotal += subtotal.expeditionTotal;
         levels.forEach((lvl) => {
             grandTotal.counts[lvl].total += subtotal.counts[lvl].total;
+            grandTotal.counts[lvl].participant += subtotal.counts[lvl].participant;
+            grandTotal.counts[lvl].expedition += subtotal.counts[lvl].expedition;
             grandTotal.counts[lvl].other += subtotal.counts[lvl].other;
             expedTypes.forEach((et) => {
                 grandTotal.counts[lvl][et] += subtotal.counts[lvl][et];
@@ -250,7 +286,9 @@ export function computeExpeditionDistrictUnitMatrix(
     return {
         groups,
         grandTotal,
-        totalExpeditions: grandTotal.total,
+        totalParticipant: grandTotal.participantTotal,
+        totalExpeditions: grandTotal.expeditionTotal,
+        totalSignups: grandTotal.total,
         hasOtherExpedType,
     };
 }

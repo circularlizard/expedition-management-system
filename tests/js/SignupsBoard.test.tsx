@@ -1389,19 +1389,68 @@ describe('SignupsBoard', () => {
             },
         ];
 
+        const combinedSignups = [
+            ...expedSignups,
+            {
+                id: 101,
+                type: 'participant',
+                scout_id: 30003,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Explorer',
+                explorer_last_name: 'Three',
+                dofe_level: 'bronze',
+                signup_status: 'submitted',
+                created_at: '2026-08-01 10:00:00',
+            },
+        ];
+
         (global.fetch as any)
-            .mockResolvedValueOnce({ ok: true, json: async () => expedSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => combinedSignups })
             .mockResolvedValueOnce({ ok: true, json: async () => [] });
 
         render(<SignupsBoard />);
 
-        expect(await screen.findByText('Expedition Signups by District and Unit')).toBeInTheDocument();
+        const dashboardTab = await screen.findByRole('button', { name: /Dashboard/i });
+        const signupsTableTab = screen.getByRole('button', { name: /Signups Table/i });
+        expect(dashboardTab).toHaveClass('nav-tab');
+        expect(dashboardTab).toHaveClass('nav-tab-active');
+        expect(signupsTableTab).toHaveClass('nav-tab');
+        expect(signupsTableTab).not.toHaveClass('nav-tab-active');
+
+        expect(await screen.findByText('Unit Summary')).toBeInTheDocument();
 
         const matrixTable = screen.getByTestId('expedition-district-unit-matrix');
         expect(matrixTable).toBeInTheDocument();
 
-        const kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
+        let kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
         expect(kelsoRow).toBeInTheDocument();
+
+        const bordersSubtotal = screen.getByTestId('matrix-subtotal-Borders');
+        expect(bordersSubtotal.classList.contains('ems-table-group-header')).toBe(true);
+        expect(within(bordersSubtotal).getByText('Borders Subtotal')).toHaveClass('ems-table-group-header__title');
+        expect(within(bordersSubtotal).getByText('2 units')).toHaveClass('ems-table-group-header__badge');
+
+        // Subtotal row is positioned ABOVE unit rows
+        expect(bordersSubtotal.compareDocumentPosition(kelsoRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+        // 1. Default mode: All Signups
+        expect(within(kelsoRow).getByTestId('cell-bronze-participant')).toHaveTextContent('1');
+        expect(within(kelsoRow).getByTestId('cell-bronze-expedition')).toHaveTextContent('3');
+        expect(within(kelsoRow).getByTestId('cell-silver-expedition')).toHaveTextContent('1');
+        expect(within(kelsoRow).getByTestId('cell-total')).toHaveTextContent('5');
+
+        // 2. Switcher: Participant Places
+        const participantPill = screen.getByLabelText(/Participant Places/i);
+        fireEvent.click(participantPill);
+        kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
+        expect(within(kelsoRow).getByTestId('cell-bronze')).toHaveTextContent('1');
+        expect(within(kelsoRow).getByTestId('cell-total')).toHaveTextContent('1');
+
+        // 3. Switcher: Expedition Preferences
+        const expedPill = screen.getByLabelText(/Expedition Preferences/i);
+        fireEvent.click(expedPill);
+        kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
+
         expect(within(kelsoRow).getByTestId('cell-bronze-hillwalking')).toHaveTextContent('2');
         expect(within(kelsoRow).getByTestId('cell-bronze-paddling')).toHaveTextContent('1');
         expect(within(kelsoRow).getByTestId('cell-silver-biking')).toHaveTextContent('1');
@@ -1416,10 +1465,6 @@ describe('SignupsBoard', () => {
         expect(within(peeblesRow).getByTestId('cell-gold-biking')).toHaveTextContent('1');
         expect(within(peeblesRow).getByTestId('cell-total')).toHaveTextContent('2');
 
-        const bordersSubtotal = screen.getByTestId('matrix-subtotal-Borders');
-        expect(bordersSubtotal.classList.contains('ems-table-group-header')).toBe(true);
-        expect(within(bordersSubtotal).getByText('Borders Subtotal')).toHaveClass('ems-table-group-header__title');
-        expect(within(bordersSubtotal).getByText('2 units')).toHaveClass('ems-table-group-header__badge');
         expect(within(bordersSubtotal).getByTestId('subtotal-total')).toHaveTextContent('6');
 
         const grandTotalRow = screen.getByTestId('matrix-grand-total');
