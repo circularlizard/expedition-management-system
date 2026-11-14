@@ -160,18 +160,11 @@ package_plugin() {
 }
 
 case "${TARGET}" in
-  ems)
+  ems|rce|route-engine|all)
     package_plugin "ems-plugin" "ems-plugin" "ems-plugin.php"
-    ;;
-  rce|route-engine)
-    package_plugin "ems-route-card-engine" "ems-route-card-engine" "ems-route-card-engine.php"
-    ;;
-  all)
-    package_plugin "ems-plugin" "ems-plugin" "ems-plugin.php"
-    package_plugin "ems-route-card-engine" "ems-route-card-engine" "ems-route-card-engine.php"
     ;;
   *)
-    echo "Usage: bash bin/package.sh [ems|rce|all] [--no-bump|--bump=patch|minor|major]"
+    echo "Usage: bash bin/package.sh [ems|all] [--no-bump|--bump=patch|minor|major]"
     exit 1
     ;;
 esac
