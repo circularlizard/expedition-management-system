@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
-import { RouteElevationProfile } from '../../resources/js/components/RouteElevationProfile';
-import { RouteLeg, RouteVertex } from '../../resources/js/types/route-card';
+import { RouteElevationProfile } from '../../../resources/js/route-card/components/RouteElevationProfile';
+import { RouteLeg, RouteVertex } from '../../../resources/js/route-card/types/route-card';
 
 const mockVertices: RouteVertex[] = [
     {

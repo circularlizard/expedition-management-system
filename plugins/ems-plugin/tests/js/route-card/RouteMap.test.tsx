@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RouteMap } from '../../resources/js/components/RouteMap';
-import { RouteVertex, RouteLeg } from '../../resources/js/types/route-card';
+import { RouteMap } from '../../../resources/js/route-card/components/RouteMap';
+import { RouteVertex, RouteLeg } from '../../../resources/js/route-card/types/route-card';
 
 // Mock Leaflet methods that require canvas/DOM sizing in JSDOM
 vi.mock('leaflet', async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RouteLegCard } from '../../resources/js/components/RouteLegCard';
-import { RouteLeg } from '../../resources/js/types/route-card';
+import { RouteLegCard } from '../../../resources/js/route-card/components/RouteLegCard';
+import { RouteLeg } from '../../../resources/js/route-card/types/route-card';
 
 const mockLeg1: RouteLeg = {
     leg_number: 1,

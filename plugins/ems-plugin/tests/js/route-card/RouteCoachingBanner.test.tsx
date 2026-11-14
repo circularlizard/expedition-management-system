@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RouteCoachingBanner } from '../../resources/js/components/RouteCoachingBanner';
-import { RouteLeg } from '../../resources/js/types/route-card';
+import { RouteCoachingBanner } from '../../../resources/js/route-card/components/RouteCoachingBanner';
+import { RouteLeg } from '../../../resources/js/route-card/types/route-card';
 
 const createLeg = (legNumber: number, overrides: Partial<RouteLeg> = {}): RouteLeg => ({
     leg_number: legNumber,

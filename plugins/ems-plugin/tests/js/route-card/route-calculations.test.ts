@@ -10,8 +10,8 @@ import {
     findNearestTrackPointIndex,
     moveCheckpointToVertex,
     reconcileReimport,
-} from '../../resources/js/utils/route-calculations';
-import { RouteVertex, RouteLeg, EnrichedRouteData } from '../../resources/js/types/route-card';
+} from '../../../resources/js/route-card/utils/route-calculations';
+import { RouteVertex, RouteLeg, EnrichedRouteData } from '../../../resources/js/route-card/types/route-card';
 
 describe('route-calculations utilities', () => {
     it('calculates grid and magnetic bearings accurately', () => {
