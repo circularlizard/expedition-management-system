@@ -16,5 +16,11 @@ class Legacy_Aliases {
 		if ( ! class_exists( 'EMS\\Admin\\Volunteer_Controller', false ) && class_exists( \EMS\Modules\Volunteers\Volunteer_Controller::class ) ) {
 			class_alias( \EMS\Modules\Volunteers\Volunteer_Controller::class, 'EMS\\Admin\\Volunteer_Controller' );
 		}
+		if ( ! class_exists( 'EMS\\Admin\\Unit_Leader_Controller', false ) && class_exists( \EMS\Modules\LeaderDashboard\Unit_Leader_Controller::class ) ) {
+			class_alias( \EMS\Modules\LeaderDashboard\Unit_Leader_Controller::class, 'EMS\\Admin\\Unit_Leader_Controller' );
+		}
+		if ( ! class_exists( 'EMS\\Admin\\Unit_Leader_Page', false ) && class_exists( \EMS\Modules\LeaderDashboard\Unit_Leader_Page::class ) ) {
+			class_alias( \EMS\Modules\LeaderDashboard\Unit_Leader_Page::class, 'EMS\\Admin\\Unit_Leader_Page' );
+		}
 	}
 }
