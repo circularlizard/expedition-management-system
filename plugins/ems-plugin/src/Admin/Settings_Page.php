@@ -23,6 +23,10 @@ class Settings_Page {
 			array( $this, 'render' )
 		);
 
+		if ( $settings_hook ) {
+			add_action( "load-{$settings_hook}", array( $this, 'add_help_screen_tabs' ) );
+		}
+
 		add_action(
 			'admin_enqueue_scripts',
 			function ( $hook ) use ( $settings_hook ) {
@@ -34,6 +38,31 @@ class Settings_Page {
 					wp_enqueue_style( 'ems-admin', $css_url, array( 'wp-components' ), $css_version );
 				}
 			}
+		);
+	}
+
+	public function add_help_screen_tabs( ?object $screen = null ): void {
+		if ( ! $screen && function_exists( 'get_current_screen' ) ) {
+			$screen = get_current_screen();
+		}
+		if ( ! $screen || ! is_callable( array( $screen, 'add_help_tab' ) ) ) {
+			return;
+		}
+
+		$screen->add_help_tab(
+			array(
+				'id'      => 'ems-help-overview',
+				'title'   => __( 'EMS Overview', 'ems-plugin' ),
+				'content' => '<p>' . esc_html__( 'The Expedition Management System (EMS) coordinates DofE expeditions, participant portals, volunteer signups, and route planning.', 'ems-plugin' ) . '</p>',
+			)
+		);
+
+		$screen->add_help_tab(
+			array(
+				'id'      => 'ems-help-shortcodes',
+				'title'   => __( 'Shortcodes', 'ems-plugin' ),
+				'content' => '<p>' . esc_html__( 'EMS provides 5 frontend shortcodes: [ems-portal], [ems-leader-dashboard], [ems-volunteer-signup], [ems_signup_banner], and [ems_route_card_studio]. View the "Help & Shortcodes" tab for full parameter tables and examples.', 'ems-plugin' ) . '</p>',
+			)
 		);
 	}
 
@@ -168,6 +197,10 @@ class Settings_Page {
 					class="nav-tab<?php echo $active_tab === 'access_control' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Access Control', 'ems-plugin' ); ?>
 				</a>
+				<a href="<?php echo esc_url( $page_url . '&tab=help' ); ?>"
+					class="nav-tab<?php echo $active_tab === 'help' ? ' nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Help & Shortcodes', 'ems-plugin' ); ?>
+				</a>
 			</nav>
 			<?php
 			if ( $active_tab === 'connection' ) {
@@ -180,6 +213,8 @@ class Settings_Page {
 				$this->render_audit_logs_tab();
 			} elseif ( $active_tab === 'access_control' ) {
 				$this->render_access_control_tab();
+			} elseif ( $active_tab === 'help' ) {
+				$this->render_help_tab();
 			} else {
 				$this->render_general_tab();
 			}
@@ -1121,6 +1156,261 @@ class Settings_Page {
 			});
 		});
 		</script>
+		<?php
+	}
+
+	/**
+	 * Renders the Help & Shortcodes documentation tab.
+	 */
+	private function render_help_tab(): void {
+		?>
+		<div style="max-width: 1000px; margin-top: 20px;">
+			<div class="card" style="max-width: 100%; padding: 18px 24px; margin-bottom: 24px; border-left: 4px solid #5c2d8b;">
+				<h2 style="margin-top: 0; font-size: 1.4em; color: #1d2327;">
+					<?php esc_html_e( 'EMS Shortcode & Integration Reference', 'ems-plugin' ); ?>
+				</h2>
+				<p style="font-size: 14px; line-height: 1.6; color: #50575e;">
+					<?php esc_html_e( 'The Expedition Management System provides five frontend shortcodes that allow you to embed interactive portals, leader dashboards, volunteer forms, fast-track registration banners, and route card tools into any WordPress page, Elementor layout, or block template.', 'ems-plugin' ); ?>
+				</p>
+				<p style="margin-bottom: 0;">
+					<strong><?php esc_html_e( 'Quick Jump:', 'ems-plugin' ); ?></strong>
+					<a href="#sc-portal" style="margin-left: 8px;"><code>[ems-portal]</code></a> &bull;
+					<a href="#sc-leader" style="margin-left: 8px;"><code>[ems-leader-dashboard]</code></a> &bull;
+					<a href="#sc-volunteer" style="margin-left: 8px;"><code>[ems-volunteer-signup]</code></a> &bull;
+					<a href="#sc-banner" style="margin-left: 8px;"><code>[ems_signup_banner]</code></a> &bull;
+					<a href="#sc-route" style="margin-left: 8px;"><code>[ems_route_card_studio]</code></a>
+				</p>
+			</div>
+
+			<!-- 1. [ems-portal] -->
+			<div id="sc-portal" class="card" style="max-width: 100%; padding: 20px 24px; margin-bottom: 24px;">
+				<h3 style="margin-top: 0; font-size: 1.25em;">
+					<code style="font-size: 1.1em; background: #f0f0f1; padding: 3px 8px; border-radius: 4px; color: #5c2d8b;">[ems-portal]</code>
+					<span style="font-weight: normal; margin-left: 8px; color: #646970;">— <?php esc_html_e( 'Explorer / Participant Expedition Portal', 'ems-plugin' ); ?></span>
+				</h3>
+				<p style="font-size: 14px; line-height: 1.5;">
+					<?php esc_html_e( 'Mounts the primary single-page application for participants and parents. Allows young people to view expedition dates, team allocations, kit checklists, consent requirements, route details, and supervisor notes.', 'ems-plugin' ); ?>
+				</p>
+				<table class="wp-list-table widefat striped fixed" style="margin: 15px 0;">
+					<thead>
+						<tr>
+							<th style="width: 25%;"><?php esc_html_e( 'Parameter', 'ems-plugin' ); ?></th>
+							<th style="width: 15%;"><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
+							<th style="width: 15%;"><?php esc_html_e( 'Default', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Description', 'ems-plugin' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td colspan="4" style="color: #646970; font-style: italic;">
+								<?php esc_html_e( 'This shortcode accepts no parameters. It automatically detects the logged-in WordPress user and scopes data to their linked Scout/Explorer record.', 'ems-plugin' ); ?>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<h4 style="margin: 15px 0 6px;"><?php esc_html_e( 'Access & Authentication:', 'ems-plugin' ); ?></h4>
+				<ul style="list-style-type: disc; margin-left: 20px; color: #50575e; font-size: 13px;">
+					<li><?php esc_html_e( 'Public / Logged-Out: Displays a clean login prompt that redirects back to the portal page upon successful login.', 'ems-plugin' ); ?></li>
+					<li><?php esc_html_e( 'Feature Flag: Controlled by the "portal" flag. Returns a friendly maintenance card when disabled.', 'ems-plugin' ); ?></li>
+				</ul>
+				<h4 style="margin: 15px 0 6px;"><?php esc_html_e( 'Example Usage:', 'ems-plugin' ); ?></h4>
+				<pre style="background: #f6f7f7; padding: 10px 14px; border: 1px solid #dcdcde; border-radius: 4px; overflow-x: auto;"><code>[ems-portal]</code></pre>
+			</div>
+
+			<!-- 2. [ems-leader-dashboard] -->
+			<div id="sc-leader" class="card" style="max-width: 100%; padding: 20px 24px; margin-bottom: 24px;">
+				<h3 style="margin-top: 0; font-size: 1.25em;">
+					<code style="font-size: 1.1em; background: #f0f0f1; padding: 3px 8px; border-radius: 4px; color: #5c2d8b;">[ems-leader-dashboard]</code>
+					<span style="font-weight: normal; margin-left: 8px; color: #646970;">— <?php esc_html_e( 'Unit Leader Expedition & Validation Dashboard', 'ems-plugin' ); ?></span>
+				</h3>
+				<p style="font-size: 14px; line-height: 1.5;">
+					<?php esc_html_e( 'Mounts the Unit Leader expedition dashboard. Leaders can manage explorer cohorts, review and approve Additional Support Needs (ASN), monitor course training progress, and verify OSM attendance synchronisation.', 'ems-plugin' ); ?>
+				</p>
+				<table class="wp-list-table widefat striped fixed" style="margin: 15px 0;">
+					<thead>
+						<tr>
+							<th style="width: 25%;"><?php esc_html_e( 'Parameter', 'ems-plugin' ); ?></th>
+							<th style="width: 15%;"><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
+							<th style="width: 15%;"><?php esc_html_e( 'Default', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Description', 'ems-plugin' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td colspan="4" style="color: #646970; font-style: italic;">
+								<?php esc_html_e( 'This shortcode accepts no parameters. Data is filtered according to the logged-in leader\'s unit permissions.', 'ems-plugin' ); ?>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<h4 style="margin: 15px 0 6px;"><?php esc_html_e( 'Access & Authentication:', 'ems-plugin' ); ?></h4>
+				<ul style="list-style-type: disc; margin-left: 20px; color: #50575e; font-size: 13px;">
+					<li><?php esc_html_e( 'Requires the user to be logged in and possess either the "access_ems_leader_portal" capability (granted to "ems_leader" role) or "manage_options" (administrators).', 'ems-plugin' ); ?></li>
+					<li><?php esc_html_e( 'Feature Flag: Controlled by the "leader_dashboard" flag.', 'ems-plugin' ); ?></li>
+				</ul>
+				<h4 style="margin: 15px 0 6px;"><?php esc_html_e( 'Example Usage:', 'ems-plugin' ); ?></h4>
+				<pre style="background: #f6f7f7; padding: 10px 14px; border: 1px solid #dcdcde; border-radius: 4px; overflow-x: auto;"><code>[ems-leader-dashboard]</code></pre>
+			</div>
+
+			<!-- 3. [ems-volunteer-signup] -->
+			<div id="sc-volunteer" class="card" style="max-width: 100%; padding: 20px 24px; margin-bottom: 24px;">
+				<h3 style="margin-top: 0; font-size: 1.25em;">
+					<code style="font-size: 1.1em; background: #f0f0f1; padding: 3px 8px; border-radius: 4px; color: #5c2d8b;">[ems-volunteer-signup]</code>
+					<span style="font-weight: normal; margin-left: 8px; color: #646970;">— <?php esc_html_e( 'Adult Volunteer Availability & Registration Form', 'ems-plugin' ); ?></span>
+				</h3>
+				<p style="font-size: 14px; line-height: 1.5;">
+					<?php esc_html_e( 'Mounts the self-service adult volunteer sign-up board. Volunteers can register for upcoming expedition weekends, specify available roles (Checkpointer, Supervisor, Assessor, Basecamp), and submit dietary or medical requirements.', 'ems-plugin' ); ?>
+				</p>
+				<table class="wp-list-table widefat striped fixed" style="margin: 15px 0;">
+					<thead>
+						<tr>
+							<th style="width: 25%;"><?php esc_html_e( 'Parameter', 'ems-plugin' ); ?></th>
+							<th style="width: 15%;"><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
+							<th style="width: 15%;"><?php esc_html_e( 'Default', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Description', 'ems-plugin' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td colspan="4" style="color: #646970; font-style: italic;">
+								<?php esc_html_e( 'This shortcode accepts no parameters. Works for both authenticated volunteers (pre-filling details) and guest signups.', 'ems-plugin' ); ?>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<h4 style="margin: 15px 0 6px;"><?php esc_html_e( 'Access & Authentication:', 'ems-plugin' ); ?></h4>
+				<ul style="list-style-type: disc; margin-left: 20px; color: #50575e; font-size: 13px;">
+					<li><?php esc_html_e( 'Public: Open to all volunteers. Automatically pre-populates details if the volunteer is logged in with an OSM-linked account.', 'ems-plugin' ); ?></li>
+					<li><?php esc_html_e( 'Feature Flag: Controlled by the "volunteers" flag.', 'ems-plugin' ); ?></li>
+				</ul>
+				<h4 style="margin: 15px 0 6px;"><?php esc_html_e( 'Example Usage:', 'ems-plugin' ); ?></h4>
+				<pre style="background: #f6f7f7; padding: 10px 14px; border: 1px solid #dcdcde; border-radius: 4px; overflow-x: auto;"><code>[ems-volunteer-signup]</code></pre>
+			</div>
+
+			<!-- 4. [ems_signup_banner] -->
+			<div id="sc-banner" class="card" style="max-width: 100%; padding: 20px 24px; margin-bottom: 24px;">
+				<h3 style="margin-top: 0; font-size: 1.25em;">
+					<code style="font-size: 1.1em; background: #f0f0f1; padding: 3px 8px; border-radius: 4px; color: #5c2d8b;">[ems_signup_banner]</code>
+					<span style="font-weight: normal; margin-left: 8px; color: #646970;">— <?php esc_html_e( 'Fluent Forms OSM Fast-Track & OTP Verification Banner', 'ems-plugin' ); ?></span>
+				</h3>
+				<p style="font-size: 14px; line-height: 1.5;">
+					<?php esc_html_e( 'Renders a fast-track callout above a Fluent Forms registration form. Prompts parents to authenticate with Online Scout Manager, auto-populating their explorer\'s profile and providing instant email OTP verification.', 'ems-plugin' ); ?>
+				</p>
+				<table class="wp-list-table widefat striped fixed" style="margin: 15px 0;">
+					<thead>
+						<tr>
+							<th style="width: 22%;"><?php esc_html_e( 'Parameter', 'ems-plugin' ); ?></th>
+							<th style="width: 12%;"><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
+							<th style="width: 20%;"><?php esc_html_e( 'Default', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Description', 'ems-plugin' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><code>form_id</code></td>
+							<td><code>integer</code></td>
+							<td><code>6</code></td>
+							<td><?php esc_html_e( 'The numeric ID of the target Fluent Form on this page.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>type</code></td>
+							<td><code>string</code></td>
+							<td><code>participant</code></td>
+							<td><?php esc_html_e( 'Registration workflow type: "participant" (Place Signup) or "expedition" (Expedition Preferences). Uses the field mappings defined in the Form Mappings tab.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>scout_field</code></td>
+							<td><code>string</code></td>
+							<td><code>signup_child</code></td>
+							<td><?php esc_html_e( 'Fluent Form input field name for the Scout / Child selector dropdown.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>unit_field</code></td>
+							<td><code>string</code></td>
+							<td><code>signup_unit</code></td>
+							<td><?php esc_html_e( 'Fluent Form input field name for the Explorer Unit.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>parent_email_field</code></td>
+							<td><code>string</code></td>
+							<td><code>signup_parent_email</code></td>
+							<td><?php esc_html_e( 'Fluent Form input field name for the Parent Email address.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>parent_otp_field</code></td>
+							<td><code>string</code></td>
+							<td><code>signup_parent_otp_code</code></td>
+							<td><?php esc_html_e( 'Fluent Form input field name for the Parent OTP verification code.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>explorer_otp_field</code></td>
+							<td><code>string</code></td>
+							<td><code>signup_explorer_otp_code</code></td>
+							<td><?php esc_html_e( 'Fluent Form input field name for the Explorer OTP verification code.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>headline</code></td>
+							<td><code>string</code></td>
+							<td><code>Speed up your DofE registration</code></td>
+							<td><?php esc_html_e( 'Custom title displayed at the top of the fast-track banner.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>message</code></td>
+							<td><code>string</code></td>
+							<td><em>Log in with Online Scout Manager to auto-fill...</em></td>
+							<td><?php esc_html_e( 'Custom description message explaining the benefits of logging in.', 'ems-plugin' ); ?></td>
+						</tr>
+					</tbody>
+				</table>
+				<h4 style="margin: 15px 0 6px;"><?php esc_html_e( 'Example Usages:', 'ems-plugin' ); ?></h4>
+				<pre style="background: #f6f7f7; padding: 10px 14px; border: 1px solid #dcdcde; border-radius: 4px; overflow-x: auto; margin-bottom: 8px;"><code>[ems_signup_banner form_id="6" type="participant"]</code></pre>
+				<pre style="background: #f6f7f7; padding: 10px 14px; border: 1px solid #dcdcde; border-radius: 4px; overflow-x: auto;"><code>[ems_signup_banner form_id="8" type="expedition" headline="Confirm Your Expedition Place" message="Log in to view available expedition dates and confirm your squad."]</code></pre>
+			</div>
+
+			<!-- 5. [ems_route_card_studio] -->
+			<div id="sc-route" class="card" style="max-width: 100%; padding: 20px 24px; margin-bottom: 24px;">
+				<h3 style="margin-top: 0; font-size: 1.25em;">
+					<code style="font-size: 1.1em; background: #f0f0f1; padding: 3px 8px; border-radius: 4px; color: #5c2d8b;">[ems_route_card_studio]</code>
+					<span style="font-weight: normal; margin-left: 8px; color: #646970;">— <?php esc_html_e( 'Interactive GPX Route Card & Elevation Studio', 'ems-plugin' ); ?></span>
+				</h3>
+				<p style="font-size: 14px; line-height: 1.5;">
+					<?php esc_html_e( 'Mounts the interactive DofE Route Card Builder studio on any frontend page. Explorers can plot route waypoints, upload GPX files, query OS Terrain 50 elevation data, calculate Naismith timing rules, and export official printable PDF route cards.', 'ems-plugin' ); ?>
+				</p>
+				<table class="wp-list-table widefat striped fixed" style="margin: 15px 0;">
+					<thead>
+						<tr>
+							<th style="width: 22%;"><?php esc_html_e( 'Parameter', 'ems-plugin' ); ?></th>
+							<th style="width: 12%;"><?php esc_html_e( 'Type', 'ems-plugin' ); ?></th>
+							<th style="width: 20%;"><?php esc_html_e( 'Default', 'ems-plugin' ); ?></th>
+							<th><?php esc_html_e( 'Description', 'ems-plugin' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><code>expedition_id</code></td>
+							<td><code>integer</code></td>
+							<td><code>1</code></td>
+							<td><?php esc_html_e( 'Numeric WordPress post ID of the expedition to load context, dates, and supervisors from.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>team_id</code></td>
+							<td><code>integer</code></td>
+							<td><code>1</code></td>
+							<td><?php esc_html_e( 'Assigned team or patrol number within the expedition.', 'ems-plugin' ); ?></td>
+						</tr>
+						<tr>
+							<td><code>day</code></td>
+							<td><code>integer</code></td>
+							<td><code>1</code></td>
+							<td><?php esc_html_e( 'The specific day of the expedition to view and edit (e.g. 1 for Day 1, 2 for Day 2).', 'ems-plugin' ); ?></td>
+						</tr>
+					</tbody>
+				</table>
+				<h4 style="margin: 15px 0 6px;"><?php esc_html_e( 'Example Usages:', 'ems-plugin' ); ?></h4>
+				<pre style="background: #f6f7f7; padding: 10px 14px; border: 1px solid #dcdcde; border-radius: 4px; overflow-x: auto; margin-bottom: 8px;"><code>[ems_route_card_studio]</code></pre>
+				<pre style="background: #f6f7f7; padding: 10px 14px; border: 1px solid #dcdcde; border-radius: 4px; overflow-x: auto;"><code>[ems_route_card_studio expedition_id="42" team_id="3" day="2"]</code></pre>
+			</div>
+		</div>
 		<?php
 	}
 }

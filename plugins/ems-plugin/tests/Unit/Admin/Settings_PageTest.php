@@ -446,4 +446,58 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertStringNotContainsString( 'name="ems_leader_invite_email_subject"', $output );
         $this->assertStringNotContainsString( 'name="ems_leader_invite_email_body"', $output );
     }
+
+    public function test_render_help_tab_displays_all_shortcodes_and_parameters(): void {
+        Functions\when( 'wp_nonce_field' )->justReturn( '' );
+        Functions\when( 'get_option' )->justReturn( [] );
+
+        $_GET['tab'] = 'help';
+        $page = new Settings_Page();
+        try {
+            ob_start();
+            $page->render();
+            $output = (string) ob_get_clean();
+        } finally {
+            unset( $_GET['tab'] );
+        }
+
+        // Verify Help tab is active
+        $this->assertStringContainsString( 'Help & Shortcodes', $output );
+
+        // Verify all 5 shortcodes are detailed
+        $this->assertStringContainsString( '[ems-portal]', $output );
+        $this->assertStringContainsString( '[ems-leader-dashboard]', $output );
+        $this->assertStringContainsString( '[ems-volunteer-signup]', $output );
+        $this->assertStringContainsString( '[ems_signup_banner]', $output );
+        $this->assertStringContainsString( '[ems_route_card_studio]', $output );
+
+        // Verify parameters for ems_signup_banner
+        $this->assertStringContainsString( 'form_id', $output );
+        $this->assertStringContainsString( 'scout_field', $output );
+        $this->assertStringContainsString( 'parent_email_field', $output );
+        $this->assertStringContainsString( 'parent_otp_field', $output );
+        $this->assertStringContainsString( 'explorer_otp_field', $output );
+
+        // Verify parameters for ems_route_card_studio
+        $this->assertStringContainsString( 'expedition_id', $output );
+        $this->assertStringContainsString( 'team_id', $output );
+        $this->assertStringContainsString( 'day', $output );
+    }
+
+    public function test_add_help_screen_tabs_registers_wordpress_help_tabs(): void {
+        $added_tabs = [];
+        $screen_mock = \Mockery::mock( 'stdClass' );
+        $screen_mock->shouldReceive( 'add_help_tab' )
+            ->twice()
+            ->andReturnUsing( function( array $tab ) use ( &$added_tabs ) {
+                $added_tabs[] = $tab;
+            } );
+
+        $page = new Settings_Page();
+        $page->add_help_screen_tabs( $screen_mock );
+
+        $this->assertCount( 2, $added_tabs );
+        $this->assertSame( 'ems-help-overview', $added_tabs[0]['id'] );
+        $this->assertSame( 'ems-help-shortcodes', $added_tabs[1]['id'] );
+    }
 }
