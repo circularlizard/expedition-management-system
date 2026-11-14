@@ -14,7 +14,6 @@ class Admin_Studio_Controller {
     }
 
     public static function register_admin_menu(): void {
-        // Main placement under EMS navigation
         add_submenu_page(
             'ems',
             __( 'Route Studio', 'ems-plugin' ),
@@ -23,19 +22,10 @@ class Admin_Studio_Controller {
             'ems-route-studio',
             [ self::class, 'render_studio_page' ]
         );
-
-        // Management page alias under Tools
-        add_management_page(
-            __( 'DofE Route Card Engine', 'ems-plugin' ),
-            __( 'Route Card Engine', 'ems-plugin' ),
-            'manage_options',
-            'ems-route-card-studio',
-            [ self::class, 'render_studio_page' ]
-        );
     }
 
     public static function enqueue_assets( string $hook ): void {
-        if ( 'tools_page_ems-route-card-studio' !== $hook && 'ems_page_ems-route-studio' !== $hook ) {
+        if ( 'ems_page_ems-route-studio' !== $hook ) {
             return;
         }
 
