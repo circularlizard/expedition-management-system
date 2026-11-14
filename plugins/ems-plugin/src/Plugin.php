@@ -25,6 +25,7 @@ class Plugin {
 		$this->module_registry = new \EMS\Core\Module_Registry();
 		$this->module_registry->register_module( new \EMS\Modules\Signups\SignupsModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Expeditions\ExpeditionsModule() );
+		$this->module_registry->register_module( new \EMS\Modules\Volunteers\VolunteersModule() );
 		$this->init_hooks();
 		$this->module_registry->boot_all();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );
@@ -167,7 +168,7 @@ class Plugin {
 				$unit_leader_controller = new \EMS\Admin\Unit_Leader_Controller();
 				$unit_leader_controller->register_routes();
 
-				$volunteer_controller = new \EMS\Admin\Volunteer_Controller();
+				$volunteer_controller = new \EMS\Modules\Volunteers\Volunteer_Controller();
 				$volunteer_controller->register_routes();
 
 				$portal_controller = new \EMS\Admin\Portal_Controller();
@@ -741,34 +742,36 @@ class Plugin {
 	}
 
 	public function render_volunteer_signup_shortcode(): string {
-		wp_enqueue_style( 'wp-components' );
-		wp_enqueue_style( 'ems-admin' );
-		wp_enqueue_script( 'ems-volunteer-signup' );
+		return \EMS\Core\Shortcode_Boundary::execute( function() {
+			wp_enqueue_style( 'wp-components' );
+			wp_enqueue_style( 'ems-admin' );
+			wp_enqueue_script( 'ems-volunteer-signup' );
 
-		$current_user = wp_get_current_user();
-		$user_data    = array(
-			'logged_in'  => $current_user->exists(),
-			'first_name' => $current_user->exists() ? ( $current_user->user_firstname ?: $current_user->display_name ) : '',
-			'last_name'  => $current_user->exists() ? $current_user->user_lastname : '',
-			'email'      => $current_user->exists() ? $current_user->user_email : '',
-			'is_osm'     => $current_user->exists() && ! empty( get_user_meta( $current_user->ID, 'ems_access_type', true ) ),
-		);
+			$current_user = wp_get_current_user();
+			$user_data    = array(
+				'logged_in'  => $current_user->exists(),
+				'first_name' => $current_user->exists() ? ( $current_user->user_firstname ?: $current_user->display_name ) : '',
+				'last_name'  => $current_user->exists() ? $current_user->user_lastname : '',
+				'email'      => $current_user->exists() ? $current_user->user_email : '',
+				'is_osm'     => $current_user->exists() && ! empty( get_user_meta( $current_user->ID, 'ems_access_type', true ) ),
+			);
 
-		// Determine current page URL for redirecting back after login
-		$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );
+			// Determine current page URL for redirecting back after login
+			$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );
 
-		wp_localize_script(
-			'ems-volunteer-signup',
-			'emsVolunteerSignup',
-			array(
-				'root_url'  => get_rest_url( null, 'ems/v1' ),
-				'nonce'     => wp_create_nonce( 'wp_rest' ),
-				'login_url' => wp_login_url( $current_url ),
-				'user_data' => $user_data,
-			)
-		);
+			wp_localize_script(
+				'ems-volunteer-signup',
+				'emsVolunteerSignup',
+				array(
+					'root_url'  => get_rest_url( null, 'ems/v1' ),
+					'nonce'     => wp_create_nonce( 'wp_rest' ),
+					'login_url' => wp_login_url( $current_url ),
+					'user_data' => $user_data,
+				)
+			);
 
-		return '<div id="ems-volunteer-signup-root"></div>';
+			return '<div id="ems-volunteer-signup-root"></div>';
+		}, array(), null, 'ems-volunteer-signup' );
 	}
 
 	public function render_portal_shortcode(): string {
