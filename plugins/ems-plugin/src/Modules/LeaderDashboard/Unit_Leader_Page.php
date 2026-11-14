@@ -1,5 +1,5 @@
 <?php
-namespace EMS\Admin;
+namespace EMS\Modules\LeaderDashboard;
 
 use EMS\Data\Unit_Repository;
 

@@ -26,6 +26,7 @@ class Plugin {
 		$this->module_registry->register_module( new \EMS\Modules\Signups\SignupsModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Expeditions\ExpeditionsModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Volunteers\VolunteersModule() );
+		$this->module_registry->register_module( new \EMS\Modules\LeaderDashboard\LeaderDashboardModule() );
 		$this->init_hooks();
 		$this->module_registry->boot_all();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );
@@ -99,7 +100,7 @@ class Plugin {
 		add_action( 'admin_menu', array( $admin_page, 'register_explorers_menu' ), 11 );
 		add_action( 'admin_menu', array( $admin_page, 'register_volunteers_menu' ), 11 );
 
-		$unit_leader_page = new \EMS\Admin\Unit_Leader_Page();
+		$unit_leader_page = new \EMS\Modules\LeaderDashboard\Unit_Leader_Page();
 		add_action( 'admin_init', array( $unit_leader_page, 'maybe_handle_export' ) );
 		add_action( 'admin_menu', array( $unit_leader_page, 'register' ), 12 );
 
@@ -165,7 +166,7 @@ class Plugin {
 				);
 				$expedition_controller->register_routes();
 
-				$unit_leader_controller = new \EMS\Admin\Unit_Leader_Controller();
+				$unit_leader_controller = new \EMS\Modules\LeaderDashboard\Unit_Leader_Controller();
 				$unit_leader_controller->register_routes();
 
 				$volunteer_controller = new \EMS\Modules\Volunteers\Volunteer_Controller();
@@ -704,41 +705,43 @@ class Plugin {
 	}
 
 	public function render_leader_dashboard_shortcode(): string {
-		wp_enqueue_style( 'ems-admin' );
-		wp_enqueue_script( 'ems-leader-dashboard' );
+		return \EMS\Core\Shortcode_Boundary::execute( function() {
+			wp_enqueue_style( 'ems-admin' );
+			wp_enqueue_script( 'ems-leader-dashboard' );
 
-		$current_user = wp_get_current_user();
-		$logged_in    = $current_user->exists();
-		$can_access   = $logged_in && ( current_user_can( 'access_ems_leader_portal' ) || current_user_can( 'manage_options' ) );
+			$current_user = wp_get_current_user();
+			$logged_in    = $current_user->exists();
+			$can_access   = $logged_in && ( current_user_can( 'access_ems_leader_portal' ) || current_user_can( 'manage_options' ) );
 
-		$user_data = array(
-			'logged_in'    => $logged_in,
-			'display_name' => $logged_in ? ( $current_user->display_name ?: $current_user->user_email ) : '',
-			'can_access'   => $can_access,
-		);
+			$user_data = array(
+				'logged_in'    => $logged_in,
+				'display_name' => $logged_in ? ( $current_user->display_name ?: $current_user->user_email ) : '',
+				'can_access'   => $can_access,
+			);
 
-		$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );
+			$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );
 
-		global $wpdb;
-		$units = ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'get_results' ) )
-			? ( new \EMS\Data\Unit_Repository( $wpdb ) )->list_active_units()
-			: array();
+			global $wpdb;
+			$units = ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'get_results' ) )
+				? ( new \EMS\Data\Unit_Repository( $wpdb ) )->list_active_units()
+				: array();
 
-		wp_localize_script(
-			'ems-leader-dashboard',
-			'emsLeaderDashboard',
-			array(
-				'root_url'   => get_rest_url( null, 'ems/v1' ),
-				'nonce'      => wp_create_nonce( 'wp_rest' ),
-				'plugin_url' => plugin_dir_url( EMS_PLUGIN_FILE ),
-				'login_url'  => wp_login_url( $current_url ),
-				'logout_url' => wp_logout_url( $current_url ),
-				'user_data'  => $user_data,
-				'units'      => $units,
-			)
-		);
+			wp_localize_script(
+				'ems-leader-dashboard',
+				'emsLeaderDashboard',
+				array(
+					'root_url'   => get_rest_url( null, 'ems/v1' ),
+					'nonce'      => wp_create_nonce( 'wp_rest' ),
+					'plugin_url' => plugin_dir_url( EMS_PLUGIN_FILE ),
+					'login_url'  => wp_login_url( $current_url ),
+					'logout_url' => wp_logout_url( $current_url ),
+					'user_data'  => $user_data,
+					'units'      => $units,
+				)
+			);
 
-		return '<div id="ems-leader-dashboard-root"></div>';
+			return '<div id="ems-leader-dashboard-root"></div>';
+		}, array(), null, 'ems-leader-dashboard' );
 	}
 
 	public function render_volunteer_signup_shortcode(): string {

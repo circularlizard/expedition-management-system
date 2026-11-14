@@ -417,7 +417,7 @@ class Settings_Page {
 	}
 
 	public function save_leader_invite( array $post ): void {
-		( new \EMS\Admin\Unit_Leader_Page() )->save_leader_invite( $post );
+		( new \EMS\Modules\LeaderDashboard\Unit_Leader_Page() )->save_leader_invite( $post );
 	}
 
 	private function render_form_mappings_tab(): void {
