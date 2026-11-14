@@ -1,5 +1,5 @@
 <?php
-namespace EMS\Admin;
+namespace EMS\Modules\Expeditions;
 
 use EMS\Data\Season_Repository;
 use EMS\Data\Expedition_Repository;
