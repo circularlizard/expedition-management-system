@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { RouteCardStudio } from '../../resources/js/standalone/index';
+import { RouteCardStudio } from '../../../resources/js/route-card/standalone/index';
 
 describe('RouteCardStudio', () => {
     beforeEach(() => {

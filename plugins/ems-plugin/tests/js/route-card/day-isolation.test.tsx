@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { RouteCardBuilder } from '../../resources/js/components/RouteCardBuilder';
+import { RouteCardBuilder } from '../../../resources/js/route-card/components/RouteCardBuilder';
 
 // Mock RouteMap in JSDOM since Leaflet SVG renderers require full browser DOM layout
-vi.mock('../../resources/js/components/RouteMap', () => ({
+vi.mock('../../../resources/js/route-card/components/RouteMap', () => ({
     RouteMap: () => <div data-testid="mock-route-map">Mock Map</div>,
 }));
 
