@@ -38,3 +38,20 @@ Feature: Milestone 4 - Explorer & Parent Front-Facing Web Portal
     When they access the explorer details endpoint for scout_id 30003
     Then the response should be successful
     And the response should include the expedition signup with level "gold"
+
+  Scenario: Logged-in Administrator uses selector to preview portal as a participant or parent
+    Given I am logged in as an administrator
+    When I access the [ems-portal] page
+    Then I should see the admin preview selector bar
+    When I select a parent or explorer from the preview selector
+    Then the portal should display that user's profile and expedition details
+
+  Scenario: Regular Parent does not see admin preview controls
+    Given I am logged in as a user with the role "ems_parent"
+    When I access the [ems-portal] page
+    Then I should not see any admin preview controls
+
+  Scenario: Regular Explorer does not see admin preview controls
+    Given I am logged in as a user with the role "ems_explorer"
+    When I access the [ems-portal] page
+    Then I should not see any admin preview controls
