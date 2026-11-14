@@ -32,7 +32,7 @@ class Table_InstallerTest extends EMSTestCase {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( 'wp_', '' );
 
-        $this->assertCount( 12, $sql );
+        $this->assertCount( 13, $sql );
 
         $all_sql = implode( ' ', $sql );
         $this->assertStringContainsString( 'ems_volunteers', $all_sql );
@@ -47,6 +47,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'ems_participant_signups', $all_sql );
         $this->assertStringContainsString( 'ems_expedition_signups', $all_sql );
         $this->assertStringContainsString( 'ems_audit_logs', $all_sql );
+        $this->assertStringContainsString( 'wp_dofe_route_cards', $all_sql );
 
         // Verify ems_units has refactored columns
         $units_sql = null;
@@ -101,6 +102,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertEquals( 'wp_ems_unit_patrols', $names['unit_patrols'] );
         $this->assertEquals( 'wp_ems_participant_signups', $names['participant_signups'] );
         $this->assertEquals( 'wp_ems_expedition_signups', $names['expedition_signups'] );
+        $this->assertEquals( 'wp_dofe_route_cards', $names['dofe_route_cards'] );
     }
 
     public function test_route_submissions_includes_status_and_feedback(): void {

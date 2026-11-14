@@ -26,6 +26,10 @@ class EMSTestCase extends TestCase {
         Functions\when( 'esc_url_raw' )->alias( fn( $text ) => $text );
         Functions\when( 'current_time' )->justReturn( '2026-06-13 20:00:00' );
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'add_shortcode' )->justReturn( true );
+        Functions\when( 'shortcode_atts' )->alias( function( $pairs, $atts ) {
+            return array_merge( $pairs, (array) $atts );
+        } );
         Functions\when( 'wp_get_current_user' )->alias( function() {
             $user = \Mockery::mock( \WP_User::class );
             $user->roles = [ 'ems_parent' ];

@@ -17,7 +17,7 @@ class Plugin {
         self::$initialized = true;
 
         if ( is_admin() ) {
-            \EMSRoute\Admin\Admin_Studio_Controller::init();
+            \EMS\Modules\RouteEngine\Admin\Admin_Studio_Controller::init();
         }
 
         add_action( 'rest_api_init', [ self::class, 'register_rest_routes' ] );
