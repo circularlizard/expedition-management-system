@@ -57,6 +57,95 @@ class Portal_Controller {
 				'permission_callback' => array( $this, 'check_leader_dashboard_permission' ),
 			)
 		);
+
+		register_rest_route(
+			'ems/v1',
+			'/portal/admin/preview-targets',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'get_admin_preview_targets' ),
+				'permission_callback' => array( $this, 'check_admin_permission' ),
+			)
+		);
+	}
+
+	public function check_admin_permission(): bool {
+		return current_user_can( 'manage_options' );
+	}
+
+	public function get_admin_preview_targets( \WP_REST_Request $request ): \WP_REST_Response {
+		$parent_users = get_users( array(
+			'meta_key'   => 'ems_access_type',
+			'meta_value' => 'parent',
+		) );
+
+		$parents = array();
+		foreach ( (array) $parent_users as $u ) {
+			if ( ! ( $u instanceof \WP_User ) ) {
+				continue;
+			}
+			$children    = get_user_meta( $u->ID, 'ems_children', true ) ?: array();
+			$child_names = array();
+			$scout_ids   = array();
+			foreach ( (array) $children as $c ) {
+				$c_name = trim( ( $c['first_name'] ?? '' ) . ' ' . ( $c['last_name'] ?? '' ) );
+				if ( ! empty( $c_name ) ) {
+					$child_names[] = $c_name;
+				}
+				if ( ! empty( $c['scout_id'] ) ) {
+					$scout_ids[] = (int) $c['scout_id'];
+				}
+			}
+			$desc = ! empty( $child_names ) ? 'Children: ' . implode( ', ', $child_names ) : 'No children linked';
+			$parents[] = array(
+				'id'          => (int) $u->ID,
+				'name'        => $u->display_name ?: ( ( $u->first_name ?? '' ) . ' ' . ( $u->last_name ?? '' ) ),
+				'email'       => $u->user_email ?? '',
+				'description' => $desc,
+				'scout_ids'   => $scout_ids,
+			);
+		}
+
+		$member_users = get_users( array(
+			'meta_key'     => 'ems_access_type',
+			'meta_value'   => array( 'member', 'network_member' ),
+			'meta_compare' => 'IN',
+		) );
+
+		$members = array();
+		foreach ( (array) $member_users as $u ) {
+			if ( ! ( $u instanceof \WP_User ) ) {
+				continue;
+			}
+			$scout_ids = get_user_meta( $u->ID, 'ems_scout_ids', true ) ?: array();
+			$members[] = array(
+				'id'        => (int) $u->ID,
+				'name'      => $u->display_name ?: ( ( $u->first_name ?? '' ) . ' ' . ( $u->last_name ?? '' ) ),
+				'email'     => $u->user_email ?? '',
+				'scout_ids' => array_map( 'intval', (array) $scout_ids ),
+			);
+		}
+
+		$explorer_rows = $this->explorer_repo->list_all();
+		$explorers     = array();
+		foreach ( (array) $explorer_rows as $row ) {
+			$explorers[] = array(
+				'scout_id'   => (int) ( $row['scout_id'] ?? 0 ),
+				'first_name' => $row['first_name'] ?? '',
+				'last_name'  => $row['last_name'] ?? '',
+				'patrol'     => $row['patrol'] ?? '',
+				'unit_name'  => $row['unit_name'] ?? '',
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'parents'   => $parents,
+				'members'   => $members,
+				'explorers' => $explorers,
+			),
+			200
+		);
 	}
 
 	public function check_leader_dashboard_permission(): bool {
@@ -119,12 +208,124 @@ class Portal_Controller {
 			return new \WP_REST_Response(
 				array(
 					'logged_in' => false,
+					'is_admin'  => false,
 				),
 				200
 			);
 		}
 
-		$user        = wp_get_current_user();
+		$is_admin = current_user_can( 'manage_options' );
+		$user     = wp_get_current_user();
+
+		// Handle admin preview impersonation
+		if ( $is_admin ) {
+			$preview_user_id  = (int) $request->get_param( 'preview_user_id' );
+			$preview_scout_id = (int) $request->get_param( 'preview_scout_id' );
+
+			if ( $preview_user_id > 0 ) {
+				$target_user = get_user_by( 'id', $preview_user_id );
+				if ( $target_user && $target_user->exists() ) {
+					$access_type = get_user_meta( $target_user->ID, 'ems_access_type', true ) ?: 'member';
+					$children    = get_user_meta( $target_user->ID, 'ems_children', true ) ?: array();
+					$scout_ids   = get_user_meta( $target_user->ID, 'ems_scout_ids', true ) ?: array();
+					$profiles    = array();
+
+					if ( $access_type === 'parent' ) {
+						foreach ( (array) $children as $child ) {
+							$profiles[] = array(
+								'scout_id'   => (int) ( $child['scout_id'] ?? 0 ),
+								'first_name' => $child['first_name'] ?? '',
+								'last_name'  => $child['last_name'] ?? '',
+								'patrol'     => $child['patrol'] ?? '',
+							);
+						}
+					} else {
+						$explorer = $this->explorer_repo->find_by_wp_user_id( $target_user->ID );
+						if ( $explorer ) {
+							$profiles[] = array(
+								'scout_id'   => (int) $explorer['scout_id'],
+								'first_name' => $explorer['first_name'] ?? '',
+								'last_name'  => $explorer['last_name'] ?? '',
+								'patrol'     => $explorer['patrol'] ?? '',
+							);
+						} elseif ( ! empty( $scout_ids ) ) {
+							$profiles[] = array(
+								'scout_id'   => (int) $scout_ids[0],
+								'first_name' => get_user_meta( $target_user->ID, 'first_name', true ) ?: $target_user->first_name,
+								'last_name'  => get_user_meta( $target_user->ID, 'last_name', true ) ?: $target_user->last_name,
+								'patrol'     => get_user_meta( $target_user->ID, 'ems_unit', true ) ?: '',
+							);
+						}
+					}
+
+					return new \WP_REST_Response(
+						array(
+							'logged_in'      => true,
+							'is_admin'       => true,
+							'is_preview'     => true,
+							'access_type'    => $access_type,
+							'display_name'   => $target_user->display_name,
+							'profiles'       => $profiles,
+							'preview_target' => array(
+								'type' => 'user',
+								'id'   => $target_user->ID,
+								'name' => $target_user->display_name,
+							),
+						),
+						200
+					);
+				}
+			} elseif ( $preview_scout_id > 0 ) {
+				$explorer = $this->explorer_repo->find_by_scout_id( $preview_scout_id );
+				$profiles = array();
+				$name     = 'Explorer #' . $preview_scout_id;
+				if ( $explorer ) {
+					$name       = trim( ( $explorer['first_name'] ?? '' ) . ' ' . ( $explorer['last_name'] ?? '' ) );
+					$profiles[] = array(
+						'scout_id'   => (int) $explorer['scout_id'],
+						'first_name' => $explorer['first_name'] ?? '',
+						'last_name'  => $explorer['last_name'] ?? '',
+						'patrol'     => $explorer['patrol'] ?? '',
+					);
+				} else {
+					global $wpdb;
+					$signup = $wpdb->get_row(
+						$wpdb->prepare(
+							"SELECT explorer_first_name, explorer_last_name FROM {$wpdb->prefix}ems_participant_signups WHERE scout_id = %d ORDER BY id DESC LIMIT 1",
+							$preview_scout_id
+						),
+						ARRAY_A
+					);
+					if ( $signup ) {
+						$name       = trim( ( $signup['explorer_first_name'] ?? '' ) . ' ' . ( $signup['explorer_last_name'] ?? '' ) );
+						$profiles[] = array(
+							'scout_id'   => $preview_scout_id,
+							'first_name' => $signup['explorer_first_name'] ?? '',
+							'last_name'  => $signup['explorer_last_name'] ?? '',
+							'patrol'     => '',
+						);
+					}
+				}
+
+				return new \WP_REST_Response(
+					array(
+						'logged_in'      => true,
+						'is_admin'       => true,
+						'is_preview'     => true,
+						'access_type'    => 'member',
+						'display_name'   => $name,
+						'profiles'       => $profiles,
+						'preview_target' => array(
+							'type'     => 'explorer',
+							'scout_id' => $preview_scout_id,
+							'name'     => $name,
+						),
+					),
+					200
+				);
+			}
+		}
+
 		$access_type = get_user_meta( $user->ID, 'ems_access_type', true ) ?: 'local';
 		$scout_ids   = get_user_meta( $user->ID, 'ems_scout_ids', true ) ?: array();
 		$children    = get_user_meta( $user->ID, 'ems_children', true ) ?: array();
@@ -132,7 +333,7 @@ class Portal_Controller {
 		$profiles = array();
 
 		if ( $access_type === 'parent' ) {
-			foreach ( $children as $child ) {
+			foreach ( (array) $children as $child ) {
 				$profiles[] = array(
 					'scout_id'   => (int) ( $child['scout_id'] ?? 0 ),
 					'first_name' => $child['first_name'] ?? '',
@@ -162,6 +363,8 @@ class Portal_Controller {
 		return new \WP_REST_Response(
 			array(
 				'logged_in'    => true,
+				'is_admin'     => $is_admin,
+				'is_preview'   => false,
 				'access_type'  => $access_type,
 				'display_name' => $user->display_name,
 				'profiles'     => $profiles,
@@ -173,10 +376,15 @@ class Portal_Controller {
 	public function get_explorer_detail( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$scout_id = (int) $request->get_param( 'scout_id' );
 		$user_id  = get_current_user_id();
+		$is_admin = current_user_can( 'manage_options' );
 
 		// Access boundary check
 		$authorized  = false;
 		$access_type = get_user_meta( $user_id, 'ems_access_type', true );
+
+		if ( $is_admin && $request->get_param( 'preview_access_type' ) ) {
+			$access_type = sanitize_key( (string) $request->get_param( 'preview_access_type' ) );
+		}
 
 		if ( $access_type === 'parent' ) {
 			$parent_scout_ids = get_user_meta( $user_id, 'ems_scout_ids', true ) ?: array();

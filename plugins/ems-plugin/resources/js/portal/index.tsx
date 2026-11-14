@@ -5,6 +5,7 @@ import { faFolder } from '@fortawesome/free-solid-svg-icons';
 import { createRoot } from 'react-dom/client';
 import { OSMReadOnlyMap } from '../admin/expedition-board/OSMReadOnlyMap';
 import { ModuleErrorBoundary } from '../shared/ModuleErrorBoundary';
+import { AdminPreviewBar, PreviewTarget } from './AdminPreviewBar';
 
 interface Teammate {
     first_name: string;
@@ -211,7 +212,19 @@ export function PortalApp() {
         access_type?: string;
         display_name?: string;
         profiles?: Profile[];
+        is_admin?: boolean;
+        is_preview?: boolean;
+        preview_target?: PreviewTarget;
     } | null>(null);
+
+    const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(() => {
+        try {
+            const saved = sessionStorage.getItem('ems_portal_preview_target');
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    });
 
     const [activeScoutId, setActiveScoutId] = useState<number | null>(null);
     const [explorerDetail, setExplorerDetail] = useState<ExplorerDetail | null>(null);
@@ -224,14 +237,27 @@ export function PortalApp() {
     const [selectedSignupId, setSelectedSignupId] = useState<number | null>(null);
 
     const activeScout = activeScoutId || (me?.profiles && me.profiles.length > 0 ? me.profiles[0].scout_id : null);
+    const isAdmin = Boolean(config.user_data?.is_admin || me?.is_admin);
 
-    useEffect(() => {
+    const fetchSession = (target: PreviewTarget | null) => {
         if (!config.user_data?.logged_in) {
             setLoading(false);
             return;
         }
         setLoading(true);
-        fetch(`${config.root_url}/portal/me`, {
+        setError(null);
+
+        let url = `${config.root_url}/portal/me`;
+        const isAdminUser = Boolean(config.user_data?.is_admin);
+        if (isAdminUser && target) {
+            if (target.type === 'user' && target.id) {
+                url += `?preview_user_id=${target.id}`;
+            } else if (target.type === 'explorer' && target.scout_id) {
+                url += `?preview_scout_id=${target.scout_id}`;
+            }
+        }
+
+        fetch(url, {
             headers: { 'X-WP-Nonce': config.nonce }
         })
             .then(res => res.ok ? res.json() : Promise.reject())
@@ -239,6 +265,9 @@ export function PortalApp() {
                 setMe(data);
                 if (data.profiles && data.profiles.length > 0) {
                     setActiveScoutId(data.profiles[0].scout_id);
+                } else {
+                    setActiveScoutId(null);
+                    setExplorerDetail(null);
                 }
                 setLoading(false);
             })
@@ -246,7 +275,25 @@ export function PortalApp() {
                 setError('Failed to load session details.');
                 setLoading(false);
             });
+    };
+
+    useEffect(() => {
+        fetchSession(previewTarget);
     }, []);
+
+    const handleSelectPreviewTarget = (target: PreviewTarget | null) => {
+        setPreviewTarget(target);
+        try {
+            if (target) {
+                sessionStorage.setItem('ems_portal_preview_target', JSON.stringify(target));
+            } else {
+                sessionStorage.removeItem('ems_portal_preview_target');
+            }
+        } catch {
+            // Ignore storage errors
+        }
+        fetchSession(target);
+    };
 
     useEffect(() => {
         if (!activeScout) {
@@ -258,7 +305,12 @@ export function PortalApp() {
         setError(null);
         setActiveEventId(null);
 
-        fetch(`${config.root_url}/portal/explorer/${activeScout}`, {
+        let explorerUrl = `${config.root_url}/portal/explorer/${activeScout}`;
+        if (isAdmin && (previewTarget?.accessType === 'parent' || me?.access_type === 'parent')) {
+            explorerUrl += `?preview_access_type=parent`;
+        }
+
+        fetch(explorerUrl, {
             headers: { 'X-WP-Nonce': config.nonce }
         })
             .then(res => {
@@ -278,7 +330,7 @@ export function PortalApp() {
                 setError(typeof err === 'string' ? err : 'An error occurred while loading.');
                 setLoading(false);
             });
-    }, [activeScout]);
+    }, [activeScout, previewTarget]);
 
     // Handle initial selection for tab event view
     useEffect(() => {
@@ -309,6 +361,26 @@ export function PortalApp() {
     }
 
     if (me && me.access_type !== 'parent' && me.access_type !== 'member' && !me.profiles?.length) {
+        if (isAdmin) {
+            return (
+                <div className="ems-portal-container" style={{ maxWidth: '1000px', margin: '0 auto', fontFamily: 'inherit' }}>
+                    <AdminPreviewBar
+                        isAdmin={isAdmin}
+                        activeTarget={previewTarget}
+                        onSelectTarget={handleSelectPreviewTarget}
+                        rootUrl={config.root_url}
+                        nonce={config.nonce}
+                    />
+                    <div className="portal-login-prompt ems-portal-welcome-card" style={{ textAlign: 'center', padding: '30px', marginTop: '20px' }}>
+                        <h2>Administrator Portal Preview</h2>
+                        <p style={{ maxWidth: '600px', margin: '0 auto 20px', color: '#555' }}>
+                            You are logged in with administrator privileges. Use the selector above to preview the portal experience as any parent or explorer without needing to switch user accounts.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="ems-portal-container" style={{ padding: '20px', background: '#fff9e6', borderLeft: '4px solid #ffcc00' }}>
                 <h3>Administrator / Leader View</h3>
@@ -337,6 +409,13 @@ export function PortalApp() {
 
     return (
         <div className="ems-portal-container" style={{ maxWidth: '1000px', margin: '0 auto', fontFamily: 'inherit' }}>
+            <AdminPreviewBar
+                isAdmin={isAdmin}
+                activeTarget={previewTarget}
+                onSelectTarget={handleSelectPreviewTarget}
+                rootUrl={config.root_url}
+                nonce={config.nonce}
+            />
             <div className="portal-header" style={{ marginBottom: '30px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
                 {me?.access_type === 'parent' && me.profiles && me.profiles.length > 1 && (
                     <div className="child-selector" style={{ marginTop: '15px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

@@ -4508,6 +4508,78 @@ tr.ems-table-group-header:hover td,
     flex-wrap: wrap;
 }
 
+/* ==========================================================================
+   Participant Portal Admin Preview Bar
+   ========================================================================== */
+
+.ems-portal-admin-bar {
+    background: #f0f6fc;
+    border: 1px solid #c8d8e8;
+    border-left: 4px solid #2271b1;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.ems-portal-admin-bar__title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1e3a5f;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ems-portal-admin-bar__badge {
+    background: #2271b1;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.ems-portal-admin-bar__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ems-portal-admin-bar__search {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #8c8f94;
+    background: #fff;
+    font-size: 13px;
+    width: 200px;
+}
+
+.ems-portal-admin-bar__select {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid #8c8f94;
+    background: #fff;
+    font-size: 13px;
+    min-width: 280px;
+    max-width: 420px;
+}
+
+.ems-portal-admin-bar__btn-reset {
+    padding: 4px 12px !important;
+    font-size: 12px !important;
+    border-radius: 3px !important;
+    cursor: pointer;
+}
+
+
 
 
 

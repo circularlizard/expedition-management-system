@@ -797,6 +797,7 @@ class Plugin {
 				'last_name'   => $current_user->exists() ? $current_user->user_lastname : '',
 				'email'       => $current_user->exists() ? $current_user->user_email : '',
 				'access_type' => $current_user->exists() ? get_user_meta( $current_user->ID, 'ems_access_type', true ) : '',
+				'is_admin'    => current_user_can( 'manage_options' ),
 			);
 
 			$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );

@@ -15,6 +15,7 @@ class Portal_ControllerTest extends EMSTestCase {
         parent::setUp();
         $this->explorer_repo = \Mockery::mock( OSM_Explorer_Repository::class );
         $this->tutor_client  = \Mockery::mock( TutorLMS_Client::class );
+        Functions\when( 'current_user_can' )->justReturn( false );
     }
 
     public function test_get_me_unauthenticated_returns_logged_in_false(): void {
@@ -464,5 +465,218 @@ class Portal_ControllerTest extends EMSTestCase {
         $this->assertArrayNotHasKey( 'additional_support_needs', $data[1] );
         $this->assertArrayNotHasKey( 'explorer_email', $data[1] );
         $this->assertArrayNotHasKey( 'parent_email', $data[1] );
+    }
+
+    public function test_check_admin_permission(): void {
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client );
+
+        Functions\when( 'current_user_can' )->alias( fn( $cap ) => $cap === 'manage_options' );
+        $this->assertTrue( $controller->check_admin_permission() );
+
+        Functions\when( 'current_user_can' )->justReturn( false );
+        $this->assertFalse( $controller->check_admin_permission() );
+    }
+
+    public function test_get_admin_preview_targets(): void {
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $parent_user = \Mockery::mock( 'WP_User' );
+        $parent_user->ID = 50;
+        $parent_user->display_name = 'Sarah Parent';
+        $parent_user->user_email = 'sarah@example.com';
+
+        $member_user = \Mockery::mock( 'WP_User' );
+        $member_user->ID = 51;
+        $member_user->display_name = 'David Member';
+        $member_user->user_email = 'david@example.com';
+
+        Functions\when( 'get_users' )->alias( function( $args ) use ( $parent_user, $member_user ) {
+            if ( isset( $args['meta_value'] ) && $args['meta_value'] === 'parent' ) {
+                return [ $parent_user ];
+            }
+            if ( isset( $args['meta_value'] ) && ( $args['meta_value'] === 'member' || ( is_array( $args['meta_value'] ) && in_array( 'member', $args['meta_value'], true ) ) ) ) {
+                return [ $member_user ];
+            }
+            return [];
+        } );
+
+        Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single ) {
+            if ( $user_id === 50 && $key === 'ems_children' ) {
+                return [
+                    [ 'scout_id' => 30001, 'first_name' => 'David', 'last_name' => 'Strachan' ],
+                    [ 'scout_id' => 30002, 'first_name' => 'James', 'last_name' => 'Strachan' ],
+                ];
+            }
+            if ( $user_id === 51 && $key === 'ems_scout_ids' ) {
+                return [ 30001 ];
+            }
+            return '';
+        } );
+
+        $this->explorer_repo->shouldReceive( 'list_all' )->andReturn( [
+            [
+                'scout_id'   => 30001,
+                'first_name' => 'David',
+                'last_name'  => 'Strachan',
+                'patrol'     => 'Falcons',
+            ],
+            [
+                'scout_id'   => 30002,
+                'first_name' => 'James',
+                'last_name'  => 'Strachan',
+                'patrol'     => 'Kestrels',
+            ],
+        ] );
+
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client );
+        $request    = new \WP_REST_Request( 'GET', '/ems/v1/portal/admin/preview-targets' );
+        $response   = $controller->get_admin_preview_targets( $request );
+
+        $this->assertEquals( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        $this->assertArrayHasKey( 'parents', $data );
+        $this->assertArrayHasKey( 'members', $data );
+        $this->assertArrayHasKey( 'explorers', $data );
+
+        $this->assertCount( 1, $data['parents'] );
+        $this->assertSame( 50, $data['parents'][0]['id'] );
+        $this->assertStringContainsString( 'David Strachan, James Strachan', $data['parents'][0]['description'] );
+
+        $this->assertCount( 1, $data['members'] );
+        $this->assertSame( 51, $data['members'][0]['id'] );
+
+        $this->assertCount( 2, $data['explorers'] );
+        $this->assertSame( 30001, $data['explorers'][0]['scout_id'] );
+    }
+
+    public function test_get_me_admin_with_preview_user_id(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        Functions\when( 'current_user_can' )->alias( fn( $cap ) => $cap === 'manage_options' );
+
+        $admin = \Mockery::mock( 'WP_User' );
+        $admin->ID = 1;
+        $admin->display_name = 'Admin';
+        $admin->shouldReceive( 'exists' )->andReturn( true );
+
+        $target_parent = \Mockery::mock( 'WP_User' );
+        $target_parent->ID = 50;
+        $target_parent->display_name = 'Sarah Parent';
+        $target_parent->first_name = 'Sarah';
+        $target_parent->last_name = 'Parent';
+        $target_parent->shouldReceive( 'exists' )->andReturn( true );
+
+        Functions\when( 'wp_get_current_user' )->justReturn( $admin );
+        Functions\when( 'get_user_by' )->alias( function( $field, $value ) use ( $target_parent ) {
+            if ( $field === 'id' && (int) $value === 50 ) {
+                return $target_parent;
+            }
+            return false;
+        } );
+
+        Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single ) {
+            if ( $user_id === 50 && $key === 'ems_access_type' ) {
+                return 'parent';
+            }
+            if ( $user_id === 50 && $key === 'ems_children' ) {
+                return [
+                    [ 'scout_id' => 30001, 'first_name' => 'David', 'last_name' => 'Strachan', 'patrol' => 'Falcons' ],
+                ];
+            }
+            return '';
+        } );
+
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client );
+        $request    = new \WP_REST_Request( 'GET', '/ems/v1/portal/me' );
+        $request->set_param( 'preview_user_id', 50 );
+
+        $response = $controller->get_me( $request );
+        $this->assertEquals( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        $this->assertTrue( $data['logged_in'] );
+        $this->assertTrue( $data['is_admin'] );
+        $this->assertTrue( $data['is_preview'] );
+        $this->assertSame( 'parent', $data['access_type'] );
+        $this->assertSame( 'Sarah Parent', $data['display_name'] );
+        $this->assertCount( 1, $data['profiles'] );
+        $this->assertSame( 30001, $data['profiles'][0]['scout_id'] );
+    }
+
+    public function test_get_me_admin_with_preview_scout_id(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        Functions\when( 'current_user_can' )->alias( fn( $cap ) => $cap === 'manage_options' );
+
+        $admin = \Mockery::mock( 'WP_User' );
+        $admin->ID = 1;
+        $admin->display_name = 'Admin';
+        $admin->shouldReceive( 'exists' )->andReturn( true );
+
+        Functions\when( 'wp_get_current_user' )->justReturn( $admin );
+
+        $this->explorer_repo->shouldReceive( 'find_by_scout_id' )->with( 30002 )->andReturn( [
+            'scout_id'   => 30002,
+            'first_name' => 'James',
+            'last_name'  => 'Strachan',
+            'patrol'     => 'Kestrels',
+        ] );
+
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client );
+        $request    = new \WP_REST_Request( 'GET', '/ems/v1/portal/me' );
+        $request->set_param( 'preview_scout_id', 30002 );
+
+        $response = $controller->get_me( $request );
+        $this->assertEquals( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        $this->assertTrue( $data['logged_in'] );
+        $this->assertTrue( $data['is_admin'] );
+        $this->assertTrue( $data['is_preview'] );
+        $this->assertSame( 'member', $data['access_type'] );
+        $this->assertSame( 'James Strachan', $data['display_name'] );
+        $this->assertCount( 1, $data['profiles'] );
+        $this->assertSame( 30002, $data['profiles'][0]['scout_id'] );
+    }
+
+    public function test_get_me_non_admin_ignores_preview_params(): void {
+        Functions\when( 'is_user_logged_in' )->justReturn( true );
+        Functions\when( 'current_user_can' )->justReturn( false );
+
+        $user = \Mockery::mock( 'WP_User' );
+        $user->ID = 77;
+        $user->display_name = 'Regular Explorer';
+        $user->shouldReceive( 'exists' )->andReturn( true );
+
+        Functions\when( 'wp_get_current_user' )->justReturn( $user );
+        Functions\when( 'get_user_meta' )->alias( function( $user_id, $key, $single ) {
+            if ( $user_id === 77 && $key === 'ems_access_type' ) {
+                return 'member';
+            }
+            if ( $user_id === 77 && $key === 'ems_scout_ids' ) {
+                return [ 99991 ];
+            }
+            return '';
+        } );
+
+        $this->explorer_repo->shouldReceive( 'find_by_wp_user_id' )->with( 77 )->andReturn( [
+            'scout_id'   => 99991,
+            'first_name' => 'Regular',
+            'last_name'  => 'Explorer',
+            'patrol'     => 'Otters',
+        ] );
+
+        $controller = new Portal_Controller( $this->explorer_repo, $this->tutor_client );
+        $request    = new \WP_REST_Request( 'GET', '/ems/v1/portal/me' );
+        $request->set_param( 'preview_user_id', 50 ); // Attempt to preview user 50
+        $request->set_param( 'preview_scout_id', 30002 ); // Attempt to preview scout 30002
+
+        $response = $controller->get_me( $request );
+        $this->assertEquals( 200, $response->get_status() );
+        $data = $response->get_data();
+
+        $this->assertFalse( $data['is_admin'] );
+        $this->assertFalse( $data['is_preview'] );
+        $this->assertSame( 'Regular Explorer', $data['display_name'] );
+        $this->assertSame( 99991, $data['profiles'][0]['scout_id'] );
     }
 }
