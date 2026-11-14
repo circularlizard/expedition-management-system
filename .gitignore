@@ -26,10 +26,10 @@ coverage/
 
 # Local Environment
 .env
-docker-compose.override.yml
-
-# WordPress core files (Docker bind mount — not committed)
-wordpress/
-
-caddy-root.crt
 .env.local
+docker-compose.override.yml
+caddy-root.crt
+
+# WordPress runtime & core files (Docker bind mounts — not committed)
+wordpress/
+wordpress-env/

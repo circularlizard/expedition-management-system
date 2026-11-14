@@ -1,0 +1,394 @@
+<?php
+namespace EMS\Modules\Signups;
+
+use EMS\Data\Expedition_Repository;
+use EMS\Data\Team_Repository;
+use EMS\Data\Team_Member_Repository;
+use EMS\Integrations\TutorLMS_Client;
+
+/**
+ * Controller for administrative views (Expedition Board).
+ */
+class Admin_View_Controller {
+
+	private Team_Repository $teams;
+	private Team_Member_Repository $team_members;
+	private TutorLMS_Client $tutor_client;
+
+	public function __construct(
+		Team_Repository $teams,
+		Team_Member_Repository $team_members,
+		TutorLMS_Client $tutor_client
+	) {
+		$this->teams        = $teams;
+		$this->team_members = $team_members;
+		$this->tutor_client = $tutor_client;
+	}
+
+	/**
+	 * Registers REST routes for the admin views.
+	 */
+	public function register_routes(): void {
+		// NOTE: The `/expedition-board` route is intentionally NOT registered here.
+		// It is served by Expedition_Admin_Controller::get_board() (Stage 1.12), which
+		// returns the season → event → team hierarchy the current React board expects.
+		// Registering it here as well caused a route collision where this legacy
+		// handler's payload shape ({expeditions, teams, ...}) shadowed the new one,
+		// leaving the board blank because `data.seasons` was undefined.
+		register_rest_route(
+			'ems/v1',
+			'/explorer/(?P<scout_id>\d+)',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_explorer_detail' ),
+				'permission_callback' => fn() => current_user_can( 'manage_options' ),
+				'args'                => array(
+					'scout_id' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'ems/v1',
+			'/team/(?P<team_id>\d+)',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_team_detail' ),
+				'permission_callback' => fn() => current_user_can( 'manage_options' ),
+				'args'                => array(
+					'team_id' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'ems/v1',
+			'/patrol/(?P<patrol>[^/]+)',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_patrol_detail' ),
+				'permission_callback' => fn() => current_user_can( 'manage_options' ),
+				'args'                => array(
+					'patrol' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'ems/v1',
+			'/events/(?P<id>\d+)/training-requirements',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_event_training_requirements' ),
+				'permission_callback' => fn() => current_user_can( 'manage_options' ),
+				'args'                => array(
+					'id' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'ems/v1',
+			'/events/(?P<id>\d+)/training-requirements',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_event_training_requirements' ),
+				'permission_callback' => fn() => current_user_can( 'manage_options' ),
+				'args'                => array(
+					'id' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+				),
+			)
+		);
+	}
+
+
+	/**
+	 * GET ems/v1/explorer/{scout_id}
+	 */
+	public function get_explorer_detail( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$scout_id = (int) $request->get_param( 'scout_id' );
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'ems_osm_explorers';
+		$row   = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE scout_id = %d",
+				$scout_id
+			),
+			ARRAY_A
+		);
+
+		if ( ! $row ) {
+			return new \WP_Error( 'ems_explorer_not_found', 'Explorer not found.', array( 'status' => 404 ) );
+		}
+
+		$wp_user_id = (int) ( $row['wp_user_id'] ?? 0 );
+
+		return new \WP_REST_Response(
+			array(
+				'scout_id'    => (int) $row['scout_id'],
+				'first_name'  => $row['first_name'] ?? '',
+				'last_name'   => $row['last_name'] ?? '',
+				'email'       => $row['email'] ?? '',
+				'patrol'      => $row['patrol'] ?? '',
+				'training'    => $wp_user_id > 0 ? $this->get_user_training_summary( $wp_user_id ) : array(),
+				'last_synced' => get_option( 'ems_osm_last_sync' ) ?: null,
+			)
+		);
+	}
+
+	/**
+	 * GET ems/v1/team/{team_id}
+	 */
+	public function get_team_detail( \WP_REST_Request $request ): \WP_REST_Response {
+		$team_id = (int) $request->get_param( 'team_id' );
+		$members = $this->team_members->list_by_team( $team_id );
+
+		global $wpdb;
+		$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+
+		$hydrated        = array();
+		$first_aid_count = 0;
+
+		foreach ( $members as $member ) {
+			$wp_user_id = (int) ( $member['user_id'] ?? 0 );
+			$row        = $wp_user_id > 0
+				? $wpdb->get_row(
+					$wpdb->prepare(
+						"SELECT * FROM {$explorers_table} WHERE wp_user_id = %d",
+						$wp_user_id
+					),
+					ARRAY_A
+				)
+				: null;
+
+			$training = array();
+			if ( $wp_user_id > 0 ) {
+				$training = $this->get_user_training_summary( $wp_user_id );
+				if ( ! empty( $row['first_aid'] ) ) {
+					++$first_aid_count;
+				}
+			}
+
+			$hydrated[] = array(
+				'user_id'    => $wp_user_id,
+				'scout_id'   => $row ? (int) $row['scout_id'] : 0,
+				'first_name' => $row['first_name'] ?? '',
+				'last_name'  => $row['last_name'] ?? '',
+				'patrol'     => $row['patrol'] ?? '',
+				'training'   => $training,
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'team_id'           => $team_id,
+				'members'           => $hydrated,
+				'first_aid_covered' => $first_aid_count > 0,
+				'last_synced'       => get_option( 'ems_osm_last_sync' ) ?: null,
+			)
+		);
+	}
+
+	/**
+	 * GET ems/v1/patrol/{patrol}
+	 */
+	public function get_patrol_detail( \WP_REST_Request $request ): \WP_REST_Response {
+		$patrol = sanitize_text_field( urldecode( $request->get_param( 'patrol' ) ) );
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'ems_osm_explorers';
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE patrol = %s ORDER BY last_name, first_name",
+				$patrol
+			),
+			ARRAY_A
+		);
+
+		$explorers = array_map(
+			static function ( array $row ): array {
+				return array(
+					'scout_id'   => (int) $row['scout_id'],
+					'first_name' => $row['first_name'] ?? '',
+					'last_name'  => $row['last_name'] ?? '',
+					'email'      => $row['email'] ?? '',
+					'patrol'     => $row['patrol'] ?? '',
+				);
+			},
+			$rows ?? array()
+		);
+
+		return new \WP_REST_Response(
+			array(
+				'patrol'      => $patrol,
+				'explorers'   => $explorers,
+				'last_synced' => get_option( 'ems_osm_last_sync' ) ?: null,
+			)
+		);
+	}
+
+
+	/**
+	 * Returns a simple training status summary for a user.
+	 */
+	private function get_user_training_summary( int $user_id ): array {
+		$courses    = $this->tutor_client->get_all_courses();
+		$course_ids = array_map( fn( $c ) => $c->ID, $courses );
+
+		$matrix      = $this->tutor_client->get_enrollment_matrix( array( $user_id ), $course_ids );
+		$user_matrix = $matrix[ $user_id ] ?? array();
+
+		$complete = 0;
+		foreach ( $user_matrix as $status ) {
+			if ( $status === 'complete' ) {
+				++$complete;
+			}
+		}
+
+		return array(
+			'total'    => count( $course_ids ),
+			'complete' => $complete,
+			'percent'  => count( $course_ids ) > 0 ? round( ( $complete / count( $course_ids ) ) * 100 ) : 0,
+		);
+	}
+
+	/**
+	 * GET ems/v1/events/{id}/training-requirements
+	 */
+	public function get_event_training_requirements( \WP_REST_Request $request ): \WP_REST_Response {
+		$event_id   = (int) $request->get_param( 'id' );
+		$course_ids = get_post_meta( $event_id, 'ems_training_requirements', true );
+		if ( ! is_array( $course_ids ) ) {
+			$course_ids = array();
+		} else {
+			$course_ids = array_map( 'intval', $course_ids );
+		}
+
+		$all_courses = $this->tutor_client->get_all_courses();
+		$courses     = array_map(
+			function ( $course ) {
+				return array(
+					'id'    => (int) $course->ID,
+					'title' => $course->post_title,
+				);
+			},
+			$all_courses
+		);
+
+		// 1. Get all teams for the event, including UNALLOCATED
+		$teams_list  = $this->teams->list_by_expedition( $event_id );
+		$unallocated = $this->teams->get_unallocated_team( $event_id );
+		if ( $unallocated ) {
+			$teams_list[] = $unallocated;
+		}
+
+		// 2. Get all members of these teams
+		$member_ids = array();
+		foreach ( $teams_list as $t ) {
+			$m_list = $this->team_members->list_by_team( $t['ID'] );
+			foreach ( $m_list as $m ) {
+				$scout_id = (int) ( $m['scout_id'] ?? 0 );
+				if ( $scout_id > 0 ) {
+					$member_ids[] = $scout_id;
+				}
+			}
+		}
+
+		$completion = array();
+		if ( ! empty( $member_ids ) ) {
+			global $wpdb;
+			$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
+			$ids_placeholder = implode( ',', array_fill( 0, count( $member_ids ), '%d' ) );
+			$rows            = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT e.scout_id, e.wp_user_id, e.first_name, e.last_name, COALESCE(u.name, p.name, e.patrol) as unit_name 
+                 FROM {$explorers_table} e
+                 LEFT JOIN {$wpdb->prefix}ems_unit_patrols p ON e.section_id = p.section_id AND e.patrol = p.name
+                 LEFT JOIN {$wpdb->prefix}ems_units u ON (p.unit_id = u.unit_id OR e.section_id = u.unit_id)
+                 WHERE e.scout_id IN ({$ids_placeholder})",
+					...$member_ids
+				),
+				ARRAY_A
+			);
+
+			$user_ids = array();
+			foreach ( $rows as $r ) {
+				$u_id = (int) ( $r['wp_user_id'] ?? 0 );
+				if ( $u_id > 0 ) {
+					$user_ids[] = $u_id;
+				}
+			}
+
+			// Get enrollment matrix
+			$enrollment_matrix = array();
+			if ( ! empty( $user_ids ) && ! empty( $course_ids ) ) {
+				$enrollment_matrix = $this->tutor_client->get_enrollment_matrix( $user_ids, $course_ids ) ?: array();
+			}
+
+			foreach ( $rows as $r ) {
+				$scout_id    = (int) $r['scout_id'];
+				$u_id        = (int) ( $r['wp_user_id'] ?? 0 );
+				$user_matrix = isset( $enrollment_matrix[ $u_id ] ) ? $enrollment_matrix[ $u_id ] : array();
+
+				// Format user matrix to map course_id => status
+				$matrix_formatted = array();
+				foreach ( $course_ids as $c_id ) {
+					$matrix_formatted[ $c_id ] = $user_matrix[ $c_id ] ?? 'not_enrolled';
+				}
+
+				$completion[] = array(
+					'scout_id'   => $scout_id,
+					'first_name' => $r['first_name'] ?? '',
+					'last_name'  => $r['last_name'] ?? '',
+					'user_id'    => $u_id,
+					'unit_name'  => $r['unit_name'] ?: 'Unassigned',
+					'matrix'     => $matrix_formatted,
+				);
+			}
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'course_ids' => $course_ids,
+				'courses'    => $courses,
+				'completion' => $completion,
+			),
+			200
+		);
+	}
+
+	/**
+	 * POST ems/v1/events/{id}/training-requirements
+	 */
+	public function update_event_training_requirements( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$event_id = (int) $request->get_param( 'id' );
+		$params   = $request->get_json_params();
+
+		if ( ! is_array( $params ) || ! isset( $params['course_ids'] ) || ! is_array( $params['course_ids'] ) ) {
+			return new \WP_Error( 'ems_invalid_parameters', 'Invalid parameters.', array( 'status' => 400 ) );
+		}
+
+		$course_ids = array_map( 'intval', $params['course_ids'] );
+		update_post_meta( $event_id, 'ems_training_requirements', $course_ids );
+
+		return new \WP_REST_Response(
+			array(
+				'success'    => true,
+				'course_ids' => $course_ids,
+			),
+			200
+		);
+	}
+}
