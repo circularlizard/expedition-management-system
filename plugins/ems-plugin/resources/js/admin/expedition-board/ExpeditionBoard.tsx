@@ -6,6 +6,7 @@ import { EventDetailPage } from './EventDetailPage';
 import { Expedition } from './types';
 import CohortPlanningMatrix from './CohortPlanningMatrix';
 import { EventForm } from './EventForm';
+import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 
 type BoardTab = 'dashboard' | 'detail' | 'planning' | 'create';
 
@@ -94,51 +95,59 @@ const ExpeditionBoard: React.FC = () => {
 
             <div className={`tab-content ${(activeTab === 'detail' || activeTab === 'create') ? '' : 'ems-mt-20'}`}>
                 {activeTab === 'dashboard' && (
-                    <EventsDashboard
-                        onSelectEvent={handleSelectEvent}
-                        onEditEvent={handleEditEvent}
-                        osmEvents={osmEvents}
-                        osmEventsLoading={osmEventsLoading}
-                        onCreateEvent={() => setActiveTab('create')}
-                    />
+                    <ModuleErrorBoundary moduleName="Events Dashboard">
+                        <EventsDashboard
+                            onSelectEvent={handleSelectEvent}
+                            onEditEvent={handleEditEvent}
+                            osmEvents={osmEvents}
+                            osmEventsLoading={osmEventsLoading}
+                            onCreateEvent={() => setActiveTab('create')}
+                        />
+                    </ModuleErrorBoundary>
                 )}
                 {activeTab === 'detail' && selectedEvent && (
-                    <EventDetailPage
-                        event={selectedEvent}
-                        onBack={handleBack}
-                        osmEvents={osmEvents}
-                        allEvents={data.seasons[0]?.events ?? []}
-                        onEventUpdated={handleEventUpdated}
-                        initialEdit={initialEdit}
-                    />
+                    <ModuleErrorBoundary moduleName="Event Details">
+                        <EventDetailPage
+                            event={selectedEvent}
+                            onBack={handleBack}
+                            osmEvents={osmEvents}
+                            allEvents={data.seasons[0]?.events ?? []}
+                            onEventUpdated={handleEventUpdated}
+                            initialEdit={initialEdit}
+                        />
+                    </ModuleErrorBoundary>
                 )}
                 {activeTab === 'create' && (
-                    <div className="ems-event-detail">
-                        <div className="ems-event-detail__toolbar">
-                            <button id="ems-back-to-events" type="button" className="button-link ems-event-detail__back" onClick={handleBack}>← Back to Events</button>
-                        </div>
-                        <div className="ems-event-detail__header">
-                            <div>
-                                <h1 className="ems-event-detail__title">Create Event</h1>
+                    <ModuleErrorBoundary moduleName="Create Event">
+                        <div className="ems-event-detail">
+                            <div className="ems-event-detail__toolbar">
+                                <button id="ems-back-to-events" type="button" className="button-link ems-event-detail__back" onClick={handleBack}>← Back to Events</button>
+                            </div>
+                            <div className="ems-event-detail__header">
+                                <div>
+                                    <h1 className="ems-event-detail__title">Create Event</h1>
+                                </div>
+                            </div>
+                            <div className="ems-event-detail__content">
+                                <div className="ems-panel">
+                                    <EventForm
+                                        seasonId={0}
+                                        osmEvents={osmEvents}
+                                        onSaved={(savedEvent) => {
+                                            handleBack();
+                                            refetch();
+                                        }}
+                                        onCancel={handleBack}
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <div className="ems-event-detail__content">
-                            <div className="ems-panel">
-                                <EventForm
-                                    seasonId={0}
-                                    osmEvents={osmEvents}
-                                    onSaved={(savedEvent) => {
-                                        handleBack();
-                                        refetch();
-                                    }}
-                                    onCancel={handleBack}
-                                />
-                            </div>
-                        </div>
-                    </div>
+                    </ModuleErrorBoundary>
                 )}
                 {activeTab === 'planning' && (
-                    <CohortPlanningMatrix />
+                    <ModuleErrorBoundary moduleName="Event Planning">
+                        <CohortPlanningMatrix />
+                    </ModuleErrorBoundary>
                 )}
             </div>
         </div>

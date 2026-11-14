@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendarDays, faUser } from '@fortawesome/free-solid-svg-icons';
 import { createRoot } from 'react-dom/client';
 import { EventRosterPanel, Expedition } from './EventRosterPanel';
+import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 
 interface Shift {
     id: number;
@@ -403,7 +404,8 @@ function VolunteersDashboard() {
 
             {/* TAB 1: EVENT STAFFING */}
             {activeTab === 'staffing' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+                <ModuleErrorBoundary moduleName="Event Staffing Console">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
                     {/* Left Pane: Events List with Filter */}
                     <div className="ems-panel" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
                         <div style={{ marginBottom: '15px' }}>
@@ -486,11 +488,13 @@ function VolunteersDashboard() {
                         <div className="ems-panel ems-empty">Select an expedition from the left list to manage staffing.</div>
                     )}
                 </div>
+                </ModuleErrorBoundary>
             )}
 
             {/* TAB 2: VOLUNTEER REGISTRY */}
             {activeTab === 'registry' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+                <ModuleErrorBoundary moduleName="Volunteer Registry">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
                     {/* Left Pane: Volunteers Search List */}
                     <div className="ems-panel" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
                         <div style={{ marginBottom: '12px' }}>
@@ -724,6 +728,7 @@ function VolunteersDashboard() {
                         <div className="ems-panel ems-empty">Select a volunteer from the left list.</div>
                     )}
                 </div>
+                </ModuleErrorBoundary>
             )}
         </div>
     );
@@ -733,7 +738,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const rootEl = document.getElementById('ems-volunteers-root');
     if (rootEl) {
         const root = createRoot(rootEl);
-        root.render(<VolunteersDashboard />);
+        root.render(
+            <ModuleErrorBoundary moduleName="Volunteers Dashboard">
+                <VolunteersDashboard />
+            </ModuleErrorBoundary>
+        );
     }
 });
 
