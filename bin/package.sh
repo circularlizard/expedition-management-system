@@ -1,78 +1,170 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-# Reads the Version header from ems-plugin.php and produces dist/ems-plugin-{VERSION}.zip
-# Usage: bash bin/package.sh
+# bin/package.sh - Staging & Production .zip artifact builder
+# Usage:
+#   bash bin/package.sh [ems|rce|all] [--no-bump|--bump=patch|minor|major]
 
-PLUGIN_FILE="ems-plugin.php"
-DIST_DIR="dist"
-STAGING_DIR="/tmp/ems-plugin-build"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+DIST_DIR="${ROOT_DIR}/dist"
+STAGE_ROOT="/tmp/ems-pkg-stage"
 
-CURRENT=$(grep -m1 "Version:" "$PLUGIN_FILE" | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
+cd "${ROOT_DIR}"
+mkdir -p "${DIST_DIR}"
 
-if [ -z "$CURRENT" ]; then
-  echo "ERROR: Could not read Version from $PLUGIN_FILE"
-  exit 1
-fi
+TARGET="all"
+BUMP_MODE="patch"
 
-# Increment patch segment (e.g. 0.1.0 -> 0.1.1)
-MAJOR=$(echo "$CURRENT" | cut -d. -f1)
-MINOR=$(echo "$CURRENT" | cut -d. -f2)
-PATCH=$(echo "$CURRENT" | cut -d. -f3)
-PATCH=$(( PATCH + 1 ))
-VERSION="${MAJOR}.${MINOR}.${PATCH}"
+# Parse arguments
+for arg in "$@"; do
+  case "$arg" in
+    ems)
+      TARGET="ems"
+      ;;
+    rce|route-engine)
+      TARGET="rce"
+      ;;
+    all)
+      TARGET="all"
+      ;;
+    --no-bump)
+      BUMP_MODE="none"
+      ;;
+    --bump=patch)
+      BUMP_MODE="patch"
+      ;;
+    --bump=minor)
+      BUMP_MODE="minor"
+      ;;
+    --bump=major)
+      BUMP_MODE="major"
+      ;;
+    *)
+      echo "Usage: bash bin/package.sh [ems|rce|all] [--no-bump|--bump=patch|minor|major]"
+      exit 1
+      ;;
+  esac
+done
 
-# Write new version back into the plugin header
-sed -i '' "s/ \* Version: ${CURRENT}/ \* Version: ${VERSION}/" "$PLUGIN_FILE"
-sed -i '' "s/define( 'EMS_VERSION', '${CURRENT}' );/define( 'EMS_VERSION', '${VERSION}' );/" "$PLUGIN_FILE"
-echo "==> Bumped version: ${CURRENT} → ${VERSION}"
+# Cross-platform sed -i helper
+sed_i() {
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "$@"
+  else
+    sed -i "$@"
+  fi
+}
 
-ZIP_NAME="ems-plugin-${VERSION}.zip"
-ZIP_PATH="${DIST_DIR}/${ZIP_NAME}"
+bump_version() {
+  local current="$1"
+  local mode="$2"
 
-echo "==> Building EMS plugin v${VERSION}..."
+  local major minor patch
+  major=$(echo "$current" | cut -d. -f1)
+  minor=$(echo "$current" | cut -d. -f2)
+  patch=$(echo "$current" | cut -d. -f3)
 
-# Build JS assets
-echo "==> Building JS assets..."
-npm run build --silent
+  case "$mode" in
+    major)
+      major=$((major + 1))
+      minor=0
+      patch=0
+      ;;
+    minor)
+      minor=$((minor + 1))
+      patch=0
+      ;;
+    patch|*)
+      patch=$((patch + 1))
+      ;;
+  esac
+  echo "${major}.${minor}.${patch}"
+}
 
-# Clean staging area
-rm -rf "$STAGING_DIR"
-mkdir -p "$STAGING_DIR/ems-plugin"
+package_plugin() {
+  local folder="$1"
+  local slug="$2"
+  local main_file="$3"
+  local plugin_dir="${ROOT_DIR}/plugins/${folder}"
+  local stage_dir="${STAGE_ROOT}/${slug}"
 
-# Copy source files
-rsync -a \
-  --exclude='.git/' \
-  --exclude='.github/' \
-  --exclude='bin/' \
-  --exclude='tests/' \
-  --exclude='wordpress/' \
-  --exclude='vendor/' \
-  --exclude='dist/' \
-  --exclude='node_modules/' \
-  --exclude='docker-compose.yml' \
-  --exclude='phpunit.xml' \
-  --exclude='.gitignore' \
-  --exclude='*.log' \
-  --exclude='tools/' \
-  . "$STAGING_DIR/ems-plugin/"
+  if [ ! -d "${plugin_dir}" ]; then
+    echo "ERROR: Plugin directory not found: ${plugin_dir}"
+    exit 1
+  fi
 
-# Install production Composer dependencies
-composer install \
-  --no-dev \
-  --optimize-autoloader \
-  --working-dir="$STAGING_DIR/ems-plugin" \
-  --quiet
+  echo "==> Packaging ${slug}..."
 
-# Create output directory and zip
-mkdir -p "$DIST_DIR"
-rm -f "$ZIP_PATH"
+  # 1. Read version from plugin bootstrap header
+  local version
+  version=$(grep -E "^\s*\*\s*Version:" "${plugin_dir}/${main_file}" | awk '{print $NF}' | tr -d '\r')
 
-cd "$STAGING_DIR"
-zip -r "$OLDPWD/$ZIP_PATH" ems-plugin/ --quiet
+  if [ -z "${version}" ]; then
+    echo "ERROR: Could not read Version from ${plugin_dir}/${main_file}"
+    exit 1
+  fi
 
-echo "==> Built: ${ZIP_PATH}"
-echo "    Upload via WP Admin → Plugins → Add New → Upload Plugin"
+  # 2. Bump version if requested
+  if [ "${BUMP_MODE}" != "none" ]; then
+    local new_version
+    new_version=$(bump_version "${version}" "${BUMP_MODE}")
+    echo "  --> Bumping version: ${version} -> ${new_version} (${BUMP_MODE})"
+    sed_i -E "s/(\* Version:[[:space:]]*)[0-9]+\.[0-9]+\.[0-9]+/\1${new_version}/" "${plugin_dir}/${main_file}"
 
-# Clean up
-rm -rf "$STAGING_DIR"
+    if grep -q "define([[:space:]]*'EMS_VERSION'" "${plugin_dir}/${main_file}"; then
+      sed_i -E "s/(define\([[:space:]]*'EMS_VERSION',[[:space:]]*')[^']+(')/\1${new_version}\2/" "${plugin_dir}/${main_file}"
+    elif grep -q "define([[:space:]]*'EMS_ROUTE_CARD_VERSION'" "${plugin_dir}/${main_file}"; then
+      sed_i -E "s/(define\([[:space:]]*'EMS_ROUTE_CARD_VERSION',[[:space:]]*')[^']+(')/\1${new_version}\2/" "${plugin_dir}/${main_file}"
+    fi
+    version="${new_version}"
+  else
+    echo "  --> Packaging current version: ${version} (--no-bump)"
+  fi
+
+  # 3. Build production frontend assets
+  echo "  --> Building production frontend assets..."
+  npm run build --workspace="plugins/${folder}"
+
+  # 4. Stage clean copy in /tmp so working tree dev dependencies remain intact
+  rm -rf "${stage_dir}"
+  mkdir -p "${stage_dir}"
+  echo "  --> Staging clean files into ${stage_dir}..."
+  rsync -a \
+    --exclude='.git*' \
+    --exclude='node_modules/' \
+    --exclude='tests/' \
+    --exclude='docs/' \
+    --exclude='scratch/' \
+    --exclude='user-guide/' \
+    --exclude='mockdata/' \
+    --exclude='phpunit.xml*' \
+    --exclude='phpstan*.neon' \
+    --exclude='tsconfig*.json' \
+    --exclude='vite.config.ts' \
+    --exclude='vitest.config.ts' \
+    "${plugin_dir}/" "${stage_dir}/"
+
+  # 5. Install production-only PHP autoloader inside staging folder
+  if [ -f "${stage_dir}/composer.json" ]; then
+    echo "  --> Installing production Composer dependencies..."
+    composer install --working-dir="${stage_dir}" --no-dev --optimize-autoloader --no-interaction --quiet
+  fi
+
+  # 6. Create standard WordPress plugin zip with top-level <slug>/ folder
+  local zip_path="${DIST_DIR}/${slug}-${version}.zip"
+  rm -f "${zip_path}"
+  (cd "${STAGE_ROOT}" && zip -rq "${zip_path}" "${slug}")
+  echo "==> Created ${zip_path}"
+  rm -rf "${stage_dir}"
+}
+
+case "${TARGET}" in
+  ems|rce|route-engine|all)
+    package_plugin "ems-plugin" "ems-plugin" "ems-plugin.php"
+    ;;
+  *)
+    echo "Usage: bash bin/package.sh [ems|all] [--no-bump|--bump=patch|minor|major]"
+    exit 1
+    ;;
+esac

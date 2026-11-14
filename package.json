@@ -1,27 +1,22 @@
 {
-    "name": "ems-plugin",
-    "private": true,
-    "scripts": {
-        "build": "vite build",
-        "typecheck": "tsc --noEmit",
-        "test": "tsc --noEmit && vitest run --passWithNoTests"
-    },
-    "devDependencies": {
-        "@testing-library/jest-dom": "^6.6.0",
-        "@testing-library/react": "^16.0.0",
-        "@types/node": "^22.0.0",
-        "@types/react": "^18.3.0",
-        "@types/react-dom": "^18.3.0",
-        "@vitejs/plugin-react": "^4.3.0",
-        "jsdom": "^25.0.0",
-        "react": "^18.3.0",
-        "react-dom": "^18.3.0",
-        "typescript": "^5.6.0",
-        "vitest": "^2.1.0"
-    },
-    "dependencies": {
-        "@fortawesome/fontawesome-svg-core": "^7.3.1",
-        "@fortawesome/free-solid-svg-icons": "^7.3.1",
-        "@fortawesome/react-fontawesome": "^3.5.0"
-    }
+  "name": "seee-expedition-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "plugins/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:php": "composer --working-dir=plugins/ems-plugin exec phpunit",
+    "test:php:ems": "composer --working-dir=plugins/ems-plugin exec phpunit",
+    "stan": "composer --working-dir=plugins/ems-plugin exec -- phpstan analyse --memory-limit=2G",
+    "stan:ems": "composer --working-dir=plugins/ems-plugin exec -- phpstan analyse --memory-limit=2G",
+    "verify:all": "npm run test && npm run build && npm run test:php && npm run stan",
+    "deploy": "bash bin/deploy.sh ems",
+    "deploy:ems": "bash bin/deploy.sh ems",
+    "package": "bash bin/package.sh ems",
+    "package:ems": "bash bin/package.sh ems",
+    "package:all": "bash bin/package.sh all"
+  }
 }

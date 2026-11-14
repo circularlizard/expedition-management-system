@@ -1,224 +1,275 @@
-# Expedition Management System (EMS)
+# Expedition Management System (EMS) — Monorepo
 
-A comprehensive WordPress plugin for coordinating Duke of Edinburgh (DofE) expeditions, managing teams and routes, tracking training compliance, and reconciling participant registrations across South East Scotland.
-
----
-
-## 1. Overview & Purpose
-
-The **Expedition Management System (EMS)** serves as the central operational hub for DofE expedition management. It connects and synchronizes four key systems:
-
-1. **Online Scout Manager (OSM)** — The primary authority for explorer identity, unit/patrol memberships, event schedules, and attendance.
-2. **Fluent Forms** — Public-facing web registration forms for parent-led **Participation Place** registrations (Form 6) and **Expedition Preferences** submissions (Form 7).
-3. **Tutor LMS** — The e-learning platform hosting pre-expedition safety and navigation training modules.
-4. **EMS Admin & Public Portals** — React-powered SPAs for team building, first aid safety verification, volunteer coordination, route approval, and unit leader tracking.
+The central operational hub and route card engine for coordinating Duke of Edinburgh (DofE) expeditions, managing teams, routes, training compliance, and participant registrations across South East Scotland Scouts.
 
 ---
 
-## 2. How the Plugin Works
+## 1. Monorepo Architecture & Repository Structure
 
-```mermaid
-graph TD
-    subgraph External ["External & Integrations"]
-        OSM["Online Scout Manager (OSM)"]
-        FF["Fluent Forms (Forms 6 & 7)"]
-        Tutor["Tutor LMS (Course Progress)"]
-    end
+This repository consolidates the core Expedition Management System plugin (`ems-plugin`) and the Route Card & Terrain Engine (`ems-route-card-engine`) into a unified monorepo sharing an NPM workspace root, Docker environment, and automated packaging tools, while maintaining strictly isolated PHP Composer manifests for standalone WordPress deployment.
 
-    subgraph Core ["EMS Plugin Core (PHP 8.2+)"]
-        OSMClient["OSM API Client (OAuth2 / Mock)"]
-        Sync["Fluent Forms Sync & Reconciler"]
-        Guard["Access Control & Redirect Guard"]
-        TutorClient["Tutor LMS Client"]
-        REST["REST API Controllers (/ems/v1/)"]
-    end
-
-    subgraph Storage ["WordPress DB"]
-        CPTs[("CPTs: expedition, team")]
-        CustomTables[("Custom SQL Tables (Units, Signups, Availability, OSM Cache)")]
-        Options[("EMS Settings & Options")]
-    end
-
-    subgraph Frontends ["Front-End & Admin SPAs (React + TS)"]
-        ExpedBoard["Expedition Board & Team Builder"]
-        SignupsBoard["Signups & Reconciliation Board"]
-        VolBoard["Volunteer Management Board"]
-        LeaderDash["Unit Leader Dashboard ([ems-leader-dashboard])"]
-        PublicPortal["Participant & Parent Portal ([ems-portal])"]
-    end
-
-    OSM <-->|OAuth2 Tokenless Sync| OSMClient
-    FF -->|Submissions & Webhooks| Sync
-    TutorClient --> Tutor
-    OSMClient --> CustomTables
-    Sync --> CustomTables
-    REST --> CPTs
-    REST --> CustomTables
-    ExpedBoard <--> REST
-    SignupsBoard <--> REST
-    VolBoard <--> REST
-    LeaderDash <--> REST
-    PublicPortal <--> REST
-    Guard --> LeaderDash
+```
+expedition-management-system/               # Monorepo Root
+├── bin/                                    # Automation, deployment, and packaging CLI scripts
+│   ├── deploy.sh                           # Builds and rsyncs plugins to local WordPress
+│   ├── package.sh                          # Compiles standalone production dist/*.zip archives
+│   ├── preflight-snapshot.sh               # Non-destructive JSON backup & parity generator
+│   └── setup-workstation.sh                # Turnkey developer machine bootstrap script
+├── packages/
+│   └── contracts/                          # Shared TypeScript interfaces (RouteCard, Team, etc.)
+│       ├── package.json
+│       ├── tsconfig.json
+│       └── src/index.ts
+├── plugins/
+│   ├── ems-plugin/                         # Core EMS WordPress Plugin (v1.0.x)
+│   │   ├── assets/                         # Compiled JS & CSS production bundles
+│   │   ├── resources/                      # React & TypeScript source files
+│   │   │   ├── css/ems-admin.css
+│   │   │   └── js/                         # SPAs (Expedition Board, Signups, Portals)
+│   │   ├── src/                            # Modular PHP Kernel & Domain Modules (PSR-4: EMS\)
+│   │   │   ├── Core/                       # Registry, Feature Flags, Event Bus, Error Boundaries
+│   │   │   ├── Contracts/                  # Shared PHP interfaces & DTOs
+│   │   │   ├── Data/                       # Relational repositories (Units, Explorers)
+│   │   │   ├── Integrations/               # Anti-Corruption Adapters (OSM, Fluent, Tutor LMS)
+│   │   │   ├── Modules/                    # Self-contained vertical domain modules
+│   │   │   └── Admin/                      # WP Admin screens & settings
+│   │   ├── tests/                          # PHPUnit (Unit tests, Brain Monkey) & Vitest suites
+│   │   ├── composer.json                   # Isolated PHP dependencies (PSR-4: EMS\)
+│   │   ├── package.json                    # Plugin-level npm workspace config
+│   │   ├── phpstan.neon                    # PHPStan static analysis rules & baseline
+│   │   ├── phpunit.xml                     # PHPUnit configuration
+│   │   └── ems-plugin.php                  # WordPress plugin bootstrap header
+│   └── ems-route-card-engine/              # Standalone & Companion Route Engine (v0.1.x)
+│       ├── assets/                         # Compiled Route Card Studio JS & CSS
+│       ├── bin/                            # Binary elevation tile compilation CLI
+│       ├── mockdata/                       # Sample GPX routes and test DEM binary tiles
+│       ├── resources/                      # React & TypeScript Route Card Studio source
+│       ├── src/                            # Geodesy, DEM reader, PDF generator (PSR-4: EMSRoute\)
+│       ├── tests/                          # PHPUnit & Vitest route calculation tests
+│       ├── composer.json                   # Isolated PHP dependencies (PSR-4: EMSRoute\)
+│       ├── package.json                    # Plugin-level npm workspace config
+│       ├── phpstan.neon                    # PHPStan static analysis rules
+│       ├── phpunit.xml                     # PHPUnit configuration
+│       └── ems-route-card-engine.php       # WordPress plugin bootstrap header
+├── wordpress-env/                          # Git-ignored local WordPress bind mount target
+│   └── wp-content/
+│       ├── plugins/                        # Deployed plugins (ems-plugin, ems-route-card-engine, oauth-login)
+│       └── uploads/
+│           └── ems-dem/                    # OS Terrain 50 binary elevation tiles (*.bin)
+├── docker-compose.yml                      # WordPress 6.7 + MariaDB 10.11 local development stack
+├── package.json                            # Root NPM Workspaces definition
+├── tsconfig.base.json                      # Shared TypeScript compiler options
+└── MONOREPO_MIGRATION_RUNBOOK.md           # Migration, verification gates, and release runbook
 ```
 
-### Key Architectural Concepts
-
-- **Identity Anchor (`scout_id`)**: The immutable identifier for young people is the Online Scout Manager `scout_id` stored in `ems_osm_explorers`. WordPress user accounts are **not** created during data syncs; WP user IDs are linked dynamically upon first login via OpenID Connect (OIDC).
-- **Tokenless OSM Security**: Administrative syncs use personal OAuth2 authorization codes that are exchanged in memory, executed, and **immediately discarded**. OAuth access tokens are never saved to the database.
-- **Hybrid Data Storage**: High-level entities (`expedition`, `team`) use WordPress Custom Post Types for standard admin filtering and WP-CLI compatibility. High-frequency relational data (team members, signups, volunteer availability, patrol linkages, audit logs) reside in dedicated custom SQL tables created via `Table_Installer` with `$wpdb->prefix . 'ems_*'`.
-- **Decoupled React Architecture**: Admin boards and front-end portals are built with React and TypeScript, communicating with the WordPress backend exclusively through authenticated REST controllers (`/wp-json/ems/v1/`).
+> [!NOTE]
+> **External Standalone Repository (`login-with-google` / `oauth-login`):**
+> Per architectural policy, `login-with-google` remains in its own standalone repository alongside this monorepo (`../login-with-google`). When present, `bin/setup-workstation.sh` and `bin/deploy.sh` automatically synchronize and activate it in the local Docker environment without modifying its standalone repository structure.
 
 ---
 
-## 3. Database Architecture
+## 2. Core Architecture & Blast-Radius Isolation
 
-### Custom Post Types (CPTs)
+### Modular Kernel (`ems-plugin`)
+To isolate feature failures and prevent third-party integrations from crashing WordPress, `ems-plugin` employs a modular kernel inside `src/Core/`:
+- **`ModuleInterface` & `Module_Registry`**: Every domain feature boots through an isolated `boot()` / `register()` boundary. If a module throws an unhandled exception during boot, `Module_Registry` catches it, records the failure in `wp_ems_audit_logs`, marks that single module as degraded, and continues booting all other modules.
+- **`Feature_Flags`**: Modules (`signups`, `expeditions`, `volunteers`, `leader_dashboard`, `portal`, `notifications`) can be toggled on/off dynamically in **EMS → Settings → Feature Flags** or via WP-CLI (`wp option update ems_feature_flags '{"volunteers":false}' --format=json`), with constant overrides (`EMS_DISABLE_MODULE_*`).
+- **`Shortcode_Boundary`**: Every public shortcode (`[ems-portal]`, `[ems-leader-dashboard]`, `[ems-volunteer-signup]`, `[ems_signup_banner]`) is wrapped in an execution boundary that intercepts fatal errors and renders a styled fallback maintenance card rather than white-screening the public page.
+- **Anti-Corruption Adapters (`src/Integrations/`)**: Domain modules never make direct calls to third-party APIs. `TutorLmsAdapter` degrades gracefully to `TrainingStatusDTO::unavailable()` if Tutor LMS is deactivated, while `FluentFormsAdapter` maps raw form fields into typed DTOs.
+- **Frontend Error Boundaries (`<ModuleErrorBoundary />`)**: React SPAs wrap distinct widgets and tabs so a runtime render fault in one panel shows a retry card without disrupting sibling tabs or navigation.
 
-| CPT Slug | Post Parent | Description |
-|---|---|---|
-| `expedition` | `0` (Top-level) | Represents a training, practice, or qualifying expedition with dates, locations, transport mode, Leader-in-Charge (LiC), and route deadlines. |
-| `team` | `expedition` Post ID | Represents a walking, cycling, or paddling team (typically 4–7 members). Tracks team codes (e.g. `H-SP1-1`), GPX route files, route cards, and LiC feedback. |
+### Route Card & Local Terrain Engine (`ems-route-card-engine`)
+- **Standalone Operability**: Operates as a companion to `ems-plugin` or as an independent standalone plugin on external WordPress instances.
+- **Local Binary Elevation Engine**: $O(1)$ random-access elevation lookups from headerless `int16_le` decimetre grids (55 Ordnance Survey OS Terrain 50 `.bin` tiles, 8 MB per 100 km grid square).
+- **In-Browser Route Card Studio**: Zero-latency waypoint insertion, bearing calculation, and Naismith's Rule time calculations with eDofE-compatible PDF generation.
 
-### Relational Database Tables
+### Shared Database Schema
 
-| Table | Purpose & Key Columns |
-|---|---|
-| `ems_osm_explorers` | Synced cache of OSM members: `scout_id (UNIQUE)`, `first_name`, `last_name`, `email`, `parent_email`, `patrol`, `first_aid_level`, `dofe_number`. |
-| `ems_units` | Master directory of Explorer Scout Units: `unit_id (UNIQUE)`, `district`, `name`, `short_code (UNIQUE)`, `leader_email`. |
-| `ems_unit_patrols` | Maps OSM sections/patrols to master units: `unit_id`, `section_id`, `patrol_id (UNIQUE)`, `name`, `active`. |
-| `ems_participant_signups` | DofE Participation Place registrations (Form 6): `scout_id`, `parent_user_id`, `unit_id`, `dofe_level`, `signup_status`, `payment_status`. |
-| `ems_expedition_signups` | Expedition preferences (Form 7): `scout_id`, `parent_user_id`, `unit_id`, `dofe_level`, `expedition_preferences`, `first_aid_status`. |
-| `ems_team_members` | Team membership links: `team_post_id`, `scout_id`, `user_id`, `added_by`, `added_at`. |
-| `ems_volunteers` | Registered adult helpers: `osm_user_id`, `first_name`, `last_name`, `email`, `dbs_number`, `qualifications`. |
-| `ems_volunteer_availability` | Date-by-date staffing coverage: `volunteer_id`, `expedition_post_id`, `date`, `overnight`, `confirmed`. |
-| `ems_route_submissions` | Versioned route cards & GPX uploads: `team_post_id`, `version`, `file_type`, `wp_media_id`, `status`, `feedback`. |
-| `ems_audit_logs` | Security & operational action logs: `user_id`, `action`, `target_scout_id`, `ip_address`, `timestamp`. |
+#### Custom Post Types (CPTs)
+- `expedition`: Top-level post representing an expedition event (dates, mode of travel, Leader-in-Charge, checkpoints).
+- `team`: Child post linked to an `expedition` post ID (team code, GPX route submission, route card state).
 
----
-
-## 4. User Roles & Access Control
-
-EMS registers four specialized roles managed via `Role_Manager`:
-
-1. **`ems_explorer`**: Assigned to participants logging in with their OSM member credentials. Grants access to Tutor LMS training courses and the Participant Portal for route uploads.
-2. **`ems_parent`**: Assigned to parents and guardians. Allows viewing linked children, completing registration forms, and reviewing expedition status.
-3. **`ems_leader`**: Assigned to unit leaders and Leaders-in-Charge (LiC). Grants access to the **Unit Leader Dashboard** (`[ems-leader-dashboard]`), route review pipelines, and expedition rosters.
-4. **`administrator`**: WordPress administrators with complete access to planning boards, settings, and sync tools.
-
-### Access Control & Routing Features
-
-- **Page-Level Protection (`Access_Control_Guard`)**: In **EMS → Settings → Access Control**, administrators can restrict any WordPress page to specific role(s). Unauthorized guests are prompted to log in; unauthorized roles receive a styled 403 Access Denied page.
-- **Tutor LMS Route Guard**: Intercepts Tutor LMS dashboard and course pages, restricting them exclusively to participants (`ems_explorer`).
-- **Leader Onboarding & Post-Password-Reset Redirection**:
-  - Unit leaders receive an invitation email containing a one-time password setup link.
-  - When the leader submits their password on `wp-login.php?action=rp`, WordPress (`after_password_reset`) **automatically signs them in**, updates `ems_last_login_at`, and **redirects them straight to the Leader Dashboard**.
-  - Subsequent logins via `wp-login.php` (`login_redirect`) automatically route `ems_leader` accounts directly to the Leader Dashboard rather than `wp-admin`.
+#### Relational MariaDB Tables (`wp_ems_*`)
+1. `wp_ems_osm_explorers`: Synced cache of Online Scout Manager explorers (`scout_id`, contact, patrol).
+2. `wp_ems_units`: Directory of Explorer Scout Units and leader contacts.
+3. `wp_ems_unit_patrols`: Mapping between OSM sections/patrols and master units.
+4. `wp_ems_participant_signups`: Form 6 Participation Place registrations.
+5. `wp_ems_expedition_signups`: Form 7 Expedition Preference submissions.
+6. `wp_ems_team_members`: Relational links connecting explorers to teams.
+7. `wp_ems_volunteers`: Registered adult helpers and DBS credentials.
+8. `wp_ems_volunteer_availability`: Day and overnight availability cover board.
+9. `wp_ems_route_submissions`: Route card version histories and GPX uploads.
+10. `wp_ems_audit_logs`: Operational action log and fault boundary records.
 
 ---
 
-## 5. Front-End Portals & Shortcodes
-
-| Shortcode | Primary Users | Purpose |
-|---|---|---|
-| `[ems-portal]` | Parents, Explorers, Leaders | **Unified Portal SPA**: Dynamically adapts based on user role to show child profiles, expedition statuses, online training progress, and route upload/feedback tools. |
-| `[ems-leader-dashboard]` | Unit Leaders (`ems_leader`) | **Unit Leader Dashboard SPA**: Read-only overview of explorer registrations grouped by unit and sorted alphabetically. Displays DofE levels, participant place and expedition preference completion checkmarks, expedition transport modes, and OSM sync indicators. Excludes sensitive medical and contact data. |
-| `[ems-volunteer-signup]` | Adult Volunteers | **Volunteer Cover Board**: Lets helpers view expedition calendars and register for specific checkpoint dates and overnight stays. |
-| `[ems_signup_banner]` | Form Visitors | **OIDC Action Banner**: Prompt placed at the top of signup forms encouraging parents to log in via OSM to auto-fill child and unit fields. |
-
----
-
-## 6. WordPress Admin Screens
-
-1. **Expedition Board (`ems-expedition-board`)**: Interactive team planner with drag-and-drop team allocation, team size indicators (4–7 official range), first aid compliance warnings, and unassigned participant pools.
-2. **Signups Board (`ems-signups`)**: Reconciles public Fluent Forms submissions against synced OSM explorer records. Provides side-by-side comparison, auto-matching, manual reconciliation, and CSV export.
-3. **Volunteer Management (`ems-volunteers`)**: Coordinates adult helpers, tracks DBS certification, and manages day/overnight coverage across events.
-4. **Unit Mapping (`ems-reference&tab=units`)**: Shows all master Explorer Scout Units, linked OSM patrols, and leader contact emails. Includes real-time leader access status (`Invited` / `Not Invited`, `Logged In` / `Never Logged In`) and buttons to send single or bulk leader invitations.
-5. **Settings (`ems-settings`)**:
-   - **General**: API mode (`mock`, `live`, `live-limited`), sync member caps, debug logging.
-   - **OSM Connection**: OAuth endpoints, Client ID, encrypted Client Secret.
-   - **Form Mappings**: Fluent Forms IDs and field mappings for Forms 6 and 7.
-   - **Backups**: Download unified JSON backups or restore complete environment snapshots.
-   - **Audit Logs**: Filterable log of security events, logins, and reconciliation actions.
-   - **Access Control**: Page-level role restrictions, Tutor LMS protection, Leader Dashboard page assignment, and customizable leader invitation email templates with placeholder tokens (`{{unit_name}}`, `{{set_password_url}}`, `{{dashboard_url}}`, `{{site_name}}`, `{{user_email}}`).
-
----
-
-## 7. Developer & Testing Guide
+## 3. Developer Workstation Setup
 
 ### Prerequisites
+- Docker & Docker Compose
+- PHP ≥ 8.2 & Composer ≥ 2
+- Node.js ≥ 18 & npm ≥ 9
+- `rsync`, `zip`, `unzip`, and `curl`
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WordPress + MariaDB)
-- [Composer](https://getcomposer.org/) ≥ 2
-- Node.js ≥ 18 & npm
-- PHP ≥ 8.2
-
-### First-Time Local Setup
+### Turnkey Bootstrap
+Run the idempotent workstation bootstrap script to configure Git hooks, install dependencies, start containers, initialize WordPress, install plugins, and seed DEM mock tiles:
 
 ```bash
-# 1. Install dependencies
-composer install
-npm install
-
-# 2. Start local containers
-docker-compose up -d
-
-# 3. Build assets and deploy plugin to local WordPress
-bash bin/deploy.sh
+bash bin/setup-workstation.sh
 ```
 
-### TDD & Quality Assurance
+Once running, access the local environment:
+- WordPress HTTPS: `https://localhost` or `http://localhost:8080`
+- WP Admin: `https://localhost/wp-admin` (User: `admin`, Password: `password`)
+- EMS Expedition Board: `https://localhost/wp-admin/admin.php?page=ems-expedition-board`
+- Route Card Studio Diagnostic: `https://localhost/wp-admin/tools.php?page=ems-route-card-engine`
 
-EMS enforces a mandatory Test-Driven Development (TDD) workflow:
+---
 
+## 4. Test Procedures & Verification
+
+EMS enforces strict quality gates across both plugins. All automated suites must pass with zero failures before release.
+
+### Root Monorepo Commands
 ```bash
-# Run PHPUnit test suite (Host-based Brain Monkey stubs)
-vendor/bin/phpunit
-
-# Run single test file
-vendor/bin/phpunit tests/Unit/Data/Unit_RepositoryTest.php
-
-# Run PHPStan static analysis (Level 5+)
-vendor/bin/phpstan analyse --memory-limit=2G
-
-# Run frontend Vitest suite
+# Run all frontend Vitest suites across both plugins
 npm run test
 
-# Build JavaScript & CSS bundles
-npm run build
+# Run PHPUnit across plugins
+npm run test:php:ems
+npm run test:php:rce
 
-# Deploy and activate in local Docker WordPress
-bash bin/deploy.sh
+# Run PHPStan static analysis across plugins
+npm run stan:ems
+npm run stan:rce
+
+# Full quality verification pipeline (Vitest + Build + PHPUnit + PHPStan)
+npm run verify:all
+```
+
+### Core Plugin Tests (`plugins/ems-plugin`)
+```bash
+# 1. PHPUnit Suite (Unit, Service, and Fault-Isolation tests)
+composer --working-dir=plugins/ems-plugin exec phpunit
+
+# Run specific fault-isolation tests
+composer --working-dir=plugins/ems-plugin exec phpunit -- --filter Module_RegistryTest
+composer --working-dir=plugins/ems-plugin exec phpunit -- --filter Shortcode_BoundaryTest
+
+# 2. PHPStan Static Analysis (Level 5+)
+composer --working-dir=plugins/ems-plugin exec -- phpstan analyse --memory-limit=2G
+
+# 3. Vitest Frontend Suites
+npm run test --workspace=plugins/ems-plugin -- --run
+```
+
+### Route Card Engine Tests (`plugins/ems-route-card-engine`)
+```bash
+# 1. PHPUnit Suite (Geodesy, DEM reader, and Naismith calculation tests)
+composer --working-dir=plugins/ems-route-card-engine exec phpunit
+
+# 2. PHPStan Static Analysis
+composer --working-dir=plugins/ems-route-card-engine exec -- phpstan analyse --memory-limit=2G
+
+# 3. Vitest Frontend Suites (RouteCardStudio, calculations, leg cards)
+npm run test --workspace=plugins/ems-route-card-engine -- --run
+```
+
+### Architectural Boundary Enforcement Checks
+Verify that domain modules never call external functions or hooks directly outside of designated adapters:
+```bash
+# Verify zero direct calls to tutor_utils() in domain modules
+grep -rn "tutor_utils" plugins/ems-plugin/src/Modules/
+
+# Verify zero fluentform/* hooks outside of src/Integrations/
+grep -rn "fluentform" plugins/ems-plugin/src/Modules/
+```
+
+### Database Parity & Snapshot Verification
+Generate application-layer JSON snapshots and parity manifests:
+```bash
+# Local container snapshot
+bash bin/preflight-snapshot.sh --mode=local --out=/tmp/ems-snapshot/
+
+# Remote server snapshot
+bash bin/preflight-snapshot.sh --mode=remote --url=https://staging4.see-expeditions.org.uk --token=$TOKEN --out=/tmp/ems-snapshot/
 ```
 
 ---
 
-## 8. Directory Structure
+## 5. Build Procedures
 
+Production assets are compiled with Vite and TypeScript:
+
+```bash
+# Build all workspaces (packages/contracts, ems-plugin, ems-route-card-engine)
+npm run build
+
+# Build ems-plugin frontend assets only
+npm run build --workspace=plugins/ems-plugin
+
+# Build ems-route-card-engine frontend assets only
+npm run build --workspace=plugins/ems-route-card-engine
 ```
-ems-plugin/
-├── assets/                  # Compiled JS/CSS bundles and image assets
-├── bin/
-│   ├── deploy.sh            # Builds JS, installs prod deps, rsyncs to local WP, activates
-│   └── package.sh           # Bumps patch version, builds JS, generates dist zip
-├── docs/                    # Architectural decisions, PRDs, and technical specs
-│   ├── systems_architecture_documentation.md
-│   └── user-guide/EMS_User_Guide.md
-├── resources/
-│   ├── css/ems-admin.css    # Admin and portal stylesheet
-│   └── js/                  # React & TypeScript source files
-│       ├── admin/           # Expedition board, signups board, mapper
-│       ├── leader-dashboard/# Unit leader dashboard SPA
-│       └── portal/          # Public participant & parent portal
-├── src/                     # PHP backend (PSR-4 EMS\ namespace)
-│   ├── Admin/               # WP admin pages and REST controllers
-│   ├── Core/                # Role manager, CPT registry, Table installer, Access guard
-│   ├── Data/                # Repository classes (Units, Signups, Teams, Explorers)
-│   └── Integrations/        # OSM API client, Fluent Forms sync, Tutor LMS client
-├── tests/
-│   ├── features/            # Gherkin behavior specifications
-│   ├── js/                  # Vitest + React Testing Library tests
-│   ├── mocks/               # Mock OSM JSON payloads
-│   └── Unit/                # PHPUnit tests mirroring src/
-└── ems-plugin.php           # Main WordPress plugin bootstrap
+
+### Compiling Elevation Tiles (CLI)
+To convert raw Ordnance Survey ASCII grid tiles (`.asc`) into binary decimetre `.bin` tiles:
+```bash
+php plugins/ems-route-card-engine/bin/build-terrain-tile.php --input=/path/to/asc/ --output=wordpress-env/wp-content/uploads/ems-dem/
 ```
+
+---
+
+## 6. Deployment & Release Procedures
+
+### Local WordPress Deployment (`bin/deploy.sh`)
+Builds production frontend assets, installs Composer dependencies, rsyncs plugin directories into the local WordPress container, and verifies activation:
+
+```bash
+# Deploy both plugins
+bash bin/deploy.sh all
+
+# Deploy only ems-plugin
+bash bin/deploy.sh ems
+
+# Deploy only ems-route-card-engine
+bash bin/deploy.sh rce
+
+# Deploy without rebuilding JS/CSS (faster for PHP-only updates)
+bash bin/deploy.sh all --skip-build
+```
+
+### Production Release Packaging (`bin/package.sh`)
+Packages self-contained, standalone WordPress plugin `.zip` archives into `./dist/`. Each archive contains top-level `<slug>/` directory structure, compiled assets, and production-only autoloaders (`composer install --no-dev --optimize-autoloader`), with test suites and developer files stripped:
+
+```bash
+# Package both plugins (auto-bumps patch version)
+bash bin/package.sh all
+
+# Package without version bumping
+bash bin/package.sh all --no-bump
+
+# Package specific plugin with version increment
+bash bin/package.sh ems --bump=patch
+bash bin/package.sh rce --no-bump
+```
+
+Generated release artifacts:
+- `dist/ems-plugin-<version>.zip`
+- `dist/ems-route-card-engine-<version>.zip`
+
+### Staging & Production Promotion Workflow
+
+Deployments to remote staging (`staging4.see-expeditions.org.uk`) and production (`see-expeditions.org.uk`) require zero command-line tools on the server:
+
+1. **Pre-Deployment Backup:**
+   Log into WordPress Admin → **EMS → Settings → Backups** and download the current Unified JSON Backup (or run `bash bin/preflight-snapshot.sh --mode=remote ...`).
+2. **Build Release Packages:**
+   Run `bash bin/package.sh all --no-bump` (or desired target) locally.
+3. **Upload in WordPress Admin:**
+   Navigate to **Plugins → Add New Plugin → Upload Plugin**, select the `.zip` archive from `dist/`, and click **Replace current with uploaded**.
+4. **Post-Deployment Verification:**
+   - Check **EMS → Settings → Feature Flags** to verify all modules report healthy status.
+   - Run parity check: `bash bin/preflight-snapshot.sh --mode=remote ...` and verify table counts match pre-upload values.
+5. **Rollback Procedure:**
+   If any discrepancy occurs, navigate to **EMS → Settings → Backups → Restore** and upload the pre-deployment JSON backup.

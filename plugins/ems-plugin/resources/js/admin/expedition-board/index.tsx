@@ -1,0 +1,39 @@
+import '../../../css/ems-admin.css';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import ExpeditionBoard from './ExpeditionBoard';
+import ExplorersPage from './ExplorersPage';
+import PushbackDashboard from './PushbackDashboard';
+import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
+
+document.addEventListener( 'DOMContentLoaded', () => {
+    const rootElement = document.getElementById( 'ems-expedition-board-root' );
+    if ( rootElement ) {
+        const root = createRoot( rootElement );
+        root.render(
+            <ModuleErrorBoundary moduleName="Expedition Board">
+                <ExpeditionBoard />
+            </ModuleErrorBoundary>
+        );
+    }
+
+    const explorersRoot = document.getElementById( 'ems-explorers-root' );
+    if ( explorersRoot ) {
+        const root = createRoot( explorersRoot );
+        root.render(
+            <ModuleErrorBoundary moduleName="Explorers">
+                <ExplorersPage />
+            </ModuleErrorBoundary>
+        );
+    }
+
+    const pushbackRoot = document.getElementById( 'ems-pushback-root' );
+    if ( pushbackRoot ) {
+        const root = createRoot( pushbackRoot );
+        root.render(
+            <ModuleErrorBoundary moduleName="Pushback Dashboard">
+                <PushbackDashboard />
+            </ModuleErrorBoundary>
+        );
+    }
+} );
