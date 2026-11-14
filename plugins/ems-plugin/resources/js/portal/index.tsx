@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder } from '@fortawesome/free-solid-svg-icons';
 import { createRoot } from 'react-dom/client';
 import { OSMReadOnlyMap } from '../admin/expedition-board/OSMReadOnlyMap';
+import { ModuleErrorBoundary } from '../shared/ModuleErrorBoundary';
 
 interface Teammate {
     first_name: string;
@@ -409,7 +410,8 @@ export function PortalApp() {
                 <div className="portal-content">
                     {/* Page 1: Sign-up Applications */}
                     {currentPage === 'signups' && (
-                        <div className="portal-section" style={{ marginBottom: '35px' }}>
+                        <ModuleErrorBoundary moduleName="Portal Signups">
+                            <div className="portal-section" style={{ marginBottom: '35px' }}>
                             <h3>Sign up forms for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
                             {explorerDetail.signups.length === 0 ? (
                                 <p>No active sign-ups found.</p>
@@ -614,11 +616,13 @@ export function PortalApp() {
                                 </div>
                             )}
                         </div>
+                        </ModuleErrorBoundary>
                     )}
 
                     {/* Page 2: Expeditions & Events */}
                     {currentPage === 'expeditions' && (
-                        <div className="portal-section">
+                        <ModuleErrorBoundary moduleName="Portal Expeditions">
+                            <div className="portal-section">
                             <h3>Expeditions & Events for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
                             <div className="category-tabs" style={{ display: 'flex', borderBottom: '2px solid #ccc', marginBottom: '20px', flexWrap: 'wrap' }}>
                             {(['training', 'practice', 'qualifying'] as const).map(tab => {
@@ -731,6 +735,7 @@ export function PortalApp() {
                                                 </div>
 
                                                 <div className="sub-tab-content">
+                                                    <ModuleErrorBoundary moduleName="Portal Event Details">
                                                     {activeSubTab === 'overview' && (
                                                         <div>
                                                             <div className="ems-portal-overview-grid">
@@ -879,6 +884,7 @@ export function PortalApp() {
                                                             </div>
                                                         </div>
                                                     )}
+                                                    </ModuleErrorBoundary>
                                                 </div>
                                             </div>
                                         )}
@@ -887,6 +893,7 @@ export function PortalApp() {
                             })()}
                         </div>
                     </div>
+                    </ModuleErrorBoundary>
                     )}
                 </div>
             )}
@@ -897,6 +904,10 @@ export function PortalApp() {
 document.addEventListener('DOMContentLoaded', () => {
     const rootEl = document.getElementById('ems-portal-root');
     if (rootEl) {
-        createRoot(rootEl).render(<PortalApp />);
+        createRoot(rootEl).render(
+            <ModuleErrorBoundary moduleName="Portal">
+                <PortalApp />
+            </ModuleErrorBoundary>
+        );
     }
 });

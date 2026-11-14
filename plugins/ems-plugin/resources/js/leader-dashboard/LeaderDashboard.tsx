@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ModuleErrorBoundary } from '../shared/ModuleErrorBoundary';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faAward,
@@ -368,7 +369,8 @@ export const LeaderDashboard: React.FC = () => {
             </nav>
 
             {activeTab === 'summary' ? (
-                <div>
+                <ModuleErrorBoundary moduleName="Leader Dashboard Summary">
+                    <div>
                     <div className="ems-flex-center ems-gap-16 ems-wrap ems-mb-20">
                         <div className="ems-flex-center ems-gap-8">
                             <span className="ems-toolbar__label">View:</span>
@@ -808,8 +810,10 @@ export const LeaderDashboard: React.FC = () => {
                         </div>
                     )}
                 </div>
+                </ModuleErrorBoundary>
             ) : (
-                <>
+                <ModuleErrorBoundary moduleName="Leader Dashboard Explorer Signups">
+                    <>
                     <div className="ems-flex-center ems-gap-16 ems-wrap ems-mb-20">
                 <div className="ems-flex-center ems-gap-8">
                     <label htmlFor="leader-grouping-select">Group By:</label>
@@ -1058,6 +1062,7 @@ export const LeaderDashboard: React.FC = () => {
                 </div>
             )}
                 </>
+                </ModuleErrorBoundary>
             )}
         </div>
     );

@@ -12,6 +12,7 @@ import {
     faCircleQuestion
 } from '@fortawesome/free-solid-svg-icons';
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
+import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 import { computeSignupsDashboardMetrics, getSignupRecordKey, groupSignupsByExplorerIdentity } from './dashboardMetrics';
 import {
     normalize,
@@ -757,13 +758,16 @@ export default function SignupsBoard() {
                 </nav>
 
                 {activeViewTab === 'dashboard' ? (
-                    <SignupsDashboard
-                        signups={signups}
-                        units={availableUnits}
-                        onNavigateToTable={handleNavigateToTable}
-                    />
+                    <ModuleErrorBoundary moduleName="Signups Dashboard">
+                        <SignupsDashboard
+                            signups={signups}
+                            units={availableUnits}
+                            onNavigateToTable={handleNavigateToTable}
+                        />
+                    </ModuleErrorBoundary>
                 ) : (
-                    <>
+                    <ModuleErrorBoundary moduleName="Signups Table">
+                        <>
                         {/* Filter and Control Bar */}
                         <div className="ems-signups-toolbar">
                             {/* Status Tabs */}
@@ -1221,6 +1225,7 @@ export default function SignupsBoard() {
                             </div>
                         </div>
                     </>
+                    </ModuleErrorBoundary>
                 )}
             </div>
 
