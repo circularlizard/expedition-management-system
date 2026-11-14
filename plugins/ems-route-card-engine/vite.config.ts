@@ -20,7 +20,7 @@ function buildManifestPlugin() {
 export default defineConfig({
     plugins: [react(), buildManifestPlugin()],
     build: {
-        outDir: 'assets/js',
+        outDir: resolve( __dirname, 'assets/js' ),
         emptyOutDir: true,
         chunkSizeWarningLimit: 1000,
         rollupOptions: {
