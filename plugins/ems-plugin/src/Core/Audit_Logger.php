@@ -13,7 +13,11 @@ class Audit_Logger {
 	public static function log( string $action, ?int $target_scout_id = null, ?int $user_id = null ): void {
 		global $wpdb;
 
-		if ( ! isset( $wpdb ) ) {
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) ) {
+			return;
+		}
+
+		if ( ! ( $wpdb instanceof \Mockery\MockInterface ) && ! is_callable( array( $wpdb, 'insert' ) ) && ! method_exists( $wpdb, 'insert' ) ) {
 			return;
 		}
 
@@ -41,8 +45,10 @@ class Audit_Logger {
 
 		$timestamp = current_time( 'mysql' ) ?: gmdate( 'Y-m-d H:i:s' );
 
+		$prefix = isset( $wpdb->prefix ) ? (string) $wpdb->prefix : 'wp_';
+
 		$wpdb->insert(
-			$wpdb->prefix . 'ems_audit_logs',
+			$prefix . 'ems_audit_logs',
 			array(
 				'user_id'         => $user_id,
 				'action'          => sanitize_text_field( $action ),
