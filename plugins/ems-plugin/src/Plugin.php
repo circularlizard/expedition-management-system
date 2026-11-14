@@ -24,6 +24,7 @@ class Plugin {
 		$this->cpt_registry    = new CPT_Registry();
 		$this->module_registry = new \EMS\Core\Module_Registry();
 		$this->module_registry->register_module( new \EMS\Modules\Signups\SignupsModule() );
+		$this->module_registry->register_module( new \EMS\Modules\Expeditions\ExpeditionsModule() );
 		$this->init_hooks();
 		$this->module_registry->boot_all();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );
@@ -153,7 +154,7 @@ class Plugin {
 				);
 				$view_controller->register_routes();
 
-				$expedition_controller = new \EMS\Admin\Expedition_Admin_Controller(
+				$expedition_controller = new \EMS\Modules\Expeditions\Expedition_Admin_Controller(
 					new \EMS\Data\Expedition_Repository(),
 					new \EMS\Data\Team_Repository(),
 					new \EMS\Data\Team_Member_Repository(),
