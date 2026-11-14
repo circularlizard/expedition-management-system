@@ -5,9 +5,9 @@ namespace EMS\Modules\RouteEngine;
 
 use EMS\Contracts\ModuleInterface;
 use EMS\Modules\RouteEngine\Admin\Admin_Studio_Controller;
-use EMS\Modules\RouteEngine\Core\REST\DEM_Management_Controller;
-use EMS\Modules\RouteEngine\Core\REST\Route_Card_Controller;
-use EMS\Modules\RouteEngine\Core\REST\Settings_Controller;
+use EMSRoute\Core\REST\DEM_Management_Controller;
+use EMSRoute\Core\REST\Route_Card_Controller;
+use EMSRoute\Core\REST\Settings_Controller;
 
 class RouteEngineModule implements ModuleInterface {
 
