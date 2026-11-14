@@ -19,7 +19,7 @@ function buildManifestPlugin() {
 export default defineConfig({
     plugins: [react(), buildManifestPlugin()],
     build: {
-        outDir: 'assets/js',
+        outDir: resolve( __dirname, 'assets/js' ),
         emptyOutDir: true,
         rollupOptions: {
             input: {

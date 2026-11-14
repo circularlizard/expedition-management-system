@@ -1,71 +1,135 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-# Build and deploy the plugin to the local wordpress directory.
-# Usage: bash bin/deploy.sh
+# bin/deploy.sh - Build and deploy plugins to local WordPress environment
+# Usage:
+#   bash bin/deploy.sh [ems|rce|route-engine|all] [--skip-build]
 
-PLUGIN_NAME="ems-plugin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WP_ENV_DIR="${WP_ENV_DIR:-$(cd "$SCRIPT_DIR/../../wordpress-env" 2>/dev/null && pwd)}"
-TARGET_DIR="${WP_PLUGINS_DIR:-$WP_ENV_DIR/wordpress/wp-content/plugins}/$PLUGIN_NAME"
-STAGING_DIR="$SCRIPT_DIR/../temp/ems-plugin-deploy"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${ROOT_DIR}"
 
-echo "==> Deploying EMS plugin to $TARGET_DIR..."
+# Parse arguments
+TARGET="all"
+SKIP_BUILD=""
 
-# 1. Build JS assets
-echo "==> Building JS assets..."
-npm run build --silent
-
-# 2. Clean staging area
-rm -rf "$STAGING_DIR"
-mkdir -p "$STAGING_DIR/$PLUGIN_NAME"
-# 3. Copy source files to staging
-echo "==> Staging files..."
-rsync -a \
-  --exclude='.git/' \
-  --exclude='.github/' \
-  --exclude='wordpress/' \
-  --exclude='vendor/' \
-  --exclude='dist/' \
-  --exclude='node_modules/' \
-  --exclude='docker-compose.yml' \
-  --exclude='phpunit.xml' \
-  --exclude='.gitignore' \
-  --exclude='*.log' \
-  --exclude='*.crt' \
-  --exclude='tools/' \
-  . "$STAGING_DIR/$PLUGIN_NAME/"
-
-
-# 4. Install production Composer dependencies in staging
-echo "==> Installing production dependencies..."
-if command -v composer >/dev/null 2>&1; then
-  composer install \
-    --no-dev \
-    --optimize-autoloader \
-    --working-dir="$STAGING_DIR/$PLUGIN_NAME" \
-    --quiet
+if [ "${1:-}" = "--skip-build" ]; then
+  TARGET="all"
+  SKIP_BUILD="--skip-build"
 else
-  echo "==> Host composer not found, using dockerized composer..."
-  docker run --rm \
-    -u "$(id -u):$(id -g)" \
-    -v "$(pwd)/$STAGING_DIR/$PLUGIN_NAME:/app" \
-    -w /app \
-    composer install --no-dev --optimize-autoloader --quiet
+  TARGET="${1:-all}"
+  SKIP_BUILD="${2:-}"
 fi
 
-# 5. Sync staging to target
-echo "==> Syncing to $TARGET_DIR..."
-mkdir -p "$TARGET_DIR"
-rsync -a --delete "$STAGING_DIR/$PLUGIN_NAME/" "$TARGET_DIR/"
-
-# 6. Clean up
-rm -rf "$STAGING_DIR"
-
-# 7. Use WP-CLI to ensure plugin is activated
-if [ -d "$WP_ENV_DIR" ] && command -v docker >/dev/null 2>&1; then
-  echo "==> Refreshing plugin status..."
-  (cd "$WP_ENV_DIR" && docker compose run --rm wpcli plugin activate $PLUGIN_NAME --quiet 2>/dev/null) || true
+# Determine WordPress plugins destination directory
+if [ -n "${WP_PLUGINS_DIR:-}" ]; then
+  DEST_DIR="${WP_PLUGINS_DIR}"
+elif [ -d "${ROOT_DIR}/wordpress-env/wp-content/plugins" ]; then
+  DEST_DIR="${ROOT_DIR}/wordpress-env/wp-content/plugins"
+elif [ -d "${ROOT_DIR}/../wordpress-env/wordpress/wp-content/plugins" ]; then
+  DEST_DIR="${ROOT_DIR}/../wordpress-env/wordpress/wp-content/plugins"
+elif [ -d "${ROOT_DIR}/../wordpress-env/wp-content/plugins" ]; then
+  DEST_DIR="${ROOT_DIR}/../wordpress-env/wp-content/plugins"
+else
+  DEST_DIR="${ROOT_DIR}/wordpress-env/wp-content/plugins"
 fi
 
-echo "==> Done! Plugin deployed and activated."
+# Find running WordPress container ID or name
+find_wp_container() {
+  # 1. Check local docker-compose
+  if command -v docker-compose >/dev/null 2>&1; then
+    local cid
+    cid=$(docker-compose ps -q wordpress 2>/dev/null | head -n1 || true)
+    if [ -n "${cid}" ]; then
+      echo "${cid}"
+      return 0
+    fi
+  fi
+
+  # 2. Check docker compose
+  local cid_dc
+  cid_dc=$(docker compose ps -q wordpress 2>/dev/null | head -n1 || true)
+  if [ -n "${cid_dc}" ]; then
+    echo "${cid_dc}"
+    return 0
+  fi
+
+  # 3. Check any running container named *wordpress* (excluding db/mariadb/caddy/cli/cron)
+  local candidate
+  candidate=$(docker ps --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -E "wordpress" | grep -v -E "db|database|mysql|mariadb|caddy|cli|cron" | head -n1 || true)
+  if [ -n "${candidate}" ]; then
+    echo "${candidate}"
+    return 0
+  fi
+
+  return 1
+}
+
+# Ensure plugin is activated in running container
+activate_plugin() {
+  local slug="$1"
+  local container
+  if container=$(find_wp_container); then
+    echo "  --> Verifying plugin activation in container: ${container}..."
+    if ! docker exec -i "${container}" wp plugin is-active "${slug}" --allow-root >/dev/null 2>&1; then
+      echo "  --> Activating ${slug}..."
+      docker exec -i "${container}" wp plugin activate "${slug}" --allow-root >/dev/null 2>&1 || true
+    fi
+  fi
+}
+
+deploy_plugin() {
+  local folder="$1"
+  local slug="$2"
+  local plugin_src="${ROOT_DIR}/plugins/${folder}"
+
+  if [ ! -d "${plugin_src}" ]; then
+    echo "ERROR: Plugin source directory not found: ${plugin_src}"
+    exit 1
+  fi
+
+  echo "==> Deploying ${slug} to ${DEST_DIR}/${slug}..."
+
+  if [ "${SKIP_BUILD}" != "--skip-build" ]; then
+    echo "  --> Building frontend assets (${folder})..."
+    npm run build --workspace="plugins/${folder}"
+
+    if [ -f "${plugin_src}/composer.json" ]; then
+      echo "  --> Installing Composer dependencies (${folder})..."
+      composer install --working-dir="${plugin_src}" --no-interaction --prefer-dist --quiet
+    fi
+  else
+    echo "  --> Skipping build (--skip-build specified)"
+  fi
+
+  mkdir -p "${DEST_DIR}/${slug}"
+  rsync -a --delete \
+    --exclude='.git*' \
+    --exclude='node_modules/' \
+    --exclude='tests/' \
+    --exclude='scratch/' \
+    --exclude='mockdata/' \
+    --exclude='docs/' \
+    --exclude='user-guide/' \
+    "${plugin_src}/" "${DEST_DIR}/${slug}/"
+
+  activate_plugin "${slug}"
+  echo "==> ${slug} deployed and active."
+}
+
+case "${TARGET}" in
+  ems)
+    deploy_plugin "ems-plugin" "ems-plugin"
+    ;;
+  rce|route-engine)
+    deploy_plugin "ems-route-card-engine" "ems-route-card-engine"
+    ;;
+  all)
+    deploy_plugin "ems-plugin" "ems-plugin"
+    deploy_plugin "ems-route-card-engine" "ems-route-card-engine"
+    ;;
+  *)
+    echo "Usage: bash bin/deploy.sh [ems|rce|route-engine|all] [--skip-build]"
+    exit 1
+    ;;
+esac

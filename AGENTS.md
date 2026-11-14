@@ -4,9 +4,13 @@ This file provides the essential context for any AI coding agent (Cascade, OpenC
 
 ---
 
-## 1. Project Overview
+## 1. Project Overview & Monorepo Architecture
 
-A WordPress plugin (`ems-plugin`) managing Duke of Edinburgh expeditions. PHP backend + React/TypeScript frontend. All admin features live in the WP admin dashboard. No frontend-facing PHP rendering — all data served via REST API consumed by React SPAs registered as WP admin pages.
+This repository is a monorepo housing the South East Scotland Scouts Expedition Management System (EMS) and its route engine:
+
+- **`plugins/ems-plugin`**: Core WordPress plugin managing Duke of Edinburgh expeditions, participant signups, unit mapping, leader dashboard, volunteer availability, and OSM synchronisation. PHP backend + React/TypeScript admin SPAs. All admin features live in the WP admin dashboard. No frontend-facing PHP rendering — all data served via REST API (`/wp-json/ems/v1/`) consumed by React SPAs.
+- **`plugins/ems-route-card-engine`**: Standalone WordPress plugin providing local terrain analysis (OS Terrain 50 binary elevation tiles), GPX route card builder, and Naismith's Rule time calculators. Can be deployed together with `ems-plugin` or standalone to external WordPress sites.
+- **`packages/contracts`**: Shared TypeScript contracts, DTO types, and schema definitions shared between the plugins.
 
 ---
 
@@ -26,16 +30,22 @@ All work follows this sequence **without exception**:
 
 ## 3. Namespace & File Conventions
 
-- PSR-4 autoload: `EMS\` → `src/`, `EMS\Tests\` → `tests/`
-- Class naming: `Snake_Case` (e.g. `OSM_Section_Importer`, `Team_Repository`)
-- Test files mirror `src/` under `tests/Unit/` (e.g. `src/Data/Team_Repository.php` → `tests/Unit/Data/Team_RepositoryTest.php`)
-- Gherkin feature files: `tests/features/{stage}-{topic}.feature`
+### Monorepo Workspaces
+- **Core Plugin (`plugins/ems-plugin/`)**:
+  - PSR-4 autoload: `EMS\` → `src/`, `EMS\Tests\` → `tests/`
+  - Class naming: `Snake_Case` (e.g. `OSM_Section_Importer`, `Team_Repository`)
+  - Test files mirror `src/` under `tests/Unit/` (e.g. `src/Data/Team_Repository.php` → `tests/Unit/Data/Team_RepositoryTest.php`)
+- **Route Engine (`plugins/ems-route-card-engine/`)**:
+  - PSR-4 autoload: `EMSRoute\` → `src/`, `EMSRoute\Tests\` → `tests/`
+- **Shared Contracts (`packages/contracts/`)**:
+  - Exported TypeScript interfaces and schemas.
+- **Gherkin feature files**: `tests/features/{stage}-{topic}.feature`
 
 ---
 
 ## 4. PHP Test Anatomy
 
-All PHP tests extend `EMS\Tests\EMSTestCase` which sets up Brain Monkey and stubs common WP functions.
+All PHP tests extend `EMS\Tests\EMSTestCase` (or `EMSRoute\Tests\TestCase`) which sets up Brain Monkey and stubs common WP functions.
 
 ```php
 <?php
@@ -197,31 +207,59 @@ Programmatically registered on plugin activation and mapped dynamically on OIDC 
 
 ---
 
-## 12. Running Tests
+## 12. Monorepo Quality & Verification Scripts
+
+All testing and static analysis can be run from the repository root:
 
 ```bash
-# PHP (runs on host, not inside container)
-vendor/bin/phpunit
-
-# JS
+# JS/TS Tests across workspaces
 npm run test
 
-# Single PHP test file
-vendor/bin/phpunit tests/Unit/Data/Team_RepositoryTest.php
+# Build all workspace assets
+npm run build
+
+# PHPUnit test suites
+npm run test:php:ems   # composer --working-dir=plugins/ems-plugin exec phpunit
+npm run test:php:rce   # composer --working-dir=plugins/ems-route-card-engine exec phpunit
+
+# Static Analysis (PHPStan)
+npm run stan:ems       # phpstan for plugins/ems-plugin
+npm run stan:rce       # phpstan for plugins/ems-route-card-engine
+
+# Complete Verification Gate (Runs tests, builds, and PHPStan for both plugins)
+npm run verify:all
 ```
 
 ### UI feature tests
-
-Gherkin UI scenarios are implemented with **Vitest + React Testing Library**. The UI component uses a data-fetch hook (e.g. `useExpeditionBoard`) that calls the REST API in production. In Vitest, the API hook is mocked with `vi.mock()` or inline mocked data so the component can render states and respond to interactions without a WordPress server. Full browser E2E tests (Playwright) are reserved for staging smoke tests.
+Gherkin UI scenarios are implemented with **Vitest + React Testing Library**. In Vitest, API hooks are mocked with `vi.mock()` or inline mock data so components render and interact without a WordPress server. Full browser E2E tests (Playwright) are reserved for staging smoke tests.
 
 ---
 
-## 14. Build & Deploy
+## 13. OSM API Call Flow (authoritative)
 
-| Script | Purpose |
+1. `get_data_payload(token)` → `ext/generic/startup/` — sections + terms
+2. `get_section_members(section_id, term_id)` → `ext/members/contact/`
+3. Per member: `get_member_detail(section_id, scout_id, term_id)` → `ext/customdata/`
+4. `get_section_events(section_id, term_id)` → `ext/events/summary/`
+5. `get_event_attendance(section_id, event_id)` → `ext/events/summary/`
+6. `get_flexi_structure(section_id, term_id)` → `ext/members/flexirecords/`
+
+Never call OSM endpoints directly. Always use `OSM_API_Client` methods.
+
+---
+
+## 14. Build, Deploy & Workstation Infrastructure
+
+| Script / Command | Purpose |
 |---|---|
-| `bash bin/deploy.sh` | Build JS, install prod deps, sync to local WP (`wordpress-env/wordpress/wp-content/plugins/ems-plugin/`), activate via WP-CLI |
-| `bash bin/package.sh` | Bump patch version, build JS, produce `dist/ems-plugin-{VERSION}.zip` for manual upload |
+| `bash bin/setup-workstation.sh` | Idempotent workstation bootstrap (prereqs, wp-content dirs, dependencies, Docker stack, WP core, third-party plugins, seed data) |
+| `bash bin/deploy.sh [ems\|rce\|all] [--skip-build]` | Build JS & Composer deps, sync to local WP plugins dir, and activate via WP-CLI |
+| `bash bin/package.sh [ems\|rce\|all] [--no-bump\|--bump=patch\|minor\|major]` | Stage clean copy, install production autoloader, and create standard plugin `.zip` in `dist/` |
+| `bash bin/preflight-snapshot.sh [--mode=local\|remote] [--out=/dir]` | Capture CPT counts, 10 table row counts, DB dump, parity manifest (`ems-parity-manifest.json`), and unified backup (`ems-unified-backup.json`) |
+
+Root npm deployment and packaging shortcuts:
+- `npm run deploy:ems` / `npm run deploy:rce`
+- `npm run package:ems` / `npm run package:rce` / `npm run package:all`
 
 `npm run build` is acceptable during active development to enable JS tests. However, **every development phase must finish with `bash bin/deploy.sh`** to sync the built assets and PHP to the local WordPress install. Never leave a phase complete without running the deploy script.
 
@@ -229,31 +267,22 @@ Gherkin UI scenarios are implemented with **Vitest + React Testing Library**. Th
 
 ## 15. Version Scheme & Bumping Rules
 
-The plugin follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
-The version lives in **one place**: `ems-plugin.php` (in the `* Version:` file header and `EMS_VERSION` constant). The current baseline is `1.0.0`.
+Both plugins follow Semantic Versioning (`MAJOR.MINOR.PATCH`).
+Versions live in their primary bootstrap file headers and constants:
+- `plugins/ems-plugin/ems-plugin.php` (`* Version:` and `EMS_VERSION`)
+- `plugins/ems-route-card-engine/ems-route-card-engine.php` (`* Version:` and `EMS_ROUTE_CARD_VERSION`)
 
 ### When to Bump What
-
 - **`MAJOR` (e.g. 1.0.0 → 2.0.0)**:
-  - **Triggers**: Breaking schema changes requiring manual database migration or data conversion, major architectural overhauls, breaking backward-incompatible REST API alterations, or structural redesigns of core user workflows.
+  - **Triggers**: Breaking schema changes requiring manual database migration or data conversion, major architectural overhauls, or breaking REST API alterations.
   - **Authority**: Reserved strictly for the user. Never bump `MAJOR` autonomously without explicit user instruction.
-  - **Action**: Manually edit `ems-plugin.php` (both the header and `define( 'EMS_VERSION', ... )`), reset `MINOR` and `PATCH` to `0` (e.g. `2.0.0`), and run `bash bin/deploy.sh`.
-
+  - **Action**: Pass `--bump=major` to `bin/package.sh`, or edit header/constant manually.
 - **`MINOR` (e.g. 1.0.0 → 1.1.0)**:
-  - **Triggers**: Completion of a new named milestone, feature stage, or significant new capability added in a backward-compatible manner (e.g. introducing the Leader Dashboard, Volunteer Availability module, Calendar Planning, Portability Engine, or substantial new endpoints/CPTs).
-  - **Authority**: Completed upon delivering a named stage/milestone or at user request.
-  - **Action**: Manually edit `ems-plugin.php` (both the header and `define( 'EMS_VERSION', ... )`), increment `MINOR` by 1 and reset `PATCH` to `0` (e.g. `1.1.0`), then run `bash bin/deploy.sh`.
-
+  - **Triggers**: Completion of a new named milestone, feature stage, or significant new capability added in a backward-compatible manner.
+  - **Action**: Pass `--bump=minor` to `bin/package.sh`, or edit header/constant manually.
 - **`PATCH` (e.g. 1.0.0 → 1.0.1)**:
-  - **Triggers**: Bug fixes, security patches, styling/UI tweaks, test coverage enhancements, or minor non-breaking refinements within existing feature scopes.
-  - **Authority**: Automatic via packaging, or manual for hotfixes.
-  - **Action**:
-    - **`bin/package.sh` automatically increments the patch segment** (`1.0.0` → `1.0.1`) on every release zip creation — do not manually bump the patch segment immediately before packaging.
-    - If bumping manually outside packaging, edit `ems-plugin.php` (header and constant) and run `bash bin/deploy.sh`.
-
-### Key Constraints:
-- Never edit the version copy in `wordpress-env/wordpress/wp-content/plugins/ems-plugin/ems-plugin.php` directly — that directory is synced by `bin/deploy.sh`.
-- Whenever a manual version edit is made in `ems-plugin.php`, always run `bash bin/deploy.sh` to compile assets, update the local WordPress environment, and refresh plugin status.
+  - **Triggers**: Bug fixes, security patches, styling/UI tweaks, or test coverage enhancements.
+  - **Action**: `bin/package.sh` automatically increments the patch segment by default on every release zip creation (use `--no-bump` to prevent).
 
 ---
 
@@ -274,25 +303,12 @@ Examples:
 - `feat(explorers): link wp_user_id on OIDC login via email match`
 - `fix(sync): preserve wp_user_id when OSM replace overwrites explorer row`
 - `test(team-repo): add PHPUnit coverage for sequential team code generation`
-- `chore(deploy): update bin/deploy.sh to skip node_modules in rsync`
+- `chore(deploy): update bin/deploy.sh for monorepo target selection`
 
 Rules:
 - **No** `update file`, `fix bug`, `WIP`, or single-word messages.
-- Scope should match the class, feature area, or stage (e.g. `explorers`, `expedition-board`, `sync`, `training`).
+- Scope should match the class, feature area, or stage (e.g. `explorers`, `expedition-board`, `sync`, `training`, `route-engine`).
 - If a commit closes a stage or sub-task, note it in the body (e.g. `Completes Stage 1.11 step 1a`).
-
----
-
-## 13. OSM API Call Flow (authoritative)
-
-1. `get_data_payload(token)` → `ext/generic/startup/` — sections + terms
-2. `get_section_members(section_id, term_id)` → `ext/members/contact/`
-3. Per member: `get_member_detail(section_id, scout_id, term_id)` → `ext/customdata/`
-4. `get_section_events(section_id, term_id)` → `ext/events/summary/`
-5. `get_event_attendance(section_id, event_id)` → `ext/events/summary/`
-6. `get_flexi_structure(section_id, term_id)` → `ext/members/flexirecords/`
-
-Never call OSM endpoints directly. Always use `OSM_API_Client` methods.
 
 ---
 
@@ -310,11 +326,11 @@ All modifications must adhere to these safety and coding conventions:
 ### PHPStan Analysis
 Before completing any task, run PHPStan to ensure no new errors are introduced:
 ```bash
-vendor/bin/phpstan analyse --memory-limit=2G
+npm run stan:ems
+npm run stan:rce
 ```
 Do not "baseline" new errors. Baselines are reserved strictly for legacy code or WordPress core API typing quirks (like hidden submenu pages).
 
 ### Request Validation & Redirection
 - Always use `wp_safe_redirect()` instead of raw `wp_redirect()` unless an external redirect is explicitly intended and documented.
 - Always unslash (`wp_unslash()`) and escape/sanitize variables accessed directly from superglobals (`$_POST`, `$_GET`, `$_SERVER`, etc.) before using them.
-
