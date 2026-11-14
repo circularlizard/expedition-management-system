@@ -1,5 +1,5 @@
 <?php
-namespace EMS\Admin;
+namespace EMS\Modules\Volunteers;
 
 use EMS\Data\Volunteer_Repository;
 

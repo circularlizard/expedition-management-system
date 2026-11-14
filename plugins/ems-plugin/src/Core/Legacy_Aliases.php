@@ -13,5 +13,8 @@ class Legacy_Aliases {
 		if ( ! class_exists( 'EMS\\Admin\\Expedition_Admin_Controller', false ) && class_exists( \EMS\Modules\Expeditions\Expedition_Admin_Controller::class ) ) {
 			class_alias( \EMS\Modules\Expeditions\Expedition_Admin_Controller::class, 'EMS\\Admin\\Expedition_Admin_Controller' );
 		}
+		if ( ! class_exists( 'EMS\\Admin\\Volunteer_Controller', false ) && class_exists( \EMS\Modules\Volunteers\Volunteer_Controller::class ) ) {
+			class_alias( \EMS\Modules\Volunteers\Volunteer_Controller::class, 'EMS\\Admin\\Volunteer_Controller' );
+		}
 	}
 }
