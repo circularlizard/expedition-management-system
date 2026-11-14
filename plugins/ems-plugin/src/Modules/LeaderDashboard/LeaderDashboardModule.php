@@ -16,7 +16,6 @@ class LeaderDashboardModule implements ModuleInterface {
 	public function register(): void {
 		$unit_leader_page = new Unit_Leader_Page();
 		add_action( 'admin_init', array( $unit_leader_page, 'maybe_handle_export' ) );
-		add_action( 'admin_menu', array( $unit_leader_page, 'register' ), 12 );
 	}
 
 	public function boot(): void {

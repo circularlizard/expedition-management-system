@@ -96,18 +96,18 @@ class Plugin {
 		add_action( 'wp_head', array( $this, 'clear_session_cache_on_logout_landing' ) );
 		add_action( 'login_head', array( $this, 'clear_session_cache_on_logout_landing' ) );
 
-		$admin_page = new Admin_Page(
-			new Diagnostic_Panel()
+		$admin_page       = new Admin_Page( new Diagnostic_Panel() );
+		$unit_leader_page = new \EMS\Modules\LeaderDashboard\Unit_Leader_Page();
+		$settings_page    = new Settings_Page();
+		$report_page      = new Training_Report_Page( new TutorLMS_Client() );
+
+		$menu_manager = new \EMS\Admin\Menu_Manager(
+			$admin_page,
+			$unit_leader_page,
+			$settings_page,
+			$report_page
 		);
-		add_action( 'admin_menu', array( $admin_page, 'register' ), 10 );
-		add_action( 'admin_menu', array( $admin_page, 'register_explorers_menu' ), 11 );
-		add_action( 'admin_menu', array( $admin_page, 'register_volunteers_menu' ), 11 );
-		add_action( 'admin_menu', array( $admin_page, 'register_reference_menu' ), 13 );
-
-		$report_page = new Training_Report_Page( new TutorLMS_Client() );
-		add_action( 'admin_menu', array( $report_page, 'register' ), 14 );
-
-		add_action( 'admin_menu', array( $admin_page, 'register_mapper_menu' ), 16 );
+		$menu_manager->init();
 
 		$api_mode   = get_option( 'ems_api_mode', 'mock' );
 		$driver     = ( $api_mode === 'live' ) ? new Live_Driver() : new Mock_Driver();
@@ -123,9 +123,6 @@ class Plugin {
 		$fluent_sync->init_hooks();
 
 		new \EMS\Core\Access_Control_Guard();
-
-		$settings_page = new Settings_Page();
-		add_action( 'admin_menu', array( $settings_page, 'register' ), 18 );
 
 		// REST API
 		add_action(
