@@ -1,5 +1,5 @@
 <?php
-namespace EMS\Admin;
+namespace EMS\Modules\Signups;
 
 use EMS\Data\Expedition_Repository;
 use EMS\Data\Team_Repository;

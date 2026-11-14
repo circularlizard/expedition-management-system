@@ -5,6 +5,10 @@
 
 require_once dirname( __DIR__ ) . '/vendor/autoload.php';
 
+if ( class_exists( '\\EMS\\Core\\Legacy_Aliases' ) ) {
+    \EMS\Core\Legacy_Aliases::register_aliases();
+}
+
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
     define( 'HOUR_IN_SECONDS', 3600 );
 }

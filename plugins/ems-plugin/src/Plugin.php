@@ -16,11 +16,16 @@ use EMS\Integrations\TutorLMS_Client;
 
 class Plugin {
 	private CPT_Registry $cpt_registry;
+	private \EMS\Core\Module_Registry $module_registry;
 	private static bool $is_access_denied = false;
 
 	public function __construct() {
-		$this->cpt_registry = new CPT_Registry();
+		\EMS\Core\Legacy_Aliases::register_aliases();
+		$this->cpt_registry    = new CPT_Registry();
+		$this->module_registry = new \EMS\Core\Module_Registry();
+		$this->module_registry->register_module( new \EMS\Modules\Signups\SignupsModule() );
 		$this->init_hooks();
+		$this->module_registry->boot_all();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );
 		add_shortcode( 'ems-portal', array( $this, 'render_portal_shortcode' ) );
 		add_shortcode( 'ems-leader-dashboard', array( $this, 'render_leader_dashboard_shortcode' ) );
@@ -141,7 +146,7 @@ class Plugin {
 				$sync_preview_controller = new \EMS\Admin\Sync_Preview_Controller( $osm_client );
 				$sync_preview_controller->register_routes();
 
-				$view_controller = new \EMS\Admin\Admin_View_Controller(
+				$view_controller = new \EMS\Modules\Signups\Admin_View_Controller(
 					new \EMS\Data\Team_Repository(),
 					new \EMS\Data\Team_Member_Repository(),
 					new \EMS\Integrations\TutorLMS_Client()
