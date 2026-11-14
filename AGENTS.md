@@ -334,3 +334,50 @@ Do not "baseline" new errors. Baselines are reserved strictly for legacy code or
 ### Request Validation & Redirection
 - Always use `wp_safe_redirect()` instead of raw `wp_redirect()` unless an external redirect is explicitly intended and documented.
 - Always unslash (`wp_unslash()`) and escape/sanitize variables accessed directly from superglobals (`$_POST`, `$_GET`, `$_SERVER`, etc.) before using them.
+
+---
+
+## 19. Safe Development Mandates for AI Agents (Golden Safety Rules)
+
+To protect production and local environments, ensure zero data loss, and maintain strict blast-radius isolation, every AI coding agent must adhere to the following six golden safety rules:
+
+### Rule 1: Zero Destructive Database Operations
+- **NEVER** execute `docker-compose down -v`, `wp db reset`, `DROP TABLE`, `TRUNCATE`, or unconstrained `DELETE` statements.
+- MariaDB named volume `db_data` contains live developmental data across 10 custom tables and CPTs that cannot be automatically re-seeded if wiped.
+- Before executing any database schema migration or complex data refactor, **ALWAYS** generate a preflight safety snapshot:
+  ```bash
+  bash bin/preflight-snapshot.sh --mode=local --out=/tmp/ems-preflight-backup/
+  ```
+
+### Rule 2: Standalone Repository Isolation (`login-with-google`)
+- `login-with-google` (`oauth-login`) remains in its own standalone repository (`../login-with-google`).
+- **NEVER** move, delete, or merge `login-with-google` into the monorepo. It is synced into the local Docker environment exclusively via `bin/setup-workstation.sh` or `rsync` into `wordpress-env/wp-content/plugins/oauth-login/`.
+
+### Rule 3: Modular Kernel & Blast-Radius Architecture
+When adding or refactoring features in `plugins/ems-plugin`:
+- **Vertical Domain Modules (`src/Modules/`)**: Every domain feature must implement `EMS\Contracts\ModuleInterface` (`getSlug()`, `isAlwaysOn()`, `register()`, `boot()`) and boot through `Module_Registry`.
+- **Fault-Isolated Booting**: If your module can encounter runtime errors during startup, ensure it degrades gracefully without throwing uncaught exceptions out of `Module_Registry`.
+- **Dynamic Feature Flags**: Check `Feature_Flags::is_enabled($slug)` to allow features to be disabled via `ems_feature_flags` in WP-CLI or EMS Settings during maintenance.
+- **Shortcode Error Boundaries**: Wrap all public shortcodes (`[ems-portal]`, `[ems-leader-dashboard]`, `[ems-volunteer-signup]`, `[ems_signup_banner]`) in `Shortcode_Boundary::execute()` so exceptions render a styled fallback card rather than crashing public WordPress pages.
+- **Anti-Corruption Adapters**: **ZERO direct calls** to third-party functions (such as `tutor_utils()`) or raw third-party hooks (`fluentform/*`) in `src/Modules/`. Third-party dependencies must live exclusively inside `src/Integrations/` adapters that return fallback objects (e.g., `TrainingStatusDTO::unavailable()`) if the dependency is missing.
+- **Frontend Error Boundaries**: Wrap React SPAs and major tabs in `<ModuleErrorBoundary />` so component crashes do not break sibling tabs or navigation.
+
+### Rule 4: Git History & Commit Integrity
+- Always use `git mv` when relocating files to ensure `git log --follow` traverses history across directory moves.
+- **Crucial Sequencing Rule**: Never mix file moves with namespace refactoring or functional code changes in the same commit. Always commit the file moves first, verify tests pass, and then refactor namespaces in subsequent commits.
+
+### Rule 5: Non-Destructive Packaging & Deployment
+- Never deploy working-tree directories with `vendor/` or `node_modules/` directly to Staging or Production.
+- Always use `bash bin/package.sh [all|ems|rce]` to produce self-contained `.zip` archives. The packager stages a clean copy in `/tmp/ems-pkg-stage/`, installs `--no-dev` Composer dependencies, and ensures the top-level archive directory matches the WordPress plugin slug (`ems-plugin/` or `ems-route-card-engine/`).
+
+### Rule 6: Mandatory Verification Before Declaring Done
+Before reporting any task complete:
+1. Run static analysis and tests across both plugins:
+   ```bash
+   npm run verify:all
+   ```
+2. Verify local WordPress deployment:
+   ```bash
+   bash bin/deploy.sh all
+   ```
+3. Verify that `/wp-json/ems/v1/` and `/wp-json/ems-route/v1/` return HTTP 200 without PHP warnings or fatals in Docker logs (`docker logs wordpress-env-wordpress-1 --tail 50`).
