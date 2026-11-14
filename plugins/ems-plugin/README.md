@@ -47,7 +47,7 @@ plugins/ems-plugin/
 │   │   ├── OSM/                     # Online Scout Manager OAuth & sync clients
 │   │   └── RouteEngine/             # EmsRouteBridgeAdapter
 │   ├── Data/                        # Relational repositories (Units, Explorers)
-│   └── Admin/                       # WP Admin menus, settings, and diagnostic panels
+│   └── Admin/                       # WP Admin menus (Menu_Manager), settings, diagnostic panels
 ├── tests/                           # Verification suites
 │   ├── Unit/                        # PHPUnit test cases (EMSTestCase + Brain Monkey)
 │   └── js/                          # Vitest component and logic tests
@@ -70,6 +70,17 @@ plugins/ems-plugin/
 - **Dynamic Feature Flags:** Modules can be toggled without code deployment via `Feature_Flags` (persisted in WordPress option `ems_feature_flags` or overridden via `EMS_DISABLE_MODULE_*` constants).
 - **Shortcode Fault Boundaries:** Shortcodes execute within `Shortcode_Boundary::execute()` so any runtime fatal renders an inline notification card rather than causing a white screen of death.
 - **Anti-Corruption Adapters:** Direct calls to external third-party functions (such as `tutor_utils()`) are prohibited in `src/Modules/`. External systems are accessed exclusively through adapters in `src/Integrations/` that provide fallback states (`TrainingStatusDTO::unavailable()`) if a third-party plugin is deactivated.
+- **Unified Admin Menu Coordination:** All WordPress admin menu items (top-level `ems` and its submenus) are registered through a single coordinator, `EMS\Admin\Menu_Manager`, hooked at `admin_menu` (priority 10). Individual modules and controllers do not attach separate `admin_menu` hooks with scattered priority offsets. Submenus are registered in explicit call order:
+  1. **Signups** (`admin.php?page=ems`)
+  2. **Expeditions** (`admin.php?page=ems-expeditions`)
+  3. **Explorers** (`admin.php?page=ems-explorers`)
+  4. **Units & Leaders** (`admin.php?page=ems-units`)
+  5. **Volunteers** (`admin.php?page=ems-volunteers`)
+  6. **Route Studio** (`admin.php?page=ems-route-studio`)
+  7. **OSM Sync** (`admin.php?page=ems-reference`)
+  8. **Settings** (`admin.php?page=ems-settings`)
+  9. **Training Report** (`admin.php?page=ems-training-report`)
+  Utility screens such as **Column Mapper** (`admin.php?page=ems-column-mapper`) are registered with `$parent_slug = null`, keeping them accessible for modal/direct flows without displaying in the sidebar menu.
 
 ---
 

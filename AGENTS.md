@@ -395,6 +395,12 @@ Before reporting any task complete:
   ```
 - **Always check web server responses & error logs:** After deploying to the local container, verify that admin endpoints return HTTP 200 or 302 (redirect) rather than HTTP 500, and ensure no fatal errors or warnings exist in `docker logs wordpress-env-wordpress-1 --tail 50`.
 
+### Rule 8: Unified Admin Menu Registration (`Menu_Manager`)
+- **Centralize all admin menu and submenu registrations in `Menu_Manager`:** Never register `admin_menu` action hooks inside individual domain modules (e.g. `LeaderDashboardModule`), controllers (`Admin_Studio_Controller`), or page classes (`Admin_Page`, `Settings_Page`, `Training_Report_Page`) with scattered priority integers (11, 12, 14, 16, 18).
+- **Submenu ordering is sequential:** Submenu order under `ems` is determined by the PHP call order of `add_submenu_page()` in `Menu_Manager::register_menus()`.
+- **Hidden utility screens:** For pages that need to be routable (e.g., accessed via modal links or direct redirects like `ems-column-mapper`) without appearing in the WordPress sidebar menu, pass `$parent_slug = null` to `add_submenu_page()`.
+- **Unit test coverage:** Any modification to the admin menu hierarchy must update and pass `EMS\Tests\Unit\Admin\Menu_ManagerTest`.
+
 ---
 
 ## 20. Release Versioning Policy (When to Bump vs. Not Bump)

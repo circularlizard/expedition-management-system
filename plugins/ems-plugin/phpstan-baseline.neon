@@ -22,11 +22,6 @@ parameters:
 			path: src/Admin/Settings_Page.php
 
 		-
-			message: "#^Parameter \\#1 \\$parent_slug of function add_submenu_page expects string, null given\\.$#"
-			count: 1
-			path: src/Admin/Training_Report_Page.php
-
-		-
 			message: "#^Strict comparison using \\=\\=\\= between false and string will always evaluate to false\\.$#"
 			count: 1
 			path: src/Core/Encryption.php

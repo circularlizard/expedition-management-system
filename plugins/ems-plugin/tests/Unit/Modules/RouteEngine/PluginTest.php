@@ -24,7 +24,7 @@ class PluginTest extends TestCase {
 
         Plugin::init();
 
-        $this->assertTrue( has_action( 'admin_menu' ) );
+        $this->assertTrue( has_action( 'admin_enqueue_scripts' ) );
         $this->assertTrue( has_action( 'rest_api_init' ) );
     }
 }

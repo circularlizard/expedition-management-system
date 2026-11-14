@@ -9,7 +9,6 @@ namespace EMS\Modules\RouteEngine\Admin;
 
 class Admin_Studio_Controller {
     public static function init(): void {
-        add_action( 'admin_menu', [ self::class, 'register_admin_menu' ] );
         add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
     }
 
