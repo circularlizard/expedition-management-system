@@ -1,5 +1,5 @@
 <?php
-namespace EMS\Admin;
+namespace EMS\Modules\Portal;
 
 use EMS\Data\OSM_Explorer_Repository;
 use EMS\Data\Signup_Repository;
