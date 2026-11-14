@@ -6,11 +6,10 @@ This file provides the essential context for any AI coding agent (Cascade, OpenC
 
 ## 1. Project Overview & Monorepo Architecture
 
-This repository is a monorepo housing the South East Scotland Scouts Expedition Management System (EMS) and its route engine:
+This repository is a monorepo housing the South East Scotland Scouts Expedition Management System (EMS):
 
-- **`plugins/ems-plugin`**: Core WordPress plugin managing Duke of Edinburgh expeditions, participant signups, unit mapping, leader dashboard, volunteer availability, and OSM synchronisation. PHP backend + React/TypeScript admin SPAs. All admin features live in the WP admin dashboard. No frontend-facing PHP rendering — all data served via REST API (`/wp-json/ems/v1/`) consumed by React SPAs.
-- **`plugins/ems-route-card-engine`**: Standalone WordPress plugin providing local terrain analysis (OS Terrain 50 binary elevation tiles), GPX route card builder, and Naismith's Rule time calculators. Can be deployed together with `ems-plugin` or standalone to external WordPress sites.
-- **`packages/contracts`**: Shared TypeScript contracts, DTO types, and schema definitions shared between the plugins.
+- **`plugins/ems-plugin`**: Unified WordPress plugin managing Duke of Edinburgh expeditions, participant signups, unit mapping, leader dashboard, volunteer availability, OSM synchronisation, and native GPX route planning / terrain elevation (`EMS\Modules\RouteEngine`). PHP backend + React/TypeScript SPAs. Data served via REST APIs (`/wp-json/ems/v1/` and `/wp-json/ems-route/v1/`).
+- **`packages/contracts`**: Shared TypeScript contracts, DTO types, and schema definitions.
 
 ---
 
@@ -378,6 +377,46 @@ Before reporting any task complete:
    ```
 2. Verify local WordPress deployment:
    ```bash
-   bash bin/deploy.sh all
+   bash bin/deploy.sh
    ```
 3. Verify that `/wp-json/ems/v1/` and `/wp-json/ems-route/v1/` return HTTP 200 without PHP warnings or fatals in Docker logs (`docker logs wordpress-env-wordpress-1 --tail 50`).
+
+### Rule 7: WordPress Hook Signature & Admin Lifecycle Verification
+- **Never strictly type action callback parameters as `?object` or scalars without `mixed` fallbacks:** When WordPress `WP_Hook::apply_filters` executes action callbacks where no arguments were passed to `do_action()`, its internal filter runner passes an empty string `''` as argument 1 to callbacks registered with default `$accepted_args = 1`. If an action callback parameter is typed as `?object $screen`, PHP throws a fatal `TypeError: Argument #1 must be of type ?object, string given`. Always type such hook parameters as `mixed $arg = null` and check with `is_object()`.
+- **Never verify admin pages solely by calling `render()` in isolation:** In WordPress admin, `wp-admin/admin.php` executes `do_action("load-{$page_hook}")` before rendering. Testing `render()` directly in unit tests or via WP-CLI bypasses the load hooks. Always simulate the complete lifecycle:
+  ```bash
+  wp eval '
+  wp_set_current_user(1);
+  require_once ABSPATH . "wp-admin/includes/admin.php";
+  set_current_screen("ems_page_ems-settings");
+  do_action("load-ems_page_ems-settings");
+  (new \EMS\Admin\Settings_Page())->render();
+  ' --allow-root
+  ```
+- **Always check web server responses & error logs:** After deploying to the local container, verify that admin endpoints return HTTP 200 or 302 (redirect) rather than HTTP 500, and ensure no fatal errors or warnings exist in `docker logs wordpress-env-wordpress-1 --tail 50`.
+
+---
+
+## 20. Release Versioning Policy (When to Bump vs. Not Bump)
+
+Versioning across this repository adheres strictly to Semantic Versioning (`MAJOR.MINOR.PATCH`):
+
+### 1. When NOT to bump (`bash bin/package.sh --no-bump`)
+- **Development & Iteration:** During local feature work, bug investigation, and intermediate commits on a working branch.
+- **Verification Builds:** When building staging test archives during pull request reviews or verification audits before final release approval.
+- **Goal:** Keep version numbers deterministic and prevent artificial version inflation across iterative review cycles.
+
+### 2. When to bump (`bash bin/package.sh [--bump=patch|minor|major]`)
+Only bump when cutting a formal, releasable artifact destined for deployment to Staging or Production:
+- **Patch Bump (`--bump=patch`, e.g. 1.0.21 -> 1.0.22):**
+  - Backward-compatible bug fixes.
+  - Minor UI adjustments, styling fixes, or documentation updates.
+  - Internal refactoring that does not introduce new shortcodes, schema tables, or API endpoints.
+- **Minor Bump (`--bump=minor`, e.g. 1.0.21 -> 1.1.0):**
+  - New backward-compatible functionality or modules (e.g. adding the native Route Engine module, adding new settings tabs, adding new shortcodes).
+  - Additive database schema migrations (adding new tables/columns with non-breaking defaults).
+  - New public REST API routes.
+- **Major Bump (`--bump=major`, e.g. 1.0.21 -> 2.0.0):**
+  - Breaking API route changes or deprecations.
+  - Database schema restructuring requiring manual migration scripts or breaking existing stored schemas.
+  - Architectural overhauls that require administrator intervention or breaking changes to shortcode syntax.
