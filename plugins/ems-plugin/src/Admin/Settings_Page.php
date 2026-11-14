@@ -41,11 +41,11 @@ class Settings_Page {
 		);
 	}
 
-	public function add_help_screen_tabs( ?object $screen = null ): void {
-		if ( ! $screen && function_exists( 'get_current_screen' ) ) {
+	public function add_help_screen_tabs( mixed $screen = null ): void {
+		if ( ! is_object( $screen ) && function_exists( 'get_current_screen' ) ) {
 			$screen = get_current_screen();
 		}
-		if ( ! $screen || ! is_callable( array( $screen, 'add_help_tab' ) ) ) {
+		if ( ! is_object( $screen ) || ! is_callable( array( $screen, 'add_help_tab' ) ) ) {
 			return;
 		}
 

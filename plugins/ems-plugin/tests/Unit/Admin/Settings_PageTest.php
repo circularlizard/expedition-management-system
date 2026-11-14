@@ -500,4 +500,12 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertSame( 'ems-help-overview', $added_tabs[0]['id'] );
         $this->assertSame( 'ems-help-shortcodes', $added_tabs[1]['id'] );
     }
+
+    public function test_add_help_screen_tabs_handles_string_argument_from_wp_hook(): void {
+        $page = new Settings_Page();
+        // WordPress WP_Hook passes an empty string '' to callbacks when no arguments are provided.
+        // This must not throw a TypeError.
+        $page->add_help_screen_tabs( '' );
+        $this->assertTrue( true );
+    }
 }
