@@ -41,7 +41,6 @@ npm install
 
 echo "==> Installing Composer dependencies..."
 composer install --working-dir=plugins/ems-plugin --prefer-dist --no-interaction
-composer install --working-dir=plugins/ems-route-card-engine --prefer-dist --no-interaction
 
 echo "==> Building frontend assets across workspaces..."
 npm run build
@@ -86,8 +85,8 @@ echo "==> Deploying monorepo plugins..."
 bash bin/deploy.sh all
 
 echo "==> Copying DEM mock tiles if present..."
-if [ -d "plugins/ems-route-card-engine/mockdata" ]; then
-  cp -n plugins/ems-route-card-engine/mockdata/*.bin wordpress-env/wp-content/uploads/ems-dem/ 2>/dev/null || true
+if [ -d "plugins/ems-plugin/mockdata" ]; then
+  cp -n plugins/ems-plugin/mockdata/*.bin wordpress-env/wp-content/uploads/ems-dem/ 2>/dev/null || true
 fi
 
 if [ "${1:-}" = "--seed" ] && [ -n "${2:-}" ] && [ -f "${2}" ]; then

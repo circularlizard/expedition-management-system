@@ -78,6 +78,20 @@ activate_plugin() {
   fi
 }
 
+cleanup_retired_plugin() {
+  local container
+  if container=$(find_wp_container); then
+    if docker exec -i "${container}" wp plugin is-installed ems-route-card-engine --allow-root >/dev/null 2>&1; then
+      echo "  --> Deactivating retired ems-route-card-engine in container..."
+      docker exec -i "${container}" wp plugin deactivate ems-route-card-engine --allow-root >/dev/null 2>&1 || true
+    fi
+  fi
+  if [ -d "${DEST_DIR}/ems-route-card-engine" ]; then
+    echo "  --> Removing retired ems-route-card-engine directory from ${DEST_DIR}..."
+    rm -rf "${DEST_DIR}/ems-route-card-engine"
+  fi
+}
+
 deploy_plugin() {
   local folder="$1"
   local slug="$2"
@@ -117,19 +131,14 @@ deploy_plugin() {
   echo "==> ${slug} deployed and active."
 }
 
+cleanup_retired_plugin
+
 case "${TARGET}" in
-  ems)
+  ems|rce|route-engine|all)
     deploy_plugin "ems-plugin" "ems-plugin"
-    ;;
-  rce|route-engine)
-    deploy_plugin "ems-route-card-engine" "ems-route-card-engine"
-    ;;
-  all)
-    deploy_plugin "ems-plugin" "ems-plugin"
-    deploy_plugin "ems-route-card-engine" "ems-route-card-engine"
     ;;
   *)
-    echo "Usage: bash bin/deploy.sh [ems|rce|route-engine|all] [--skip-build]"
+    echo "Usage: bash bin/deploy.sh [ems|all] [--skip-build]"
     exit 1
     ;;
 esac

@@ -8,15 +8,15 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:php": "composer --working-dir=plugins/ems-plugin exec phpunit",
     "test:php:ems": "composer --working-dir=plugins/ems-plugin exec phpunit",
-    "test:php:rce": "composer --working-dir=plugins/ems-route-card-engine exec phpunit",
+    "stan": "composer --working-dir=plugins/ems-plugin exec -- phpstan analyse --memory-limit=2G",
     "stan:ems": "composer --working-dir=plugins/ems-plugin exec -- phpstan analyse --memory-limit=2G",
-    "stan:rce": "composer --working-dir=plugins/ems-route-card-engine exec -- phpstan analyse --memory-limit=2G",
-    "verify:all": "npm run test && npm run build && npm run test:php:ems && npm run test:php:rce && npm run stan:ems && npm run stan:rce",
+    "verify:all": "npm run test && npm run build && npm run test:php && npm run stan",
+    "deploy": "bash bin/deploy.sh ems",
     "deploy:ems": "bash bin/deploy.sh ems",
-    "deploy:rce": "bash bin/deploy.sh rce",
+    "package": "bash bin/package.sh ems",
     "package:ems": "bash bin/package.sh ems",
-    "package:rce": "bash bin/package.sh rce",
     "package:all": "bash bin/package.sh all"
   }
 }
