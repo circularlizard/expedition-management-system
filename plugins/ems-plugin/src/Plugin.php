@@ -29,6 +29,7 @@ class Plugin {
 		$this->module_registry->register_module( new \EMS\Modules\LeaderDashboard\LeaderDashboardModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Portal\PortalModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Notifications\NotificationsModule() );
+		$this->module_registry->register_module( new \EMS\Modules\RouteEngine\RouteEngineModule() );
 		$this->init_hooks();
 		$this->module_registry->boot_all();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );

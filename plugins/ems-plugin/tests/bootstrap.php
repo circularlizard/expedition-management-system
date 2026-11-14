@@ -4,6 +4,11 @@
  */
 
 require_once dirname( __DIR__ ) . '/vendor/autoload.php';
+require_once __DIR__ . '/EMSTestCase.php';
+
+if ( ! class_exists( 'EMSRoute\\Tests\\TestCase' ) ) {
+    class_alias( \EMS\Tests\EMSTestCase::class, 'EMSRoute\\Tests\\TestCase' );
+}
 
 if ( class_exists( '\\EMS\\Core\\Legacy_Aliases' ) ) {
     \EMS\Core\Legacy_Aliases::register_aliases();
@@ -103,4 +108,28 @@ if ( ! defined( 'EMS_PLUGIN_FILE' ) ) {
 
 if ( ! defined( 'EMS_VERSION' ) ) {
     define( 'EMS_VERSION', '1.0.0' );
+}
+
+if ( ! defined( 'WP_CONTENT_DIR' ) ) {
+    define( 'WP_CONTENT_DIR', sys_get_temp_dir() . '/wp-content' );
+}
+
+if ( ! defined( 'DOFE_DEM_DATA_DIR' ) ) {
+    define( 'DOFE_DEM_DATA_DIR', sys_get_temp_dir() . '/dofe-dem-test-data' );
+}
+
+if ( ! defined( 'EMS_ROUTE_CARD_VERSION' ) ) {
+    define( 'EMS_ROUTE_CARD_VERSION', '1.0.21' );
+}
+
+if ( ! defined( 'EMS_ROUTE_CARD_FILE' ) ) {
+    define( 'EMS_ROUTE_CARD_FILE', dirname( __DIR__ ) . '/ems-plugin.php' );
+}
+
+if ( ! defined( 'EMS_ROUTE_CARD_PATH' ) ) {
+    define( 'EMS_ROUTE_CARD_PATH', dirname( __DIR__ ) . '/' );
+}
+
+if ( ! defined( 'EMS_ROUTE_CARD_URL' ) ) {
+    define( 'EMS_ROUTE_CARD_URL', 'http://example.com/wp-content/plugins/ems-plugin/' );
 }

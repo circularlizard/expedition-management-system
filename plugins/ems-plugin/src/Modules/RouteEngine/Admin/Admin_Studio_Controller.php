@@ -1,11 +1,11 @@
 <?php
 /**
- * Standalone Admin Studio Controller
+ * Admin Studio Controller
  */
 
 declare(strict_types=1);
 
-namespace EMSRoute\Admin;
+namespace EMS\Modules\RouteEngine\Admin;
 
 class Admin_Studio_Controller {
     public static function init(): void {
@@ -14,9 +14,20 @@ class Admin_Studio_Controller {
     }
 
     public static function register_admin_menu(): void {
+        // Main placement under EMS navigation
+        add_submenu_page(
+            'ems',
+            __( 'Route Studio', 'ems-plugin' ),
+            __( 'Route Studio', 'ems-plugin' ),
+            'manage_options',
+            'ems-route-studio',
+            [ self::class, 'render_studio_page' ]
+        );
+
+        // Management page alias under Tools
         add_management_page(
-            __( 'DofE Route Card Engine', 'ems-route-card-engine' ),
-            __( 'Route Card Engine', 'ems-route-card-engine' ),
+            __( 'DofE Route Card Engine', 'ems-plugin' ),
+            __( 'Route Card Engine', 'ems-plugin' ),
             'manage_options',
             'ems-route-card-studio',
             [ self::class, 'render_studio_page' ]
@@ -24,18 +35,21 @@ class Admin_Studio_Controller {
     }
 
     public static function enqueue_assets( string $hook ): void {
-        if ( 'tools_page_ems-route-card-studio' !== $hook ) {
+        if ( 'tools_page_ems-route-card-studio' !== $hook && 'ems_page_ems-route-studio' !== $hook ) {
             return;
         }
 
-        $script_path = EMS_ROUTE_CARD_PATH . 'assets/js/route-card-studio.js';
-        $style_path  = EMS_ROUTE_CARD_PATH . 'assets/js/route-card-studio.css';
+        $base_path = defined( 'EMS_PLUGIN_PATH' ) ? constant( 'EMS_PLUGIN_PATH' ) : ( defined( 'EMS_ROUTE_CARD_PATH' ) ? constant( 'EMS_ROUTE_CARD_PATH' ) : '' );
+        $base_url  = defined( 'EMS_PLUGIN_URL' ) ? constant( 'EMS_PLUGIN_URL' ) : ( defined( 'EMS_ROUTE_CARD_URL' ) ? constant( 'EMS_ROUTE_CARD_URL' ) : '' );
+
+        $script_path = $base_path . 'assets/js/route-card-studio.js';
+        $style_path  = $base_path . 'assets/js/route-card-studio.css';
 
         if ( file_exists( $script_path ) ) {
             $ver = (string) filemtime( $script_path );
             wp_enqueue_script(
                 'ems-route-card-studio',
-                EMS_ROUTE_CARD_URL . 'assets/js/route-card-studio.js',
+                $base_url . 'assets/js/route-card-studio.js',
                 [ 'wp-element' ],
                 $ver,
                 true
@@ -56,7 +70,7 @@ class Admin_Studio_Controller {
             $style_ver = (string) filemtime( $style_path );
             wp_enqueue_style(
                 'ems-route-card-studio',
-                EMS_ROUTE_CARD_URL . 'assets/js/route-card-studio.css',
+                $base_url . 'assets/js/route-card-studio.css',
                 [],
                 $style_ver
             );
@@ -65,8 +79,10 @@ class Admin_Studio_Controller {
 
     public static function render_studio_page(): void {
         echo '<div class="wrap">';
-        echo '<h1>' . esc_html__( 'DofE Route Card & Terrain Studio', 'ems-route-card-engine' ) . '</h1>';
+        echo '<h1>' . esc_html__( 'DofE Route Card & Terrain Studio', 'ems-plugin' ) . '</h1>';
         echo '<div id="ems-route-card-studio-root"></div>';
         echo '</div>';
     }
 }
+
+class_alias( Admin_Studio_Controller::class, 'EMSRoute\\Admin\\Admin_Studio_Controller' );

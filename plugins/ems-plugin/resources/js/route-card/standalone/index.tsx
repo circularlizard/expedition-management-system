@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faRoute, faMountainSun, faGear } from '@fortawesome/free-solid-svg-icons';
-import '../../css/ems-route-card.css';
+import '../../../css/ems-route-card.css';
 import { DEMTileManager } from '../components/DEMTileManager';
 import { RouteCardBuilder } from '../components/RouteCardBuilder';
 import { SettingsManager } from '../components/SettingsManager';

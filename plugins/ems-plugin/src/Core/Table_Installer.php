@@ -602,6 +602,24 @@ class Table_Installer {
             KEY idx_unit_id (unit_id)
         ) {$charset};";
 
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}dofe_route_cards (
+            id                     BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            expedition_id          BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+            team_id                BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+            day_number             INT(11) NOT NULL DEFAULT 1,
+            route_title            VARCHAR(255) NOT NULL DEFAULT '',
+            header_data            LONGTEXT NULL,
+            route_data             LONGTEXT NOT NULL,
+            status                 VARCHAR(50) NOT NULL DEFAULT 'draft',
+            approved_by            BIGINT(20) UNSIGNED NULL,
+            approved_at            DATETIME NULL,
+            pdf_file_path          VARCHAR(255) NULL,
+            created_at             DATETIME NOT NULL,
+            updated_at             DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY exp_team_day (expedition_id, team_id, day_number)
+        ) {$charset};";
+
 		return $sql;
 	}
 
@@ -612,6 +630,7 @@ class Table_Installer {
 			'team_members'           => $wpdb->prefix . 'ems_team_members',
 			'volunteer_availability' => $wpdb->prefix . 'ems_volunteer_availability',
 			'route_submissions'      => $wpdb->prefix . 'ems_route_submissions',
+			'dofe_route_cards'       => $wpdb->prefix . 'dofe_route_cards',
 			'osm_explorers'          => $wpdb->prefix . 'ems_osm_explorers',
 			'osm_events'             => $wpdb->prefix . 'ems_osm_events',
 			'osm_event_attendance'   => $wpdb->prefix . 'ems_osm_event_attendance',

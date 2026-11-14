@@ -21,16 +21,18 @@ export default defineConfig({
     build: {
         outDir: resolve( __dirname, 'assets/js' ),
         emptyOutDir: true,
+        chunkSizeWarningLimit: 1000,
         rollupOptions: {
             input: {
-                'column-mapper':    resolve( __dirname, 'resources/js/admin/column-mapper/index.tsx' ),
-                'expedition-board': resolve( __dirname, 'resources/js/admin/expedition-board/index.tsx' ),
-                'signups-board':    resolve( __dirname, 'resources/js/admin/signups-board/index.tsx' ),
-                'volunteers':       resolve( __dirname, 'resources/js/admin/volunteers/index.tsx' ),
-                'volunteer-signup':  resolve( __dirname, 'resources/js/admin/volunteers/signup-wizard.tsx' ),
-                'ems-portal':        resolve( __dirname, 'resources/js/portal/index.tsx' ),
-                'leader-dashboard':  resolve( __dirname, 'resources/js/leader-dashboard/index.tsx' ),
-                'fluent-forms-sync': resolve( __dirname, 'resources/js/fluent-forms/index.ts' ),
+                'column-mapper':     resolve( __dirname, 'resources/js/admin/column-mapper/index.tsx' ),
+                'expedition-board':  resolve( __dirname, 'resources/js/admin/expedition-board/index.tsx' ),
+                'signups-board':     resolve( __dirname, 'resources/js/admin/signups-board/index.tsx' ),
+                'volunteers':        resolve( __dirname, 'resources/js/admin/volunteers/index.tsx' ),
+                'volunteer-signup':   resolve( __dirname, 'resources/js/admin/volunteers/signup-wizard.tsx' ),
+                'ems-portal':         resolve( __dirname, 'resources/js/portal/index.tsx' ),
+                'leader-dashboard':   resolve( __dirname, 'resources/js/leader-dashboard/index.tsx' ),
+                'fluent-forms-sync':  resolve( __dirname, 'resources/js/fluent-forms/index.ts' ),
+                'route-card-studio': resolve( __dirname, 'resources/js/route-card/standalone/index.tsx' ),
             },
             output: {
                 entryFileNames: '[name].js',

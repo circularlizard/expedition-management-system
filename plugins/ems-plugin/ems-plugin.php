@@ -14,8 +14,27 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'EMS_PLUGIN_FILE', __FILE__ );
+define( 'EMS_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
+define( 'EMS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'EMS_VERSION', '1.0.21' );
 define( 'EMS_DEBUG', true );
+
+// Route Card & Terrain Engine Constants
+if ( ! defined( 'EMS_ROUTE_CARD_VERSION' ) ) {
+	define( 'EMS_ROUTE_CARD_VERSION', EMS_VERSION );
+}
+if ( ! defined( 'EMS_ROUTE_CARD_FILE' ) ) {
+	define( 'EMS_ROUTE_CARD_FILE', __FILE__ );
+}
+if ( ! defined( 'EMS_ROUTE_CARD_PATH' ) ) {
+	define( 'EMS_ROUTE_CARD_PATH', EMS_PLUGIN_PATH );
+}
+if ( ! defined( 'EMS_ROUTE_CARD_URL' ) ) {
+	define( 'EMS_ROUTE_CARD_URL', EMS_PLUGIN_URL );
+}
+if ( ! defined( 'DOFE_DEM_DATA_DIR' ) ) {
+	define( 'DOFE_DEM_DATA_DIR', WP_CONTENT_DIR . '/dofe-dem-data' );
+}
 
 // Autoload classes
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {

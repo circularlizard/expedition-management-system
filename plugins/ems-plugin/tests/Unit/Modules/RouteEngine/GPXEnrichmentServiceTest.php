@@ -44,7 +44,7 @@ class GPXEnrichmentServiceTest extends TestCase {
     }
 
     public function test_enriches_real_gold_practice_day1_gpx(): void {
-        $gpxFile = dirname( __DIR__, 2 ) . '/mockdata/2024_GoldPracticeDay1.gpx';
+        $gpxFile = dirname( __DIR__, 4 ) . '/mockdata/2024_GoldPracticeDay1.gpx';
         $this->assertFileExists( $gpxFile );
 
         $result = $this->service->enrichGpx( $gpxFile );
