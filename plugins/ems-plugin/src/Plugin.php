@@ -27,6 +27,7 @@ class Plugin {
 		$this->module_registry->register_module( new \EMS\Modules\Expeditions\ExpeditionsModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Volunteers\VolunteersModule() );
 		$this->module_registry->register_module( new \EMS\Modules\LeaderDashboard\LeaderDashboardModule() );
+		$this->module_registry->register_module( new \EMS\Modules\Portal\PortalModule() );
 		$this->init_hooks();
 		$this->module_registry->boot_all();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );
@@ -172,7 +173,7 @@ class Plugin {
 				$volunteer_controller = new \EMS\Modules\Volunteers\Volunteer_Controller();
 				$volunteer_controller->register_routes();
 
-				$portal_controller = new \EMS\Admin\Portal_Controller();
+				$portal_controller = new \EMS\Modules\Portal\Portal_Controller();
 				$portal_controller->register_routes();
 
 				$audit_controller = new \EMS\Admin\Audit_Log_Controller();
@@ -778,96 +779,100 @@ class Plugin {
 	}
 
 	public function render_portal_shortcode(): string {
-		wp_enqueue_style( 'wp-components' );
-		wp_enqueue_style( 'ems-admin' );
-		wp_enqueue_script( 'ems-portal' );
+		return \EMS\Core\Shortcode_Boundary::execute( function() {
+			wp_enqueue_style( 'wp-components' );
+			wp_enqueue_style( 'ems-admin' );
+			wp_enqueue_script( 'ems-portal' );
 
-		$current_user = wp_get_current_user();
-		$user_data    = array(
-			'logged_in'   => $current_user->exists(),
-			'first_name'  => $current_user->exists() ? ( $current_user->user_firstname ?: $current_user->display_name ) : '',
-			'last_name'   => $current_user->exists() ? $current_user->user_lastname : '',
-			'email'       => $current_user->exists() ? $current_user->user_email : '',
-			'access_type' => $current_user->exists() ? get_user_meta( $current_user->ID, 'ems_access_type', true ) : '',
-		);
+			$current_user = wp_get_current_user();
+			$user_data    = array(
+				'logged_in'   => $current_user->exists(),
+				'first_name'  => $current_user->exists() ? ( $current_user->user_firstname ?: $current_user->display_name ) : '',
+				'last_name'   => $current_user->exists() ? $current_user->user_lastname : '',
+				'email'       => $current_user->exists() ? $current_user->user_email : '',
+				'access_type' => $current_user->exists() ? get_user_meta( $current_user->ID, 'ems_access_type', true ) : '',
+			);
 
-		$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );
+			$current_url = home_url( add_query_arg( array(), $GLOBALS['wp']->request ?? '' ) );
 
-		wp_localize_script(
-			'ems-portal',
-			'emsPortal',
-			array(
-				'root_url'  => get_rest_url( null, 'ems/v1' ),
-				'nonce'     => wp_create_nonce( 'wp_rest' ),
-				'login_url' => wp_login_url( $current_url ),
-				'user_data' => $user_data,
-			)
-		);
+			wp_localize_script(
+				'ems-portal',
+				'emsPortal',
+				array(
+					'root_url'  => get_rest_url( null, 'ems/v1' ),
+					'nonce'     => wp_create_nonce( 'wp_rest' ),
+					'login_url' => wp_login_url( $current_url ),
+					'user_data' => $user_data,
+				)
+			);
 
-		return '<div id="ems-portal-root"></div>';
+			return '<div id="ems-portal-root"></div>';
+		}, array(), null, 'ems-portal' );
 	}
 
 	public function render_signup_banner_shortcode( $atts ): string {
-		$atts = shortcode_atts(
-			array(
-				'form_id'            => '6',
-				'type'               => 'participant',
-				'scout_field'        => 'signup_child',
-				'unit_field'         => 'signup_unit',
-				'parent_email_field' => 'signup_parent_email',
-				'parent_otp_field'   => 'signup_parent_otp_code',
-				'explorer_otp_field' => 'signup_explorer_otp_code',
-				'headline'           => __( 'Speed up your DofE registration', 'ems-plugin' ),
-				'message'            => __( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ),
-			),
-			$atts,
-			'ems_signup_banner'
-		);
+		return \EMS\Core\Shortcode_Boundary::execute( function() use ( $atts ) {
+			$atts = shortcode_atts(
+				array(
+					'form_id'            => '6',
+					'type'               => 'participant',
+					'scout_field'        => 'signup_child',
+					'unit_field'         => 'signup_unit',
+					'parent_email_field' => 'signup_parent_email',
+					'parent_otp_field'   => 'signup_parent_otp_code',
+					'explorer_otp_field' => 'signup_explorer_otp_code',
+					'headline'           => __( 'Speed up your DofE registration', 'ems-plugin' ),
+					'message'            => __( "Log in with Online Scout Manager to auto-fill your child's details and skip email confirmation.", 'ems-plugin' ),
+				),
+				$atts,
+				'ems_signup_banner'
+			);
 
-		$form_id            = (int) $atts['form_id'];
-		$type               = sanitize_text_field( $atts['type'] );
-		$scout_field        = sanitize_text_field( $atts['scout_field'] );
-		$unit_field         = sanitize_text_field( $atts['unit_field'] );
-		$parent_email_field = sanitize_text_field( $atts['parent_email_field'] );
-		$parent_otp_field   = sanitize_text_field( $atts['parent_otp_field'] );
-		$explorer_otp_field = sanitize_text_field( $atts['explorer_otp_field'] );
-		$headline           = sanitize_text_field( $atts['headline'] );
-		$message            = sanitize_text_field( $atts['message'] );
-		$first_name_field   = 'signup_child_name';
+			$form_id            = (int) $atts['form_id'];
+			$type               = sanitize_text_field( $atts['type'] );
+			$scout_field        = sanitize_text_field( $atts['scout_field'] );
+			$unit_field         = sanitize_text_field( $atts['unit_field'] );
+			$parent_email_field = sanitize_text_field( $atts['parent_email_field'] );
+			$parent_otp_field   = sanitize_text_field( $atts['parent_otp_field'] );
+			$explorer_otp_field = sanitize_text_field( $atts['explorer_otp_field'] );
+			$headline           = sanitize_text_field( $atts['headline'] );
+			$message            = sanitize_text_field( $atts['message'] );
+			$first_name_field   = 'signup_child_name';
 
-		if ( in_array( $type, array( 'participant', 'expedition' ), true ) ) {
-			$existing_mappings = get_option( "ems_{$type}_form_mappings", array() );
-			$first_name_field  = $existing_mappings['first_name_field'] ?? 'signup_child_name';
-		}
+			if ( in_array( $type, array( 'participant', 'expedition' ), true ) ) {
+				$existing_mappings = get_option( "ems_{$type}_form_mappings", array() );
+				$first_name_field  = $existing_mappings['first_name_field'] ?? 'signup_child_name';
+			}
 
-		wp_enqueue_style( 'ems-admin' );
+			wp_enqueue_style( 'ems-admin' );
 
-		$otp_css = '<style>' .
-			'.ems-otp-wrap button { background-color: #5c2d8b !important; color: #ffffff !important; border: none !important; padding: 6px 14px !important; border-radius: 4px !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: background-color 0.2s ease-in-out !important; display: inline-block !important; }' .
-			'.ems-otp-wrap button:hover:not(:disabled) { background-color: #4a2072 !important; }' .
-			'.ems-otp-wrap button:disabled { background-color: #cccccc !important; color: #666666 !important; cursor: not-allowed !important; }' .
-			'</style>';
+			$otp_css = '<style>' .
+				'.ems-otp-wrap button { background-color: #5c2d8b !important; color: #ffffff !important; border: none !important; padding: 6px 14px !important; border-radius: 4px !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: background-color 0.2s ease-in-out !important; display: inline-block !important; }' .
+				'.ems-otp-wrap button:hover:not(:disabled) { background-color: #4a2072 !important; }' .
+				'.ems-otp-wrap button:disabled { background-color: #cccccc !important; color: #666666 !important; cursor: not-allowed !important; }' .
+				'</style>';
 
-		if ( $this->is_logged_in_parent_or_network() ) {
-			return $otp_css . '<style>.ff-el-group:has([name^="' . esc_attr( $first_name_field ) . '"]) { display: none !important; } .ff-el-group:has([name^="' . esc_attr( $parent_otp_field ) . '"]), .ems-otp-wrap[data-target="' . esc_attr( $parent_email_field ) . '"] { display: none !important; }</style>';
-		}
+			if ( $this->is_logged_in_parent_or_network() ) {
+				return $otp_css . '<style>.ff-el-group:has([name^="' . esc_attr( $first_name_field ) . '"]) { display: none !important; } .ff-el-group:has([name^="' . esc_attr( $parent_otp_field ) . '"]), .ems-otp-wrap[data-target="' . esc_attr( $parent_email_field ) . '"] { display: none !important; }</style>';
+			}
 
-		$style = $otp_css . '<style>.ff-el-group:has(select[name="' . esc_attr($scout_field) . '"]), .ff-el-group:has([name="' . esc_attr($scout_field) . '"]) { display: none !important; }</style>';
-		$login_url = esc_url( wp_login_url( get_permalink() ) );
-		$logo_url  = esc_url( site_url( '/wp-content/uploads/2026/02/osm-logo-wo.webp' ) );
+			$style = $otp_css . '<style>.ff-el-group:has(select[name="' . esc_attr($scout_field) . '"]), .ff-el-group:has([name="' . esc_attr($scout_field) . '"]) { display: none !important; }</style>';
+			$login_url = esc_url( wp_login_url( get_permalink() ) );
+			$logo_url  = esc_url( site_url( '/wp-content/uploads/2026/02/osm-logo-wo.webp' ) );
 
-		return $style . '<div class="ems-login-banner ems-card ems-p-20 ems-mb-24" style="border: 2px solid #5c2d8b; background-color: #f7f3fc; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">' .
-			'<div class="ems-login-banner__text" style="flex: 1; min-width: 280px;">' .
-			'<h4 class="ems-m-0" style="margin: 0 0 6px 0; color: #411f62; font-size: 18px; font-weight: 700;">' . esc_html( $headline ) . '</h4>' .
-			'<p class="ems-meta-text ems-m-0 ems-small-text" style="margin: 0; color: #50575e; font-size: 14px; line-height: 1.4;">' . esc_html( $message ) . '</p>' .
-			'</div>' .
-			'<div class="oauth-login-button-container" style="flex-shrink: 0;">' .
-			'<a class="oauth-login-button oauth-login-button--osm" href="' . $login_url . '" style="background-color:#411f62;color:#fff;border:solid #5c2d8b;border-width:1px 1px calc(1px + 1px);border-radius:4px;padding:10px 15px;font-size:16px;display:inline-flex;align-items:center;text-decoration:none;gap:10px;">' .
-			'<img class="oauth-login-button__icon" src="' . $logo_url . '" alt="OSM" style="height:24px;width:auto;vertical-align:middle;display:inline-block;">' .
-			'<span class="oauth-login-button__text" style="font-weight:600;">' . esc_html__( 'Login with OSM', 'ems-plugin' ) . '</span>' .
-			'</a>' .
-			'</div>' .
-			'</div>';
+			return $style . '<div class="ems-login-banner ems-card ems-p-20 ems-mb-24" style="border: 2px solid #5c2d8b; background-color: #f7f3fc; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">' .
+				'<div class="ems-login-banner__text" style="flex: 1; min-width: 280px;">' .
+				'<h4 class="ems-m-0" style="margin: 0 0 6px 0; color: #411f62; font-size: 18px; font-weight: 700;">' . esc_html( $headline ) . '</h4>' .
+				'<p class="ems-meta-text ems-m-0 ems-small-text" style="margin: 0; color: #50575e; font-size: 14px; line-height: 1.4;">' . esc_html( $message ) . '</p>' .
+				'</div>' .
+				'<div class="oauth-login-button-container" style="flex-shrink: 0;">' .
+				'<a class="oauth-login-button oauth-login-button--osm" href="' . $login_url . '" style="background-color:#411f62;color:#fff;border:solid #5c2d8b;border-width:1px 1px calc(1px + 1px);border-radius:4px;padding:10px 15px;font-size:16px;display:inline-flex;align-items:center;text-decoration:none;gap:10px;">' .
+				'<img class="oauth-login-button__icon" src="' . $logo_url . '" alt="OSM" style="height:24px;width:auto;vertical-align:middle;display:inline-block;">' .
+				'<span class="oauth-login-button__text" style="font-weight:600;">' . esc_html__( 'Login with OSM', 'ems-plugin' ) . '</span>' .
+				'</a>' .
+				'</div>' .
+				'</div>';
+		}, (array) $atts, null, 'ems_signup_banner' );
 	}
 
 	public function is_logged_in_parent_or_network(): bool {

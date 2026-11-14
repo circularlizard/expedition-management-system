@@ -22,5 +22,8 @@ class Legacy_Aliases {
 		if ( ! class_exists( 'EMS\\Admin\\Unit_Leader_Page', false ) && class_exists( \EMS\Modules\LeaderDashboard\Unit_Leader_Page::class ) ) {
 			class_alias( \EMS\Modules\LeaderDashboard\Unit_Leader_Page::class, 'EMS\\Admin\\Unit_Leader_Page' );
 		}
+		if ( ! class_exists( 'EMS\\Admin\\Portal_Controller', false ) && class_exists( \EMS\Modules\Portal\Portal_Controller::class ) ) {
+			class_alias( \EMS\Modules\Portal\Portal_Controller::class, 'EMS\\Admin\\Portal_Controller' );
+		}
 	}
 }
