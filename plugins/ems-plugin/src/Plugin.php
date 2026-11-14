@@ -708,6 +708,10 @@ class Plugin {
 
 	public function render_leader_dashboard_shortcode(): string {
 		return \EMS\Core\Shortcode_Boundary::execute( function() {
+			if ( ! \EMS\Core\Feature_Flags::is_enabled( 'leader_dashboard' ) && ! \EMS\Core\Feature_Flags::is_enabled( 'leader-dashboard' ) ) {
+				return '<div class="ems-error-boundary ems-shortcode-disabled"><p>The leader dashboard is currently disabled or undergoing maintenance.</p></div>';
+			}
+
 			wp_enqueue_style( 'ems-admin' );
 			wp_enqueue_script( 'ems-leader-dashboard' );
 
@@ -748,6 +752,10 @@ class Plugin {
 
 	public function render_volunteer_signup_shortcode(): string {
 		return \EMS\Core\Shortcode_Boundary::execute( function() {
+			if ( ! \EMS\Core\Feature_Flags::is_enabled( 'volunteers' ) ) {
+				return '<div class="ems-error-boundary ems-shortcode-disabled"><p>Volunteer signup is currently disabled or undergoing maintenance.</p></div>';
+			}
+
 			wp_enqueue_style( 'wp-components' );
 			wp_enqueue_style( 'ems-admin' );
 			wp_enqueue_script( 'ems-volunteer-signup' );
@@ -781,6 +789,10 @@ class Plugin {
 
 	public function render_portal_shortcode(): string {
 		return \EMS\Core\Shortcode_Boundary::execute( function() {
+			if ( ! \EMS\Core\Feature_Flags::is_enabled( 'portal' ) ) {
+				return '<div class="ems-error-boundary ems-shortcode-disabled"><p>The portal is currently disabled or undergoing maintenance.</p></div>';
+			}
+
 			wp_enqueue_style( 'wp-components' );
 			wp_enqueue_style( 'ems-admin' );
 			wp_enqueue_script( 'ems-portal' );
