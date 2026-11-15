@@ -11,7 +11,7 @@ import {
     isSignupSyncedWithOsm,
 } from './dashboardMetrics';
 import { getUnitDistrictMap, normalize } from './tableUtils';
-import { RichTextEditor } from '../expedition-board/RichTextEditor';
+import { RichTextEditor, ShortcodeOption } from '../expedition-board/RichTextEditor';
 
 export type ChaserType = 'osm_share' | 'unpaired_signups';
 
@@ -40,12 +40,97 @@ interface UnitChaserGroup {
     explorers: ChaserExplorerItem[];
 }
 
+interface ChaserExplorerTokenItem {
+    first_name?: string;
+    last_name?: string;
+    dofe_level?: string;
+}
+
 interface EmailDraft {
     unitName: string;
     to: string;
     subject: string;
     message: string;
+    replacements?: Record<string, string>;
+    tokenDatasets?: Record<string, ChaserExplorerTokenItem[]>;
+    shortcodes?: ShortcodeOption[];
 }
+
+const escapeHtml = (str: string): string =>
+    str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+const formatGroupedExplorerListHtml = (explorers: ChaserExplorerTokenItem[]): string => {
+    if (!explorers || explorers.length === 0) {
+        return '<p><em>None</em></p>';
+    }
+    const grouped: Record<string, ChaserExplorerTokenItem[]> = { bronze: [], silver: [], gold: [], other: [] };
+    explorers.forEach((exp) => {
+        const lvl = (exp.dofe_level || '').trim().toLowerCase();
+        if (lvl === 'bronze' || lvl === 'silver' || lvl === 'gold') {
+            grouped[lvl].push(exp);
+        } else {
+            grouped.other.push(exp);
+        }
+    });
+
+    const labels: Record<string, string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', other: 'Other' };
+    let html = '';
+    (['bronze', 'silver', 'gold', 'other'] as const).forEach((lvl) => {
+        const items = grouped[lvl];
+        if (items.length === 0) return;
+        const sorted = [...items].sort((a, b) => {
+            const cmp = (a.first_name || '').localeCompare(b.first_name || '');
+            return cmp !== 0 ? cmp : (a.last_name || '').localeCompare(b.last_name || '');
+        });
+        html += `<p><strong>${labels[lvl]}</strong></p><ul>`;
+        sorted.forEach((item) => {
+            const name = `${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown Explorer';
+            html += `<li>${escapeHtml(name)}</li>`;
+        });
+        html += '</ul>';
+    });
+    return html || '<p><em>None</em></p>';
+};
+
+const renderChaserPreview = (
+    template: string,
+    replacements?: Record<string, string>,
+    tokenDatasets?: Record<string, ChaserExplorerTokenItem[]>
+): string => {
+    let result = template;
+    if (tokenDatasets) {
+        result = result.replace(
+            /\{\{\s*([a-zA-Z0-9_]+)(?:\s+levels\s*=\s*(?:"|&quot;)([^"&]*)(?:"|&quot;))?\s*\}\}/g,
+            (match, token: string, rawLevels?: string) => {
+                if (!Object.prototype.hasOwnProperty.call(tokenDatasets, token)) {
+                    return match;
+                }
+                let explorers = tokenDatasets[token] || [];
+                if (rawLevels && rawLevels.trim() !== '') {
+                    const allowed = rawLevels
+                        .split(',')
+                        .map((l) => l.trim().toLowerCase())
+                        .filter(Boolean);
+                    explorers = explorers.filter((exp) =>
+                        allowed.includes((exp.dofe_level || '').trim().toLowerCase())
+                    );
+                }
+                return formatGroupedExplorerListHtml(explorers);
+            }
+        );
+    }
+    if (replacements) {
+        Object.entries(replacements).forEach(([key, val]) => {
+            result = result.split(key).join(val);
+        });
+    }
+    return result;
+};
 
 export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
     chaserType,
@@ -236,8 +321,11 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
             setDraft({
                 unitName: group.unitName,
                 to: data.to || group.leaderEmail || '',
-                subject: data.subject || '',
-                message: data.message || '',
+                subject: data.raw_subject ?? data.subject ?? '',
+                message: data.raw_message ?? data.message ?? '',
+                replacements: data.replacements,
+                tokenDatasets: data.token_datasets,
+                shortcodes: Array.isArray(data.shortcodes) ? data.shortcodes : undefined,
             });
         } catch (err: any) {
             setNotice({ type: 'error', text: err?.message || 'Failed to load email preview.' });
@@ -475,14 +563,23 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                                     onChange={(val) => setDraft({ ...draft, message: val })}
                                     minHeight="220px"
                                     ariaLabel="HTML Body"
+                                    shortcodes={draft.shortcodes}
                                 />
                             </div>
                             <div className="ems-mb-12">
                                 <div className="ems-font-semibold ems-mb-4">Rendered Preview</div>
+                                {renderChaserPreview(draft.subject, draft.replacements, draft.tokenDatasets) !== draft.subject && (
+                                    <div className="ems-meta-text ems-mb-4">
+                                        <strong>Subject:</strong>{' '}
+                                        {renderChaserPreview(draft.subject, draft.replacements, draft.tokenDatasets)}
+                                    </div>
+                                )}
                                 <div
                                     className="ems-email-preview-box"
                                     data-testid="chaser-email-html-preview"
-                                    dangerouslySetInnerHTML={{ __html: draft.message }}
+                                    dangerouslySetInnerHTML={{
+                                        __html: renderChaserPreview(draft.message, draft.replacements, draft.tokenDatasets),
+                                    }}
                                 />
                             </div>
                             <div className="ems-flex-end ems-gap-8">

@@ -6,6 +6,7 @@ use EMS\Core\Event_Bus;
 use EMS\Core\Feature_Flags;
 use EMS\Data\Signup_Repository;
 use EMS\Data\Unit_Repository;
+use EMS\Modules\Notifications\Email_Template_Registry;
 use EMS\Modules\Notifications\Email_Template_Service;
 
 /**
@@ -255,12 +256,31 @@ class Signup_Chaser_Controller {
 		);
 
 		if ( $preview ) {
+			$raw_subject = trim( (string) get_option( $subj_opt, '' ) );
+			if ( $raw_subject === '' ) {
+				$raw_subject = $default_subj;
+			}
+			$raw_body = trim( (string) get_option( $body_opt, '' ) );
+			if ( $raw_body === '' ) {
+				$raw_body = $default_body;
+			}
+
+			$template_slug = $chaser_type === 'osm_share' ? 'osm_share_request' : 'unpaired_chase';
+			$registry      = new Email_Template_Registry();
+			$template_def  = $registry->get( $template_slug );
+			$shortcodes    = is_array( $template_def['tokens'] ?? null ) ? $template_def['tokens'] : array();
+
 			return new \WP_REST_Response(
 				array(
 					'unit_name'      => $unit_name,
 					'to'             => $recipient,
 					'subject'        => $rendered['subject'],
 					'message'        => $rendered['message'],
+					'raw_subject'    => $raw_subject,
+					'raw_message'    => $raw_body,
+					'replacements'   => $replacements,
+					'token_datasets' => $token_datasets,
+					'shortcodes'     => $shortcodes,
 					'reply_to'       => trim( (string) get_option( $reply_opt, '' ) ),
 					'explorer_count' => $count,
 				),

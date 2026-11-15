@@ -1671,6 +1671,21 @@ describe('SignupsBoard', () => {
                             to: 'leader@kelso.scouts.org.uk',
                             subject: '[SES] OSM Share Request',
                             message: '<p><strong>Bronze</strong></p><ul><li>Zoe Adams</li></ul>',
+                            raw_subject: '[{{site_name}}] OSM Share Request for {{unit_name}}',
+                            raw_message: '<p>Hi {{unit_name}},</p>{{explorer_list_osm}}',
+                            replacements: {
+                                '{{site_name}}': 'SES',
+                                '{{unit_name}}': 'Kelso ESU',
+                            },
+                            token_datasets: {
+                                explorer_list_osm: [
+                                    { first_name: 'Zoe', last_name: 'Adams', dofe_level: 'bronze' },
+                                ],
+                            },
+                            shortcodes: [
+                                { token: '{{unit_name}}', label: 'Unit Name' },
+                                { token: '{{explorer_list_osm}}', label: 'Unsynced Explorers List', supports_levels: true },
+                            ],
                         }),
                     });
                 }
@@ -1711,7 +1726,10 @@ describe('SignupsBoard', () => {
         fireEvent.click(screen.getByTestId('chaser-level-filter-gold'));
         fireEvent.click(screen.getByTestId('preview-email-btn-Kelso ESU'));
 
-        await waitFor(() => expect(screen.getByLabelText('Subject')).toHaveValue('[SES] OSM Share Request'));
+        await waitFor(() => expect(screen.getByLabelText('Subject')).toHaveValue('[{{site_name}}] OSM Share Request for {{unit_name}}'));
+        expect(screen.getByLabelText('HTML Body')).toHaveValue('<p>Hi {{unit_name}},</p>{{explorer_list_osm}}');
+        expect(screen.getByTestId('chaser-email-html-preview')).toHaveTextContent('Zoe Adams');
+        expect(screen.getByTestId('chaser-email-html-preview')).not.toHaveTextContent('{{explorer_list_osm}}');
         const previewCall = (global.fetch as any).mock.calls.find(
             (c: any[]) => typeof c[0] === 'string' && c[0].includes('/signups/send-chaser')
         );

@@ -66,7 +66,7 @@ class Email_Template_Service {
 	 */
 	public function expand_list_shortcodes( string $template, array $token_datasets ): string {
 		$result = preg_replace_callback(
-			'/\{\{\s*([a-zA-Z0-9_]+)(?:\s+levels\s*=\s*"([^"]*)")?\s*\}\}/',
+			'/\{\{\s*([a-zA-Z0-9_]+)(?:\s+levels\s*=\s*(?:"|&quot;)([^"&]*)(?:"|&quot;))?\s*\}\}/',
 			function ( array $matches ) use ( $token_datasets ): string {
 				$token = $matches[1];
 				if ( ! array_key_exists( $token, $token_datasets ) ) {
@@ -209,12 +209,24 @@ class Email_Template_Service {
 			$token_datasets
 		);
 
-		$subject = ( $subject_override !== null && trim( $subject_override ) !== '' )
-			? $subject_override
-			: $rendered['subject'];
-		$message = ( $body_override !== null && trim( $body_override ) !== '' )
-			? $body_override
-			: $rendered['message'];
+		$has_subject_override = ( $subject_override !== null && trim( $subject_override ) !== '' );
+		$has_body_override    = ( $body_override !== null && trim( $body_override ) !== '' );
+
+		if ( $has_subject_override || $has_body_override ) {
+			$override_subj = $has_subject_override ? $subject_override : $rendered['subject'];
+			$override_body = $has_body_override ? $body_override : $rendered['message'];
+
+			if ( $has_body_override && ! empty( $token_datasets ) ) {
+				$override_body = $this->expand_list_shortcodes( $override_body, $token_datasets );
+			}
+
+			$rendered_override = $this->render( $override_subj, $override_body, $replacements );
+			$subject           = $rendered_override['subject'];
+			$message           = $rendered_override['message'];
+		} else {
+			$subject = $rendered['subject'];
+			$message = $rendered['message'];
+		}
 
 		$headers = $this->build_headers( $reply_to_option, $replacements, array(), $is_html );
 
