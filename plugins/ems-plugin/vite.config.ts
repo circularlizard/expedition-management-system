@@ -27,6 +27,7 @@ export default defineConfig({
                 'column-mapper':     resolve( __dirname, 'resources/js/admin/column-mapper/index.tsx' ),
                 'expedition-board':  resolve( __dirname, 'resources/js/admin/expedition-board/index.tsx' ),
                 'signups-board':     resolve( __dirname, 'resources/js/admin/signups-board/index.tsx' ),
+                'email-templates':   resolve( __dirname, 'resources/js/admin/email-templates/index.tsx' ),
                 'volunteers':        resolve( __dirname, 'resources/js/admin/volunteers/index.tsx' ),
                 'volunteer-signup':   resolve( __dirname, 'resources/js/admin/volunteers/signup-wizard.tsx' ),
                 'ems-portal':         resolve( __dirname, 'resources/js/portal/index.tsx' ),

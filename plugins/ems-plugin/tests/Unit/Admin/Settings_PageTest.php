@@ -402,7 +402,7 @@ class Settings_PageTest extends EMSTestCase {
         $page = new Settings_Page();
         $page->render();
 
-        $this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-units&tab=email', $redirected );
+        $this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-email-templates', $redirected );
         unset( $_GET['tab'] );
     }
 

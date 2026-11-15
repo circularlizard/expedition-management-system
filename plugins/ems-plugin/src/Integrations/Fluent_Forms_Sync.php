@@ -1074,16 +1074,20 @@ class Fluent_Forms_Sync {
 		set_transient( $rate_limit_key, true, 60 );
 
 		$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-		$subject   = sprintf( __( '[%s] Your Verification Code: %s', 'ems-plugin' ), $site_name, $otp );
-		
-		$message  = "Hello,\n\n";
-		$message .= "Your verification code is: {$otp}\n\n";
-		$message .= "This code is valid for 30 minutes. If you did not request this code, please ignore this email.\n\n";
-		$message .= "Regards,\n{$site_name}";
-
-		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
-
-		$mail_sent = wp_mail( $email, $subject, $message, $headers );
+		$service   = new \EMS\Modules\Notifications\Email_Template_Service();
+		$mail_sent = $service->send(
+			$email,
+			\EMS\Modules\Notifications\Email_Template_Registry::OPTION_OTP_SUBJECT,
+			\EMS\Modules\Notifications\Email_Template_Registry::DEFAULT_OTP_SUBJECT,
+			\EMS\Modules\Notifications\Email_Template_Registry::OPTION_OTP_BODY,
+			\EMS\Modules\Notifications\Email_Template_Registry::DEFAULT_OTP_BODY,
+			\EMS\Modules\Notifications\Email_Template_Registry::OPTION_OTP_REPLY_TO,
+			array(
+				'{{otp}}'       => (string) $otp,
+				'{{site_name}}' => $site_name,
+			),
+			true
+		);
 
 		if ( $mail_sent ) {
 			wp_send_json_success( array( 'message' => __( 'Verification code sent to your email.', 'ems-plugin' ) ) );

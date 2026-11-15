@@ -75,7 +75,57 @@ class Admin_Page {
 		);
 	}
 
+	/**
+	 * Registers the Email Templates submenu.
+	 */
+	public function register_email_templates_menu(): void {
+		$emails_hook = add_submenu_page(
+			'ems',
+			__( 'Email Templates', 'ems-plugin' ),
+			__( 'Email Templates', 'ems-plugin' ),
+			'manage_options',
+			'ems-email-templates',
+			array( $this, 'render_email_templates_page' )
+		);
+
+		add_action(
+			'admin_enqueue_scripts',
+			function ( $hook ) use ( $emails_hook ) {
+				if ( $hook === $emails_hook ) {
+					$this->enqueue_email_templates_assets();
+				}
+			}
+		);
+	}
+
+	private function enqueue_email_templates_assets(): void {
+		wp_enqueue_editor();
+		$this->enqueue_admin_script( 'ems-email-templates', 'assets/js/email-templates.js' );
+		$this->enqueue_admin_styles();
+		$current_user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		$user_email   = ( is_object( $current_user ) && isset( $current_user->user_email ) ) ? (string) $current_user->user_email : '';
+		wp_localize_script(
+			'ems-email-templates',
+			'emsEmailTemplates',
+			array(
+				'root_url'           => get_rest_url( null, 'ems/v1' ),
+				'nonce'              => wp_create_nonce( 'wp_rest' ),
+				'current_user_email' => $user_email,
+			)
+		);
+	}
+
+	public function render_email_templates_page(): void {
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Email Templates', 'ems-plugin' ); ?></h1>
+			<div id="ems-email-templates-root"></div>
+		</div>
+		<?php
+	}
+
 	private function enqueue_signups_assets(): void {
+		wp_enqueue_editor();
 		$this->enqueue_admin_script( 'ems-signups-board', 'assets/js/signups-board.js' );
 		$this->enqueue_admin_styles();
 		global $wpdb;

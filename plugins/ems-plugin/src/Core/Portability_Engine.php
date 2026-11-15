@@ -27,6 +27,15 @@ class Portability_Engine {
 		'ems_leader_invite_email_subject',
 		'ems_leader_invite_email_reply_to',
 		'ems_leader_invite_email_body',
+		'ems_osm_share_request_email_subject',
+		'ems_osm_share_request_email_reply_to',
+		'ems_osm_share_request_email_body',
+		'ems_unpaired_chase_email_subject',
+		'ems_unpaired_chase_email_reply_to',
+		'ems_unpaired_chase_email_body',
+		'ems_otp_email_subject',
+		'ems_otp_email_reply_to',
+		'ems_otp_email_body',
 	);
 
 	private const TABLES_TO_EXPORT = array(

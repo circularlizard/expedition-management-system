@@ -652,16 +652,6 @@ class Unit_Repository {
 	 * @return array<string, mixed>
 	 */
 	public function customize_leader_notification_email( array $email_data, $user, string $blogname, array $unit = array() ): array {
-		$subject_tpl = trim( (string) get_option( 'ems_leader_invite_email_subject', '' ) );
-		if ( $subject_tpl === '' ) {
-			$subject_tpl = self::DEFAULT_INVITE_SUBJECT;
-		}
-
-		$body_tpl = trim( (string) get_option( 'ems_leader_invite_email_body', '' ) );
-		if ( $body_tpl === '' ) {
-			$body_tpl = self::DEFAULT_INVITE_BODY;
-		}
-
 		$set_password_url = '';
 		$orig_message     = (string) ( $email_data['message'] ?? '' );
 		if ( preg_match( '#https?://[^\s]+action=rp[^\s]*#', $orig_message, $matches ) ) {
@@ -715,42 +705,28 @@ class Unit_Repository {
 			'{{user_email}}'       => $user_email,
 		);
 
-		$email_data['subject'] = strtr( $subject_tpl, $replacements );
-		$email_data['message'] = strtr( $body_tpl, $replacements );
+		$email_service = new \EMS\Modules\Notifications\Email_Template_Service();
+		$rendered      = $email_service->resolve_template(
+			'ems_leader_invite_email_subject',
+			self::DEFAULT_INVITE_SUBJECT,
+			'ems_leader_invite_email_body',
+			self::DEFAULT_INVITE_BODY,
+			$replacements
+		);
 
-		$reply_to = trim( (string) get_option( 'ems_leader_invite_email_reply_to', '' ) );
-		if ( $reply_to !== '' ) {
-			$reply_to = strtr( $reply_to, $replacements );
-			$reply_to = preg_replace( '/^reply-to:\s*/i', '', $reply_to );
-			$reply_to = preg_replace( '/[\r\n\t]+/', '', (string) $reply_to );
-			$reply_to = trim( (string) $reply_to );
+		$email_data['subject'] = $rendered['subject'];
+		$email_data['message'] = $rendered['message'];
 
-			if ( $reply_to !== '' ) {
-				$header_line = 'Reply-To: ' . $reply_to;
-				if ( is_array( $email_data['headers'] ?? null ) ) {
-					$email_data['headers'] = array_values(
-						array_filter(
-							$email_data['headers'],
-							static function ( $h ) {
-								return ! is_string( $h ) || ! str_starts_with( strtolower( trim( $h ) ), 'reply-to:' );
-							}
-						)
-					);
-					$email_data['headers'][] = $header_line;
-				} elseif ( ! empty( $email_data['headers'] ) ) {
-					$lines    = explode( "\n", (string) $email_data['headers'] );
-					$filtered = array_filter(
-						$lines,
-						static function ( $h ) {
-							return ! str_starts_with( strtolower( trim( $h ) ), 'reply-to:' );
-						}
-					);
-					$filtered[]            = $header_line;
-					$email_data['headers'] = implode( "\r\n", array_map( 'trim', $filtered ) );
-				} else {
-					$email_data['headers'] = $header_line;
-				}
-			}
+		$existing_headers = $email_data['headers'] ?? array();
+		$was_array        = is_array( $existing_headers );
+		$built_headers    = $email_service->build_headers(
+			'ems_leader_invite_email_reply_to',
+			$replacements,
+			is_array( $existing_headers ) || is_string( $existing_headers ) ? $existing_headers : array()
+		);
+
+		if ( ! empty( $built_headers ) ) {
+			$email_data['headers'] = $was_array ? $built_headers : implode( "\r\n", $built_headers );
 		}
 
 		return $email_data;

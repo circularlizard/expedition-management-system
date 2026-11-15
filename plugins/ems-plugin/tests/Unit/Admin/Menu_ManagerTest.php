@@ -44,6 +44,7 @@ class Menu_ManagerTest extends EMSTestCase {
 		$unit_leader_page->shouldReceive( 'register' )->once()->ordered();
 		$admin_page->shouldReceive( 'register_volunteers_menu' )->once()->ordered();
 		$admin_page->shouldReceive( 'register_reference_menu' )->once()->ordered();
+		$admin_page->shouldReceive( 'register_email_templates_menu' )->once()->ordered();
 		$settings_page->shouldReceive( 'register' )->once()->ordered();
 		$report_page->shouldReceive( 'register' )->once()->ordered();
 		$admin_page->shouldReceive( 'register_mapper_menu' )->once()->ordered();
@@ -111,8 +112,9 @@ class Menu_ManagerTest extends EMSTestCase {
 			'ems-volunteers',       // 5. Volunteers
 			'ems-route-studio',     // 6. Route Studio
 			'ems-reference',        // 7. OSM Sync
-			'ems-settings',         // 8. Settings
-			'ems-training-report',  // 9. Training Report (at the end)
+			'ems-email-templates',  // 8. Email Templates
+			'ems-settings',         // 9. Settings
+			'ems-training-report',  // 10. Training Report (at the end)
 		);
 
 		$this->assertSame( $expected_order, $visible_slugs );

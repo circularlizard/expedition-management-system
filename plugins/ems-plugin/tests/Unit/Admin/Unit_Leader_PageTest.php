@@ -761,17 +761,17 @@ class Unit_Leader_PageTest extends EMSTestCase {
 	// Subtab 4: Invitation Email ('email')
 	// -------------------------------------------------------------
 
-	public function test_render_email_tab_populates_subject_reply_to_and_body_fields(): void {
+	public function test_render_email_tab_redirects_to_centralized_email_templates_hub(): void {
 		Functions\when( 'current_user_can' )->justReturn( true );
-		Functions\when( 'wp_nonce_field' )->justReturn( '' );
 		Functions\when( 'admin_url' )->alias( fn( $path = '' ) => 'http://example.com/wp-admin/' . $path );
 
-		$options = [
-			'ems_leader_invite_email_subject'  => 'Custom Invite Subject',
-			'ems_leader_invite_email_reply_to' => 'dofe@example.org',
-			'ems_leader_invite_email_body'     => 'Hello {leader_name}, welcome to {unit_name}!',
-		];
-		Functions\when( 'get_option' )->alias( fn( $k, $d = '' ) => $options[ $k ] ?? $d );
+		$redirected_to = null;
+		Functions\when( 'wp_safe_redirect' )->alias(
+			function ( string $url ) use ( &$redirected_to ) {
+				$redirected_to = $url;
+				return true;
+			}
+		);
 
 		$_GET['tab'] = 'email';
 
@@ -779,12 +779,9 @@ class Unit_Leader_PageTest extends EMSTestCase {
 
 		ob_start();
 		$page->render();
-		$output = ob_get_clean();
+		ob_end_clean();
 
-		$this->assertStringContainsString( 'Custom Invite Subject', (string) $output );
-		$this->assertStringContainsString( 'dofe@example.org', (string) $output );
-		$this->assertStringContainsString( 'Hello {leader_name}, welcome to {unit_name}!', (string) $output );
-		$this->assertStringContainsString( '{invite_url}', (string) $output );
+		$this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-email-templates', $redirected_to );
 	}
 
 	public function test_handle_save_leader_invite_sanitizes_and_persists_email_options(): void {

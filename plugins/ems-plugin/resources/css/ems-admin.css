@@ -3662,6 +3662,14 @@ input.ems-form-input--title {
     display: inline-block;
 }
 
+.ems-osm-sync-error {
+    color: #d63638;
+    font-weight: 700;
+    font-size: 15px;
+    vertical-align: middle;
+    display: inline-block;
+}
+
 /* ─── Front-End Leader Dashboard Theme-Compatible Refinements ──────────── */
 
 .ems-leader-dashboard label,
@@ -4577,6 +4585,158 @@ tr.ems-table-group-header:hover td,
     font-size: 12px !important;
     border-radius: 3px !important;
     cursor: pointer;
+}
+
+/* ─── Chaser Email Edit Modal ───────────────────────────────────────────── */
+.ems-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.ems-modal-card {
+    width: 100%;
+    max-width: 720px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #ffffff;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+}
+
+.ems-email-preview-box {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.ems-w-full {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ems-flex-end {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* ─── Centralized Email Templates Hub ───────────────────────────────────────── */
+
+.ems-email-templates-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+    align-items: start;
+    margin-top: 12px;
+}
+
+@media (max-width: 960px) {
+    .ems-email-templates-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ems-email-templates-sidebar {
+    padding: 14px;
+}
+
+.ems-email-templates-group {
+    margin-bottom: 14px;
+}
+
+.ems-email-templates-group__title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #646970;
+    margin-bottom: 6px;
+}
+
+.ems-email-templates-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    background: #ffffff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    cursor: pointer;
+    gap: 8px;
+}
+
+.ems-email-templates-item:hover {
+    border-color: #2271b1;
+    background: #f6f7f7;
+}
+
+.ems-email-templates-item--active {
+    border-color: #2271b1;
+    background: #f0f6fc;
+    box-shadow: inset 3px 0 0 #2271b1;
+}
+
+.ems-email-templates-editor {
+    padding: 20px;
+}
+
+.ems-email-templates-test-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px;
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+}
+
+.ems-email-templates-shortcodes {
+    border-top: 1px solid #dcdcde;
+    padding-top: 16px;
+}
+
+.ems-email-templates-shortcodes__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ems-email-templates-shortcode-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+}
+
+.ems-rte-shortcode-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.ems-display-block {
+    display: block;
+}
+
+.ems-ml-6 {
+    margin-left: 6px;
 }
 
 

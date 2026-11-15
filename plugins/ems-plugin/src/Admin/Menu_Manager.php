@@ -55,7 +55,10 @@ class Menu_Manager {
 		// 6. OSM Sync
 		$this->admin_page->register_reference_menu();
 
-		// 7. Settings
+		// 7. Email Templates
+		$this->admin_page->register_email_templates_menu();
+
+		// 8. Settings
 		$this->settings_page->register();
 
 		// 8. Training Report (placed at end for visibility)

@@ -445,18 +445,23 @@ describe('SignupsBoard', () => {
         render(<SignupsBoard />);
 
         await waitFor(() => {
-            expect(screen.getByText(/Signups by Type/i)).toBeInTheDocument();
+            expect(screen.getByTestId('card-signups-by-level')).toBeInTheDocument();
             expect(screen.getByText(/Signups by DofE Level/i)).toBeInTheDocument();
             expect(screen.getByText(/Signups by Expedition Type/i)).toBeInTheDocument();
-            expect(screen.getByText(/Participant Place Only/i)).toBeInTheDocument();
+            expect(screen.getByTestId('card-no-expedition')).toBeInTheDocument();
             expect(screen.getByText(/Duplicate Signups/i)).toBeInTheDocument();
             expect(screen.getByText(/No Synced OSM Record/i)).toBeInTheDocument();
             expect(screen.getByText(/Cumulative Signups by Week/i)).toBeInTheDocument();
         });
+        expect(document.querySelectorAll('.ems-dashboard-progress').length).toBe(0);
 
-        // Verify breakdowns
-        expect(screen.getByTestId('metric-type-participant')).toHaveTextContent('4');
+        // Verify breakdowns (unique explorers, not raw form count)
+        expect(screen.getByTestId('metric-type-total')).toHaveTextContent('4');
+        expect(screen.getByTestId('metric-type-participant')).toHaveTextContent('3');
         expect(screen.getByTestId('metric-type-expedition')).toHaveTextContent('2');
+        expect(screen.getByTestId('metric-level-bronze')).toHaveTextContent('2');
+        expect(screen.getByTestId('metric-level-silver')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-level-gold')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-exped-hillwalking')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-exped-biking')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-exped-paddling')).toHaveTextContent('0');
@@ -477,8 +482,10 @@ describe('SignupsBoard', () => {
         expect(screen.getByTestId('metric-duplicates-groups')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-duplicates-rows')).toHaveTextContent('2');
 
-        // Verify No Synced OSM Record (Alice Smith & Charlie Smith -> 2 signups)
+        // Verify No Synced OSM Record (Alice Smith has candidate match, Charlie Smith has no match -> 2 signups)
         expect(screen.getByTestId('metric-unmatched-osm')).toHaveTextContent('2');
+        expect(screen.getByTestId('metric-unmatched-candidates')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-unmatched-no-match')).toHaveTextContent('1');
 
         // Verify cumulative chart renders 2 lines and a legend (Participant Place and Expedition Preference) without a Signup Type filter
         expect(screen.queryByLabelText(/Chart Signup Type/i)).not.toBeInTheDocument();
@@ -1498,6 +1505,211 @@ describe('SignupsBoard', () => {
             const districtSelect = screen.getByLabelText(/Filter District:/i) as HTMLSelectElement;
             expect(districtSelect.value).toBe('all');
         });
+    });
+
+    it('treats non-zero scout_id with is_synced_osm=0 as unmatched in badge and OSM Sync sort', async () => {
+        const signups = [
+            {
+                id: 1,
+                type: 'participant',
+                scout_id: 99999,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Eve',
+                explorer_last_name: 'Green',
+                explorer_email: 'eve@example.com',
+                parent_email: 'peve@example.com',
+                dofe_level: 'bronze',
+                signup_status: 'submitted',
+                is_synced_osm: 0,
+                created_at: '2026-08-10 10:00:00',
+            },
+            {
+                id: 2,
+                type: 'participant',
+                scout_id: 30001,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Frank',
+                explorer_last_name: 'Black',
+                explorer_email: 'frank@example.com',
+                parent_email: 'pfrank@example.com',
+                dofe_level: 'bronze',
+                signup_status: 'submitted',
+                is_synced_osm: 1,
+                created_at: '2026-08-11 10:00:00',
+            },
+            {
+                id: 3,
+                type: 'participant',
+                scout_id: 0,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Grace',
+                explorer_last_name: 'White',
+                explorer_email: 'grace@example.com',
+                parent_email: 'pgrace@example.com',
+                dofe_level: 'bronze',
+                signup_status: 'submitted',
+                is_synced_osm: 0,
+                created_at: '2026-08-12 10:00:00',
+            },
+        ];
+
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/signups')) {
+                return Promise.resolve({ ok: true, json: async () => signups });
+            }
+            if (url.includes('/explorers')) {
+                return Promise.resolve({ ok: true, json: async () => mockExplorers });
+            }
+            if (url.includes('/units')) {
+                return Promise.resolve({ ok: true, json: async () => [] });
+            }
+            return Promise.resolve({ ok: true, json: async () => [] });
+        });
+
+        render(<SignupsBoard />);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('metric-unmatched-osm')).toHaveTextContent('2');
+            expect(screen.getByTestId('metric-unmatched-osm-bronze')).toHaveTextContent('2');
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Signups Table/i }));
+
+        await waitFor(() => expect(screen.getByText('Eve Green')).toBeInTheDocument());
+
+        const eveRow = screen.getByText('Eve Green').closest('tr')!;
+        expect(within(eveRow).queryByTitle('Synced with OSM')).not.toBeInTheDocument();
+        const eveIcon = within(eveRow).getByTitle('Scout ID present, not synced from OSM') as HTMLImageElement;
+        expect(eveIcon.tagName).toBe('IMG');
+        expect(eveIcon.src).toContain('osm_icon_inverse.png');
+
+        const frankRow = screen.getByText('Frank Black').closest('tr')!;
+        const frankIcon = within(frankRow).getByTitle('Synced with OSM') as HTMLImageElement;
+        expect(frankIcon.tagName).toBe('IMG');
+        expect(frankIcon.src).toContain('osm_icon.png');
+
+        const graceRow = screen.getByText('Grace White').closest('tr')!;
+        expect(within(graceRow).getByTitle('Guest Roster / Unmatched')).toHaveClass('ems-osm-sync-error');
+
+        const osmSyncHeader = screen.getByRole('columnheader', { name: /OSM Sync/i });
+        fireEvent.click(osmSyncHeader);
+
+        const rows = screen.getAllByRole('row');
+        const graceIdx = rows.findIndex((r) => r.textContent?.includes('Grace White'));
+        const eveIdx = rows.findIndex((r) => r.textContent?.includes('Eve Green'));
+        const frankIdx = rows.findIndex((r) => r.textContent?.includes('Frank Black'));
+        expect(graceIdx).toBeLessThan(eveIdx);
+        expect(eveIdx).toBeLessThan(frankIdx);
+
+        fireEvent.click(osmSyncHeader);
+        const descRows = screen.getAllByRole('row');
+        const frankDescIdx = descRows.findIndex((r) => r.textContent?.includes('Frank Black'));
+        const eveDescIdx = descRows.findIndex((r) => r.textContent?.includes('Eve Green'));
+        const graceDescIdx = descRows.findIndex((r) => r.textContent?.includes('Grace White'));
+        expect(frankDescIdx).toBeLessThan(eveDescIdx);
+        expect(eveDescIdx).toBeLessThan(graceDescIdx);
+
+        // Clicking Eve Green should explain in the Inspector why the warning icon is shown
+        fireEvent.click(screen.getByText('Eve Green'));
+        await waitFor(() => {
+            expect(screen.getByText(/not yet in the synced OSM Explorers list/i)).toBeInTheDocument();
+        });
+    });
+
+    it('renders Missing OSM Records and Unpaired Signups tabs with editable email preview and FluentSMTP link', async () => {
+        const signups = [
+            {
+                id: 1,
+                type: 'participant',
+                scout_id: 0,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Zoe',
+                explorer_last_name: 'Adams',
+                explorer_email: 'zoe@example.com',
+                parent_email: 'pzoe@example.com',
+                dofe_level: 'bronze',
+                signup_status: 'submitted',
+                is_synced_osm: 0,
+                created_at: '2026-08-10 10:00:00',
+            },
+        ];
+        const units = [
+            { id: 1, unit_id: 10, name: 'Kelso ESU', district: 'Borders', leader_email: 'leader@kelso.scouts.org.uk' },
+        ];
+
+        (global.fetch as any).mockImplementation((url: string, opts?: any) => {
+            if (url.includes('/signups/chaser-history')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        history: {},
+                        fluent_smtp_url: 'https://example.com/wp-admin/admin.php?page=fluent-mail#/logs',
+                    }),
+                });
+            }
+            if (url.includes('/signups/send-chaser')) {
+                const body = JSON.parse(opts.body);
+                if (body.preview) {
+                    return Promise.resolve({
+                        ok: true,
+                        json: async () => ({
+                            unit_name: 'Kelso ESU',
+                            to: 'leader@kelso.scouts.org.uk',
+                            subject: '[SES] OSM Share Request',
+                            message: '<p><strong>Bronze</strong></p><ul><li>Zoe Adams</li></ul>',
+                        }),
+                    });
+                }
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        sent: true,
+                        unit_name: 'Kelso ESU',
+                        to: body.to_override,
+                        sent_at: '2026-08-12 12:00:00',
+                        history: { 'Kelso ESU': '2026-08-12 12:00:00' },
+                    }),
+                });
+            }
+            if (url.includes('/signups')) {
+                return Promise.resolve({ ok: true, json: async () => signups });
+            }
+            if (url.includes('/explorers')) {
+                return Promise.resolve({ ok: true, json: async () => mockExplorers });
+            }
+            if (url.includes('/units')) {
+                return Promise.resolve({ ok: true, json: async () => units });
+            }
+            return Promise.resolve({ ok: true, json: async () => [] });
+        });
+
+        render(<SignupsBoard />);
+
+        await waitFor(() => expect(screen.getByRole('button', { name: /Missing OSM Records \(1\)/i })).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /Missing OSM Records \(1\)/i }));
+
+        await waitFor(() => expect(screen.getByTestId('chaser-view-osm_share')).toBeInTheDocument());
+        expect(screen.getByTestId('fluent-smtp-logs-link')).toHaveAttribute(
+            'href',
+            'https://example.com/wp-admin/admin.php?page=fluent-mail#/logs'
+        );
+
+        fireEvent.click(screen.getByTestId('chaser-level-filter-gold'));
+        fireEvent.click(screen.getByTestId('preview-email-btn-Kelso ESU'));
+
+        await waitFor(() => expect(screen.getByLabelText('Subject')).toHaveValue('[SES] OSM Share Request'));
+        const previewCall = (global.fetch as any).mock.calls.find(
+            (c: any[]) => typeof c[0] === 'string' && c[0].includes('/signups/send-chaser')
+        );
+        expect(JSON.parse(previewCall[1].body).levels).toEqual(['bronze', 'silver']);
+        fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Edited Subject' } });
+        fireEvent.click(screen.getByTestId('chaser-send-email-submit'));
+
+        await waitFor(() => expect(screen.getByTestId('last-requested-Kelso ESU')).toHaveTextContent('2026-08-12 12:00:00'));
+
+        // Also switch to Unpaired Signups tab
+        fireEvent.click(screen.getByRole('button', { name: /Unpaired Signups \(1\)/i }));
+        await waitFor(() => expect(screen.getByTestId('chaser-view-unpaired_signups')).toBeInTheDocument());
     });
 });
 

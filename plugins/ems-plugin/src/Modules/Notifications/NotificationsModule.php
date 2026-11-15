@@ -16,6 +16,12 @@ class NotificationsModule implements ModuleInterface {
 
 	public function register(): void {
 		add_action( 'ems_daily_log_cleanup', array( '\\EMS\\Core\\Log_Rotator', 'purge_old_logs' ) );
+		add_action(
+			'rest_api_init',
+			static function (): void {
+				( new Email_Templates_Controller() )->register_routes();
+			}
+		);
 	}
 
 	public function boot(): void {

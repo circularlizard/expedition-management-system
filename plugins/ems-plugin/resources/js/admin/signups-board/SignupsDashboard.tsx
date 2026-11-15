@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faClipboardList,
     faAward,
     faCompass,
     faPersonHiking,
@@ -31,47 +30,18 @@ export interface TableDrilldownFilters {
 
 interface SignupsDashboardProps {
     signups: any[];
+    explorers?: any[];
     units?: any[];
     onNavigateToTable: (filters: TableDrilldownFilters) => void;
+    onOpenChaserTab?: (tab: 'unmatched_osm' | 'unpaired_signups') => void;
 }
-
-const ProgressBar: React.FC<{ value: number; max: number; variant?: string }> = ({
-    value,
-    max,
-    variant = 'primary',
-}) => {
-    const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-    return (
-        <svg
-            className="ems-dashboard-progress"
-            viewBox="0 0 100 6"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-        >
-            <rect
-                className="ems-dashboard-progress__track"
-                x="0"
-                y="0"
-                width="100"
-                height="6"
-                rx="3"
-            />
-            <rect
-                className={`ems-dashboard-progress__fill ems-dashboard-progress__fill--${variant}`}
-                x="0"
-                y="0"
-                width={pct}
-                height="6"
-                rx="3"
-            />
-        </svg>
-    );
-};
 
 export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     signups,
+    explorers = [],
     units,
     onNavigateToTable,
+    onOpenChaserTab,
 }) => {
     const [chartLevelFilter, setChartLevelFilter] = useState<string>('all');
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<number | undefined>(undefined);
@@ -103,7 +73,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     const allUnits = units && units.length > 0 ? units : (typeof window !== 'undefined' && window.emsSignupsBoard?.units) ? window.emsSignupsBoard.units : [];
     const unitDistrictMap = useMemo(() => getUnitDistrictMap(allUnits), [allUnits]);
 
-    const metrics = useMemo(() => computeSignupsDashboardMetrics(signups), [signups]);
+    const metrics = useMemo(() => computeSignupsDashboardMetrics(signups, explorers), [signups, explorers]);
     const matrixData = useMemo(() => computeExpeditionDistrictUnitMatrix(signups, unitDistrictMap), [signups, unitDistrictMap]);
 
     const filteredMatrixGroups = useMemo(() => {
@@ -137,7 +107,6 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     );
 
     const totalSignups = metrics.byType.total;
-    const totalExpedSignups = metrics.byType.expedition;
 
     // SVG Chart dimensions and coordinate helpers
     const svgWidth = 860;
@@ -211,22 +180,81 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
 
     return (
         <div className="ems-signups-dashboard">
-            {/* Row 1: Breakdown by Signup Type, Level, and Expedition Type */}
-            <div className="ems-dashboard-grid-3">
-                {/* 1. Breakdown by Signup Type */}
-                <div className="ems-overview-card">
-                    <div className="ems-overview-card__title">
-                        <span><FontAwesomeIcon icon={faClipboardList} /></span> Signups by Type
-                    </div>
-                    <div className="ems-dashboard-hero-row">
-                        <div>
-                            <div className="ems-dashboard-hero-number" data-testid="metric-type-total">
-                                {totalSignups}
-                            </div>
-                            <div className="ems-meta-text">
-                                Total signups ({metrics.byType.uniqueExplorers} unique explorers)
-                            </div>
+            {/* Row 1: Unified Signups by DofE Level & Health Breakdown */}
+            <div className="ems-overview-card" data-testid="card-signups-by-level">
+                <div className="ems-flex-between ems-wrap ems-gap-12">
+                    <div>
+                        <div className="ems-overview-card__title">
+                            <span><FontAwesomeIcon icon={faAward} /></span> Signups by DofE Level
                         </div>
+                        <div className="ems-flex-center ems-gap-12 ems-wrap ems-mt-4">
+                            <span className="ems-dashboard-hero-number" data-testid="metric-type-total">
+                                {metrics.byType.uniqueExplorers}
+                            </span>
+                            <span className="ems-meta-text">
+                                Unique explorers ({totalSignups} form submissions)
+                            </span>
+                            <button
+                                type="button"
+                                className="ems-dashboard-mini-pill ems-cursor-pointer"
+                                onClick={() => onNavigateToTable({ typeFilter: 'participant', anomalyFilter: 'all' })}
+                            >
+                                <span className="ems-status-badge ems-status-badge--participant">Place</span>{' '}
+                                <strong data-testid="metric-type-participant">{metrics.byType.uniqueParticipant}</strong>
+                            </button>
+                            <button
+                                type="button"
+                                className="ems-dashboard-mini-pill ems-cursor-pointer"
+                                onClick={() => onNavigateToTable({ typeFilter: 'expedition', anomalyFilter: 'all' })}
+                            >
+                                <span className="ems-status-badge ems-status-badge--expedition">Exped</span>{' '}
+                                <strong data-testid="metric-type-expedition">{metrics.byType.uniqueExpedition}</strong>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="ems-flex-center ems-gap-8 ems-wrap">
+                        <button
+                            type="button"
+                            className="button button-small"
+                            data-testid="card-no-expedition"
+                            onClick={() =>
+                                onNavigateToTable({
+                                    typeFilter: 'participant',
+                                    anomalyFilter: 'no_expedition',
+                                })
+                            }
+                        >
+                            Place Only:{' '}
+                            <strong data-testid="metric-no-expedition-total">
+                                {metrics.participantWithoutExpedition.totalExplorers}
+                            </strong>
+                        </button>
+                        <button
+                            type="button"
+                            className="button button-small"
+                            data-testid="card-no-participant"
+                            onClick={() =>
+                                onNavigateToTable({
+                                    typeFilter: 'expedition',
+                                    anomalyFilter: 'no_participant',
+                                })
+                            }
+                        >
+                            Exped Only:{' '}
+                            <strong data-testid="metric-no-participant-total">
+                                {metrics.expeditionWithoutParticipant.totalExplorers}
+                            </strong>
+                        </button>
+                        {onOpenChaserTab && (
+                            <button
+                                type="button"
+                                className="button button-small"
+                                onClick={() => onOpenChaserTab('unpaired_signups')}
+                            >
+                                Chase Unpaired →
+                            </button>
+                        )}
                         <button
                             type="button"
                             className="button button-small"
@@ -235,100 +263,103 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             View All →
                         </button>
                     </div>
-
-                    <div className="ems-dashboard-stat-list">
-                        <div
-                            className="ems-dashboard-stat-item ems-cursor-pointer"
-                            onClick={() =>
-                                onNavigateToTable({ typeFilter: 'participant', anomalyFilter: 'all' })
-                            }
-                        >
-                            <div className="ems-flex-between">
-                                <span className="ems-font-semibold">
-                                    <span className="ems-status-badge ems-status-badge--participant">
-                                        Place
-                                    </span>{' '}
-                                    Participant Place
-                                </span>
-                                <strong data-testid="metric-type-participant">
-                                    {metrics.byType.participant}
-                                </strong>
-                            </div>
-                            <ProgressBar
-                                value={metrics.byType.participant}
-                                max={totalSignups}
-                                variant="blue"
-                            />
-                        </div>
-
-                        <div
-                            className="ems-dashboard-stat-item ems-cursor-pointer"
-                            onClick={() =>
-                                onNavigateToTable({ typeFilter: 'expedition', anomalyFilter: 'all' })
-                            }
-                        >
-                            <div className="ems-flex-between">
-                                <span className="ems-font-semibold">
-                                    <span className="ems-status-badge ems-status-badge--expedition">
-                                        Exped
-                                    </span>{' '}
-                                    Expedition Preference
-                                </span>
-                                <strong data-testid="metric-type-expedition">
-                                    {metrics.byType.expedition}
-                                </strong>
-                            </div>
-                            <ProgressBar
-                                value={metrics.byType.expedition}
-                                max={totalSignups}
-                                variant="green"
-                            />
-                        </div>
-                    </div>
                 </div>
 
-                {/* 2. Breakdown by DofE Level */}
-                <div className="ems-overview-card">
-                    <div className="ems-overview-card__title">
-                        <span><FontAwesomeIcon icon={faAward} /></span> Signups by DofE Level
-                    </div>
-                    <div className="ems-dashboard-stat-list">
-                        {(['bronze', 'silver', 'gold'] as const).map((lvl) => {
-                            const data = metrics.byLevel[lvl];
-                            const label = lvl.charAt(0).toUpperCase() + lvl.slice(1);
-                            return (
+                <div className="ems-dashboard-grid-3 ems-mt-12">
+                    {(['bronze', 'silver', 'gold'] as const).map((lvl) => {
+                        const data = metrics.byLevel[lvl];
+                        const label = lvl.charAt(0).toUpperCase() + lvl.slice(1);
+                        const placeOnly = metrics.participantWithoutExpedition.byLevel[lvl];
+                        const expedOnly = metrics.expeditionWithoutParticipant.byLevel[lvl];
+                        const paired = metrics.pairedExplorers.byLevel[lvl];
+                        const dupes = metrics.duplicates.byLevel[lvl];
+                        const unmatched = metrics.unmatchedOsm.byLevel[lvl];
+
+                        return (
+                            <div key={lvl} className="ems-dashboard-stat-item">
                                 <div
-                                    key={lvl}
-                                    className="ems-dashboard-stat-item ems-cursor-pointer"
-                                    onClick={() =>
-                                        onNavigateToTable({ levelFilter: lvl, anomalyFilter: 'all' })
-                                    }
+                                    className="ems-flex-between ems-cursor-pointer"
+                                    onClick={() => onNavigateToTable({ levelFilter: lvl, anomalyFilter: 'all' })}
                                 >
-                                    <div className="ems-flex-between">
-                                        <div className="ems-flex-center ems-gap-8">
-                                            <span className={`ems-pill ems-pill--${lvl}`}>
-                                                {label}
-                                            </span>
-                                            <span className="ems-meta-text ems-small-text">
-                                                {data.participant} Place · {data.expedition} Exped
-                                            </span>
-                                        </div>
-                                        <strong data-testid={`metric-level-${lvl}`}>
-                                            {data.total}
-                                        </strong>
+                                    <div className="ems-flex-center ems-gap-8">
+                                        <span className={`ems-pill ems-pill--${lvl}`}>{label}</span>
+                                        <span className="ems-meta-text ems-small-text">
+                                            {data.uniqueParticipant} Place · {data.uniqueExpedition} Exped · {paired} Paired
+                                        </span>
                                     </div>
-                                    <ProgressBar
-                                        value={data.total}
-                                        max={totalSignups}
-                                        variant={lvl}
-                                    />
+                                    <strong className="ems-dashboard-subhero-number" data-testid={`metric-level-${lvl}`}>
+                                        {data.uniqueExplorers}
+                                    </strong>
                                 </div>
-                            );
-                        })}
-                    </div>
-                </div>
 
-                {/* 3. Breakdown by Expedition Type */}
+                                <div className="ems-dashboard-pill-group ems-mt-8">
+                                    <button
+                                        type="button"
+                                        className="ems-dashboard-mini-pill"
+                                        onClick={() =>
+                                            onNavigateToTable({
+                                                typeFilter: 'participant',
+                                                levelFilter: lvl,
+                                                anomalyFilter: 'no_expedition',
+                                            })
+                                        }
+                                    >
+                                        Place Only:{' '}
+                                        <strong data-testid={`metric-no-expedition-${lvl}`}>{placeOnly}</strong>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="ems-dashboard-mini-pill"
+                                        onClick={() =>
+                                            onNavigateToTable({
+                                                typeFilter: 'expedition',
+                                                levelFilter: lvl,
+                                                anomalyFilter: 'no_participant',
+                                            })
+                                        }
+                                    >
+                                        Exped Only:{' '}
+                                        <strong data-testid={`metric-no-participant-${lvl}`}>{expedOnly}</strong>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="ems-dashboard-mini-pill"
+                                        onClick={() =>
+                                            onNavigateToTable({
+                                                typeFilter: 'all',
+                                                levelFilter: lvl,
+                                                anomalyFilter: 'duplicate',
+                                                grouping: 'explorer',
+                                            })
+                                        }
+                                    >
+                                        Duplicates:{' '}
+                                        <strong data-testid={`metric-duplicates-${lvl}`}>{dupes}</strong>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="ems-dashboard-mini-pill"
+                                        onClick={() =>
+                                            onNavigateToTable({
+                                                typeFilter: 'all',
+                                                levelFilter: lvl,
+                                                anomalyFilter: 'unmatched_osm',
+                                            })
+                                        }
+                                    >
+                                        No Synced OSM:{' '}
+                                        <strong data-testid={`metric-unmatched-osm-${lvl}`}>{unmatched}</strong>
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Row 2: Expedition Type, Duplicate Signups, and No Synced OSM Record */}
+            <div className="ems-dashboard-grid-3">
+                {/* 1. Breakdown by Expedition Type */}
                 <div className="ems-overview-card">
                     <div className="ems-overview-card__title">
                         <span><FontAwesomeIcon icon={faCompass} /></span> Signups by Expedition Type
@@ -352,11 +383,6 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                     {metrics.byExpeditionType.hillwalking}
                                 </strong>
                             </div>
-                            <ProgressBar
-                                value={metrics.byExpeditionType.hillwalking}
-                                max={totalExpedSignups}
-                                variant="green"
-                            />
                         </div>
 
                         <div
@@ -377,11 +403,6 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                     {metrics.byExpeditionType.biking}
                                 </strong>
                             </div>
-                            <ProgressBar
-                                value={metrics.byExpeditionType.biking}
-                                max={totalExpedSignups}
-                                variant="blue"
-                            />
                         </div>
 
                         <div
@@ -402,200 +423,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                     {metrics.byExpeditionType.paddling}
                                 </strong>
                             </div>
-                            <ProgressBar
-                                value={metrics.byExpeditionType.paddling}
-                                max={totalExpedSignups}
-                                variant="amber"
-                            />
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Row 2: Follow-Up & Data Integrity Cards */}
-            <div className="ems-dashboard-grid-3">
-                {/* 1. Unpaired Signups: Place Only vs Expedition Only */}
-                <div className="ems-overview-card ems-dashboard-action-card">
-                    <div className="ems-overview-card__title">
-                        <span><FontAwesomeIcon icon={faCampground} /></span> Unpaired Signups (Place vs Expedition)
-                    </div>
-
-                    {/* Case A: Participant Place Only (No Expedition) */}
-                    <div
-                        className="ems-dashboard-stat-item ems-cursor-pointer"
-                        data-testid="card-no-expedition"
-                        onClick={() =>
-                            onNavigateToTable({
-                                typeFilter: 'participant',
-                                anomalyFilter: 'no_expedition',
-                            })
-                        }
-                    >
-                        <div className="ems-flex-between">
-                            <div>
-                                <div className="ems-font-semibold">
-                                    Participant Place Only (No Expedition)
-                                </div>
-                                <div className="ems-meta-text ems-small-text">
-                                    Signed up for a place without an expedition form
-                                </div>
-                            </div>
-                            <div className="ems-flex-center ems-gap-8">
-                                <span
-                                    className="ems-dashboard-subhero-number"
-                                    data-testid="metric-no-expedition-total"
-                                >
-                                    {metrics.participantWithoutExpedition.totalExplorers}
-                                </span>
-                                <span className="ems-table__link ems-small-text">Filter →</span>
-                            </div>
-                        </div>
-                        <div className="ems-dashboard-pill-group">
-                            <button
-                                type="button"
-                                className="ems-dashboard-mini-pill ems-pill--bronze"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onNavigateToTable({
-                                        typeFilter: 'participant',
-                                        levelFilter: 'bronze',
-                                        anomalyFilter: 'no_expedition',
-                                    });
-                                }}
-                            >
-                                Bronze:{' '}
-                                <strong data-testid="metric-no-expedition-bronze">
-                                    {metrics.participantWithoutExpedition.byLevel.bronze}
-                                </strong>
-                            </button>
-                            <button
-                                type="button"
-                                className="ems-dashboard-mini-pill ems-pill--silver"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onNavigateToTable({
-                                        typeFilter: 'participant',
-                                        levelFilter: 'silver',
-                                        anomalyFilter: 'no_expedition',
-                                    });
-                                }}
-                            >
-                                Silver:{' '}
-                                <strong data-testid="metric-no-expedition-silver">
-                                    {metrics.participantWithoutExpedition.byLevel.silver}
-                                </strong>
-                            </button>
-                            <button
-                                type="button"
-                                className="ems-dashboard-mini-pill ems-pill--gold"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onNavigateToTable({
-                                        typeFilter: 'participant',
-                                        levelFilter: 'gold',
-                                        anomalyFilter: 'no_expedition',
-                                    });
-                                }}
-                            >
-                                Gold:{' '}
-                                <strong data-testid="metric-no-expedition-gold">
-                                    {metrics.participantWithoutExpedition.byLevel.gold}
-                                </strong>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Case B: Expedition Only (No Participant Place) */}
-                    <div
-                        className="ems-dashboard-stat-item ems-cursor-pointer"
-                        data-testid="card-no-participant"
-                        onClick={() =>
-                            onNavigateToTable({
-                                typeFilter: 'expedition',
-                                anomalyFilter: 'no_participant',
-                            })
-                        }
-                    >
-                        <div className="ems-flex-between">
-                            <div>
-                                <div className="ems-font-semibold">
-                                    Expedition Only (No Participant Place)
-                                </div>
-                                <div className="ems-meta-text ems-small-text">
-                                    Signed up for an expedition without a participant place form
-                                </div>
-                            </div>
-                            <div className="ems-flex-center ems-gap-8">
-                                <span
-                                    className="ems-dashboard-subhero-number"
-                                    data-testid="metric-no-participant-total"
-                                >
-                                    {metrics.expeditionWithoutParticipant.totalExplorers}
-                                </span>
-                                <span className="ems-table__link ems-small-text">Filter →</span>
-                            </div>
-                        </div>
-                        <div className="ems-dashboard-pill-group">
-                            <button
-                                type="button"
-                                className="ems-dashboard-mini-pill ems-pill--bronze"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onNavigateToTable({
-                                        typeFilter: 'expedition',
-                                        levelFilter: 'bronze',
-                                        anomalyFilter: 'no_participant',
-                                    });
-                                }}
-                            >
-                                Bronze:{' '}
-                                <strong data-testid="metric-no-participant-bronze">
-                                    {metrics.expeditionWithoutParticipant.byLevel.bronze}
-                                </strong>
-                            </button>
-                            <button
-                                type="button"
-                                className="ems-dashboard-mini-pill ems-pill--silver"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onNavigateToTable({
-                                        typeFilter: 'expedition',
-                                        levelFilter: 'silver',
-                                        anomalyFilter: 'no_participant',
-                                    });
-                                }}
-                            >
-                                Silver:{' '}
-                                <strong data-testid="metric-no-participant-silver">
-                                    {metrics.expeditionWithoutParticipant.byLevel.silver}
-                                </strong>
-                            </button>
-                            <button
-                                type="button"
-                                className="ems-dashboard-mini-pill ems-pill--gold"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onNavigateToTable({
-                                        typeFilter: 'expedition',
-                                        levelFilter: 'gold',
-                                        anomalyFilter: 'no_participant',
-                                    });
-                                }}
-                            >
-                                Gold:{' '}
-                                <strong data-testid="metric-no-participant-gold">
-                                    {metrics.expeditionWithoutParticipant.byLevel.gold}
-                                </strong>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="ems-meta-text ems-small-text">
-                        Complete pairs (both Place &amp; Exped):{' '}
-                        <strong>{metrics.pairedExplorers.totalExplorers}</strong> (Bronze:{' '}
-                        {metrics.pairedExplorers.byLevel.bronze}, Silver:{' '}
-                        {metrics.pairedExplorers.byLevel.silver}, Gold:{' '}
-                        {metrics.pairedExplorers.byLevel.gold})
                     </div>
                 </div>
 
@@ -675,9 +503,30 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                         <span className="ems-table__link ems-small-text">Reconcile →</span>
                     </div>
                     <div className="ems-dashboard-pill-group">
-                        <span className="ems-badge ems-badge--allocated">
-                            Requires OSM profile linkage before slot/team allocation
+                        <span className="ems-event-detail__stat-pill">
+                            Candidate Match:{' '}
+                            <strong data-testid="metric-unmatched-candidates">
+                                {metrics.unmatchedOsm.withCandidatesCount}
+                            </strong>
                         </span>
+                        <span className="ems-event-detail__stat-pill">
+                            No Match:{' '}
+                            <strong data-testid="metric-unmatched-no-match">
+                                {metrics.unmatchedOsm.noMatchCount}
+                            </strong>
+                        </span>
+                        {onOpenChaserTab && (
+                            <button
+                                type="button"
+                                className="button button-small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpenChaserTab('unmatched_osm');
+                                }}
+                            >
+                                Request OSM Share →
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

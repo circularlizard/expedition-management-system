@@ -12,8 +12,9 @@ import {
     faCircleQuestion
 } from '@fortawesome/free-solid-svg-icons';
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
+import UnitChaserView from './UnitChaserView';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
-import { computeSignupsDashboardMetrics, getSignupRecordKey, groupSignupsByExplorerIdentity } from './dashboardMetrics';
+import { computeSignupsDashboardMetrics, getMatchSuggestions as findMatchSuggestions, getSignupRecordKey, groupSignupsByExplorerIdentity, isSignupSyncedWithOsm } from './dashboardMetrics';
 import {
     normalize,
     isSectionCompleted,
@@ -38,16 +39,13 @@ declare global {
     }
 }
 
-const firstNamesSimilar = (nameA: string, nameB: string): boolean => {
-    const na = normalize(nameA);
-    const nb = normalize(nameB);
-    return na.length >= 3 && nb.length >= 3 && na.substring(0, 3) === nb.substring(0, 3);
-};
-
 export default function SignupsBoard() {
     const config = window.emsSignupsBoard || { root_url: '', nonce: '' };
+    const pluginUrl = config.plugin_url || '/wp-content/plugins/ems-plugin/';
+    const osmIconUrl = `${pluginUrl}assets/images/osm_icon.png`;
+    const osmIconInverseUrl = `${pluginUrl}assets/images/osm_icon_inverse.png`;
 
-    const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'table'>('dashboard');
+    const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'table' | 'unmatched_osm' | 'unpaired_signups'>('dashboard');
     const [signups, setSignups] = useState<any[]>([]);
     const [explorers, setExplorers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -442,35 +440,9 @@ export default function SignupsBoard() {
     };
 
     // Helper: list matching suggestions with Sibling Collision Guard
-    const getMatchSuggestions = (signup: any) => {
-        if (!signup || signup.scout_id !== 0) return [];
-        const sf = normalize(signup.explorer_first_name);
-        const sl = normalize(signup.explorer_last_name);
-        const se = normalize(signup.explorer_email);
-        const sp = normalize(signup.parent_email);
+    const getMatchSuggestions = (signup: any) => findMatchSuggestions(signup, explorers);
 
-        return explorers.filter(e => {
-            const ef = normalize(e.first_name);
-            const el = normalize(e.last_name);
-
-            // 1. Exact first and last name match
-            if (sf === ef && sl === el) return true;
-
-            // 2. Exact explorer email match (if present) against any explorer email
-            const explorerEmails = [e.email1, e.email2, e.email].map(normalize).filter(Boolean);
-            if (se && explorerEmails.includes(se)) return true;
-
-            // 3. Parent email match (against any parent email) AND first name similarity (sibling guard)
-            const parentEmails = [e.p1_email1, e.p1_email2, e.p2_email1, e.p2_email2, e.parent_email].map(normalize).filter(Boolean);
-            if (sp && parentEmails.includes(sp) && firstNamesSimilar(signup.explorer_first_name, e.first_name)) {
-                return true;
-            }
-
-            return false;
-        });
-    };
-
-    const dashboardMetrics = useMemo(() => computeSignupsDashboardMetrics(signups), [signups]);
+    const dashboardMetrics = useMemo(() => computeSignupsDashboardMetrics(signups, explorers), [signups, explorers]);
 
     const allExplorerBuckets = useMemo(() => groupSignupsByExplorerIdentity(signups), [signups]);
 
@@ -553,6 +525,7 @@ export default function SignupsBoard() {
                 rows.push({
                     rowKey: `${baseKey}_lvl_${lvl || 'none'}_p${participantEntries.length}_e${expeditionEntries.length}`,
                     scout_id: bucket.scoutId,
+                    is_synced_osm: entries.every(isSignupSyncedWithOsm),
                     explorer_first_name: primary.explorer_first_name || '',
                     explorer_last_name: primary.explorer_last_name || '',
                     explorer_email: entries.find((e: any) => e.explorer_email)?.explorer_email || '',
@@ -598,7 +571,9 @@ export default function SignupsBoard() {
             const valB = getSignupsSortValue(b, sortKey);
             if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
             if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-            return 0;
+            const nameA = `${a.explorer_first_name || ''} ${a.explorer_last_name || ''}`.trim().toLowerCase();
+            const nameB = `${b.explorer_first_name || ''} ${b.explorer_last_name || ''}`.trim().toLowerCase();
+            return nameA.localeCompare(nameB);
         });
     }, [explorerRows, sortKey, sortOrder]);
 
@@ -616,6 +591,7 @@ export default function SignupsBoard() {
     }, [groupedSignups, currentPage, itemsPerPage]);
 
     const toggleSort = (key: string) => {
+        setCurrentPage(1);
         if (sortKey === key) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
         } else {
@@ -755,14 +731,57 @@ export default function SignupsBoard() {
                     >
                         Signups Table ({explorerRows.length})
                     </button>
+                    <button
+                        type="button"
+                        className={`nav-tab ${activeViewTab === 'unmatched_osm' ? 'nav-tab-active' : ''}`}
+                        onClick={() => {
+                            setSelectedSignup(null);
+                            setActiveViewTab('unmatched_osm');
+                        }}
+                    >
+                        Missing OSM Records ({dashboardMetrics.unmatchedOsm.explorersCount})
+                    </button>
+                    <button
+                        type="button"
+                        className={`nav-tab ${activeViewTab === 'unpaired_signups' ? 'nav-tab-active' : ''}`}
+                        onClick={() => {
+                            setSelectedSignup(null);
+                            setActiveViewTab('unpaired_signups');
+                        }}
+                    >
+                        Unpaired Signups ({dashboardMetrics.participantWithoutExpedition.totalExplorers + dashboardMetrics.expeditionWithoutParticipant.totalExplorers})
+                    </button>
                 </nav>
 
                 {activeViewTab === 'dashboard' ? (
                     <ModuleErrorBoundary moduleName="Signups Dashboard">
                         <SignupsDashboard
                             signups={signups}
+                            explorers={explorers}
                             units={availableUnits}
                             onNavigateToTable={handleNavigateToTable}
+                            onOpenChaserTab={(tab) => {
+                                setSelectedSignup(null);
+                                setActiveViewTab(tab);
+                            }}
+                        />
+                    </ModuleErrorBoundary>
+                ) : activeViewTab === 'unmatched_osm' ? (
+                    <ModuleErrorBoundary moduleName="Missing OSM Records">
+                        <UnitChaserView
+                            chaserType="osm_share"
+                            signups={signups}
+                            units={availableUnits}
+                            onSelectExplorer={(s) => setSelectedSignup(s)}
+                        />
+                    </ModuleErrorBoundary>
+                ) : activeViewTab === 'unpaired_signups' ? (
+                    <ModuleErrorBoundary moduleName="Unpaired Signups">
+                        <UnitChaserView
+                            chaserType="unpaired_signups"
+                            signups={signups}
+                            units={availableUnits}
+                            onSelectExplorer={(s) => setSelectedSignup(s)}
                         />
                     </ModuleErrorBoundary>
                 ) : (
@@ -1031,11 +1050,30 @@ export default function SignupsBoard() {
                                                                 className={`ems-row-hoverable ${isRowSelected ? 'ems-table-row--selected' : ''}`}
                                                             >
                                                                 <td className="ems-table-cell--center">
-                                                                    {row.scout_id !== 0 ? (
-                                                                        <span title="Synced with OSM" className="ems-fa-full">✓</span>
+                                                                    {row.is_synced_osm ? (
+                                                                        <img
+                                                                            src={osmIconUrl}
+                                                                            alt="Synced with OSM"
+                                                                            title="Synced with OSM"
+                                                                            className="ems-osm-sync-icon"
+                                                                        />
+                                                                    ) : row.scout_id !== 0 ? (
+                                                                        <img
+                                                                            src={osmIconInverseUrl}
+                                                                            alt="Scout ID present, not synced from OSM"
+                                                                            title={
+                                                                                row.entries?.some(isSignupSyncedWithOsm)
+                                                                                    ? 'Paired signup not synced with OSM'
+                                                                                    : 'Scout ID present, not synced from OSM'
+                                                                            }
+                                                                            className="ems-osm-sync-icon"
+                                                                        />
                                                                     ) : (
-                                                                        <span title="Guest Roster / Unmatched" className="ems-fa-warning">
-                                                                            <FontAwesomeIcon icon={faTriangleExclamation} />
+                                                                        <span
+                                                                            title="Guest Roster / Unmatched"
+                                                                            className="ems-osm-sync-error"
+                                                                        >
+                                                                            <FontAwesomeIcon icon={faXmark} />
                                                                         </span>
                                                                     )}
                                                                 </td>
@@ -1368,6 +1406,16 @@ export default function SignupsBoard() {
                                             Unlink OSM Profile
                                         </button>
                                     </div>
+                                    {!isSignupSyncedWithOsm(selectedSignup) && (
+                                        <div className="ems-warning-notice ems-mt-8 ems-small-text">
+                                            Scout ID is set, but this explorer is not yet in the synced OSM Explorers list (their unit may not have shared their OSM record yet).
+                                        </div>
+                                    )}
+                                    {isSignupSyncedWithOsm(selectedSignup) && selectedExplorerEntries.some((e: any) => !isSignupSyncedWithOsm(e)) && (
+                                        <div className="ems-warning-notice ems-mt-8 ems-small-text">
+                                            Another signup entry for this explorer is not yet linked/synced with OSM.
+                                        </div>
+                                    )}
                                     {unlinkError && (
                                         <div className="ems-error-notice ems-mt-8 ems-small-text">
                                             {unlinkError}

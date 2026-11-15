@@ -1,3 +1,5 @@
+import { isSignupSyncedWithOsm } from './dashboardMetrics';
+
 export const normalize = (str: string | null | undefined): string => {
     return (str || '').trim().toLowerCase();
 };
@@ -56,7 +58,9 @@ export const getSignupsSortValue = (item: any, key: string): any => {
     if (!item) return '';
 
     if (key === 'osm_sync') {
-        return item.scout_id && item.scout_id !== 0 ? 1 : 0;
+        if (isSignupSyncedWithOsm(item)) return 2;
+        if (Number(item.scout_id || 0) !== 0) return 1;
+        return 0;
     }
     if (key === 'explorer_first_name') {
         return `${item.explorer_first_name || ''} ${item.explorer_last_name || ''}`.trim().toLowerCase();

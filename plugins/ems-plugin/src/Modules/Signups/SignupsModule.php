@@ -29,5 +29,12 @@ class SignupsModule implements ModuleInterface {
 			new \EMS\Integrations\TutorLMS_Client()
 		);
 		$controller->register_routes();
+
+		$chaser_controller = new Signup_Chaser_Controller(
+			new \EMS\Data\Signup_Repository(),
+			new \EMS\Data\Unit_Repository(),
+			new \EMS\Modules\Notifications\Email_Template_Service()
+		);
+		$chaser_controller->register_routes();
 	}
 }

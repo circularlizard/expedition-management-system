@@ -110,7 +110,11 @@ class Unit_Leader_Page {
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'units';
-		$valid_tabs = array( 'units', 'leaders', 'patrols', 'email' );
+		if ( $active_tab === 'email' ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=ems-email-templates' ) );
+			return;
+		}
+		$valid_tabs = array( 'units', 'leaders', 'patrols' );
 		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 			$active_tab = 'units';
 		}
@@ -132,10 +136,6 @@ class Unit_Leader_Page {
 					class="nav-tab<?php echo $active_tab === 'patrols' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'OSM Patrol Mapping', 'ems-plugin' ); ?>
 				</a>
-				<a href="<?php echo esc_url( $page_url . '&tab=email' ); ?>"
-					class="nav-tab<?php echo $active_tab === 'email' ? ' nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Invitation Email', 'ems-plugin' ); ?>
-				</a>
 			</nav>
 
 			<?php
@@ -143,8 +143,6 @@ class Unit_Leader_Page {
 				$this->render_leaders_tab();
 			} elseif ( $active_tab === 'patrols' ) {
 				$this->render_patrols_tab();
-			} elseif ( $active_tab === 'email' ) {
-				$this->render_email_tab();
 			} else {
 				$this->render_units_tab();
 			}

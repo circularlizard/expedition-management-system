@@ -130,6 +130,8 @@ class Settings_Page {
 			$this->save_access_control( $post_data );
 		} elseif ( isset( $post_data['ems_save_leader_invite'] ) ) {
 			$this->save_leader_invite( $post_data );
+		} elseif ( isset( $post_data['ems_save_chaser_emails'] ) ) {
+			$this->save_chaser_emails( $post_data );
 		} else {
 			$this->save_general( $post_data );
 		}
@@ -147,9 +149,10 @@ class Settings_Page {
 	}
 
 	public function render(): void {
-		// Backward-compatibility redirect for legacy Leader Invite tab
-		if ( isset( $_GET['tab'] ) && sanitize_key( wp_unslash( $_GET['tab'] ) ) === 'leader_invite' ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-units&tab=email' ) );
+		// Redirect legacy email template tabs to the centralized Email Templates hub
+		$requested_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+		if ( in_array( $requested_tab, array( 'leader_invite', 'chaser_emails' ), true ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=ems-email-templates' ) );
 			return;
 		}
 
@@ -165,6 +168,8 @@ class Settings_Page {
 			$this->save_access_control( $_POST );
 		} elseif ( isset( $_POST['ems_import_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
 			$this->handle_import();
+		} elseif ( isset( $_POST['ems_save_chaser_emails'] ) && check_admin_referer( 'ems_settings_chaser_emails' ) ) {
+			$this->save_chaser_emails( $_POST );
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general';
@@ -453,6 +458,34 @@ class Settings_Page {
 
 	public function save_leader_invite( array $post ): void {
 		( new \EMS\Modules\LeaderDashboard\Unit_Leader_Page() )->save_leader_invite( $post );
+	}
+
+	/**
+	 * Saves OSM Share Request and Unpaired Signups Chase email templates.
+	 *
+	 * @param array<string,mixed> $post Submitted POST data.
+	 * @return void
+	 */
+	public function save_chaser_emails( array $post ): void {
+		$fields = array(
+			'ems_osm_share_request_email_subject'  => 'text',
+			'ems_osm_share_request_email_reply_to' => 'text',
+			'ems_osm_share_request_email_body'     => 'html',
+			'ems_unpaired_chase_email_subject'     => 'text',
+			'ems_unpaired_chase_email_reply_to'    => 'text',
+			'ems_unpaired_chase_email_body'        => 'html',
+		);
+
+		foreach ( $fields as $key => $type ) {
+			if ( ! isset( $post[ $key ] ) ) {
+				continue;
+			}
+			$raw = (string) wp_unslash( $post[ $key ] );
+			$val = $type === 'html' ? wp_kses_post( $raw ) : sanitize_text_field( $raw );
+			update_option( $key, $val );
+		}
+
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Chaser email templates saved.', 'ems-plugin' ) . '</p></div>';
 	}
 
 	private function render_form_mappings_tab(): void {
