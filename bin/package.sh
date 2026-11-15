@@ -3,7 +3,7 @@ set -euo pipefail
 
 # bin/package.sh - Staging & Production .zip artifact builder
 # Usage:
-#   bash bin/package.sh [ems|rce|all] [--no-bump|--bump=patch|minor|major]
+#   bash bin/package.sh [ems|all] [--no-bump|--bump=patch|minor|major]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -41,7 +41,7 @@ for arg in "$@"; do
       BUMP_MODE="major"
       ;;
     *)
-      echo "Usage: bash bin/package.sh [ems|rce|all] [--no-bump|--bump=patch|minor|major]"
+      echo "Usage: bash bin/package.sh [ems|all] [--no-bump|--bump=patch|minor|major]"
       exit 1
       ;;
   esac
