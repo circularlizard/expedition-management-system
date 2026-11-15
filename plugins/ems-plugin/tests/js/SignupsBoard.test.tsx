@@ -447,13 +447,27 @@ describe('SignupsBoard', () => {
         await waitFor(() => {
             expect(screen.getByTestId('card-signups-by-level')).toBeInTheDocument();
             expect(screen.getByText(/Signups by DofE Level/i)).toBeInTheDocument();
-            expect(screen.getByText(/Signups by Expedition Type/i)).toBeInTheDocument();
+            expect(screen.getByTestId('card-level-bronze')).toBeInTheDocument();
+            expect(screen.getByTestId('card-level-silver')).toBeInTheDocument();
+            expect(screen.getByTestId('card-level-gold')).toBeInTheDocument();
             expect(screen.getByTestId('card-no-expedition')).toBeInTheDocument();
-            expect(screen.getByText(/Duplicate Signups/i)).toBeInTheDocument();
-            expect(screen.getByText(/No Synced OSM Record/i)).toBeInTheDocument();
             expect(screen.getByText(/Cumulative Signups by Week/i)).toBeInTheDocument();
         });
         expect(document.querySelectorAll('.ems-dashboard-progress').length).toBe(0);
+        // Row 2 widgets removed entirely
+        expect(screen.queryByText(/Signups by Expedition Type/i)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('card-duplicates')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('card-unmatched-osm')).not.toBeInTheDocument();
+
+        // Verify Bronze / Silver / Gold award logos and card headings
+        expect((screen.getByAltText('Bronze Award Logo') as HTMLImageElement).src).toContain('dofe_logo_bronze.png');
+        expect((screen.getByAltText('Silver Award Logo') as HTMLImageElement).src).toContain('dofe_logo_silver.png');
+        expect((screen.getByAltText('Gold Award Logo') as HTMLImageElement).src).toContain('dofe_logo_gold.png');
+        expect(screen.getByTestId('card-level-bronze')).toHaveTextContent(/Bronze/i);
+        expect(screen.getByTestId('card-level-bronze')).toHaveTextContent(/Both:\s*1/i);
+        expect(screen.getByTestId('card-level-bronze')).toHaveTextContent(/Anomalies/i);
+        expect(screen.getByTestId('card-level-silver')).toHaveTextContent(/Silver/i);
+        expect(screen.getByTestId('card-level-gold')).toHaveTextContent(/Gold/i);
 
         // Verify breakdowns (unique explorers, not raw form count)
         expect(screen.getByTestId('metric-type-total')).toHaveTextContent('4');
@@ -462,9 +476,9 @@ describe('SignupsBoard', () => {
         expect(screen.getByTestId('metric-level-bronze')).toHaveTextContent('2');
         expect(screen.getByTestId('metric-level-silver')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-level-gold')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-exped-hillwalking')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-exped-biking')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-exped-paddling')).toHaveTextContent('0');
+        expect(screen.getByTestId('metric-level-bronze-hillwalking')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-level-gold-biking')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-level-bronze-paddling')).toHaveTextContent('0');
 
         // Verify Participant Place Only (Alice Smith - bronze, Charlie Smith - silver; Mary has exped)
         expect(screen.getByTestId('metric-no-expedition-total')).toHaveTextContent('2');
@@ -478,14 +492,15 @@ describe('SignupsBoard', () => {
         expect(screen.getByTestId('metric-no-participant-silver')).toHaveTextContent('0');
         expect(screen.getByTestId('metric-no-participant-gold')).toHaveTextContent('1');
 
-        // Verify Duplicate Signups (Mary Jones has 2 bronze participant signups)
-        expect(screen.getByTestId('metric-duplicates-groups')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-duplicates-rows')).toHaveTextContent('2');
+        // Verify Duplicate Signups per level (Mary Jones has 2 bronze participant signups)
+        expect(screen.getByTestId('metric-duplicates-bronze')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-duplicates-silver')).toHaveTextContent('0');
 
-        // Verify No Synced OSM Record (Alice Smith has candidate match, Charlie Smith has no match -> 2 signups)
-        expect(screen.getByTestId('metric-unmatched-osm')).toHaveTextContent('2');
-        expect(screen.getByTestId('metric-unmatched-candidates')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-unmatched-no-match')).toHaveTextContent('1');
+        // Verify both OSM anomalies per level (Alice Smith = bronze candidate match, Charlie Smith = silver no match)
+        expect(screen.getByTestId('metric-unmatched-candidates-bronze')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-unmatched-no-match-bronze')).toHaveTextContent('0');
+        expect(screen.getByTestId('metric-unmatched-candidates-silver')).toHaveTextContent('0');
+        expect(screen.getByTestId('metric-unmatched-no-match-silver')).toHaveTextContent('1');
 
         // Verify cumulative chart renders 2 lines and a legend (Participant Place and Expedition Preference) without a Signup Type filter
         expect(screen.queryByLabelText(/Chart Signup Type/i)).not.toBeInTheDocument();
@@ -1569,8 +1584,7 @@ describe('SignupsBoard', () => {
         render(<SignupsBoard />);
 
         await waitFor(() => {
-            expect(screen.getByTestId('metric-unmatched-osm')).toHaveTextContent('2');
-            expect(screen.getByTestId('metric-unmatched-osm-bronze')).toHaveTextContent('2');
+            expect(screen.getByTestId('metric-unmatched-no-match-bronze')).toHaveTextContent('2');
         });
 
         fireEvent.click(screen.getByRole('button', { name: /Signups Table/i }));
@@ -1710,6 +1724,38 @@ describe('SignupsBoard', () => {
         // Also switch to Unpaired Signups tab
         fireEvent.click(screen.getByRole('button', { name: /Unpaired Signups \(1\)/i }));
         await waitFor(() => expect(screen.getByTestId('chaser-view-unpaired_signups')).toBeInTheDocument());
+    });
+
+    it('includes Register Interest expedition preferences in Paddling chips and drilldown', async () => {
+        const signupsWithRegisterInterest = [
+            ...mockCombinedSignups,
+            {
+                ...mockCombinedSignups[3],
+                id: 22,
+                scout_id: 30004,
+                explorer_first_name: 'Ella',
+                explorer_last_name: 'River',
+                dofe_level: 'silver',
+                expedition_preferences: { exped_type: 'Register Interest' },
+                created_at: '2026-06-22 12:00:00',
+            },
+        ];
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => signupsWithRegisterInterest })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('metric-level-silver-paddling')).toHaveTextContent('1');
+        });
+
+        fireEvent.click(screen.getByTestId('metric-level-silver-paddling').closest('button')!);
+        await waitFor(() => {
+            expect(screen.getByText('Ella River')).toBeInTheDocument();
+            expect(screen.queryByText('Mary Jones')).not.toBeInTheDocument();
+        });
     });
 });
 

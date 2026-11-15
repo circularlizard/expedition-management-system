@@ -12,6 +12,7 @@ import {
     faCircleQuestion
 } from '@fortawesome/free-solid-svg-icons';
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
+import { normalizeExpeditionType } from './dashboardMetrics';
 import UnitChaserView from './UnitChaserView';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 import { computeSignupsDashboardMetrics, getMatchSuggestions as findMatchSuggestions, getSignupRecordKey, groupSignupsByExplorerIdentity, isSignupSyncedWithOsm } from './dashboardMetrics';
@@ -461,8 +462,10 @@ export default function SignupsBoard() {
         if (typeFilter !== 'all' && s.type !== typeFilter) return false;
         if (levelFilter !== 'all' && (s.dofe_level || '').toLowerCase() !== levelFilter.toLowerCase()) return false;
         if (expeditionTypeFilter !== 'all') {
-            const expedType = normalize(s.expedition_preferences?.exped_type || '');
-            if (expedType !== normalize(expeditionTypeFilter)) return false;
+            const rawExpedType = normalize(s.expedition_preferences?.exped_type || '');
+            const canonicalExpedType = normalizeExpeditionType(s.expedition_preferences?.exped_type);
+            const targetFilter = normalize(expeditionTypeFilter);
+            if (canonicalExpedType !== targetFilter && rawExpedType !== targetFilter) return false;
         }
         if (unitFilter !== 'all' && (s.unit_name || 'Unassigned') !== unitFilter) return false;
         if (districtFilter !== 'all') {

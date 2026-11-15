@@ -4739,6 +4739,132 @@ tr.ems-table-group-header:hover td,
     margin-left: 6px;
 }
 
+.ems-mt-6 {
+    margin-top: 6px;
+}
+
+.ems-dashboard-level-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+}
+
+.ems-dashboard-level-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.ems-dashboard-level-logo {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.ems-dashboard-level-stats {
+    flex: 1;
+    min-width: 0;
+}
+
+.ems-dashboard-level-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1d2327;
+    line-height: 1.2;
+}
+
+.ems-dashboard-level-hero-number {
+    font-size: 36px;
+    line-height: 1.05;
+}
+
+.ems-dashboard-level-hero-label {
+    font-size: 15px;
+    font-weight: 500;
+    color: #50575e;
+}
+
+.ems-dashboard-level-breakdown {
+    font-size: 13.5px;
+    color: #3c434a;
+    line-height: 1.35;
+}
+
+.ems-dashboard-level-section {
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.ems-dashboard-level-section-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #50575e;
+    margin-bottom: 8px;
+}
+
+.ems-dashboard-level-exped-types {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.ems-dashboard-exped-type-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 8px;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #1d2327;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ems-dashboard-exped-type-btn:hover {
+    border-color: var(--ems-theme-color, #2271b1);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ems-dashboard-exped-type-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
+    color: #2271b1;
+}
+
+.ems-dashboard-exped-type-count {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1d2327;
+    line-height: 1.1;
+}
+
+.ems-dashboard-exped-type-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3c434a;
+}
+
+.ems-dashboard-level-anomalies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ems-dashboard-level-anomalies .ems-dashboard-mini-pill {
+    font-size: 12.5px;
+    padding: 4px 10px;
+}
+
 
 
 

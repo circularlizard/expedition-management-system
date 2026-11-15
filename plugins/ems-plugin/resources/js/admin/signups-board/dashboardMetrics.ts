@@ -5,6 +5,12 @@ export interface LevelBreakdown {
     uniqueExplorers: number;
     uniqueParticipant: number;
     uniqueExpedition: number;
+    expeditionByType: {
+        hillwalking: number;
+        biking: number;
+        paddling: number;
+        unspecified: number;
+    };
 }
 
 export interface UnpairedGroupMetric {
@@ -66,6 +72,16 @@ export interface DashboardMetrics {
         withCandidatesCount: number;
         noMatchCount: number;
         byLevel: {
+            bronze: number;
+            silver: number;
+            gold: number;
+        };
+        withCandidatesByLevel: {
+            bronze: number;
+            silver: number;
+            gold: number;
+        };
+        noMatchByLevel: {
             bronze: number;
             silver: number;
             gold: number;
@@ -241,11 +257,8 @@ export function computeExpeditionDistrictUnitMatrix(
             }
         } else if (s.type === 'expedition') {
             unitMap[key].expeditionTotal++;
-            const rawExpedType = normalize(s.expedition_preferences?.exped_type);
-            const expedType: MatrixExpedType | 'other' =
-                rawExpedType === 'hillwalking' || rawExpedType === 'biking' || rawExpedType === 'paddling'
-                    ? rawExpedType
-                    : 'other';
+            const rawExpedType = normalizeExpeditionType(s.expedition_preferences?.exped_type);
+            const expedType: MatrixExpedType | 'other' = rawExpedType || 'other';
 
             if (expedType === 'other') {
                 hasOtherExpedType = true;
@@ -353,6 +366,24 @@ const normalize = (str: string | null | undefined): string => {
     return (str || '').trim().toLowerCase();
 };
 
+export const normalizeExpeditionType = (
+    raw: string | null | undefined
+): 'hillwalking' | 'biking' | 'paddling' | '' => {
+    const val = normalize(raw);
+    if (!val) return '';
+    if (val === 'hillwalking' || val.includes('hillwalk')) return 'hillwalking';
+    if (val === 'biking' || val.includes('bik')) return 'biking';
+    if (
+        val === 'paddling' ||
+        val.includes('paddl') ||
+        val.includes('register interest') ||
+        val.includes('register_interest')
+    ) {
+        return 'paddling';
+    }
+    return '';
+};
+
 export const getSignupRecordKey = (s: any): string => {
     return `${s.type || 'unknown'}_${s.id}`;
 };
@@ -441,9 +472,9 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
             uniqueExpedition: 0,
         },
         byLevel: {
-            bronze: { total: 0, participant: 0, expedition: 0, uniqueExplorers: 0, uniqueParticipant: 0, uniqueExpedition: 0 },
-            silver: { total: 0, participant: 0, expedition: 0, uniqueExplorers: 0, uniqueParticipant: 0, uniqueExpedition: 0 },
-            gold: { total: 0, participant: 0, expedition: 0, uniqueExplorers: 0, uniqueParticipant: 0, uniqueExpedition: 0 },
+            bronze: { total: 0, participant: 0, expedition: 0, uniqueExplorers: 0, uniqueParticipant: 0, uniqueExpedition: 0, expeditionByType: { hillwalking: 0, biking: 0, paddling: 0, unspecified: 0 } },
+            silver: { total: 0, participant: 0, expedition: 0, uniqueExplorers: 0, uniqueParticipant: 0, uniqueExpedition: 0, expeditionByType: { hillwalking: 0, biking: 0, paddling: 0, unspecified: 0 } },
+            gold: { total: 0, participant: 0, expedition: 0, uniqueExplorers: 0, uniqueParticipant: 0, uniqueExpedition: 0, expeditionByType: { hillwalking: 0, biking: 0, paddling: 0, unspecified: 0 } },
         },
         byExpeditionType: {
             hillwalking: 0,
@@ -501,6 +532,16 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
                 silver: 0,
                 gold: 0,
             },
+            withCandidatesByLevel: {
+                bronze: 0,
+                silver: 0,
+                gold: 0,
+            },
+            noMatchByLevel: {
+                bronze: 0,
+                silver: 0,
+                gold: 0,
+            },
             signupKeys: new Set<string>(),
         },
     };
@@ -542,12 +583,8 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
         const expedTypesForExplorer = new Set<'hillwalking' | 'biking' | 'paddling' | 'unspecified'>();
         group.items.forEach((i) => {
             if (i.type !== 'expedition') return;
-            const expedType = normalize(i.expedition_preferences?.exped_type);
-            if (expedType === 'hillwalking' || expedType === 'biking' || expedType === 'paddling') {
-                expedTypesForExplorer.add(expedType);
-            } else {
-                expedTypesForExplorer.add('unspecified');
-            }
+            const expedType = normalizeExpeditionType(i.expedition_preferences?.exped_type);
+            expedTypesForExplorer.add(expedType || 'unspecified');
         });
         expedTypesForExplorer.forEach((et) => {
             metrics.byExpeditionType[et]++;
@@ -573,6 +610,14 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
             }
             if (lvlExpeditions.length > 0) {
                 metrics.byLevel[lvl].uniqueExpedition++;
+                const lvlExpedTypes = new Set<'hillwalking' | 'biking' | 'paddling' | 'unspecified'>();
+                lvlExpeditions.forEach((exp) => {
+                    const et = normalizeExpeditionType(exp.expedition_preferences?.exped_type);
+                    lvlExpedTypes.add(et || 'unspecified');
+                });
+                lvlExpedTypes.forEach((et) => {
+                    metrics.byLevel[lvl].expeditionByType[et]++;
+                });
             }
 
             if (lvlParticipants.length > 0 && lvlExpeditions.length === 0) {
@@ -648,11 +693,19 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
             }
         }
         levels.forEach((lvl) => {
-            const hasLvlUnmatched = group.items.some(
+            const lvlUnmatchedItems = group.items.filter(
                 (s) => normalize(s.dofe_level) === lvl && !isSignupSyncedWithOsm(s)
             );
-            if (hasLvlUnmatched) {
+            if (lvlUnmatchedItems.length > 0) {
                 metrics.unmatchedOsm.byLevel[lvl]++;
+                const hasLvlCandidate = lvlUnmatchedItems.some(
+                    (s) => getMatchSuggestions(s, explorers).length > 0
+                );
+                if (hasLvlCandidate) {
+                    metrics.unmatchedOsm.withCandidatesByLevel[lvl]++;
+                } else {
+                    metrics.unmatchedOsm.noMatchByLevel[lvl]++;
+                }
             }
         });
     });

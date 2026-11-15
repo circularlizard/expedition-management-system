@@ -2,13 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faAward,
-    faCompass,
     faPersonHiking,
     faBicycle,
     faWater,
     faCampground,
-    faFileLines,
-    faTriangleExclamation,
+    faCompass,
     faChartLine
 } from '@fortawesome/free-solid-svg-icons';
 import {
@@ -71,6 +69,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     };
 
     const allUnits = units && units.length > 0 ? units : (typeof window !== 'undefined' && window.emsSignupsBoard?.units) ? window.emsSignupsBoard.units : [];
+    const pluginUrl = (typeof window !== 'undefined' && window.emsSignupsBoard?.plugin_url) ? window.emsSignupsBoard.plugin_url : '/wp-content/plugins/ems-plugin/';
     const unitDistrictMap = useMemo(() => getUnitDistrictMap(allUnits), [allUnits]);
 
     const metrics = useMemo(() => computeSignupsDashboardMetrics(signups, explorers), [signups, explorers]);
@@ -247,13 +246,22 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                             </strong>
                         </button>
                         {onOpenChaserTab && (
-                            <button
-                                type="button"
-                                className="button button-small"
-                                onClick={() => onOpenChaserTab('unpaired_signups')}
-                            >
-                                Chase Unpaired →
-                            </button>
+                            <>
+                                <button
+                                    type="button"
+                                    className="button button-small"
+                                    onClick={() => onOpenChaserTab('unpaired_signups')}
+                                >
+                                    Chase Unpaired →
+                                </button>
+                                <button
+                                    type="button"
+                                    className="button button-small"
+                                    onClick={() => onOpenChaserTab('unmatched_osm')}
+                                >
+                                    Request OSM Share →
+                                </button>
+                            </>
                         )}
                         <button
                             type="button"
@@ -273,26 +281,106 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                         const expedOnly = metrics.expeditionWithoutParticipant.byLevel[lvl];
                         const paired = metrics.pairedExplorers.byLevel[lvl];
                         const dupes = metrics.duplicates.byLevel[lvl];
-                        const unmatched = metrics.unmatchedOsm.byLevel[lvl];
+                        const osmCandidates = metrics.unmatchedOsm.withCandidatesByLevel[lvl];
+                        const osmNoMatch = metrics.unmatchedOsm.noMatchByLevel[lvl];
 
                         return (
-                            <div key={lvl} className="ems-dashboard-stat-item">
-                                <div
-                                    className="ems-flex-between ems-cursor-pointer"
-                                    onClick={() => onNavigateToTable({ levelFilter: lvl, anomalyFilter: 'all' })}
-                                >
-                                    <div className="ems-flex-center ems-gap-8">
-                                        <span className={`ems-pill ems-pill--${lvl}`}>{label}</span>
-                                        <span className="ems-meta-text ems-small-text">
-                                            {data.uniqueParticipant} Place · {data.uniqueExpedition} Exped · {paired} Paired
-                                        </span>
+                            <div key={lvl} className="ems-dashboard-stat-item ems-dashboard-level-card" data-testid={`card-level-${lvl}`}>
+                                <div className="ems-dashboard-level-main">
+                                    <img
+                                        src={`${pluginUrl}assets/images/dofe_logo_${lvl}.png`}
+                                        alt={`${label} Award Logo`}
+                                        className="ems-dashboard-level-logo"
+                                    />
+                                    <div className="ems-dashboard-level-stats">
+                                        <div className="ems-dashboard-level-title">{label}</div>
+                                        <div
+                                            className="ems-flex-center ems-gap-8 ems-cursor-pointer ems-mt-4"
+                                            onClick={() => onNavigateToTable({ levelFilter: lvl, anomalyFilter: 'all' })}
+                                        >
+                                            <strong className="ems-dashboard-hero-number ems-dashboard-level-hero-number" data-testid={`metric-level-${lvl}`}>
+                                                {data.uniqueExplorers}
+                                            </strong>
+                                            <span className="ems-dashboard-level-hero-label">Explorers</span>
+                                        </div>
+                                        <div className="ems-dashboard-level-breakdown ems-mt-6">
+                                            Place: <strong data-testid={`metric-level-${lvl}-participant`}>{data.uniqueParticipant}</strong>
+                                            {' · '}
+                                            Exped: <strong data-testid={`metric-level-${lvl}-expedition`}>{data.uniqueExpedition}</strong>
+                                            {' · '}
+                                            Both: <strong>{paired}</strong>
+                                        </div>
                                     </div>
-                                    <strong className="ems-dashboard-subhero-number" data-testid={`metric-level-${lvl}`}>
-                                        {data.uniqueExplorers}
-                                    </strong>
                                 </div>
 
-                                <div className="ems-dashboard-pill-group ems-mt-8">
+                                <div className="ems-dashboard-level-section">
+                                    <div className="ems-dashboard-level-exped-types">
+                                        <button
+                                            type="button"
+                                            className="ems-dashboard-exped-type-btn"
+                                            onClick={() =>
+                                                onNavigateToTable({
+                                                    typeFilter: 'expedition',
+                                                    levelFilter: lvl,
+                                                    expeditionTypeFilter: 'hillwalking',
+                                                    anomalyFilter: 'all',
+                                                })
+                                            }
+                                        >
+                                            <div className="ems-dashboard-exped-type-top">
+                                                <FontAwesomeIcon icon={faPersonHiking} className="ems-pill-icon" />
+                                                <strong className="ems-dashboard-exped-type-count" data-testid={`metric-level-${lvl}-hillwalking`}>
+                                                    {data.expeditionByType.hillwalking}
+                                                </strong>
+                                            </div>
+                                            <span className="ems-dashboard-exped-type-label">Hillwalking</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="ems-dashboard-exped-type-btn"
+                                            onClick={() =>
+                                                onNavigateToTable({
+                                                    typeFilter: 'expedition',
+                                                    levelFilter: lvl,
+                                                    expeditionTypeFilter: 'biking',
+                                                    anomalyFilter: 'all',
+                                                })
+                                            }
+                                        >
+                                            <div className="ems-dashboard-exped-type-top">
+                                                <FontAwesomeIcon icon={faBicycle} className="ems-pill-icon" />
+                                                <strong className="ems-dashboard-exped-type-count" data-testid={`metric-level-${lvl}-biking`}>
+                                                    {data.expeditionByType.biking}
+                                                </strong>
+                                            </div>
+                                            <span className="ems-dashboard-exped-type-label">Biking</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="ems-dashboard-exped-type-btn"
+                                            onClick={() =>
+                                                onNavigateToTable({
+                                                    typeFilter: 'expedition',
+                                                    levelFilter: lvl,
+                                                    expeditionTypeFilter: 'paddling',
+                                                    anomalyFilter: 'all',
+                                                })
+                                            }
+                                        >
+                                            <div className="ems-dashboard-exped-type-top">
+                                                <FontAwesomeIcon icon={faWater} className="ems-pill-icon" />
+                                                <strong className="ems-dashboard-exped-type-count" data-testid={`metric-level-${lvl}-paddling`}>
+                                                    {data.expeditionByType.paddling}
+                                                </strong>
+                                            </div>
+                                            <span className="ems-dashboard-exped-type-label">Paddling</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="ems-dashboard-level-section">
+                                    <div className="ems-dashboard-level-section-label">Anomalies</div>
+                                    <div className="ems-dashboard-level-anomalies">
                                     <button
                                         type="button"
                                         className="ems-dashboard-mini-pill"
@@ -347,9 +435,24 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                             })
                                         }
                                     >
-                                        No Synced OSM:{' '}
-                                        <strong data-testid={`metric-unmatched-osm-${lvl}`}>{unmatched}</strong>
+                                        OSM Candidate Match:{' '}
+                                        <strong data-testid={`metric-unmatched-candidates-${lvl}`}>{osmCandidates}</strong>
                                     </button>
+                                    <button
+                                        type="button"
+                                        className="ems-dashboard-mini-pill"
+                                        onClick={() =>
+                                            onNavigateToTable({
+                                                typeFilter: 'all',
+                                                levelFilter: lvl,
+                                                anomalyFilter: 'unmatched_osm',
+                                            })
+                                        }
+                                    >
+                                        OSM No Match:{' '}
+                                        <strong data-testid={`metric-unmatched-no-match-${lvl}`}>{osmNoMatch}</strong>
+                                    </button>
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -357,471 +460,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                 </div>
             </div>
 
-            {/* Row 2: Expedition Type, Duplicate Signups, and No Synced OSM Record */}
-            <div className="ems-dashboard-grid-3">
-                {/* 1. Breakdown by Expedition Type */}
-                <div className="ems-overview-card">
-                    <div className="ems-overview-card__title">
-                        <span><FontAwesomeIcon icon={faCompass} /></span> Signups by Expedition Type
-                    </div>
-                    <div className="ems-dashboard-stat-list">
-                        <div
-                            className="ems-dashboard-stat-item ems-cursor-pointer"
-                            onClick={() =>
-                                onNavigateToTable({
-                                    typeFilter: 'expedition',
-                                    expeditionTypeFilter: 'hillwalking',
-                                    anomalyFilter: 'all',
-                                })
-                            }
-                        >
-                            <div className="ems-flex-between">
-                                <span className="ems-font-semibold">
-                                    <FontAwesomeIcon icon={faPersonHiking} className="ems-pill-icon" /> Hillwalking
-                                </span>
-                                <strong data-testid="metric-exped-hillwalking">
-                                    {metrics.byExpeditionType.hillwalking}
-                                </strong>
-                            </div>
-                        </div>
-
-                        <div
-                            className="ems-dashboard-stat-item ems-cursor-pointer"
-                            onClick={() =>
-                                onNavigateToTable({
-                                    typeFilter: 'expedition',
-                                    expeditionTypeFilter: 'biking',
-                                    anomalyFilter: 'all',
-                                })
-                            }
-                        >
-                            <div className="ems-flex-between">
-                                <span className="ems-font-semibold">
-                                    <FontAwesomeIcon icon={faBicycle} className="ems-pill-icon" /> Biking
-                                </span>
-                                <strong data-testid="metric-exped-biking">
-                                    {metrics.byExpeditionType.biking}
-                                </strong>
-                            </div>
-                        </div>
-
-                        <div
-                            className="ems-dashboard-stat-item ems-cursor-pointer"
-                            onClick={() =>
-                                onNavigateToTable({
-                                    typeFilter: 'expedition',
-                                    expeditionTypeFilter: 'paddling',
-                                    anomalyFilter: 'all',
-                                })
-                            }
-                        >
-                            <div className="ems-flex-between">
-                                <span className="ems-font-semibold">
-                                    <FontAwesomeIcon icon={faWater} className="ems-pill-icon" /> Paddling
-                                </span>
-                                <strong data-testid="metric-exped-paddling">
-                                    {metrics.byExpeditionType.paddling}
-                                </strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. Duplicate Signups Summary */}
-                <div
-                    className="ems-overview-card ems-dashboard-action-card ems-cursor-pointer"
-                    data-testid="card-duplicates"
-                    onClick={() =>
-                        onNavigateToTable({
-                            typeFilter: 'all',
-                            anomalyFilter: 'duplicate',
-                            grouping: 'explorer',
-                        })
-                    }
-                >
-                    <div className="ems-overview-card__title">
-                        <span><FontAwesomeIcon icon={faFileLines} /></span> Duplicate Signups
-                    </div>
-                    <div className="ems-dashboard-hero-row">
-                        <div>
-                            <div className="ems-flex-center ems-gap-8">
-                                <span
-                                    className="ems-dashboard-hero-number"
-                                    data-testid="metric-duplicates-groups"
-                                >
-                                    {metrics.duplicates.groupsCount}
-                                </span>
-                                <span className="ems-badge ems-badge--warning">
-                                    <span data-testid="metric-duplicates-rows">
-                                        {metrics.duplicates.rowsCount}
-                                    </span>{' '}
-                                    records
-                                </span>
-                            </div>
-                            <div className="ems-meta-text">
-                                Explorers with multiple active signups for the same form &amp; level
-                            </div>
-                        </div>
-                        <span className="ems-table__link ems-small-text">Review →</span>
-                    </div>
-                    <div className="ems-dashboard-pill-group">
-                        <span className="ems-event-detail__stat-pill">
-                            Place Duplicates: <strong>{metrics.duplicates.participantGroups}</strong>
-                        </span>
-                        <span className="ems-event-detail__stat-pill">
-                            Exped Duplicates: <strong>{metrics.duplicates.expeditionGroups}</strong>
-                        </span>
-                    </div>
-                </div>
-
-                {/* 3. No Synced OSM Record */}
-                <div
-                    className="ems-overview-card ems-dashboard-action-card ems-cursor-pointer"
-                    data-testid="card-unmatched-osm"
-                    onClick={() =>
-                        onNavigateToTable({
-                            typeFilter: 'all',
-                            anomalyFilter: 'unmatched_osm',
-                        })
-                    }
-                >
-                    <div className="ems-overview-card__title">
-                        <span><FontAwesomeIcon icon={faTriangleExclamation} /></span> No Synced OSM Record
-                    </div>
-                    <div className="ems-dashboard-hero-row">
-                        <div>
-                            <div
-                                className="ems-dashboard-hero-number"
-                                data-testid="metric-unmatched-osm"
-                            >
-                                {metrics.unmatchedOsm.rowsCount}
-                            </div>
-                            <div className="ems-meta-text">
-                                Unmatched signups across {metrics.unmatchedOsm.explorersCount} explorers
-                            </div>
-                        </div>
-                        <span className="ems-table__link ems-small-text">Reconcile →</span>
-                    </div>
-                    <div className="ems-dashboard-pill-group">
-                        <span className="ems-event-detail__stat-pill">
-                            Candidate Match:{' '}
-                            <strong data-testid="metric-unmatched-candidates">
-                                {metrics.unmatchedOsm.withCandidatesCount}
-                            </strong>
-                        </span>
-                        <span className="ems-event-detail__stat-pill">
-                            No Match:{' '}
-                            <strong data-testid="metric-unmatched-no-match">
-                                {metrics.unmatchedOsm.noMatchCount}
-                            </strong>
-                        </span>
-                        {onOpenChaserTab && (
-                            <button
-                                type="button"
-                                className="button button-small"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onOpenChaserTab('unmatched_osm');
-                                }}
-                            >
-                                Request OSM Share →
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Row 3: Cumulative Signups by Week Chart */}
-            <div className="ems-overview-card">
-                <div className="ems-dashboard-chart-header">
-                    <div>
-                        <h3 className="ems-m-0 ems-font-semibold">
-                            <FontAwesomeIcon icon={faChartLine} className="ems-btn-icon" /> Cumulative Signups by Week
-                        </h3>
-                        <div className="ems-meta-text ems-mt-4">
-                            School year {cumulativeSeries.schoolYearLabel}
-                        </div>
-                    </div>
-
-                    <div className="ems-flex-center ems-gap-12 ems-wrap">
-                        {/* Chart Legend */}
-                        <div
-                            className="ems-dashboard-chart-legend"
-                            data-testid="chart-legend"
-                            aria-label="Chart Legend"
-                        >
-                            <div
-                                className="ems-dashboard-chart-legend__item"
-                                data-testid="chart-legend-participant"
-                            >
-                                <svg
-                                    className="ems-dashboard-chart-legend__swatch"
-                                    viewBox="0 0 28 12"
-                                    aria-hidden="true"
-                                >
-                                    <line
-                                        x1="2"
-                                        y1="6"
-                                        x2="26"
-                                        y2="6"
-                                        stroke="#2271b1"
-                                        strokeWidth="2.5"
-                                    />
-                                    <circle
-                                        cx="14"
-                                        cy="6"
-                                        r="3.5"
-                                        fill="#ffffff"
-                                        stroke="#2271b1"
-                                        strokeWidth="2"
-                                    />
-                                </svg>
-                                <span>
-                                    Participant Place (
-                                    <strong data-testid="chart-cumulative-participant">
-                                        {cumulativeSeries.totalParticipant}
-                                    </strong>
-                                    )
-                                </span>
-                            </div>
-
-                            <div
-                                className="ems-dashboard-chart-legend__item"
-                                data-testid="chart-legend-expedition"
-                            >
-                                <svg
-                                    className="ems-dashboard-chart-legend__swatch"
-                                    viewBox="0 0 28 12"
-                                    aria-hidden="true"
-                                >
-                                    <line
-                                        x1="2"
-                                        y1="6"
-                                        x2="26"
-                                        y2="6"
-                                        stroke="#15803D"
-                                        strokeWidth="2.5"
-                                    />
-                                    <circle
-                                        cx="14"
-                                        cy="6"
-                                        r="3.5"
-                                        fill="#ffffff"
-                                        stroke="#15803D"
-                                        strokeWidth="2"
-                                    />
-                                </svg>
-                                <span>
-                                    Expedition Preference (
-                                    <strong data-testid="chart-cumulative-expedition">
-                                        {cumulativeSeries.totalExpedition}
-                                    </strong>
-                                    )
-                                </span>
-                            </div>
-                        </div>
-
-                        {cumulativeSeries.availableSchoolYears.length > 1 && (
-                            <div className="ems-flex-center ems-gap-6">
-                                <label
-                                    htmlFor="chart-year-filter"
-                                    className="ems-toolbar__label"
-                                >
-                                    School Year:
-                                </label>
-                                <select
-                                    id="chart-year-filter"
-                                    aria-label="School Year"
-                                    className="ems-select-sm"
-                                    value={cumulativeSeries.schoolYearStart}
-                                    onChange={(e) =>
-                                        setSelectedSchoolYear(parseInt(e.target.value, 10))
-                                    }
-                                >
-                                    {cumulativeSeries.availableSchoolYears.map((yr) => (
-                                        <option key={yr} value={yr}>
-                                            {yr}/{String(yr + 1).slice(-2)} (from 1 Aug {yr})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
-                        <div className="ems-flex-center ems-gap-6">
-                            <label
-                                htmlFor="chart-level-filter"
-                                className="ems-toolbar__label"
-                            >
-                                Chart Level:
-                            </label>
-                            <select
-                                id="chart-level-filter"
-                                aria-label="Chart Level"
-                                className="ems-select-sm"
-                                value={chartLevelFilter}
-                                onChange={(e) => setChartLevelFilter(e.target.value)}
-                            >
-                                <option value="all">All Levels</option>
-                                <option value="bronze">Bronze</option>
-                                <option value="silver">Silver</option>
-                                <option value="gold">Gold</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Hover / Active Week Summary Bar */}
-                {activeHoverWeek && (
-                    <div className="ems-dashboard-chart-Callout">
-                        <span className="ems-font-semibold">
-                            Week {activeHoverWeek.weekNumber} ({activeHoverWeek.rangeLabel}):
-                        </span>{' '}
-                        <span>
-                            Participant Place:{' '}
-                            <strong>{activeHoverWeek.participantCumulativeCount}</strong> cumulative (
-                            +{activeHoverWeek.participantWeeklyCount} new)
-                        </span>{' '}
-                        ·{' '}
-                        <span>
-                            Expedition Preference:{' '}
-                            <strong>{activeHoverWeek.expeditionCumulativeCount}</strong> cumulative (
-                            +{activeHoverWeek.expeditionWeeklyCount} new)
-                        </span>
-                    </div>
-                )}
-
-                {/* Native SVG Cumulative Chart (2 Lines) */}
-                <div className="ems-dashboard-chart-wrap">
-                    <svg
-                        className="ems-dashboard-chart-svg"
-                        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                        role="img"
-                        aria-label="Cumulative signups by week chart"
-                    >
-                        <defs>
-                            <linearGradient id="emsParticipantAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#2271b1" stopOpacity="0.22" />
-                                <stop offset="100%" stopColor="#2271b1" stopOpacity="0.02" />
-                            </linearGradient>
-                            <linearGradient id="emsExpeditionAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#15803D" stopOpacity="0.22" />
-                                <stop offset="100%" stopColor="#15803D" stopOpacity="0.02" />
-                            </linearGradient>
-                        </defs>
-
-                        {/* Horizontal Gridlines & Y-Axis Labels */}
-                        {yTicks.map((tickVal) => {
-                            const y = getY(tickVal);
-                            return (
-                                <g key={`ytick_${tickVal}`}>
-                                    <line
-                                        x1={padLeft}
-                                        y1={y}
-                                        x2={svgWidth - padRight}
-                                        y2={y}
-                                        stroke="#e7e5e4"
-                                        strokeDasharray={tickVal === 0 ? undefined : '4 4'}
-                                        strokeWidth="1"
-                                    />
-                                    <text
-                                        x={padLeft - 8}
-                                        y={y + 4}
-                                        textAnchor="end"
-                                        fontSize="11"
-                                        fill="#646970"
-                                    >
-                                        {tickVal}
-                                    </text>
-                                </g>
-                            );
-                        })}
-
-                        {/* Participant Place Cumulative Area & Line (Blue) */}
-                        {participantAreaPath && (
-                            <path d={participantAreaPath} fill="url(#emsParticipantAreaGrad)" />
-                        )}
-                        {participantLinePoints && (
-                            <polyline
-                                data-testid="chart-line-participant"
-                                fill="none"
-                                stroke="#2271b1"
-                                strokeWidth="2.5"
-                                points={participantLinePoints}
-                            />
-                        )}
-
-                        {/* Expedition Preference Cumulative Area & Line (Green) */}
-                        {expeditionAreaPath && (
-                            <path d={expeditionAreaPath} fill="url(#emsExpeditionAreaGrad)" />
-                        )}
-                        {expeditionLinePoints && (
-                            <polyline
-                                data-testid="chart-line-expedition"
-                                fill="none"
-                                stroke="#15803D"
-                                strokeWidth="2.5"
-                                points={expeditionLinePoints}
-                            />
-                        )}
-
-                        {/* Data Points & X-Axis Labels */}
-                        {weeks.map((w, idx) => {
-                            const x = getX(idx);
-                            const yParticipant = getY(w.participantCumulativeCount);
-                            const yExpedition = getY(w.expeditionCumulativeCount);
-                            const isHovered = hoveredWeekIdx === idx;
-                            const showLabel = idx === 0 || idx === weeks.length - 1 || idx % labelStep === 0;
-
-                            return (
-                                <g
-                                    key={`pt_${w.weekNumber}`}
-                                    className="ems-cursor-pointer"
-                                    onMouseEnter={() => setHoveredWeekIdx(idx)}
-                                    onMouseLeave={() => setHoveredWeekIdx(null)}
-                                >
-                                    <circle
-                                        cx={x}
-                                        cy={yParticipant}
-                                        r={isHovered ? 5 : 3.2}
-                                        fill={isHovered ? '#2271b1' : '#ffffff'}
-                                        stroke="#2271b1"
-                                        strokeWidth="2"
-                                    >
-                                        <title>
-                                            {`Week ${w.weekNumber} (${w.rangeLabel}) — Participant Place: +${w.participantWeeklyCount} new, ${w.participantCumulativeCount} cumulative`}
-                                        </title>
-                                    </circle>
-                                    <circle
-                                        cx={x}
-                                        cy={yExpedition}
-                                        r={isHovered ? 5 : 3.2}
-                                        fill={isHovered ? '#15803D' : '#ffffff'}
-                                        stroke="#15803D"
-                                        strokeWidth="2"
-                                    >
-                                        <title>
-                                            {`Week ${w.weekNumber} (${w.rangeLabel}) — Expedition Preference: +${w.expeditionWeeklyCount} new, ${w.expeditionCumulativeCount} cumulative`}
-                                        </title>
-                                    </circle>
-                                    {showLabel && (
-                                        <text
-                                            x={x}
-                                            y={padTop + plotHeight + 22}
-                                            textAnchor="middle"
-                                            fontSize="10"
-                                            fill="#646970"
-                                        >
-                                            {w.label}
-                                        </text>
-                                    )}
-                                </g>
-                            );
-                        })}
-                    </svg>
-                </div>
-            </div>
-
-            {/* Row 4: Unit Summary Matrix Table */}
+            {/* Row 3: Unit Summary Matrix Table */}
             <div className="ems-overview-card" data-testid="expedition-signups-matrix-card">
                 <div className="ems-dashboard-chart-header">
                     <div>
@@ -1262,6 +901,296 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                         </table>
                     </div>
                 )}
+            </div>
+
+            {/* Row 4: Cumulative Signups by Week Chart */}
+            <div className="ems-overview-card">
+                <div className="ems-dashboard-chart-header">
+                    <div>
+                        <h3 className="ems-m-0 ems-font-semibold">
+                            <FontAwesomeIcon icon={faChartLine} className="ems-btn-icon" /> Cumulative Signups by Week
+                        </h3>
+                        <div className="ems-meta-text ems-mt-4">
+                            School year {cumulativeSeries.schoolYearLabel}
+                        </div>
+                    </div>
+
+                    <div className="ems-flex-center ems-gap-12 ems-wrap">
+                        {/* Chart Legend */}
+                        <div
+                            className="ems-dashboard-chart-legend"
+                            data-testid="chart-legend"
+                            aria-label="Chart Legend"
+                        >
+                            <div
+                                className="ems-dashboard-chart-legend__item"
+                                data-testid="chart-legend-participant"
+                            >
+                                <svg
+                                    className="ems-dashboard-chart-legend__swatch"
+                                    viewBox="0 0 28 12"
+                                    aria-hidden="true"
+                                >
+                                    <line
+                                        x1="2"
+                                        y1="6"
+                                        x2="26"
+                                        y2="6"
+                                        stroke="#2271b1"
+                                        strokeWidth="2.5"
+                                    />
+                                    <circle
+                                        cx="14"
+                                        cy="6"
+                                        r="3.5"
+                                        fill="#ffffff"
+                                        stroke="#2271b1"
+                                        strokeWidth="2"
+                                    />
+                                </svg>
+                                <span>
+                                    Participant Place (
+                                    <strong data-testid="chart-cumulative-participant">
+                                        {cumulativeSeries.totalParticipant}
+                                    </strong>
+                                    )
+                                </span>
+                            </div>
+
+                            <div
+                                className="ems-dashboard-chart-legend__item"
+                                data-testid="chart-legend-expedition"
+                            >
+                                <svg
+                                    className="ems-dashboard-chart-legend__swatch"
+                                    viewBox="0 0 28 12"
+                                    aria-hidden="true"
+                                >
+                                    <line
+                                        x1="2"
+                                        y1="6"
+                                        x2="26"
+                                        y2="6"
+                                        stroke="#15803D"
+                                        strokeWidth="2.5"
+                                    />
+                                    <circle
+                                        cx="14"
+                                        cy="6"
+                                        r="3.5"
+                                        fill="#ffffff"
+                                        stroke="#15803D"
+                                        strokeWidth="2"
+                                    />
+                                </svg>
+                                <span>
+                                    Expedition Preference (
+                                    <strong data-testid="chart-cumulative-expedition">
+                                        {cumulativeSeries.totalExpedition}
+                                    </strong>
+                                    )
+                                </span>
+                            </div>
+                        </div>
+
+                        {cumulativeSeries.availableSchoolYears.length > 1 && (
+                            <div className="ems-flex-center ems-gap-6">
+                                <label
+                                    htmlFor="chart-year-filter"
+                                    className="ems-toolbar__label"
+                                >
+                                    School Year:
+                                </label>
+                                <select
+                                    id="chart-year-filter"
+                                    aria-label="School Year"
+                                    className="ems-select-sm"
+                                    value={cumulativeSeries.schoolYearStart}
+                                    onChange={(e) =>
+                                        setSelectedSchoolYear(parseInt(e.target.value, 10))
+                                    }
+                                >
+                                    {cumulativeSeries.availableSchoolYears.map((yr) => (
+                                        <option key={yr} value={yr}>
+                                            {yr}/{String(yr + 1).slice(-2)} (from 1 Aug {yr})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <div className="ems-flex-center ems-gap-6">
+                            <label
+                                htmlFor="chart-level-filter"
+                                className="ems-toolbar__label"
+                            >
+                                Chart Level:
+                            </label>
+                            <select
+                                id="chart-level-filter"
+                                aria-label="Chart Level"
+                                className="ems-select-sm"
+                                value={chartLevelFilter}
+                                onChange={(e) => setChartLevelFilter(e.target.value)}
+                            >
+                                <option value="all">All Levels</option>
+                                <option value="bronze">Bronze</option>
+                                <option value="silver">Silver</option>
+                                <option value="gold">Gold</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Hover / Active Week Summary Bar */}
+                {activeHoverWeek && (
+                    <div className="ems-dashboard-chart-Callout">
+                        <span className="ems-font-semibold">
+                            Week {activeHoverWeek.weekNumber} ({activeHoverWeek.rangeLabel}):
+                        </span>{' '}
+                        <span>
+                            Participant Place:{' '}
+                            <strong>{activeHoverWeek.participantCumulativeCount}</strong> cumulative (
+                            +{activeHoverWeek.participantWeeklyCount} new)
+                        </span>{' '}
+                        ·{' '}
+                        <span>
+                            Expedition Preference:{' '}
+                            <strong>{activeHoverWeek.expeditionCumulativeCount}</strong> cumulative (
+                            +{activeHoverWeek.expeditionWeeklyCount} new)
+                        </span>
+                    </div>
+                )}
+
+                {/* Native SVG Cumulative Chart (2 Lines) */}
+                <div className="ems-dashboard-chart-wrap">
+                    <svg
+                        className="ems-dashboard-chart-svg"
+                        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                        role="img"
+                        aria-label="Cumulative signups by week chart"
+                    >
+                        <defs>
+                            <linearGradient id="emsParticipantAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#2271b1" stopOpacity="0.22" />
+                                <stop offset="100%" stopColor="#2271b1" stopOpacity="0.02" />
+                            </linearGradient>
+                            <linearGradient id="emsExpeditionAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#15803D" stopOpacity="0.22" />
+                                <stop offset="100%" stopColor="#15803D" stopOpacity="0.02" />
+                            </linearGradient>
+                        </defs>
+
+                        {/* Horizontal Gridlines & Y-Axis Labels */}
+                        {yTicks.map((tickVal) => {
+                            const y = getY(tickVal);
+                            return (
+                                <g key={`ytick_${tickVal}`}>
+                                    <line
+                                        x1={padLeft}
+                                        y1={y}
+                                        x2={svgWidth - padRight}
+                                        y2={y}
+                                        stroke="#e7e5e4"
+                                        strokeDasharray={tickVal === 0 ? undefined : '4 4'}
+                                        strokeWidth="1"
+                                    />
+                                    <text
+                                        x={padLeft - 8}
+                                        y={y + 4}
+                                        textAnchor="end"
+                                        fontSize="11"
+                                        fill="#646970"
+                                    >
+                                        {tickVal}
+                                    </text>
+                                </g>
+                            );
+                        })}
+
+                        {/* Participant Place Cumulative Area & Line (Blue) */}
+                        {participantAreaPath && (
+                            <path d={participantAreaPath} fill="url(#emsParticipantAreaGrad)" />
+                        )}
+                        {participantLinePoints && (
+                            <polyline
+                                data-testid="chart-line-participant"
+                                fill="none"
+                                stroke="#2271b1"
+                                strokeWidth="2.5"
+                                points={participantLinePoints}
+                            />
+                        )}
+
+                        {/* Expedition Preference Cumulative Area & Line (Green) */}
+                        {expeditionAreaPath && (
+                            <path d={expeditionAreaPath} fill="url(#emsExpeditionAreaGrad)" />
+                        )}
+                        {expeditionLinePoints && (
+                            <polyline
+                                data-testid="chart-line-expedition"
+                                fill="none"
+                                stroke="#15803D"
+                                strokeWidth="2.5"
+                                points={expeditionLinePoints}
+                            />
+                        )}
+
+                        {/* Data Points & X-Axis Labels */}
+                        {weeks.map((w, idx) => {
+                            const x = getX(idx);
+                            const yParticipant = getY(w.participantCumulativeCount);
+                            const yExpedition = getY(w.expeditionCumulativeCount);
+                            const isHovered = hoveredWeekIdx === idx;
+                            const showLabel = idx === 0 || idx === weeks.length - 1 || idx % labelStep === 0;
+
+                            return (
+                                <g
+                                    key={`pt_${w.weekNumber}`}
+                                    className="ems-cursor-pointer"
+                                    onMouseEnter={() => setHoveredWeekIdx(idx)}
+                                    onMouseLeave={() => setHoveredWeekIdx(null)}
+                                >
+                                    <circle
+                                        cx={x}
+                                        cy={yParticipant}
+                                        r={isHovered ? 5 : 3.2}
+                                        fill={isHovered ? '#2271b1' : '#ffffff'}
+                                        stroke="#2271b1"
+                                        strokeWidth="2"
+                                    >
+                                        <title>
+                                            {`Week ${w.weekNumber} (${w.rangeLabel}) — Participant Place: +${w.participantWeeklyCount} new, ${w.participantCumulativeCount} cumulative`}
+                                        </title>
+                                    </circle>
+                                    <circle
+                                        cx={x}
+                                        cy={yExpedition}
+                                        r={isHovered ? 5 : 3.2}
+                                        fill={isHovered ? '#15803D' : '#ffffff'}
+                                        stroke="#15803D"
+                                        strokeWidth="2"
+                                    >
+                                        <title>
+                                            {`Week ${w.weekNumber} (${w.rangeLabel}) — Expedition Preference: +${w.expeditionWeeklyCount} new, ${w.expeditionCumulativeCount} cumulative`}
+                                        </title>
+                                    </circle>
+                                    {showLabel && (
+                                        <text
+                                            x={x}
+                                            y={padTop + plotHeight + 22}
+                                            textAnchor="middle"
+                                            fontSize="10"
+                                            fill="#646970"
+                                        >
+                                            {w.label}
+                                        </text>
+                                    )}
+                                </g>
+                            );
+                        })}
+                    </svg>
+                </div>
             </div>
         </div>
     );
