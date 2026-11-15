@@ -213,6 +213,9 @@ class Signup_Chaser_Controller {
 		}
 
 		$site_name = function_exists( 'get_bloginfo' ) ? (string) get_bloginfo( 'name' ) : 'EMS';
+		if ( $site_name !== '' && function_exists( 'wp_specialchars_decode' ) ) {
+			$site_name = wp_specialchars_decode( $site_name, ENT_QUOTES );
+		}
 
 		$token_datasets = array(
 			'explorer_list'            => $all_explorers,

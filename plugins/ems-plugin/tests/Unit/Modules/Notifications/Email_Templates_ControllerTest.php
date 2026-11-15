@@ -85,7 +85,8 @@ class Email_Templates_ControllerTest extends EMSTestCase {
 
 	public function test_send_test_email_substitutes_sample_tokens_and_calls_wp_mail(): void {
 		Functions\when( 'get_option' )->alias( fn( string $k, $default = false ) => $default );
-		Functions\when( 'get_bloginfo' )->justReturn( 'SES Scouts EMS' );
+		Functions\when( 'get_bloginfo' )->justReturn( 'SE Explorer Expeditions' );
+		Functions\when( 'wp_specialchars_decode' )->returnArg();
 		Functions\when( 'sanitize_email' )->alias( fn( string $v ) => trim( $v ) );
 		Functions\when( 'wp_kses_post' )->alias( fn( string $v ) => $v );
 		Functions\when( 'is_email' )->alias( fn( string $v ) => str_contains( $v, '@' ) );
@@ -102,13 +103,14 @@ class Email_Templates_ControllerTest extends EMSTestCase {
 		$request    = new \WP_REST_Request( 'POST', '/ems/v1/email-templates/osm_share_request/test' );
 		$request->set_param( 'slug', 'osm_share_request' );
 		$request->set_param( 'to', 'admin@example.com' );
-		$request->set_param( 'subject', 'Test {{unit_name}}' );
+		$request->set_param( 'subject', '[{{site_name}}] Test {{unit_name}}' );
 		$request->set_param( 'body', '<p>List: {{explorer_list_osm}}</p>' );
 
 		$response = $controller->send_test_email( $request );
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertNotNull( $captured );
 		$this->assertSame( 'admin@example.com', $captured['to'] );
+		$this->assertStringContainsString( 'SE Explorer Expeditions', $captured['subject'] );
 		$this->assertStringContainsString( 'Kelso ESU', $captured['subject'] );
 		$this->assertStringNotContainsString( '{{unit_name}}', $captured['subject'] );
 		$this->assertStringNotContainsString( '{{explorer_list_osm}}', $captured['message'] );

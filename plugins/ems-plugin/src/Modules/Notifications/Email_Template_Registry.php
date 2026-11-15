@@ -60,6 +60,8 @@ class Email_Template_Registry {
 	}
 
 	private function register_core_templates(): void {
+		$live_site_name = 'SE Explorer Expeditions';
+
 		$this->register_template(
 			array(
 				'slug'            => 'leader_invite',
@@ -100,7 +102,7 @@ class Email_Template_Registry {
 						'token'       => '{{site_name}}',
 						'label'       => 'Site Name',
 						'description' => 'WordPress site title',
-						'example'     => 'SES Scouts EMS',
+						'example'     => $live_site_name,
 					),
 				),
 			)
@@ -154,7 +156,7 @@ class Email_Template_Registry {
 						'token'       => '{{site_name}}',
 						'label'       => 'Site Name',
 						'description' => 'WordPress site title',
-						'example'     => 'SES Scouts EMS',
+						'example'     => $live_site_name,
 					),
 				),
 			)
@@ -221,7 +223,7 @@ class Email_Template_Registry {
 						'token'       => '{{site_name}}',
 						'label'       => 'Site Name',
 						'description' => 'WordPress site title',
-						'example'     => 'SES Scouts EMS',
+						'example'     => $live_site_name,
 					),
 				),
 			)
@@ -249,7 +251,7 @@ class Email_Template_Registry {
 						'token'       => '{{site_name}}',
 						'label'       => 'Site Name',
 						'description' => 'WordPress site title',
-						'example'     => 'SES Scouts EMS',
+						'example'     => $live_site_name,
 					),
 				),
 			)

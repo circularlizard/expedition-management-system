@@ -138,13 +138,20 @@ class Email_Templates_Controller {
 			return new \WP_Error( 'ems_invalid_recipient', 'Please provide a valid recipient email address.', array( 'status' => 400 ) );
 		}
 
+		$live_site_name = function_exists( 'get_bloginfo' ) ? trim( (string) get_bloginfo( 'name' ) ) : '';
+		if ( $live_site_name !== '' && function_exists( 'wp_specialchars_decode' ) ) {
+			$live_site_name = wp_specialchars_decode( $live_site_name, ENT_QUOTES );
+		}
+
 		$sample_tokens = array();
 		$sample_names  = array();
 		foreach ( (array) ( $def['tokens'] ?? array() ) as $tok ) {
 			$raw_token = (string) ( $tok['token'] ?? '' );
 			$key       = trim( $raw_token, '{}' );
 			if ( $key !== '' ) {
-				$example                    = (string) ( $tok['example'] ?? $key );
+				$example = ( $key === 'site_name' && $live_site_name !== '' )
+					? $live_site_name
+					: (string) ( $tok['example'] ?? $key );
 				$sample_tokens[ $raw_token ] = $example;
 				$sample_names[ $key ]        = $example;
 			}
