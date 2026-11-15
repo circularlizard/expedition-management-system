@@ -1,18 +1,26 @@
 services:
   db:
-    image: mariadb:10.11
+    image: mariadb:lts
+    restart: unless-stopped
     ports:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
-      MYSQL_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   wordpress:
-    image: wordpress:6.7-php8.2-apache
+    image: wordpress:php8.4-apache
+    restart: unless-stopped
     ports:
       - "8080:80"
     volumes:
@@ -29,10 +37,12 @@ services:
         define( 'WP_SITEURL', 'https://localhost' );
         define( 'FORCE_SSL_ADMIN', true );
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   caddy:
     image: caddy:2-alpine
+    restart: unless-stopped
     ports:
       - "443:443"
     volumes:
@@ -40,10 +50,12 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - wordpress
+      wordpress:
+        condition: service_started
 
   wpcli:
-    image: wordpress:cli-php8.2
+    image: wordpress:cli-php8.4
+    profiles: ["cli"]
     volumes:
       - ./wordpress-env/wp-content:/var/www/html/wp-content
       - ./tools:/var/www/html/tools
@@ -53,12 +65,15 @@ services:
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DB_NAME: wordpress
     depends_on:
-      - db
-      - wordpress
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
     entrypoint: ["wp", "--allow-root"]
 
   wpcron:
-    image: wordpress:cli-php8.2
+    image: wordpress:cli-php8.4
+    restart: unless-stopped
     volumes:
       - ./wordpress-env/wp-content:/var/www/html/wp-content
     environment:
@@ -67,9 +82,10 @@ services:
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DB_NAME: wordpress
     depends_on:
-      - db
-      - wordpress
-    restart: unless-stopped
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
     entrypoint: ["/bin/sh", "-c", "while true; do wp cron event run --due-now --allow-root 2>/dev/null; sleep 30; done"]
 
 volumes:
