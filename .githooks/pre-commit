@@ -1,13 +1,16 @@
 #!/bin/sh
-# Block commits using legacy David Strachan email addresses
+# Require a GitHub noreply email address for commits
 CONFIG_EMAIL=$(git config user.email)
 AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-$CONFIG_EMAIL}"
 
 case "$AUTHOR_EMAIL" in
-    redacted@example.com|redacted@example.com)
+    *@users.noreply.github.com)
+        exit 0
+        ;;
+    *)
         echo "❌ ERROR: Commit rejected." >&2
-        echo "   Legacy email address detected: '$AUTHOR_EMAIL'" >&2
-        echo "   Please use: 'circularlizard@users.noreply.github.com'" >&2
+        echo "   Non-noreply email address detected: '$AUTHOR_EMAIL'" >&2
+        echo "   Please use a '*@users.noreply.github.com' address." >&2
         echo "   Run: git config user.email circularlizard@users.noreply.github.com" >&2
         exit 1
         ;;
