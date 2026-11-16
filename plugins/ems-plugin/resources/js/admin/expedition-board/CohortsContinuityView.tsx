@@ -115,6 +115,7 @@ export default function CohortsContinuityView({
 
   // ── Multi-select & Create Cohort ───────────────────────────────────────────
   const [selectedSignupIds, setSelectedSignupIds] = useState<number[]>([]);
+  const [expandedSelectedIds, setExpandedSelectedIds] = useState<number[]>([]);
   const [newCohortName, setNewCohortName] = useState('');
   const [creatingCohort, setCreatingCohort] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
@@ -311,6 +312,47 @@ export default function CohortsContinuityView({
       })),
     [mergedExplorers]
   );
+
+  const matchedIdsBySignup = useMemo(() => {
+    const map = new Map<number, number[]>();
+    for (const exp of mergedExplorers) {
+      const matched = new Set<number>();
+      for (const token of parseWishlistTokens(exp.team_preferences)) {
+        const hit = fuzzyMatchExplorer(token, explorerLookupList, exp.expedition_signup_id);
+        if (hit) matched.add(hit.id);
+      }
+      for (const other of mergedExplorers) {
+        if (other.expedition_signup_id === exp.expedition_signup_id) continue;
+        if (
+          isWishlistMatch(
+            exp.first_name,
+            exp.last_name,
+            exp.team_preferences,
+            other.first_name,
+            other.last_name,
+            other.team_preferences
+          )
+        ) {
+          matched.add(other.expedition_signup_id);
+        }
+      }
+      map.set(exp.expedition_signup_id, Array.from(matched));
+    }
+    return map;
+  }, [mergedExplorers, explorerLookupList]);
+
+  const selectExplorerAndMatches = (signupId: number) => {
+    const matches = matchedIdsBySignup.get(signupId) || [];
+    const toSelect = [signupId, ...matches];
+    setSelectedSignupIds(prev => Array.from(new Set([...prev, ...toSelect])));
+    setExpandedSelectedIds(prev => prev.filter(id => !toSelect.includes(id)));
+  };
+
+  const toggleExpandedSelected = (signupId: number) => {
+    setExpandedSelectedIds(prev =>
+      prev.includes(signupId) ? prev.filter(id => id !== signupId) : [...prev, signupId]
+    );
+  };
 
   const groupedPool = useMemo(() => {
     if (!groupByUnit) {
@@ -799,6 +841,8 @@ export default function CohortsContinuityView({
                 )}
                 {groupExplorers.map(exp => {
                   const isSelected = selectedSignupIds.includes(exp.expedition_signup_id);
+                  const isExpanded = expandedSelectedIds.includes(exp.expedition_signup_id);
+                  const isCollapsed = isSelected && !isExpanded;
                   const membership = membershipBySignupId.get(exp.expedition_signup_id);
                   const memberStatus = membership?.member.member_status || '';
                   const isSplitPrac = memberStatus === 'split_practice';
@@ -806,6 +850,7 @@ export default function CohortsContinuityView({
                   const isFA = hasValidFirstAid(null, exp.first_aid_status, exp.first_aid_expiry, null);
                   const hasAsnText = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
                   const wishlistTokens = parseWishlistTokens(exp.team_preferences);
+                  const matchedIds = matchedIdsBySignup.get(exp.expedition_signup_id) || [];
 
                   const compat = getCompatibilityInfo(
                     exp.expedition_signup_id,
@@ -830,20 +875,30 @@ export default function CohortsContinuityView({
                         })
                       }
                       onMouseLeave={() => setHoveredExplorer(null)}
+                      title={
+                        compat.isMatch
+                          ? compat.compatibleDates
+                            ? 'Wishlist match with compatible dates'
+                            : 'Wishlist match (date conflict)'
+                          : undefined
+                      }
                       style={{
-                        border: compat.isMatch
-                          ? '2px solid #2563eb'
-                          : isSplitPrac || isSplitQual
-                            ? '1px solid #f59e0b'
+                        border: isSplitPrac || isSplitQual
+                          ? '1px solid #f59e0b'
+                          : isSelected
+                            ? '1px solid #93c5fd'
                             : '1px solid #cbd5e1',
+                        boxShadow: compat.isMatch
+                          ? `0 0 0 2px ${compat.compatibleDates ? '#2563eb' : '#f59e0b'}`
+                          : undefined,
                         background: compat.isMatch
                           ? '#eff6ff'
                           : isSelected
                             ? '#f0f9ff'
                             : '#ffffff',
                         borderRadius: '6px',
-                        padding: compactPool ? '6px 8px' : '10px',
-                        transition: 'border-color 0.15s, background 0.15s',
+                        padding: isCollapsed ? '6px 8px' : compactPool ? '6px 8px' : '10px',
+                        transition: 'background 0.15s, box-shadow 0.15s',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
@@ -856,142 +911,168 @@ export default function CohortsContinuityView({
                           style={{ marginTop: '2px' }}
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                            <strong style={{ fontSize: '13px', color: '#0f172a' }}>
-                              {exp.first_name} {exp.last_name}
-                            </strong>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', minWidth: 0 }}>
+                              <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                                {exp.first_name} {exp.last_name}
+                              </strong>
 
-                            {isSplitPrac && (
-                              <span
-                                className="ems-matrix-tag"
-                                style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
-                              >
-                                <FontAwesomeIcon icon={faTriangleExclamation} /> Split Practice
-                              </span>
-                            )}
-                            {isSplitQual && (
-                              <span
-                                className="ems-matrix-tag"
-                                style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
-                              >
-                                <FontAwesomeIcon icon={faTriangleExclamation} /> Split Qualifier
-                              </span>
-                            )}
+                              {isSplitPrac && (
+                                <span
+                                  className="ems-matrix-tag"
+                                  style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                                >
+                                  <FontAwesomeIcon icon={faTriangleExclamation} /> Split Practice
+                                </span>
+                              )}
+                              {isSplitQual && (
+                                <span
+                                  className="ems-matrix-tag"
+                                  style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                                >
+                                  <FontAwesomeIcon icon={faTriangleExclamation} /> Split Qualifier
+                                </span>
+                              )}
 
-                            {hasAsnText && (
-                              <span
-                                className={`ems-matrix-tag ${
-                                  exp.asn_validated === 1
-                                    ? 'ems-matrix-tag--asn-action'
-                                    : exp.asn_validated === 0
-                                      ? 'ems-matrix-tag--asn-no-action'
-                                      : 'ems-matrix-tag--asn-pending'
-                                }`}
-                                style={{ cursor: onViewAsn ? 'pointer' : 'default' }}
-                                onClick={() => onViewAsn && exp.scout_id > 0 && onViewAsn(exp.scout_id)}
-                                title={exp.additional_support_needs}
-                              >
-                                {exp.asn_validated === 1 ? '! ASN' : exp.asn_validated === 0 ? '✓ ASN' : '? ASN'}
-                              </span>
-                            )}
+                              {hasAsnText && (
+                                <span
+                                  className={`ems-matrix-tag ${
+                                    exp.asn_validated === 1
+                                      ? 'ems-matrix-tag--asn-action'
+                                      : exp.asn_validated === 0
+                                        ? 'ems-matrix-tag--asn-no-action'
+                                        : 'ems-matrix-tag--asn-pending'
+                                  }`}
+                                  style={{ cursor: onViewAsn ? 'pointer' : 'default' }}
+                                  onClick={() => onViewAsn && exp.scout_id > 0 && onViewAsn(exp.scout_id)}
+                                  title={exp.additional_support_needs}
+                                >
+                                  {exp.asn_validated === 1 ? '! ASN' : exp.asn_validated === 0 ? '✓ ASN' : '? ASN'}
+                                </span>
+                              )}
 
-                            {isFA && (
-                              <span className="ems-matrix-tag ems-matrix-tag--fa" title="First Aid">
-                                <FontAwesomeIcon icon={faFirstAid} /> FA
-                              </span>
-                            )}
+                              {isFA && (
+                                <span className="ems-matrix-tag ems-matrix-tag--fa" title="First Aid">
+                                  <FontAwesomeIcon icon={faFirstAid} /> FA
+                                </span>
+                              )}
 
-                            {exp.scout_id === 0 && (
-                              <span
-                                className="ems-matrix-tag"
-                                style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-                                title="Not matched in OSM"
-                              >
-                                <FontAwesomeIcon icon={faUserSlash} /> Unmatched OSM
-                              </span>
-                            )}
+                              {exp.scout_id === 0 && (
+                                <span
+                                  className="ems-matrix-tag"
+                                  style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
+                                  title="Not matched in OSM"
+                                >
+                                  <FontAwesomeIcon icon={faUserSlash} /> Unmatched OSM
+                                </span>
+                              )}
 
-                            {compat.isMatch && (
-                              <span
-                                className="ems-matrix-tag"
-                                style={{
-                                  background: compat.compatibleDates ? '#ecfdf5' : '#fef3c7',
-                                  color: compat.compatibleDates ? '#065f46' : '#92400e',
-                                  border: `1px solid ${compat.compatibleDates ? '#a7f3d0' : '#fde68a'}`,
-                                }}
-                              >
-                                <FontAwesomeIcon icon={faLink} />{' '}
-                                {compat.compatibleDates ? 'Compatible Dates' : 'Date Conflict'}
-                              </span>
-                            )}
-                          </div>
-
-                          {!compactPool && (
-                            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                              <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
-                              {membership && (
-                                <span style={{ fontSize: '11px', color: '#475569' }}>
-                                  Team: <strong>{membership.cohort.name}</strong>
+                              {isCollapsed && (
+                                <span style={{ fontSize: '11px', color: '#1d4ed8', fontWeight: 500 }}>
+                                  Selected
                                 </span>
                               )}
                             </div>
-                          )}
 
-                          {exp.team_preferences && (
-                            <div style={{ marginTop: '4px', fontSize: '11px', color: '#334155', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                              <strong>Wishlist:</strong>
-                              {wishlistTokens.length > 0 ? (
-                                wishlistTokens.map((token, idx) => {
-                                  const match = fuzzyMatchExplorer(token, explorerLookupList, exp.expedition_signup_id);
-                                  const searchTarget = match ? match.name : token;
-                                  const pct = match ? Math.round(match.score * 100) : null;
-                                  return (
+                            {isSelected && (
+                              <button
+                                type="button"
+                                className="button button-small"
+                                style={{ fontSize: '11px', lineHeight: 1.2, padding: '2px 6px', minHeight: 'auto' }}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  toggleExpandedSelected(exp.expedition_signup_id);
+                                }}
+                              >
+                                {isCollapsed ? 'Details' : 'Collapse'}
+                              </button>
+                            )}
+                          </div>
+
+                          {!isCollapsed && (
+                            <>
+                              {!compactPool && (
+                                <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
+                                  {membership && (
+                                    <span style={{ fontSize: '11px', color: '#475569' }}>
+                                      Team: <strong>{membership.cohort.name}</strong>
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
+                              {exp.team_preferences && (
+                                <div style={{ marginTop: '4px', fontSize: '11px', color: '#334155', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                  <strong>Wishlist:</strong>
+                                  {wishlistTokens.length > 0 ? (
+                                    wishlistTokens.map((token, idx) => {
+                                      const match = fuzzyMatchExplorer(token, explorerLookupList, exp.expedition_signup_id);
+                                      const searchTarget = match ? match.name : token;
+                                      const pct = match ? Math.round(match.score * 100) : null;
+                                      return (
+                                        <button
+                                          key={`${token}-${idx}`}
+                                          type="button"
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            setSearchQuery(searchTarget);
+                                          }}
+                                          title={
+                                            match
+                                              ? `Fuzzy match: ${match.name} (${pct}%). Click to search.`
+                                              : `Click to search pool for "${token}"`
+                                          }
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
+                                            padding: '1px 6px',
+                                            fontSize: '11px',
+                                            borderRadius: '9999px',
+                                            border: match ? '1px solid #93c5fd' : '1px solid #cbd5e1',
+                                            background: match ? '#eff6ff' : '#f8fafc',
+                                            color: match ? '#1d4ed8' : '#334155',
+                                            cursor: 'pointer',
+                                            textDecoration: 'underline',
+                                          }}
+                                        >
+                                          <span>{token}</span>
+                                          {match && match.name.toLowerCase() !== token.toLowerCase() && (
+                                            <span style={{ fontSize: '10px', color: '#0369a1', textDecoration: 'none' }}>
+                                              → {match.name} ({pct}%)
+                                            </span>
+                                          )}
+                                        </button>
+                                      );
+                                    })
+                                  ) : (
+                                    <span>{exp.team_preferences}</span>
+                                  )}
+                                  {matchedIds.length > 0 && (
                                     <button
-                                      key={`${token}-${idx}`}
                                       type="button"
+                                      className="button button-small"
+                                      style={{ fontSize: '11px', lineHeight: 1.2, padding: '1px 6px', minHeight: 'auto' }}
                                       onClick={e => {
                                         e.stopPropagation();
-                                        setSearchQuery(searchTarget);
+                                        selectExplorerAndMatches(exp.expedition_signup_id);
                                       }}
-                                      title={
-                                        match
-                                          ? `Fuzzy match: ${match.name} (${pct}%). Click to search.`
-                                          : `Click to search pool for "${token}"`
-                                      }
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '3px',
-                                        padding: '1px 6px',
-                                        fontSize: '11px',
-                                        borderRadius: '9999px',
-                                        border: match ? '1px solid #93c5fd' : '1px solid #cbd5e1',
-                                        background: match ? '#eff6ff' : '#f8fafc',
-                                        color: match ? '#1d4ed8' : '#334155',
-                                        cursor: 'pointer',
-                                        textDecoration: 'underline',
-                                      }}
+                                      title={`Select ${exp.first_name} and all ${matchedIds.length} matched explorer(s)`}
                                     >
-                                      <span>{token}</span>
-                                      {match && match.name.toLowerCase() !== token.toLowerCase() && (
-                                        <span style={{ fontSize: '10px', color: '#0369a1', textDecoration: 'none' }}>
-                                          → {match.name} ({pct}%)
-                                        </span>
-                                      )}
+                                      <FontAwesomeIcon icon={faLink} /> Select Matches ({matchedIds.length})
                                     </button>
-                                  );
-                                })
-                              ) : (
-                                <span>{exp.team_preferences}</span>
+                                  )}
+                                </div>
                               )}
-                            </div>
-                          )}
 
-                          <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b' }}>
-                            <span>Prac: {exp.practiceAvail.length > 0 ? exp.practiceAvail.join(', ') : 'None'}</span>
-                            {' · '}
-                            <span>Qual: {exp.qualifierAvail.length > 0 ? exp.qualifierAvail.join(', ') : 'None'}</span>
-                          </div>
+                              <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b' }}>
+                                <span>Prac: {exp.practiceAvail.length > 0 ? exp.practiceAvail.join(', ') : 'None'}</span>
+                                {' · '}
+                                <span>Qual: {exp.qualifierAvail.length > 0 ? exp.qualifierAvail.join(', ') : 'None'}</span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1445,9 +1526,19 @@ export default function CohortsContinuityView({
                               })
                             }
                             onMouseLeave={() => setHoveredExplorer(null)}
+                            title={
+                              compat.isMatch
+                                ? compat.compatibleDates
+                                  ? 'Wishlist match with compatible dates'
+                                  : 'Wishlist match (date conflict)'
+                                : undefined
+                            }
                             style={
                               compat.isMatch
-                                ? { background: '#eff6ff', outline: '2px solid #2563eb' }
+                                ? {
+                                    background: '#eff6ff',
+                                    boxShadow: `inset 3px 0 0 ${compat.compatibleDates ? '#2563eb' : '#f59e0b'}`,
+                                  }
                                 : undefined
                             }
                           >
@@ -1465,18 +1556,6 @@ export default function CohortsContinuityView({
                                     style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
                                   >
                                     Unmatched OSM
-                                  </span>
-                                )}
-                                {compat.isMatch && (
-                                  <span
-                                    className="ems-matrix-tag"
-                                    style={{
-                                      background: compat.compatibleDates ? '#ecfdf5' : '#fef3c7',
-                                      color: compat.compatibleDates ? '#065f46' : '#92400e',
-                                      border: `1px solid ${compat.compatibleDates ? '#a7f3d0' : '#fde68a'}`,
-                                    }}
-                                  >
-                                    {compat.compatibleDates ? 'Compatible Dates' : 'Date Conflict'}
                                   </span>
                                 )}
                               </div>
