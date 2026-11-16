@@ -5,10 +5,11 @@ import { EventsDashboard } from './EventsDashboard';
 import { EventDetailPage } from './EventDetailPage';
 import { Expedition } from './types';
 import CohortPlanningMatrix from './CohortPlanningMatrix';
+import TeamsReadinessView from './TeamsReadinessView';
 import { EventForm } from './EventForm';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 
-type BoardTab = 'dashboard' | 'detail' | 'planning' | 'create';
+type BoardTab = 'dashboard' | 'detail' | 'planning' | 'readiness' | 'create';
 
 const ExpeditionBoard: React.FC = () => {
     const { data, loading, error, refetch } = useBoard();
@@ -90,6 +91,12 @@ const ExpeditionBoard: React.FC = () => {
                     >
                         Event Planning
                     </button>
+                    <button
+                        className={`nav-tab ${activeTab === 'readiness' ? 'nav-tab-active' : ''}`}
+                        onClick={() => setActiveTab('readiness')}
+                    >
+                        Teams &amp; Readiness
+                    </button>
                 </nav>
             )}
 
@@ -147,6 +154,11 @@ const ExpeditionBoard: React.FC = () => {
                 {activeTab === 'planning' && (
                     <ModuleErrorBoundary moduleName="Event Planning">
                         <CohortPlanningMatrix />
+                    </ModuleErrorBoundary>
+                )}
+                {activeTab === 'readiness' && (
+                    <ModuleErrorBoundary moduleName="Teams & Readiness">
+                        <TeamsReadinessView />
                     </ModuleErrorBoundary>
                 )}
             </div>

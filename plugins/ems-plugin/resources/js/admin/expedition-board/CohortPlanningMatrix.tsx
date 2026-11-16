@@ -1,435 +1,150 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faPlus,
-  faLock,
-  faUsers,
-  faXmark,
-  faCheck,
-  faTriangleExclamation,
-  faCircleQuestion,
-  faMagnifyingGlass,
-  faClipboardList,
   faPersonHiking,
   faBicycle,
-  faWater
+  faWater,
+  faEnvelope,
+  faLayerGroup,
+  faTableCells,
 } from '@fortawesome/free-solid-svg-icons';
-import { getUnitDistrictMap, getUniqueDistricts, normalize, partitionGroupedRows } from '../signups-board/tableUtils';
+import CohortsContinuityView from './CohortsContinuityView';
+import StageMatrixView from './StageMatrixView';
+import { ManualNotifyModal } from './ManualNotifyModal';
+import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
+import {
+  Cohort,
+  CohortPlanningMatrixProps,
+  MatrixEvent,
+  MatrixExplorer,
+  NotifyModalOptions,
+  toCohortTransportMode,
+} from './cohortTypes';
 
-export interface MatrixTeam {
-  id: number;
-  team_code: string;
-  member_count: number;
-  scout_ids: number[];
-}
+export type { CohortPlanningMatrixProps };
 
-export interface MatrixEvent {
-  id: number;
-  event_code: string;
-  title: string;
-  level: string;
-  type: string;
-  transport: string;
-  start_date: string;
-  end_date: string;
-  teams: MatrixTeam[];
-}
-
-export interface MatrixExplorer {
-  scout_id: number;
-  first_name: string;
-  last_name: string;
-  unit_name: string;
-  unit_id?: number | null;
-  district?: string;
-  team_preferences: string;
-  available_events: string[];
-  allocated_event_code: string | null;
-  allocated_team_code: string | null;
-  allocated_team_id: number | null;
-  has_asn: boolean;
-  additional_support_needs: string;
-  first_aid_status: string;
-  asn_validated?: number | null;
-}
-
-export interface CohortPlanningMatrixProps {
-  onViewAsn?: (scoutId: number) => void;
-}
-
-function formatDateShort(dateStr?: string): string {
-  if (!dateStr) return '';
-  try {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      const day = parseInt(parts[2], 10);
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const month = months[parseInt(parts[1], 10) - 1] || '';
-      return `${day} ${month}`;
-    }
-    return dateStr;
-  } catch {
-    return dateStr;
-  }
-}
-
-export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrixProps = {}) {
+export default function CohortPlanningMatrix({
+  onViewAsn,
+  onOpenNotifyModal,
+}: CohortPlanningMatrixProps = {}) {
   const config = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
   const rootUrl = config.root_url;
   const nonce = config.nonce;
   const units: any[] = config.units || [];
 
-  const unitDistrictMap = useMemo(() => getUnitDistrictMap(units), [units]);
-
   // ── Layer 1: Hard Filter / Cohort Scope ─────────────────────────────────────
   const [level, setLevel] = useState<'bronze' | 'silver' | 'gold'>('silver');
   const [transport, setTransport] = useState<string>('hillwalking');
-  const [stage, setStage] = useState<'practice' | 'qualifying'>('practice');
+  const [activeView, setActiveView] = useState<'cohorts' | 'matrix'>('cohorts');
 
-  // Available transports per level
-  const allowedTransports = useMemo(() => [
-    { key: 'hillwalking', label: 'Hillwalking', icon: faPersonHiking },
-    { key: 'biking', label: 'Biking', icon: faBicycle },
-    { key: 'paddling', label: 'Paddling', icon: faWater },
-  ], []);
+  const allowedTransports = useMemo(
+    () => [
+      { key: 'hillwalking', label: 'Hillwalking', icon: faPersonHiking },
+      { key: 'biking', label: 'Biking', icon: faBicycle },
+      { key: 'paddling', label: 'Paddling', icon: faWater },
+    ],
+    []
+  );
 
-  // Adjust transport when switching level
-  useEffect(() => {
-    const valid = allowedTransports.some(t => t.key === transport);
-    if (!valid) {
-      setTransport('hillwalking');
-    }
-  }, [allowedTransports, transport]);
-
-  // ── Matrix Data State ───────────────────────────────────────────────────────
-  const [events, setEvents] = useState<MatrixEvent[]>([]);
-  const [explorers, setExplorers] = useState<MatrixExplorer[]>([]);
+  // ── Data State ──────────────────────────────────────────────────────────────
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [practiceEvents, setPracticeEvents] = useState<MatrixEvent[]>([]);
+  const [qualifierEvents, setQualifierEvents] = useState<MatrixEvent[]>([]);
+  const [practiceExplorers, setPracticeExplorers] = useState<MatrixExplorer[]>([]);
+  const [qualifierExplorers, setQualifierExplorers] = useState<MatrixExplorer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [notifyModalOpts, setNotifyModalOpts] = useState<NotifyModalOptions | null>(null);
 
-  const uniqueDistricts = useMemo(
-    () => getUniqueDistricts(units, explorers, unitDistrictMap),
-    [units, explorers, unitDistrictMap]
+  const handleOpenNotifyModal = useCallback(
+    (opts: NotifyModalOptions) => {
+      if (onOpenNotifyModal) {
+        onOpenNotifyModal(opts);
+      }
+      setNotifyModalOpts(opts);
+    },
+    [onOpenNotifyModal]
   );
 
-  // ── Layer 2: Refinement & Search ───────────────────────────────────────────
-  const [searchQuery, setSearchQuery] = useState('');
-  const [districtFilter, setDistrictFilter] = useState('all');
-  const [filterUnit, setFilterUnit] = useState('all');
-  const [asnFilter, setAsnFilter] = useState('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'unallocated' | 'allocated'>('all');
-  const [grouping, setGrouping] = useState<'none' | 'unit'>('none');
-  const [sortKey, setSortKey] = useState<string>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
-  // ── Selection & Allocation State ───────────────────────────────────────────
-  const [selectedScoutIds, setSelectedScoutIds] = useState<number[]>([]);
-  const [activePopover, setActivePopover] = useState<{
-    explorer: MatrixExplorer;
-    event: MatrixEvent;
-  } | null>(null);
-  const [bulkEventCode, setBulkEventCode] = useState('');
-  const [bulkTargetMode, setBulkTargetMode] = useState<string>('new_team');
-  const [allocating, setAllocating] = useState(false);
-  const [asnDialogExplorer, setAsnDialogExplorer] = useState<MatrixExplorer | null>(null);
-  const [asnUpdating, setAsnUpdating] = useState(false);
-
-  // ── Fetch Matrix Data ───────────────────────────────────────────────────────
-  const fetchMatrix = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setSelectedScoutIds([]);
-    setActivePopover(null);
-    setAsnDialogExplorer(null);
+
+    const transportMode = toCohortTransportMode(transport);
+    const cohortParams = new URLSearchParams({
+      dofe_level: level,
+      transport_mode: transportMode,
+    });
+    const practiceParams = new URLSearchParams({
+      level,
+      transport,
+      type: 'practice',
+    });
+    const qualifyingParams = new URLSearchParams({
+      level,
+      transport,
+      type: 'qualifying',
+    });
 
     try {
-      const params = new URLSearchParams({
-        level,
-        type: stage,
-        transport,
-      });
-      const resp = await fetch(`${rootUrl}/planning-board/matrix?${params.toString()}`, {
-        headers: { 'X-WP-Nonce': nonce },
-      });
-      if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status}`);
+      const [cohortsResp, practiceResp, qualifyingResp] = await Promise.all([
+        fetch(`${rootUrl}/cohorts?${cohortParams.toString()}`, {
+          headers: { 'X-WP-Nonce': nonce },
+        }),
+        fetch(`${rootUrl}/planning-board/matrix?${practiceParams.toString()}`, {
+          headers: { 'X-WP-Nonce': nonce },
+        }),
+        fetch(`${rootUrl}/planning-board/matrix?${qualifyingParams.toString()}`, {
+          headers: { 'X-WP-Nonce': nonce },
+        }),
+      ]);
+
+      if (!cohortsResp.ok) {
+        throw new Error(`Failed to load cohorts (HTTP ${cohortsResp.status})`);
       }
-      const data = await resp.json();
-      setEvents(Array.isArray(data.events) ? data.events : []);
-      setExplorers(Array.isArray(data.explorers) ? data.explorers : []);
+      if (!practiceResp.ok) {
+        throw new Error(`Failed to load practice matrix (HTTP ${practiceResp.status})`);
+      }
+      if (!qualifyingResp.ok) {
+        throw new Error(`Failed to load qualifying matrix (HTTP ${qualifyingResp.status})`);
+      }
+
+      const [cohortsData, practiceData, qualifyingData] = await Promise.all([
+        cohortsResp.json(),
+        practiceResp.json(),
+        qualifyingResp.json(),
+      ]);
+
+      setCohorts(Array.isArray(cohortsData) ? cohortsData : []);
+      setPracticeEvents(Array.isArray(practiceData?.events) ? practiceData.events : []);
+      setPracticeExplorers(Array.isArray(practiceData?.explorers) ? practiceData.explorers : []);
+      setQualifierEvents(Array.isArray(qualifyingData?.events) ? qualifyingData.events : []);
+      setQualifierExplorers(Array.isArray(qualifyingData?.explorers) ? qualifyingData.explorers : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load cohort matrix data');
+      setError(err instanceof Error ? err.message : 'Failed to load planning data');
     } finally {
       setLoading(false);
     }
-  }, [level, stage, transport, rootUrl, nonce]);
+  }, [level, transport, rootUrl, nonce]);
 
   useEffect(() => {
-    fetchMatrix();
-  }, [fetchMatrix]);
+    fetchAllData();
+  }, [fetchAllData]);
 
-  // Automatically select first event in bulk select bar if only one exists or empty
-  useEffect(() => {
-    if (events.length > 0) {
-      if (!bulkEventCode || !events.some(e => e.event_code === bulkEventCode)) {
-        setBulkEventCode(events[0].event_code);
-      }
-    } else {
-      setBulkEventCode('');
-    }
-  }, [events, bulkEventCode]);
-
-  // ── Cohort Units for Layer 2 Filter ────────────────────────────────────────
-  const cohortUnits = useMemo(() => {
-    const unitSet = new Set<string>();
-    explorers.forEach(e => {
-      if (districtFilter !== 'all') {
-        const itemDistrict = (e.district || unitDistrictMap[e.unit_name] || '').trim() || 'Unassigned';
-        if (normalize(itemDistrict) !== normalize(districtFilter)) {
-          return;
+  // Live counter badge for draft + re_notify_needed members across cohorts
+  const pendingNotifyCount = useMemo(() => {
+    let count = 0;
+    for (const c of cohorts) {
+      for (const m of c.members || []) {
+        const status = (m.notification_status || 'draft').toLowerCase();
+        if (status === 'draft' || status === 're_notify_needed') {
+          count += 1;
         }
       }
-      if (e.unit_name) unitSet.add(e.unit_name);
-    });
-    return Array.from(unitSet).sort((a, b) => a.localeCompare(b));
-  }, [explorers, districtFilter, unitDistrictMap]);
-
-  useEffect(() => {
-    if (filterUnit !== 'all' && !cohortUnits.includes(filterUnit)) {
-      setFilterUnit('all');
     }
-  }, [cohortUnits, filterUnit]);
-
-  // ── Layer 2 Filtering Logic ────────────────────────────────────────────────
-  const filteredExplorers = useMemo(() => {
-    return explorers.filter(exp => {
-      // District filter
-      if (districtFilter !== 'all') {
-        const itemDistrict = (exp.district || unitDistrictMap[exp.unit_name] || '').trim() || 'Unassigned';
-        if (normalize(itemDistrict) !== normalize(districtFilter)) {
-          return false;
-        }
-      }
-      // Unit filter
-      if (filterUnit !== 'all' && exp.unit_name !== filterUnit) {
-        return false;
-      }
-      // Status filter
-      if (filterStatus === 'unallocated' && exp.allocated_event_code) {
-        return false;
-      }
-      if (filterStatus === 'allocated' && !exp.allocated_event_code) {
-        return false;
-      }
-      // ASN filter
-      if (asnFilter !== 'all') {
-        const hasNeeds = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
-        if (asnFilter === 'has_asn' && !hasNeeds) return false;
-        if ((asnFilter === 'action_needed' || asnFilter === 'validated') && (!hasNeeds || exp.asn_validated !== 1)) return false;
-        if ((asnFilter === 'no_action' || asnFilter === 'not_validated') && (!hasNeeds || exp.asn_validated !== 0)) return false;
-        if (asnFilter === 'unreviewed' && (!hasNeeds || (exp.asn_validated !== null && exp.asn_validated !== undefined))) return false;
-      }
-      // Free-text search: searches Explorer Name AND Teammate Wishlist!
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const fullName = `${exp.first_name} ${exp.last_name}`.toLowerCase();
-        const wishlist = (exp.team_preferences || '').toLowerCase();
-        const unit = (exp.unit_name || '').toLowerCase();
-        if (!fullName.includes(q) && !wishlist.includes(q) && !unit.includes(q)) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [explorers, districtFilter, filterUnit, filterStatus, asnFilter, searchQuery, unitDistrictMap]);
-
-  const getExplorerSortValue = (exp: MatrixExplorer, key: string): string => {
-    if (key === 'name') {
-      return `${exp.first_name} ${exp.last_name}`.toLowerCase();
-    }
-    if (key === 'unit') {
-      return (exp.unit_name || 'Unassigned').toLowerCase();
-    }
-    if (key === 'wishlist') {
-      return (exp.team_preferences || '').toLowerCase();
-    }
-    if (key === 'availability') {
-      return (exp.available_events || []).join(', ').toLowerCase();
-    }
-    if (key.startsWith('event_')) {
-      const eventCode = key.replace('event_', '');
-      if (exp.allocated_event_code === eventCode) {
-        if (exp.allocated_team_code && exp.allocated_team_code !== 'UNALLOCATED') {
-          return `1_${exp.allocated_team_code.toLowerCase()}`;
-        }
-        return '2_pool';
-      }
-      if ((exp.available_events || []).includes(eventCode)) {
-        return '3_available';
-      }
-      return '4_unavailable';
-    }
-    return '';
-  };
-
-  const sortedExplorers = useMemo(() => {
-    return [...filteredExplorers].sort((a, b) => {
-      const valA = getExplorerSortValue(a, sortKey);
-      const valB = getExplorerSortValue(b, sortKey);
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
-      const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
-  }, [filteredExplorers, sortKey, sortOrder]);
-
-  const groupedExplorers = useMemo(() => {
-    return partitionGroupedRows(sortedExplorers, grouping);
-  }, [sortedExplorers, grouping]);
-
-  const toggleSort = (key: string) => {
-    if (sortKey === key) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortOrder('asc');
-    }
-  };
-
-  const renderHeader = (label: React.ReactNode, key: string, extraClass: string = '') => {
-    const isCurrent = sortKey === key;
-    return (
-      <th
-        onClick={() => toggleSort(key)}
-        className={`ems-osm-ref-col-header ${extraClass}`}
-        style={{ cursor: 'pointer', userSelect: 'none' }}
-        title={`Sort by ${typeof label === 'string' ? label : key}`}
-      >
-        <div className="ems-flex-center ems-gap-6">
-          <span>{label}</span>
-          <span className={`ems-osm-ref-col-sort ${isCurrent ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
-            {isCurrent ? (sortOrder === 'asc' ? '▲' : '▼') : '⇅'}
-          </span>
-        </div>
-      </th>
-    );
-  };
-
-  // ── Checkbox Selection ─────────────────────────────────────────────────────
-  const visibleScoutIds = useMemo(() => sortedExplorers.map(e => e.scout_id), [sortedExplorers]);
-  const allSelected = visibleScoutIds.length > 0 && visibleScoutIds.every(id => selectedScoutIds.includes(id));
-  const someSelected = visibleScoutIds.some(id => selectedScoutIds.includes(id)) && !allSelected;
-  const totalColSpan = (events.length > 0 ? 1 : 0) + 3 + (events.length > 0 ? events.length : 1);
-
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedScoutIds(prev => prev.filter(id => !visibleScoutIds.includes(id)));
-    } else {
-      setSelectedScoutIds(prev => Array.from(new Set([...prev, ...visibleScoutIds])));
-    }
-  };
-
-  const toggleSelectExplorer = (scoutId: number) => {
-    setSelectedScoutIds(prev =>
-      prev.includes(scoutId) ? prev.filter(id => id !== scoutId) : [...prev, scoutId]
-    );
-  };
-
-  // ── Allocation Execution ───────────────────────────────────────────────────
-  const executeAllocation = async (
-    scoutIds: number[],
-    eventCode: string,
-    mode: 'unallocated' | 'new_team' | 'existing_team' | 'remove',
-    teamId?: number
-  ) => {
-    if (scoutIds.length === 0 || !eventCode) return;
-    setAllocating(true);
-    setFeedback(null);
-
-    const body: Record<string, unknown> = {
-      scout_ids: scoutIds,
-      event_code: eventCode,
-      mode,
-    };
-    if (mode === 'existing_team' && teamId) {
-      body.team_id = teamId;
-    }
-
-    try {
-      const resp = await fetch(`${rootUrl}/planning-board/allocate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-WP-Nonce': nonce,
-        },
-        body: JSON.stringify(body),
-      });
-      const resData = await resp.json();
-      if (!resp.ok) {
-        throw new Error(resData?.message || resp.statusText);
-      }
-      const count = scoutIds.length;
-      const actionDesc = mode === 'remove' ? 'unallocated from event' : 'allocated successfully';
-      setFeedback({ ok: true, msg: `${count} explorer(s) ${actionDesc}.` });
-      setActivePopover(null);
-      setSelectedScoutIds([]);
-      await fetchMatrix();
-    } catch (err) {
-      setFeedback({ ok: false, msg: err instanceof Error ? err.message : String(err) });
-    } finally {
-      setAllocating(false);
-    }
-  };
-
-  // Bulk Allocation handler
-  const handleBulkAllocate = () => {
-    if (!bulkEventCode || selectedScoutIds.length === 0) return;
-    if (bulkTargetMode === 'remove') {
-      executeAllocation(selectedScoutIds, bulkEventCode, 'remove');
-    } else if (bulkTargetMode === 'unallocated') {
-      executeAllocation(selectedScoutIds, bulkEventCode, 'unallocated');
-    } else if (bulkTargetMode === 'new_team') {
-      executeAllocation(selectedScoutIds, bulkEventCode, 'new_team');
-    } else if (bulkTargetMode.startsWith('team_')) {
-      const teamId = parseInt(bulkTargetMode.replace('team_', ''), 10);
-      executeAllocation(selectedScoutIds, bulkEventCode, 'existing_team', teamId);
-    }
-  };
-
-  const selectedBulkEvent = useMemo(() => {
-    return events.find(e => e.event_code === bulkEventCode) || null;
-  }, [events, bulkEventCode]);
-
-  const handleUpdateAsnValidation = async (scoutId: number, val: number | null) => {
-    setAsnUpdating(true);
-    try {
-      const resp = await fetch(`${rootUrl}/planning-board/explorers/${scoutId}/asn-validation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-WP-Nonce': nonce,
-        },
-        body: JSON.stringify({ asn_validated: val }),
-      });
-      const data = await resp.json();
-      if (!resp.ok || (data.code && data.message)) {
-        throw new Error(data.message || 'Failed to update ASN validation');
-      }
-      setExplorers(prev => prev.map(exp => {
-        if (exp.scout_id === scoutId) {
-          return { ...exp, asn_validated: val };
-        }
-        return exp;
-      }));
-      setAsnDialogExplorer(null);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update ASN validation');
-    } finally {
-      setAsnUpdating(false);
-    }
-  };
+    return count;
+  }, [cohorts]);
 
   return (
     <div className="ems-planning-matrix">
@@ -449,652 +164,165 @@ export default function CohortPlanningMatrix({ onViewAsn }: CohortPlanningMatrix
         </div>
       )}
 
-      {/* ── LAYER 1: Hard Filter / Cohort Scope ── */}
-      <div className="ems-planning-scope-bar" role="region" aria-label="Cohort Scope Filters">
-        <div className="ems-planning-scope-group">
-          <span className="ems-planning-scope-label">Level:</span>
-          <div className="ems-btn-group" role="group" aria-label="Level Selector">
-            {(['bronze', 'silver', 'gold'] as const).map(l => (
+      {/* ── LAYER 1: Hard Filter / Cohort Scope + View Switcher + Notify Action ── */}
+      <div
+        className="ems-planning-scope-bar"
+        role="region"
+        aria-label="Cohort Scope Filters"
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div className="ems-planning-scope-group">
+            <span className="ems-planning-scope-label">Level:</span>
+            <div className="ems-btn-group" role="group" aria-label="Level Selector">
+              {(['bronze', 'silver', 'gold'] as const).map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  className={`ems-scope-btn ${level === l ? 'ems-scope-btn--active' : ''}`}
+                  onClick={() => setLevel(l)}
+                >
+                  {l.charAt(0).toUpperCase() + l.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="ems-planning-scope-group">
+            <span className="ems-planning-scope-label">Mode:</span>
+            <div className="ems-btn-group" role="group" aria-label="Transport Mode Selector">
+              {allowedTransports.map(t => (
+                <button
+                  key={t.key}
+                  type="button"
+                  className={`ems-scope-btn ${transport === t.key ? 'ems-scope-btn--active' : ''}`}
+                  onClick={() => setTransport(t.key)}
+                >
+                  <FontAwesomeIcon icon={t.icon} className="ems-scope-btn-icon" /> {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="ems-planning-scope-group">
+            <span className="ems-planning-scope-label">VIEW:</span>
+            <div className="ems-btn-group" role="group" aria-label="Planning Sub-View">
               <button
-                key={l}
                 type="button"
-                className={`ems-scope-btn ${level === l ? 'ems-scope-btn--active' : ''}`}
-                onClick={() => setLevel(l)}
+                className={`ems-scope-btn ${activeView === 'cohorts' ? 'ems-scope-btn--active' : ''}`}
+                onClick={() => setActiveView('cohorts')}
               >
-                {l.charAt(0).toUpperCase() + l.slice(1)}
+                <FontAwesomeIcon icon={faLayerGroup} className="ems-scope-btn-icon" /> 1. Cohorts &amp; Continuity
               </button>
-            ))}
+              <button
+                type="button"
+                className={`ems-scope-btn ${activeView === 'matrix' ? 'ems-scope-btn--active' : ''}`}
+                onClick={() => setActiveView('matrix')}
+              >
+                <FontAwesomeIcon icon={faTableCells} className="ems-scope-btn-icon" /> 2. Stage Matrix
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="ems-planning-scope-group">
-          <span className="ems-planning-scope-label">Mode:</span>
-          <div className="ems-btn-group" role="group" aria-label="Transport Mode Selector">
-            {allowedTransports.map(t => (
-              <button
-                key={t.key}
-                type="button"
-                className={`ems-scope-btn ${transport === t.key ? 'ems-scope-btn--active' : ''}`}
-                onClick={() => setTransport(t.key)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() =>
+              handleOpenNotifyModal({
+                scope: 'all',
+                level,
+                transport,
+              })
+            }
+          >
+            <FontAwesomeIcon icon={faEnvelope} /> Notify Teams…
+            {pendingNotifyCount > 0 && (
+              <span
+                className="ems-badge"
+                style={{
+                  marginLeft: '6px',
+                  background: '#ffffff',
+                  color: '#1e40af',
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontSize: '11px',
+                }}
               >
-                <FontAwesomeIcon icon={t.icon} className="ems-scope-btn-icon" /> {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="ems-planning-scope-group">
-          <span className="ems-planning-scope-label">Stage:</span>
-          <div className="ems-btn-group" role="group" aria-label="Stage Selector">
-            {(['practice', 'qualifying'] as const).map(s => (
-              <button
-                key={s}
-                type="button"
-                className={`ems-scope-btn ${stage === s ? 'ems-scope-btn--active' : ''}`}
-                onClick={() => setStage(s)}
-              >
-                {s === 'qualifying' ? 'Qualifier' : 'Practice'}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── LAYER 2: Cohort Refinement & Search ── */}
-      <div className="ems-planning-refine-bar" role="search" aria-label="Cohort Refinement">
-        <div className="ems-search-box">
-          <span className="ems-search-icon" aria-hidden="true">
-            <FontAwesomeIcon icon={faMagnifyingGlass} />
-          </span>
-          <input
-            type="text"
-            className="ems-form-input ems-search-input"
-            placeholder="Search explorer name or wishlist text..."
-            aria-label="Search explorer or wishlist"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              className="ems-clear-search-btn"
-              aria-label="Clear search"
-              onClick={() => setSearchQuery('')}
-            >
-              ×
-            </button>
-          )}
-        </div>
-
-        <div className="ems-refine-group">
-          <label htmlFor="matrix-district-filter" className="ems-refine-label">District:</label>
-          <select
-            id="matrix-district-filter"
-            className="ems-select-sm"
-            value={districtFilter}
-            onChange={e => setDistrictFilter(e.target.value)}
-          >
-            <option value="all">All Districts</option>
-            {uniqueDistricts.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-            <option value="unassigned">Unassigned</option>
-          </select>
-        </div>
-
-        <div className="ems-refine-group">
-          <label htmlFor="matrix-unit-filter" className="ems-refine-label">Unit:</label>
-          <select
-            id="matrix-unit-filter"
-            className="ems-select-sm"
-            value={filterUnit}
-            onChange={e => setFilterUnit(e.target.value)}
-          >
-            <option value="all">All Units ({cohortUnits.length})</option>
-            {cohortUnits.map(u => (
-              <option key={u} value={u}>{u}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="ems-refine-group">
-          <label htmlFor="matrix-asn-filter" className="ems-refine-label">ASN:</label>
-          <select
-            id="matrix-asn-filter"
-            className="ems-select-sm"
-            value={asnFilter}
-            onChange={e => setAsnFilter(e.target.value)}
-          >
-            <option value="all">All ASN</option>
-            <option value="has_asn">Declared ASN</option>
-            <option value="unreviewed">Unreviewed</option>
-            <option value="action_needed">Action Needed</option>
-            <option value="no_action">No Action Needed</option>
-          </select>
-        </div>
-
-        <div className="ems-refine-group">
-          <label htmlFor="matrix-status-filter" className="ems-refine-label">Status:</label>
-          <select
-            id="matrix-status-filter"
-            className="ems-select-sm"
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value as any)}
-          >
-            <option value="all">All ({explorers.length})</option>
-            <option value="unallocated">Unassigned ({explorers.filter(e => !e.allocated_event_code).length})</option>
-            <option value="allocated">Assigned ({explorers.filter(e => !!e.allocated_event_code).length})</option>
-          </select>
-        </div>
-
-        <div className="ems-refine-group">
-          <label htmlFor="matrix-group-by" className="ems-refine-label">Group By:</label>
-          <select
-            id="matrix-group-by"
-            className="ems-select-sm"
-            value={grouping}
-            onChange={e => setGrouping(e.target.value as 'none' | 'unit')}
-          >
-            <option value="none">Ungrouped</option>
-            <option value="unit">Unit</option>
-          </select>
-        </div>
-
-        <div className="ems-refine-group">
-          <label htmlFor="matrix-sort-by" className="ems-refine-label">Sort:</label>
-          <select
-            id="matrix-sort-by"
-            className="ems-select-sm"
-            value={sortKey}
-            onChange={e => {
-              setSortKey(e.target.value);
-              setSortOrder('asc');
-            }}
-          >
-            <option value="name">Name (A–Z)</option>
-            <option value="unit">Unit</option>
-            <option value="wishlist">Wishlist</option>
-            {events.length === 0 ? (
-              <option value="availability">Availability</option>
-            ) : (
-              events.map(ev => (
-                <option key={ev.event_code} value={`event_${ev.event_code}`}>
-                  {ev.event_code}
-                </option>
-              ))
+                {pendingNotifyCount}
+              </span>
             )}
-          </select>
-        </div>
-
-        <div className="ems-cohort-count">
-          Showing {filteredExplorers.length} of {explorers.length} explorers
+          </button>
         </div>
       </div>
 
-      {/* ── Table Content ── */}
+      {/* ── Active Sub-View Content ── */}
       {loading ? (
         <div className="ems-planning-spinner">
-          <span className="ems-spinner" aria-label="Loading cohort matrix…" />
+          <span className="ems-spinner" aria-label="Loading cohort planning board…" />
         </div>
-      ) : filteredExplorers.length === 0 ? (
-        <div className="notice notice-warning ems-m-0">
-          <p>
-            No explorers match the current filters or search query in this cohort.
-          </p>
-        </div>
-      ) : (
-        <>
-          {events.length === 0 && (
-            <div className="notice notice-info ems-mb-16">
-              <p>
-                No planned events found for <strong>{level.toUpperCase()} {stage.toUpperCase()}</strong> ({transport}).
-                Displaying signed-up explorers and their stated preferences below.
-              </p>
-            </div>
-          )}
-
-          <div className="ems-matrix-table-wrap">
-            <table className="ems-table ems-matrix-table">
-              <thead>
-                <tr>
-                  {events.length > 0 && (
-                    <th className="ems-planning-checkbox-col">
-                      <input
-                        type="checkbox"
-                        className="ems-checkbox"
-                        checked={allSelected}
-                        ref={el => { if (el) el.indeterminate = someSelected; }}
-                        onChange={toggleSelectAll}
-                        aria-label="Select all visible explorers"
-                      />
-                    </th>
-                  )}
-                  {renderHeader('Explorer', 'name')}
-                  {renderHeader('Unit', 'unit')}
-                  {renderHeader('Teammate Wishlist', 'wishlist')}
-                  {events.length === 0 ? (
-                    renderHeader('Stated Availability', 'availability', 'ems-matrix-th-pref')
-                  ) : (
-                    events.map(ev => {
-                      const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
-                      const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
-                      const isCurrent = sortKey === `event_${ev.event_code}`;
-                      return (
-                        <th
-                          key={ev.id}
-                          className="ems-matrix-th-event ems-osm-ref-col-header"
-                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                          onClick={() => toggleSort(`event_${ev.event_code}`)}
-                          title={`Sort by ${ev.event_code} allocation status`}
-                        >
-                          <div className="ems-flex-center ems-gap-6 ems-justify-center">
-                            <span>{ev.event_code}</span>
-                            <span className={`ems-osm-ref-col-sort ${isCurrent ? 'ems-osm-ref-col-sort--active' : 'ems-osm-ref-col-sort--inactive'}`}>
-                              {isCurrent ? (sortOrder === 'asc' ? '▲' : '▼') : '⇅'}
-                            </span>
-                          </div>
-                          <span className="ems-matrix-th-date">{formatDateShort(ev.start_date)}</span>
-                          <div className="ems-matrix-th-stats">
-                            <span className="ems-matrix-stat-pill" title={`${assignedCount - poolCount} in teams, ${poolCount} in event pool`}>
-                              {assignedCount} alloc{poolCount > 0 ? ` (${poolCount} pool)` : ''}
-                            </span>
-                          </div>
-                        </th>
-                      );
-                    })
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {groupedExplorers.map(g => (
-                  <React.Fragment key={g.title || 'flat'}>
-                    {g.title && (
-                      <tr className="ems-table-group-header">
-                        <td colSpan={totalColSpan}>
-                          <div className="ems-table-group-header__content">
-                            <span className="ems-table-group-header__title">{g.title}</span>
-                            <span className="ems-table-group-header__badge">
-                              {`${g.items.length} ${g.items.length === 1 ? 'explorer' : 'explorers'}`}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    {g.items.map(exp => {
-                      const isSelected = selectedScoutIds.includes(exp.scout_id);
-                      return (
-                        <tr key={exp.scout_id} className={isSelected ? 'ems-table-row--selected' : ''}>
-                      {events.length > 0 && (
-                        <td className="ems-table-cell--center">
-                          <input
-                            type="checkbox"
-                            className="ems-checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectExplorer(exp.scout_id)}
-                            aria-label={`Select ${exp.first_name} ${exp.last_name}`}
-                          />
-                        </td>
-                      )}
-                      <td>
-                        <div className="ems-table__name">
-                          <span
-                            className="ems-explorer-fullname ems-cursor-pointer"
-                            onClick={() => setAsnDialogExplorer(exp)}
-                            title="Click to view/validate ASN"
-                          >
-                            {`${exp.first_name} ${exp.last_name}`}
-                          </span>
-                          {exp.additional_support_needs && exp.additional_support_needs.trim() !== '' && (
-                            exp.asn_validated === 1 ? (
-                              <span
-                                className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-action ems-cursor-pointer"
-                                title={`ASN Action Needed: ${exp.additional_support_needs}`}
-                                onClick={() => setAsnDialogExplorer(exp)}
-                              >
-                                ! ASN
-                              </span>
-                            ) : exp.asn_validated === 0 ? (
-                              <span
-                                className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-no-action ems-cursor-pointer"
-                                title={`ASN No Action Needed: ${exp.additional_support_needs}`}
-                                onClick={() => setAsnDialogExplorer(exp)}
-                              >
-                                ✓ ASN
-                              </span>
-                            ) : (
-                              <span
-                                className="ems-matrix-tag ems-matrix-tag--asn ems-matrix-tag--asn-pending ems-cursor-pointer"
-                                title={`ASN Unreviewed: ${exp.additional_support_needs}`}
-                                onClick={() => setAsnDialogExplorer(exp)}
-                              >
-                                ? ASN
-                              </span>
-                            )
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
-                      </td>
-                      <td>
-                        <div className="ems-matrix-wishlist">
-                          {exp.team_preferences || '—'}
-                        </div>
-                      </td>
-                      {events.length === 0 ? (
-                        <td>
-                          {exp.available_events && exp.available_events.length > 0 ? (
-                            <div className="ems-matrix-pref-list">
-                              {exp.available_events.map(evCode => (
-                                <span key={evCode} className="ems-matrix-tag ems-matrix-tag--pref">
-                                  {evCode}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="ems-matrix-dash" title="Any / None specified">—</span>
-                          )}
-                        </td>
-                      ) : (
-                        events.map(ev => {
-                          const isAvailable = exp.available_events.includes(ev.event_code);
-                          const isAssignedHere = exp.allocated_event_code === ev.event_code;
-                          const isAssignedOther = exp.allocated_event_code && exp.allocated_event_code !== ev.event_code;
-
-                          return (
-                            <td key={ev.id} className="ems-matrix-cell-event">
-                              {isAssignedHere ? (
-                                <button
-                                  type="button"
-                                  className="ems-matrix-badge ems-matrix-badge--assigned"
-                                  onClick={() => setActivePopover({ explorer: exp, event: ev })}
-                                  title="Assigned to this event - click to manage team"
-                                >
-                                  <FontAwesomeIcon icon={faLock} className="ems-matrix-badge-icon" />{' '}
-                                  {exp.allocated_team_code === 'UNALLOCATED' ? 'Pool' : exp.allocated_team_code}
-                                </button>
-                              ) : !isAvailable ? (
-                                <span className="ems-matrix-dash" aria-label="Not available">—</span>
-                              ) : isAssignedOther ? (
-                                <button
-                                  type="button"
-                                  className="ems-matrix-badge ems-matrix-badge--other"
-                                  onClick={() => setActivePopover({ explorer: exp, event: ev })}
-                                  title={`Currently in ${exp.allocated_event_code} - click to switch to ${ev.event_code}`}
-                                >
-                                  In {exp.allocated_event_code} ⇄
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="ems-matrix-badge ems-matrix-badge--available"
-                                  onClick={() => setActivePopover({ explorer: exp, event: ev })}
-                                  title="Available for this date - click to assign"
-                                >
-                                  Available +
-                                </button>
-                              )}
-                            </td>
-                          );
-                        })
-                      )}
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={events.length === 0 ? 4 : 4} className="ems-matrix-footer-cell">
-                    Cohort Totals: {filteredExplorers.length} visible ({explorers.filter(e => !e.allocated_event_code).length} unallocated)
-                  </td>
-                  {events.map(ev => {
-                    const availableCount = explorers.filter(e => e.available_events.includes(ev.event_code)).length;
-                    const assignedCount = explorers.filter(e => e.allocated_event_code === ev.event_code).length;
-                    const poolCount = explorers.filter(e => e.allocated_event_code === ev.event_code && e.allocated_team_code === 'UNALLOCATED').length;
-                    const teamCount = assignedCount - poolCount;
-
-                    return (
-                      <td key={ev.id} className="ems-matrix-footer-cell">
-                        <div><strong>{assignedCount}</strong> / {availableCount}</div>
-                        {poolCount > 0 && (
-                          <div className="ems-meta-text ems-small-text">
-                            ({teamCount} team{teamCount === 1 ? '' : 's'}, {poolCount} pool)
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </>
-      )}
-
-      {/* ── Cell Popover: Quick Allocation ── */}
-      {activePopover && (
-        <>
-          <div className="ems-popover-backdrop" onClick={() => setActivePopover(null)} />
-          <div className="ems-assign-popover" role="dialog" aria-modal="true" aria-label="Assign Explorer">
-            <h4 className="ems-assign-popover__title">
-              {activePopover.explorer.first_name} {activePopover.explorer.last_name}
-            </h4>
-            <div className="ems-assign-popover__subtitle">
-              Event: <strong>{activePopover.event.event_code}</strong> ({activePopover.event.title})
-              {activePopover.explorer.allocated_event_code &&
-                activePopover.explorer.allocated_event_code !== activePopover.event.event_code && (
-                  <div className="ems-popover-switch-alert">
-                    Switching from <strong>{activePopover.explorer.allocated_event_code}</strong>
-                  </div>
-                )}
-            </div>
-
-            <div className="ems-assign-popover__list">
-              <button
-                type="button"
-                className="ems-assign-popover__btn"
-                disabled={allocating}
-                onClick={() =>
-                  executeAllocation([activePopover.explorer.scout_id], activePopover.event.event_code, 'new_team')
-                }
-              >
-                <FontAwesomeIcon icon={faPlus} className="ems-popover-icon" /> Create New Team
-              </button>
-
-              <button
-                type="button"
-                className="ems-assign-popover__btn"
-                disabled={allocating}
-                onClick={() =>
-                  executeAllocation([activePopover.explorer.scout_id], activePopover.event.event_code, 'unallocated')
-                }
-              >
-                <FontAwesomeIcon icon={faClipboardList} className="ems-popover-icon" /> Event Pool (Unallocated)
-              </button>
-
-              {activePopover.event.teams
-                .filter(t => t.team_code !== 'UNALLOCATED')
-                .map(t => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className="ems-assign-popover__btn"
-                    disabled={allocating}
-                    onClick={() =>
-                      executeAllocation(
-                        [activePopover.explorer.scout_id],
-                        activePopover.event.event_code,
-                        'existing_team',
-                        t.id
-                      )
-                    }
-                  >
-                    <FontAwesomeIcon icon={faUsers} className="ems-popover-icon" /> Assign to {t.team_code} ({t.member_count}/7)
-                  </button>
-                ))}
-
-              {activePopover.explorer.allocated_event_code === activePopover.event.event_code && (
-                <button
-                  type="button"
-                  className="button button-link-delete"
-                  disabled={allocating}
-                  onClick={() =>
-                    executeAllocation([activePopover.explorer.scout_id], activePopover.event.event_code, 'remove')
-                  }
-                >
-                  <FontAwesomeIcon icon={faXmark} className="ems-popover-icon" /> Remove from this event
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className="button button-secondary"
-              onClick={() => setActivePopover(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* ── ASN Leader Validation Dialogue ── */}
-      {asnDialogExplorer && (
-        <>
-          <div
-            className="ems-popover-backdrop"
-            onClick={() => !asnUpdating && setAsnDialogExplorer(null)}
+      ) : activeView === 'cohorts' ? (
+        <ModuleErrorBoundary moduleName="Cohorts & Continuity">
+          <CohortsContinuityView
+            level={level}
+            transport={transport}
+            rootUrl={rootUrl}
+            nonce={nonce}
+            units={units}
+            cohorts={cohorts}
+            practiceEvents={practiceEvents}
+            qualifierEvents={qualifierEvents}
+            practiceExplorers={practiceExplorers}
+            qualifierExplorers={qualifierExplorers}
+            onRefreshAll={fetchAllData}
+            onFeedback={setFeedback}
+            onViewAsn={onViewAsn}
+            onOpenNotifyModal={handleOpenNotifyModal}
           />
-          <div
-            className="ems-asn-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label="ASN Leader Validation"
-          >
-            <div className="ems-asn-dialog__header">
-              <h3 className="ems-asn-dialog__title">
-                ASN Review — {asnDialogExplorer.first_name} {asnDialogExplorer.last_name}
-              </h3>
-              <button
-                type="button"
-                className="ems-asn-dialog__close"
-                onClick={() => setAsnDialogExplorer(null)}
-                disabled={asnUpdating}
-                aria-label="Close"
-              >
-                <FontAwesomeIcon icon={faXmark} />
-              </button>
-            </div>
-            <div className="ems-asn-dialog__body">
-              <div className="ems-mb-12">
-                <span className="ems-signups-inspector__label">Declared Support Needs:</span>
-                <div className="ems-signups-inspector__support-box ems-mt-4">
-                  {asnDialogExplorer.additional_support_needs || 'None declared.'}
-                </div>
-              </div>
-              <div className="ems-mb-16">
-                <span className="ems-signups-inspector__label">Current Status:</span>
-                <div className="ems-mt-4">
-                  {asnDialogExplorer.asn_validated === 1 ? (
-                    <span className="ems-pill ems-pill--asn-action">Action Needed</span>
-                  ) : asnDialogExplorer.asn_validated === 0 ? (
-                    <span className="ems-pill ems-pill--asn-no-action">No Action Needed</span>
-                  ) : (
-                    <span className="ems-pill ems-pill--asn-pending">Unreviewed</span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="ems-flex-center ems-gap-8 ems-flex-wrap">
-              <button
-                type="button"
-                className="button ems-btn--asn-action"
-                disabled={asnUpdating}
-                onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 1)}
-              >
-                <FontAwesomeIcon icon={faTriangleExclamation} /> Action Needed
-              </button>
-              <button
-                type="button"
-                className="button ems-btn--asn-no-action"
-                disabled={asnUpdating}
-                onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, 0)}
-              >
-                <FontAwesomeIcon icon={faCheck} /> No Action Needed
-              </button>
-              <button
-                type="button"
-                className="button ems-btn--asn-unreview"
-                disabled={asnUpdating}
-                onClick={() => handleUpdateAsnValidation(asnDialogExplorer.scout_id, null)}
-              >
-                <FontAwesomeIcon icon={faCircleQuestion} /> Unreviewed
-              </button>
-            </div>
-          </div>
-        </>
+        </ModuleErrorBoundary>
+      ) : (
+        <ModuleErrorBoundary moduleName="Stage Matrix">
+          <StageMatrixView
+            level={level}
+            transport={transport}
+            rootUrl={rootUrl}
+            nonce={nonce}
+            units={units}
+            cohorts={cohorts}
+            practiceEvents={practiceEvents}
+            qualifierEvents={qualifierEvents}
+            practiceExplorers={practiceExplorers}
+            qualifierExplorers={qualifierExplorers}
+            onRefreshAll={fetchAllData}
+            onFeedback={setFeedback}
+          />
+        </ModuleErrorBoundary>
       )}
 
-      {/* ── Sticky Bottom Multi-Select Action Bar ── */}
-      {selectedScoutIds.length > 0 && events.length > 0 && (
-        <div className="ems-planning-action-bar" role="region" aria-label="Bulk Allocation Bar">
-          <div className="ems-action-bar-info">
-            <strong>{selectedScoutIds.length}</strong> explorer{selectedScoutIds.length > 1 ? 's' : ''} selected
-          </div>
-          <div className="ems-action-bar-controls">
-            <label htmlFor="bulk-event-select" className="ems-action-bar-label">Event:</label>
-            <select
-              id="bulk-event-select"
-              className="ems-select-sm"
-              value={bulkEventCode}
-              onChange={e => setBulkEventCode(e.target.value)}
-            >
-              <option value="">-- Choose Event --</option>
-              {events.map(ev => (
-                <option key={ev.event_code} value={ev.event_code}>
-                  {ev.event_code} ({formatDateShort(ev.start_date)})
-                </option>
-              ))}
-            </select>
-
-            <label htmlFor="bulk-team-select" className="ems-action-bar-label">Assign to:</label>
-            <select
-              id="bulk-team-select"
-              className="ems-select-sm"
-              value={bulkTargetMode}
-              onChange={e => setBulkTargetMode(e.target.value)}
-            >
-              <option value="new_team">+ Create New Team</option>
-              <option value="unallocated">Event Pool (Unallocated)</option>
-              {selectedBulkEvent?.teams
-                .filter(t => t.team_code !== 'UNALLOCATED')
-                .map(t => (
-                  <option key={t.id} value={`team_${t.id}`}>
-                    {t.team_code} ({t.member_count}/7)
-                  </option>
-                ))}
-              <option value="remove">Remove Allocation</option>
-            </select>
-
-            <button
-              type="button"
-              className="button button-primary"
-              disabled={!bulkEventCode || allocating}
-              onClick={handleBulkAllocate}
-            >
-              {allocating ? 'Allocating…' : 'Apply Allocation'}
-            </button>
-            <button
-              type="button"
-              className="button button-secondary"
-              onClick={() => setSelectedScoutIds([])}
-            >
-              Clear Selection
-            </button>
-          </div>
-        </div>
+      {notifyModalOpts && (
+        <ModuleErrorBoundary moduleName="Place Offer Notifications">
+          <ManualNotifyModal
+            isOpen={true}
+            onClose={() => setNotifyModalOpts(null)}
+            initialScope={notifyModalOpts.scope}
+            cohortId={notifyModalOpts.cohortId ?? null}
+            cohortName={notifyModalOpts.cohortName ?? null}
+            dofeLevel={notifyModalOpts.level ?? level}
+            transportMode={toCohortTransportMode(notifyModalOpts.transport ?? transport)}
+            onDispatched={(res) => {
+              const count = typeof res?.dispatched_count === 'number' ? res.dispatched_count : undefined;
+              setFeedback({
+                ok: true,
+                msg: count !== undefined
+                  ? `Dispatched ${count} Place Offer email${count === 1 ? '' : 's'}.`
+                  : 'Place Offer emails dispatched.',
+              });
+              fetchAllData();
+            }}
+          />
+        </ModuleErrorBoundary>
       )}
     </div>
   );

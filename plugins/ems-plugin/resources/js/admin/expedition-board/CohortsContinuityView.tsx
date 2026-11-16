@@ -1,0 +1,1334 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faPlus,
+  faCheck,
+  faTriangleExclamation,
+  faMagnifyingGlass,
+  faUsers,
+  faEnvelope,
+  faTrash,
+  faXmark,
+  faFirstAid,
+  faLink,
+  faUserSlash,
+} from '@fortawesome/free-solid-svg-icons';
+import { getUnitDistrictMap, getUniqueDistricts, normalize } from '../signups-board/tableUtils';
+import {
+  Cohort,
+  CohortMember,
+  MatrixEvent,
+  MatrixExplorer,
+  MemberResolutionAction,
+  NotifyModalOptions,
+  ScheduleCandidate,
+  formatDateShort,
+  hasValidFirstAid,
+  isWishlistMatch,
+  toCohortTransportMode,
+} from './cohortTypes';
+
+export interface CohortsContinuityViewProps {
+  level: 'bronze' | 'silver' | 'gold';
+  transport: string;
+  rootUrl: string;
+  nonce: string;
+  units: any[];
+  cohorts: Cohort[];
+  practiceEvents: MatrixEvent[];
+  qualifierEvents: MatrixEvent[];
+  practiceExplorers: MatrixExplorer[];
+  qualifierExplorers: MatrixExplorer[];
+  onRefreshAll: () => Promise<void>;
+  onFeedback: (fb: { ok: boolean; msg: string } | null) => void;
+  onViewAsn?: (scoutId: number) => void;
+  onOpenNotifyModal?: (opts: NotifyModalOptions) => void;
+}
+
+interface HoveredExplorerInfo {
+  expedition_signup_id: number;
+  first_name: string;
+  last_name: string;
+  wishlist: string;
+  practiceAvail: string[];
+  qualifierAvail: string[];
+}
+
+interface PendingScheduleDraft {
+  practice_expedition_id: number | null;
+  qualifier_expedition_id: number | null;
+  resolutions: Record<number, MemberResolutionAction>;
+}
+
+function extractWishlistFromPrefs(prefsJson: string | null): string {
+  if (!prefsJson) return '';
+  try {
+    const parsed = JSON.parse(prefsJson);
+    return typeof parsed?.exped_team_names === 'string' ? parsed.exped_team_names : '';
+  } catch {
+    return '';
+  }
+}
+
+function getNotificationBadge(status?: string): { label: string; bg: string; color: string; border: string } {
+  const s = (status || 'draft').toLowerCase();
+  if (s === 'notified') {
+    return { label: 'Notified', bg: '#ecfdf5', color: '#065f46', border: '#a7f3d0' };
+  }
+  if (s === 're_notify_needed') {
+    return { label: 'Re-Notify Needed', bg: '#fef2f2', color: '#991b1b', border: '#fecaca' };
+  }
+  if (s === 'ready_to_notify') {
+    return { label: 'Ready', bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe' };
+  }
+  return { label: 'Draft', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
+}
+
+export default function CohortsContinuityView({
+  level,
+  transport,
+  rootUrl,
+  nonce,
+  units,
+  cohorts,
+  practiceEvents,
+  qualifierEvents,
+  practiceExplorers,
+  qualifierExplorers,
+  onRefreshAll,
+  onFeedback,
+  onViewAsn,
+  onOpenNotifyModal,
+}: CohortsContinuityViewProps) {
+  const unitDistrictMap = useMemo(() => getUnitDistrictMap(units), [units]);
+
+  // ── Left Pool Filters ──────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('all');
+  const [unitFilter, setUnitFilter] = useState('all');
+  const [asnFilter, setAsnFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'pool' | 'all' | 'split' | 'in_cohort'>('pool');
+
+  // ── Multi-select & Create Cohort ───────────────────────────────────────────
+  const [selectedSignupIds, setSelectedSignupIds] = useState<number[]>([]);
+  const [newCohortName, setNewCohortName] = useState('');
+  const [creatingCohort, setCreatingCohort] = useState(false);
+  const [busyAction, setBusyAction] = useState(false);
+
+  // ── Wishlist Hover Mutual-Highlighting ─────────────────────────────────────
+  const [hoveredExplorer, setHoveredExplorer] = useState<HoveredExplorerInfo | null>(null);
+
+  // ── Candidate Scores per Cohort ────────────────────────────────────────────
+  const [candidatesByCohort, setCandidatesByCohort] = useState<Record<number, ScheduleCandidate[]>>({});
+  const [loadingCandidates, setLoadingCandidates] = useState<Record<number, boolean>>({});
+  const [pendingDrafts, setPendingDrafts] = useState<Record<number, PendingScheduleDraft>>({});
+
+  // Merge practice & qualifier explorers keyed by expedition_signup_id
+  const mergedExplorers = useMemo(() => {
+    const map = new Map<
+      number,
+      {
+        expedition_signup_id: number;
+        scout_id: number;
+        first_name: string;
+        last_name: string;
+        unit_name: string;
+        district: string;
+        team_preferences: string;
+        practiceAvail: string[];
+        qualifierAvail: string[];
+        has_asn: boolean;
+        additional_support_needs: string;
+        asn_validated: number | null;
+        first_aid_status: string;
+        first_aid_expiry: string | null;
+      }
+    >();
+
+    for (const exp of practiceExplorers) {
+      const id = exp.expedition_signup_id;
+      if (!id) continue;
+      map.set(id, {
+        expedition_signup_id: id,
+        scout_id: exp.scout_id,
+        first_name: exp.first_name,
+        last_name: exp.last_name,
+        unit_name: exp.unit_name || 'Unassigned',
+        district: exp.district || '',
+        team_preferences: exp.team_preferences || '',
+        practiceAvail: exp.available_events || [],
+        qualifierAvail: [],
+        has_asn: exp.has_asn,
+        additional_support_needs: exp.additional_support_needs || '',
+        asn_validated: exp.asn_validated ?? null,
+        first_aid_status: exp.first_aid_status || 'none',
+        first_aid_expiry: exp.first_aid_expiry ?? null,
+      });
+    }
+
+    for (const exp of qualifierExplorers) {
+      const id = exp.expedition_signup_id;
+      if (!id) continue;
+      const existing = map.get(id);
+      if (existing) {
+        existing.qualifierAvail = exp.available_events || [];
+      } else {
+        map.set(id, {
+          expedition_signup_id: id,
+          scout_id: exp.scout_id,
+          first_name: exp.first_name,
+          last_name: exp.last_name,
+          unit_name: exp.unit_name || 'Unassigned',
+          district: exp.district || '',
+          team_preferences: exp.team_preferences || '',
+          practiceAvail: [],
+          qualifierAvail: exp.available_events || [],
+          has_asn: exp.has_asn,
+          additional_support_needs: exp.additional_support_needs || '',
+          asn_validated: exp.asn_validated ?? null,
+          first_aid_status: exp.first_aid_status || 'none',
+          first_aid_expiry: exp.first_aid_expiry ?? null,
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  }, [practiceExplorers, qualifierExplorers]);
+
+  // Lookup cohort membership by expedition_signup_id
+  const membershipBySignupId = useMemo(() => {
+    const map = new Map<number, { cohort: Cohort; member: CohortMember }>();
+    for (const c of cohorts) {
+      for (const m of c.members || []) {
+        map.set(m.expedition_signup_id, { cohort: c, member: m });
+      }
+    }
+    return map;
+  }, [cohorts]);
+
+  const uniqueDistricts = useMemo(
+    () => getUniqueDistricts(units, mergedExplorers, unitDistrictMap),
+    [units, mergedExplorers, unitDistrictMap]
+  );
+
+  const poolUnits = useMemo(() => {
+    const set = new Set<string>();
+    mergedExplorers.forEach(e => {
+      if (e.unit_name) set.add(e.unit_name);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [mergedExplorers]);
+
+  // Fetch candidate scores for all visible cohorts
+  const fetchCandidatesForCohort = useCallback(
+    async (cohortId: number) => {
+      setLoadingCandidates(prev => ({ ...prev, [cohortId]: true }));
+      try {
+        const resp = await fetch(`${rootUrl}/cohorts/${cohortId}/schedule`, {
+          headers: { 'X-WP-Nonce': nonce },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data)) {
+            setCandidatesByCohort(prev => ({ ...prev, [cohortId]: data }));
+          }
+        }
+      } catch {
+        // Non-fatal: dropdown falls back to raw events
+      } finally {
+        setLoadingCandidates(prev => ({ ...prev, [cohortId]: false }));
+      }
+    },
+    [rootUrl, nonce]
+  );
+
+  useEffect(() => {
+    cohorts.forEach(c => {
+      fetchCandidatesForCohort(c.id);
+    });
+  }, [cohorts, fetchCandidatesForCohort]);
+
+  // Filter & sort left pool (pin split-date explorers at top)
+  const filteredPool = useMemo(() => {
+    const filtered = mergedExplorers.filter(exp => {
+      const membership = membershipBySignupId.get(exp.expedition_signup_id);
+      const memberStatus = membership?.member.member_status || '';
+      const isSplit = memberStatus === 'split_practice' || memberStatus === 'split_qualifier';
+
+      if (statusFilter === 'pool' && membership && !isSplit) return false;
+      if (statusFilter === 'split' && !isSplit) return false;
+      if (statusFilter === 'in_cohort' && !membership) return false;
+
+      if (districtFilter !== 'all') {
+        const itemDistrict = (exp.district || unitDistrictMap[exp.unit_name] || '').trim() || 'Unassigned';
+        if (normalize(itemDistrict) !== normalize(districtFilter)) return false;
+      }
+
+      if (unitFilter !== 'all' && exp.unit_name !== unitFilter) return false;
+
+      if (asnFilter !== 'all') {
+        const hasNeeds = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
+        if (asnFilter === 'has_asn' && !hasNeeds) return false;
+        if (asnFilter === 'action_needed' && (!hasNeeds || exp.asn_validated !== 1)) return false;
+        if (asnFilter === 'no_action' && (!hasNeeds || exp.asn_validated !== 0)) return false;
+        if (asnFilter === 'unreviewed' && (!hasNeeds || (exp.asn_validated !== null && exp.asn_validated !== undefined))) {
+          return false;
+        }
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const full = `${exp.first_name} ${exp.last_name}`.toLowerCase();
+        const wish = exp.team_preferences.toLowerCase();
+        const unit = exp.unit_name.toLowerCase();
+        if (!full.includes(q) && !wish.includes(q) && !unit.includes(q)) return false;
+      }
+
+      return true;
+    });
+
+    return filtered.sort((a, b) => {
+      const aMem = membershipBySignupId.get(a.expedition_signup_id)?.member.member_status || '';
+      const bMem = membershipBySignupId.get(b.expedition_signup_id)?.member.member_status || '';
+      const aSplit = aMem === 'split_practice' || aMem === 'split_qualifier' ? 0 : 1;
+      const bSplit = bMem === 'split_practice' || bMem === 'split_qualifier' ? 0 : 1;
+      if (aSplit !== bSplit) return aSplit - bSplit;
+      return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+    });
+  }, [mergedExplorers, membershipBySignupId, statusFilter, districtFilter, unitFilter, asnFilter, searchQuery, unitDistrictMap]);
+
+  const toggleSelectSignup = (signupId: number) => {
+    setSelectedSignupIds(prev =>
+      prev.includes(signupId) ? prev.filter(id => id !== signupId) : [...prev, signupId]
+    );
+  };
+
+  const handleCreateCohort = async () => {
+    if (selectedSignupIds.length === 0) return;
+    const trimmedName = newCohortName.trim() || `Cohort ${cohorts.length + 1}`;
+    setCreatingCohort(true);
+    onFeedback(null);
+
+    try {
+      const resp = await fetch(`${rootUrl}/cohorts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce,
+        },
+        body: JSON.stringify({
+          name: trimmedName,
+          dofe_level: level,
+          transport_mode: toCohortTransportMode(transport),
+          expedition_signup_ids: selectedSignupIds,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.message || `HTTP ${resp.status}`);
+      }
+      setSelectedSignupIds([]);
+      setNewCohortName('');
+      onFeedback({ ok: true, msg: `Created cohort "${trimmedName}" with ${selectedSignupIds.length} explorer(s).` });
+      await onRefreshAll();
+    } catch (err) {
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to create cohort' });
+    } finally {
+      setCreatingCohort(false);
+    }
+  };
+
+  const handleAddSelectedToCohort = async (cohortId: number, cohortName: string) => {
+    if (selectedSignupIds.length === 0) return;
+    setBusyAction(true);
+    onFeedback(null);
+    try {
+      const resp = await fetch(`${rootUrl}/cohorts/${cohortId}/members`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce,
+        },
+        body: JSON.stringify({ expedition_signup_ids: selectedSignupIds }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.message || `HTTP ${resp.status}`);
+      }
+      setSelectedSignupIds([]);
+      onFeedback({ ok: true, msg: `Added selected explorer(s) to "${cohortName}".` });
+      await onRefreshAll();
+    } catch (err) {
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to add members' });
+    } finally {
+      setBusyAction(false);
+    }
+  };
+
+  const handleRemoveMember = async (cohortId: number, signupId: number, memberName: string) => {
+    setBusyAction(true);
+    onFeedback(null);
+    try {
+      const resp = await fetch(`${rootUrl}/cohorts/${cohortId}/members/${signupId}`, {
+        method: 'DELETE',
+        headers: { 'X-WP-Nonce': nonce },
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.message || `HTTP ${resp.status}`);
+      }
+      onFeedback({ ok: true, msg: `Removed ${memberName} from cohort.` });
+      await onRefreshAll();
+    } catch (err) {
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to remove member' });
+    } finally {
+      setBusyAction(false);
+    }
+  };
+
+  const handleDeleteCohort = async (cohort: Cohort) => {
+    if (!window.confirm(`Delete cohort "${cohort.name}"? Members will return to the unassigned pool.`)) {
+      return;
+    }
+    setBusyAction(true);
+    onFeedback(null);
+    try {
+      const resp = await fetch(`${rootUrl}/cohorts/${cohort.id}`, {
+        method: 'DELETE',
+        headers: { 'X-WP-Nonce': nonce },
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.message || `HTTP ${resp.status}`);
+      }
+      onFeedback({ ok: true, msg: `Deleted cohort "${cohort.name}".` });
+      await onRefreshAll();
+    } catch (err) {
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to delete cohort' });
+    } finally {
+      setBusyAction(false);
+    }
+  };
+
+  const executeScheduleCohort = async (
+    cohortId: number,
+    practiceId: number | null,
+    qualifierId: number | null,
+    resolutions: Record<number, MemberResolutionAction>
+  ) => {
+    setBusyAction(true);
+    onFeedback(null);
+    try {
+      const resp = await fetch(`${rootUrl}/cohorts/${cohortId}/schedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce,
+        },
+        body: JSON.stringify({
+          practice_expedition_id: practiceId,
+          qualifier_expedition_id: qualifierId,
+          member_resolutions: resolutions,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.message || `HTTP ${resp.status}`);
+      }
+      setPendingDrafts(prev => {
+        const next = { ...prev };
+        delete next[cohortId];
+        return next;
+      });
+      onFeedback({ ok: true, msg: 'Cohort schedule applied successfully.' });
+      await onRefreshAll();
+      await fetchCandidatesForCohort(cohortId);
+    } catch (err) {
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to apply schedule' });
+    } finally {
+      setBusyAction(false);
+    }
+  };
+
+  const handleStageSelectChange = (
+    cohort: Cohort,
+    stage: 'practice' | 'qualifier',
+    expeditionIdStr: string
+  ) => {
+    const newId = expeditionIdStr ? parseInt(expeditionIdStr, 10) : null;
+    const currentDraft = pendingDrafts[cohort.id];
+    const nextPracticeId =
+      stage === 'practice'
+        ? newId
+        : currentDraft
+          ? currentDraft.practice_expedition_id
+          : cohort.practice_expedition_id;
+    const nextQualifierId =
+      stage === 'qualifier'
+        ? newId
+        : currentDraft
+          ? currentDraft.qualifier_expedition_id
+          : cohort.qualifier_expedition_id;
+
+    const candidates = candidatesByCohort[cohort.id] || [];
+    const pracCand = candidates.find(c => c.expedition_id === nextPracticeId);
+    const qualCand = candidates.find(c => c.expedition_id === nextQualifierId);
+
+    const unavailableIds = new Set<number>();
+    (pracCand?.unavailable_members || []).forEach(u => unavailableIds.add(u.expedition_signup_id));
+    (qualCand?.unavailable_members || []).forEach(u => unavailableIds.add(u.expedition_signup_id));
+
+    if (unavailableIds.size === 0) {
+      // 100% available: apply immediately
+      executeScheduleCohort(cohort.id, nextPracticeId, nextQualifierId, {});
+    } else {
+      // < 100% available: open inline Partial-Availability Resolution Drawer
+      const resolutions: Record<number, MemberResolutionAction> = {};
+      unavailableIds.forEach(uid => {
+        resolutions[uid] = currentDraft?.resolutions[uid] || 'assign_pending';
+      });
+      setPendingDrafts(prev => ({
+        ...prev,
+        [cohort.id]: {
+          practice_expedition_id: nextPracticeId,
+          qualifier_expedition_id: nextQualifierId,
+          resolutions,
+        },
+      }));
+    }
+  };
+
+  const getCompatibilityInfo = (
+    targetSignupId: number,
+    targetFirst: string,
+    targetLast: string,
+    targetWishlist: string,
+    targetPracAvail: string[],
+    targetQualAvail: string[]
+  ): { isMatch: boolean; compatibleDates: boolean } => {
+    if (!hoveredExplorer || hoveredExplorer.expedition_signup_id === targetSignupId) {
+      return { isMatch: false, compatibleDates: false };
+    }
+    const isMatch = isWishlistMatch(
+      hoveredExplorer.first_name,
+      hoveredExplorer.last_name,
+      hoveredExplorer.wishlist,
+      targetFirst,
+      targetLast,
+      targetWishlist
+    );
+    if (!isMatch) return { isMatch: false, compatibleDates: false };
+
+    const pracOk =
+      hoveredExplorer.practiceAvail.length === 0 ||
+      targetPracAvail.length === 0 ||
+      hoveredExplorer.practiceAvail.some(d => targetPracAvail.includes(d));
+    const qualOk =
+      hoveredExplorer.qualifierAvail.length === 0 ||
+      targetQualAvail.length === 0 ||
+      hoveredExplorer.qualifierAvail.some(d => targetQualAvail.includes(d));
+
+    return { isMatch: true, compatibleDates: pracOk && qualOk };
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+      {/* ── LEFT COLUMN (38%): Unassigned & Split Pool ── */}
+      <div className="ems-panel" style={{ flex: '0 0 38%', minWidth: 0, padding: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+            Unassigned &amp; Split Pool ({filteredPool.length})
+          </h3>
+          {selectedSignupIds.length > 0 && (
+            <button
+              type="button"
+              className="button button-small"
+              onClick={() => setSelectedSignupIds([])}
+            >
+              Clear ({selectedSignupIds.length})
+            </button>
+          )}
+        </div>
+
+        {/* Search & Filters */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+          <div className="ems-search-box" style={{ width: '100%' }}>
+            <span className="ems-search-icon" aria-hidden="true">
+              <FontAwesomeIcon icon={faMagnifyingGlass} />
+            </span>
+            <input
+              type="text"
+              className="ems-form-input ems-search-input"
+              style={{ width: '100%' }}
+              placeholder="Search name, wishlist, or unit..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+            <select
+              className="ems-select-sm"
+              aria-label="Filter by District"
+              value={districtFilter}
+              onChange={e => setDistrictFilter(e.target.value)}
+            >
+              <option value="all">All Districts</option>
+              {uniqueDistricts.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+              <option value="unassigned">Unassigned</option>
+            </select>
+
+            <select
+              className="ems-select-sm"
+              aria-label="Filter by Unit"
+              value={unitFilter}
+              onChange={e => setUnitFilter(e.target.value)}
+            >
+              <option value="all">All Units ({poolUnits.length})</option>
+              {poolUnits.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+
+            <select
+              className="ems-select-sm"
+              aria-label="Filter by ASN"
+              value={asnFilter}
+              onChange={e => setAsnFilter(e.target.value)}
+            >
+              <option value="all">All ASN</option>
+              <option value="has_asn">Declared ASN</option>
+              <option value="unreviewed">Unreviewed</option>
+              <option value="action_needed">Action Needed</option>
+              <option value="no_action">No Action Needed</option>
+            </select>
+
+            <select
+              className="ems-select-sm"
+              aria-label="Filter by Pool Status"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as 'pool' | 'all' | 'split' | 'in_cohort')}
+            >
+              <option value="pool">Unassigned &amp; Split</option>
+              <option value="split">Split Date Only</option>
+              <option value="in_cohort">In Cohort</option>
+              <option value="all">All Explorers</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Bulk Create Cohort Bar */}
+        {selectedSignupIds.length > 0 && (
+          <div
+            style={{
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '6px',
+              padding: '10px',
+              marginBottom: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#1e40af' }}>
+              {selectedSignupIds.length} explorer{selectedSignupIds.length > 1 ? 's' : ''} selected
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                className="ems-form-input"
+                style={{ flex: 1, minWidth: 0 }}
+                placeholder={`Cohort ${cohorts.length + 1}`}
+                value={newCohortName}
+                onChange={e => setNewCohortName(e.target.value)}
+              />
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={creatingCohort}
+                onClick={handleCreateCohort}
+              >
+                <FontAwesomeIcon icon={faPlus} />{' '}
+                {creatingCohort ? 'Creating…' : 'Create Cohort from Selected'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Pool List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '72vh', overflowY: 'auto' }}>
+          {filteredPool.length === 0 ? (
+            <div className="notice notice-info ems-m-0">
+              <p>No explorers match the current pool filters.</p>
+            </div>
+          ) : (
+            filteredPool.map(exp => {
+              const isSelected = selectedSignupIds.includes(exp.expedition_signup_id);
+              const membership = membershipBySignupId.get(exp.expedition_signup_id);
+              const memberStatus = membership?.member.member_status || '';
+              const isSplitPrac = memberStatus === 'split_practice';
+              const isSplitQual = memberStatus === 'split_qualifier';
+              const isFA = hasValidFirstAid(null, exp.first_aid_status, exp.first_aid_expiry, null);
+              const hasAsnText = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
+
+              const compat = getCompatibilityInfo(
+                exp.expedition_signup_id,
+                exp.first_name,
+                exp.last_name,
+                exp.team_preferences,
+                exp.practiceAvail,
+                exp.qualifierAvail
+              );
+
+              return (
+                <div
+                  key={exp.expedition_signup_id}
+                  onMouseEnter={() =>
+                    setHoveredExplorer({
+                      expedition_signup_id: exp.expedition_signup_id,
+                      first_name: exp.first_name,
+                      last_name: exp.last_name,
+                      wishlist: exp.team_preferences,
+                      practiceAvail: exp.practiceAvail,
+                      qualifierAvail: exp.qualifierAvail,
+                    })
+                  }
+                  onMouseLeave={() => setHoveredExplorer(null)}
+                  style={{
+                    border: compat.isMatch
+                      ? '2px solid #2563eb'
+                      : isSplitPrac || isSplitQual
+                        ? '1px solid #f59e0b'
+                        : '1px solid #cbd5e1',
+                    background: compat.isMatch
+                      ? '#eff6ff'
+                      : isSelected
+                        ? '#f0f9ff'
+                        : '#ffffff',
+                    borderRadius: '6px',
+                    padding: '10px',
+                    transition: 'border-color 0.15s, background 0.15s',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      className="ems-checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelectSignup(exp.expedition_signup_id)}
+                      aria-label={`Select ${exp.first_name} ${exp.last_name}`}
+                      style={{ marginTop: '2px' }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                        <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                          {exp.first_name} {exp.last_name}
+                        </strong>
+
+                        {isSplitPrac && (
+                          <span
+                            className="ems-matrix-tag"
+                            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                          >
+                            <FontAwesomeIcon icon={faTriangleExclamation} /> Split Practice
+                          </span>
+                        )}
+                        {isSplitQual && (
+                          <span
+                            className="ems-matrix-tag"
+                            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                          >
+                            <FontAwesomeIcon icon={faTriangleExclamation} /> Split Qualifier
+                          </span>
+                        )}
+
+                        {hasAsnText && (
+                          <span
+                            className={`ems-matrix-tag ${
+                              exp.asn_validated === 1
+                                ? 'ems-matrix-tag--asn-action'
+                                : exp.asn_validated === 0
+                                  ? 'ems-matrix-tag--asn-no-action'
+                                  : 'ems-matrix-tag--asn-pending'
+                            }`}
+                            style={{ cursor: onViewAsn ? 'pointer' : 'default' }}
+                            onClick={() => onViewAsn && exp.scout_id > 0 && onViewAsn(exp.scout_id)}
+                            title={exp.additional_support_needs}
+                          >
+                            {exp.asn_validated === 1 ? '! ASN' : exp.asn_validated === 0 ? '✓ ASN' : '? ASN'}
+                          </span>
+                        )}
+
+                        {isFA && (
+                          <span className="ems-matrix-tag ems-matrix-tag--fa" title="First Aid">
+                            <FontAwesomeIcon icon={faFirstAid} /> FA
+                          </span>
+                        )}
+
+                        {exp.scout_id === 0 && (
+                          <span
+                            className="ems-matrix-tag"
+                            style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
+                            title="Not matched in OSM"
+                          >
+                            <FontAwesomeIcon icon={faUserSlash} /> Unmatched OSM
+                          </span>
+                        )}
+
+                        {compat.isMatch && (
+                          <span
+                            className="ems-matrix-tag"
+                            style={{
+                              background: compat.compatibleDates ? '#ecfdf5' : '#fef3c7',
+                              color: compat.compatibleDates ? '#065f46' : '#92400e',
+                              border: `1px solid ${compat.compatibleDates ? '#a7f3d0' : '#fde68a'}`,
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faLink} />{' '}
+                            {compat.compatibleDates ? 'Compatible Dates' : 'Date Conflict'}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
+                        {membership && (
+                          <span style={{ fontSize: '11px', color: '#475569' }}>
+                            Cohort: <strong>{membership.cohort.name}</strong>
+                          </span>
+                        )}
+                      </div>
+
+                      {exp.team_preferences && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#334155' }}>
+                          <strong>Wishlist:</strong> {exp.team_preferences}
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b' }}>
+                        <span>Prac: {exp.practiceAvail.length > 0 ? exp.practiceAvail.join(', ') : 'None'}</span>
+                        {' · '}
+                        <span>Qual: {exp.qualifierAvail.length > 0 ? exp.qualifierAvail.join(', ') : 'None'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ── RIGHT COLUMN (62%): Formed Cohorts ── */}
+      <div style={{ flex: '1 1 62%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {cohorts.length === 0 ? (
+          <div className="ems-panel" style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+            <p style={{ margin: 0, fontSize: '13px' }}>
+              No cohorts formed yet for <strong>{level.toUpperCase()}</strong> ({transport}). Select explorers on the left
+              and click <strong>Create Cohort from Selected</strong> to begin.
+            </p>
+          </div>
+        ) : (
+          cohorts.map(cohort => {
+            const members = cohort.members || [];
+            const activeCount = members.length;
+            const sizeOk = activeCount >= 4 && activeCount <= 7;
+
+            const candidates = candidatesByCohort[cohort.id] || [];
+            const practiceCandidates = candidates.filter(c => c.stage === 'practice');
+            const qualifierCandidates = candidates.filter(c => c.stage === 'qualifier');
+
+            const draft = pendingDrafts[cohort.id];
+            const selectedPracticeId = draft ? draft.practice_expedition_id : cohort.practice_expedition_id;
+            const selectedQualifierId = draft ? draft.qualifier_expedition_id : cohort.qualifier_expedition_id;
+
+            const selectedPracticeExp = practiceEvents.find(e => e.id === selectedPracticeId);
+            const selectedQualifierExp = qualifierEvents.find(e => e.id === selectedQualifierId);
+            const refDate = selectedPracticeExp?.start_date || selectedQualifierExp?.start_date || null;
+
+            const firstAidCount = members.filter(m =>
+              hasValidFirstAid(m.first_aid_level, m.first_aid_status, m.first_aid_expiry, refDate)
+            ).length;
+            const faOk = firstAidCount >= 2;
+
+            // Unavailable members for the pending draft (if drawer is open)
+            const pracCand = candidates.find(c => c.expedition_id === selectedPracticeId);
+            const qualCand = candidates.find(c => c.expedition_id === selectedQualifierId);
+            const unavailableList = useMemoListUnavailable(pracCand, qualCand);
+
+            return (
+              <div key={cohort.id} className="ems-panel" style={{ padding: '14px' }}>
+                {/* Cohort Card Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                    paddingBottom: '10px',
+                    borderBottom: '1px solid #e2e8f0',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
+                      <FontAwesomeIcon icon={faUsers} style={{ color: '#2563eb', marginRight: '6px' }} />
+                      {cohort.name}
+                    </h3>
+                    <span
+                      className="ems-badge"
+                      style={{
+                        background: sizeOk ? '#ecfdf5' : '#fef3c7',
+                        color: sizeOk ? '#065f46' : '#92400e',
+                        border: `1px solid ${sizeOk ? '#a7f3d0' : '#fde68a'}`,
+                      }}
+                    >
+                      {activeCount}/7
+                    </span>
+                    <span
+                      className="ems-badge"
+                      style={{
+                        background: faOk ? '#ecfdf5' : '#fef3c7',
+                        color: faOk ? '#065f46' : '#92400e',
+                        border: `1px solid ${faOk ? '#a7f3d0' : '#fde68a'}`,
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faOk ? faCheck : faTriangleExclamation} />{' '}
+                      {faOk ? `${firstAidCount} First Aiders` : '<2 First Aiders'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    {selectedSignupIds.length > 0 && (
+                      <button
+                        type="button"
+                        className="button button-small"
+                        disabled={busyAction}
+                        onClick={() => handleAddSelectedToCohort(cohort.id, cohort.name)}
+                      >
+                        <FontAwesomeIcon icon={faPlus} /> Add {selectedSignupIds.length} Selected
+                      </button>
+                    )}
+                    {onOpenNotifyModal && (
+                      <button
+                        type="button"
+                        className="button button-small"
+                        onClick={() =>
+                          onOpenNotifyModal({
+                            scope: 'cohort',
+                            cohortId: cohort.id,
+                            cohortName: cohort.name,
+                            level,
+                            transport,
+                          })
+                        }
+                      >
+                        <FontAwesomeIcon icon={faEnvelope} /> Send Allocation Emails
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="button button-small button-link-delete"
+                      disabled={busyAction}
+                      onClick={() => handleDeleteCohort(cohort)}
+                      title="Delete cohort"
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Practice & Qualifier Date Selectors */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '12px',
+                    marginTop: '12px',
+                    marginBottom: '12px',
+                  }}
+                >
+                  <div>
+                    <label
+                      htmlFor={`cohort-${cohort.id}-practice`}
+                      style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}
+                    >
+                      Practice Expedition {loadingCandidates[cohort.id] ? '(scoring…)' : ''}
+                    </label>
+                    <select
+                      id={`cohort-${cohort.id}-practice`}
+                      className="ems-select-sm"
+                      style={{ width: '100%' }}
+                      value={selectedPracticeId ?? ''}
+                      disabled={busyAction}
+                      onChange={e => handleStageSelectChange(cohort, 'practice', e.target.value)}
+                    >
+                      <option value="">— Unscheduled —</option>
+                      {practiceCandidates.length > 0
+                        ? practiceCandidates.map(cand => {
+                            const warn = cand.available_count < cand.total_count ? ' ⚠' : '';
+                            return (
+                              <option key={cand.expedition_id} value={cand.expedition_id}>
+                                {cand.expedition_code} ({formatDateShort(cand.expedition_date)}) — {cand.available_count}/
+                                {cand.total_count} Available{warn}
+                              </option>
+                            );
+                          })
+                        : practiceEvents.map(ev => (
+                            <option key={ev.id} value={ev.id}>
+                              {ev.event_code} ({formatDateShort(ev.start_date)})
+                            </option>
+                          ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={`cohort-${cohort.id}-qualifier`}
+                      style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}
+                    >
+                      Qualifier Expedition {loadingCandidates[cohort.id] ? '(scoring…)' : ''}
+                    </label>
+                    <select
+                      id={`cohort-${cohort.id}-qualifier`}
+                      className="ems-select-sm"
+                      style={{ width: '100%' }}
+                      value={selectedQualifierId ?? ''}
+                      disabled={busyAction}
+                      onChange={e => handleStageSelectChange(cohort, 'qualifier', e.target.value)}
+                    >
+                      <option value="">— Unscheduled —</option>
+                      {qualifierCandidates.length > 0
+                        ? qualifierCandidates.map(cand => {
+                            const warn = cand.available_count < cand.total_count ? ' ⚠' : '';
+                            return (
+                              <option key={cand.expedition_id} value={cand.expedition_id}>
+                                {cand.expedition_code} ({formatDateShort(cand.expedition_date)}) — {cand.available_count}/
+                                {cand.total_count} Available{warn}
+                              </option>
+                            );
+                          })
+                        : qualifierEvents.map(ev => (
+                            <option key={ev.id} value={ev.id}>
+                              {ev.event_code} ({formatDateShort(ev.start_date)})
+                            </option>
+                          ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Inline Partial-Availability Resolution Drawer */}
+                {draft && unavailableList.length > 0 && (
+                  <div
+                    style={{
+                      background: '#fffbeb',
+                      border: '1px solid #f59e0b',
+                      borderRadius: '6px',
+                      padding: '12px',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <strong style={{ fontSize: '12px', color: '#92400e' }}>
+                        <FontAwesomeIcon icon={faTriangleExclamation} /> Partial-Availability Resolution (
+                        {unavailableList.length} unavailable)
+                      </strong>
+                      <button
+                        type="button"
+                        className="button button-small"
+                        onClick={() =>
+                          setPendingDrafts(prev => {
+                            const next = { ...prev };
+                            delete next[cohort.id];
+                            return next;
+                          })
+                        }
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {unavailableList.map(u => {
+                        const action = draft.resolutions[u.expedition_signup_id] || 'assign_pending';
+                        return (
+                          <div
+                            key={u.expedition_signup_id}
+                            style={{
+                              background: '#ffffff',
+                              border: '1px solid #fde68a',
+                              borderRadius: '4px',
+                              padding: '8px',
+                              fontSize: '12px',
+                            }}
+                          >
+                            <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                              {u.name}{' '}
+                              <span style={{ fontWeight: 400, color: '#92400e' }}>({u.stages.join(' & ')})</span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                              {(
+                                [
+                                  { val: 'assign_pending', label: 'Assign Pending Confirmation' },
+                                  { val: 'split_date', label: 'Split to Alternate Date (Keep Cohort)' },
+                                  { val: 'remove_from_cohort', label: 'Remove from Cohort' },
+                                ] as const
+                              ).map(opt => (
+                                <label key={opt.val} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                  <input
+                                    type="radio"
+                                    name={`res-${cohort.id}-${u.expedition_signup_id}`}
+                                    value={opt.val}
+                                    checked={action === opt.val}
+                                    onChange={() =>
+                                      setPendingDrafts(prev => ({
+                                        ...prev,
+                                        [cohort.id]: {
+                                          ...draft,
+                                          resolutions: {
+                                            ...draft.resolutions,
+                                            [u.expedition_signup_id]: opt.val,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                  />
+                                  <span>{opt.label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="button button-primary"
+                        disabled={busyAction}
+                        onClick={() =>
+                          executeScheduleCohort(
+                            cohort.id,
+                            draft.practice_expedition_id,
+                            draft.qualifier_expedition_id,
+                            draft.resolutions
+                          )
+                        }
+                      >
+                        {busyAction ? 'Applying…' : 'Confirm & Apply Schedule'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cohort Roster Table */}
+                <table className="ems-table" style={{ width: '100%', fontSize: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th>Explorer</th>
+                      <th>Unit</th>
+                      <th>Stages</th>
+                      <th>Notification</th>
+                      <th style={{ width: '36px' }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {members.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', color: '#64748b' }}>
+                          No members in this cohort.
+                        </td>
+                      </tr>
+                    ) : (
+                      members.map(member => {
+                        const wishlist = extractWishlistFromPrefs(member.expedition_preferences);
+                        const merged = mergedExplorers.find(
+                          e => e.expedition_signup_id === member.expedition_signup_id
+                        );
+                        const pracAvail = merged?.practiceAvail || [];
+                        const qualAvail = merged?.qualifierAvail || [];
+                        const compat = getCompatibilityInfo(
+                          member.expedition_signup_id,
+                          member.first_name,
+                          member.last_name,
+                          wishlist,
+                          pracAvail,
+                          qualAvail
+                        );
+
+                        const isFA = hasValidFirstAid(
+                          member.first_aid_level,
+                          member.first_aid_status,
+                          member.first_aid_expiry,
+                          refDate
+                        );
+                        const isSplitPrac = member.member_status === 'split_practice';
+                        const isSplitQual = member.member_status === 'split_qualifier';
+                        const notif = getNotificationBadge(member.notification_status);
+
+                        return (
+                          <tr
+                            key={member.expedition_signup_id}
+                            onMouseEnter={() =>
+                              setHoveredExplorer({
+                                expedition_signup_id: member.expedition_signup_id,
+                                first_name: member.first_name,
+                                last_name: member.last_name,
+                                wishlist,
+                                practiceAvail: pracAvail,
+                                qualifierAvail: qualAvail,
+                              })
+                            }
+                            onMouseLeave={() => setHoveredExplorer(null)}
+                            style={
+                              compat.isMatch
+                                ? { background: '#eff6ff', outline: '2px solid #2563eb' }
+                                : undefined
+                            }
+                          >
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                <strong>
+                                  {member.first_name} {member.last_name}
+                                </strong>
+                                {isFA && (
+                                  <span className="ems-matrix-tag ems-matrix-tag--fa">FA</span>
+                                )}
+                                {member.scout_id === 0 && (
+                                  <span
+                                    className="ems-matrix-tag"
+                                    style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
+                                  >
+                                    Unmatched OSM
+                                  </span>
+                                )}
+                                {compat.isMatch && (
+                                  <span
+                                    className="ems-matrix-tag"
+                                    style={{
+                                      background: compat.compatibleDates ? '#ecfdf5' : '#fef3c7',
+                                      color: compat.compatibleDates ? '#065f46' : '#92400e',
+                                      border: `1px solid ${compat.compatibleDates ? '#a7f3d0' : '#fde68a'}`,
+                                    }}
+                                  >
+                                    {compat.compatibleDates ? 'Compatible Dates' : 'Date Conflict'}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <span className="ems-matrix-unit-badge">{member.unit_name || 'Unassigned'}</span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                {isSplitPrac ? (
+                                  <span
+                                    className="ems-matrix-tag"
+                                    style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                                  >
+                                    Split Prac <FontAwesomeIcon icon={faTriangleExclamation} />
+                                  </span>
+                                ) : selectedPracticeExp ? (
+                                  <span className="ems-matrix-tag ems-matrix-tag--pref">
+                                    Prac: {selectedPracticeExp.event_code}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>Prac: —</span>
+                                )}
+
+                                {isSplitQual ? (
+                                  <span
+                                    className="ems-matrix-tag"
+                                    style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                                  >
+                                    Split Qual <FontAwesomeIcon icon={faTriangleExclamation} />
+                                  </span>
+                                ) : selectedQualifierExp ? (
+                                  <span className="ems-matrix-tag ems-matrix-tag--pref">
+                                    Qual: {selectedQualifierExp.event_code}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>Qual: —</span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                className="ems-matrix-tag"
+                                style={{
+                                  background: notif.bg,
+                                  color: notif.color,
+                                  border: `1px solid ${notif.border}`,
+                                  marginLeft: 0,
+                                }}
+                              >
+                                {notif.label}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <button
+                                type="button"
+                                className="button button-small"
+                                disabled={busyAction}
+                                onClick={() =>
+                                  handleRemoveMember(
+                                    cohort.id,
+                                    member.expedition_signup_id,
+                                    `${member.first_name} ${member.last_name}`
+                                  )
+                                }
+                                title="Remove from cohort"
+                                aria-label={`Remove ${member.first_name} ${member.last_name} from cohort`}
+                              >
+                                <FontAwesomeIcon icon={faXmark} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function useMemoListUnavailable(
+  pracCand?: ScheduleCandidate,
+  qualCand?: ScheduleCandidate
+): Array<{ expedition_signup_id: number; scout_id: number; name: string; stages: string[] }> {
+  const map = new Map<number, { expedition_signup_id: number; scout_id: number; name: string; stages: string[] }>();
+
+  if (pracCand) {
+    for (const u of pracCand.unavailable_members) {
+      map.set(u.expedition_signup_id, { ...u, stages: ['Practice'] });
+    }
+  }
+  if (qualCand) {
+    for (const u of qualCand.unavailable_members) {
+      const existing = map.get(u.expedition_signup_id);
+      if (existing) {
+        existing.stages.push('Qualifier');
+      } else {
+        map.set(u.expedition_signup_id, { ...u, stages: ['Qualifier'] });
+      }
+    }
+  }
+  return Array.from(map.values());
+}

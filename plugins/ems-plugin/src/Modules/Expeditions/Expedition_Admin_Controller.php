@@ -1890,6 +1890,7 @@ class Expedition_Admin_Controller {
 			}
 
 			$matched_explorers[] = array(
+				'expedition_signup_id'     => (int) ( $signup['id'] ?? 0 ),
 				'scout_id'                 => $scout_id,
 				'first_name'               => $signup['explorer_first_name'] ?? '',
 				'last_name'                => $signup['explorer_last_name'] ?? '',
@@ -1905,6 +1906,7 @@ class Expedition_Admin_Controller {
 				'additional_support_needs' => $signup['additional_support_needs'] ?? '',
 				'asn_validated'            => isset( $signup['asn_validated'] ) && $signup['asn_validated'] !== null ? (int) $signup['asn_validated'] : null,
 				'first_aid_status'         => $signup['first_aid_status'] ?? 'none',
+				'first_aid_expiry'         => $signup['first_aid_expiry'] ?? null,
 			);
 		}
 
