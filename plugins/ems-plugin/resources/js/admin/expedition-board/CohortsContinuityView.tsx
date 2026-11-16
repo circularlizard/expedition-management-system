@@ -111,7 +111,7 @@ export default function CohortsContinuityView({
   const [asnFilter, setAsnFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'pool' | 'all' | 'split' | 'in_cohort'>('pool');
   const [groupByUnit, setGroupByUnit] = useState(false);
-  const [compactPool, setCompactPool] = useState(false);
+  const [hideAllocated, setHideAllocated] = useState(true);
 
   // ── Multi-select & Create Cohort ───────────────────────────────────────────
   const [selectedSignupIds, setSelectedSignupIds] = useState<number[]>([]);
@@ -261,10 +261,11 @@ export default function CohortsContinuityView({
       const membership = membershipBySignupId.get(exp.expedition_signup_id);
       const memberStatus = membership?.member.member_status || '';
       const isSplit = memberStatus === 'split_practice' || memberStatus === 'split_qualifier';
+      const isAllocated = Boolean(membership) && !isSplit;
 
-      if (statusFilter === 'pool' && membership && !isSplit) return false;
       if (statusFilter === 'split' && !isSplit) return false;
       if (statusFilter === 'in_cohort' && !membership) return false;
+      if (hideAllocated && isAllocated && statusFilter !== 'in_cohort') return false;
 
       if (districtFilter !== 'all') {
         const itemDistrict = (exp.district || unitDistrictMap[exp.unit_name] || '').trim() || 'Unassigned';
@@ -302,7 +303,7 @@ export default function CohortsContinuityView({
       if (aSplit !== bSplit) return aSplit - bSplit;
       return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
     });
-  }, [mergedExplorers, membershipBySignupId, statusFilter, districtFilter, unitFilter, asnFilter, searchQuery, unitDistrictMap]);
+  }, [mergedExplorers, membershipBySignupId, statusFilter, hideAllocated, districtFilter, unitFilter, asnFilter, searchQuery, unitDistrictMap]);
 
   const explorerLookupList = useMemo(
     () =>
@@ -762,10 +763,10 @@ export default function CohortsContinuityView({
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
-                checked={compactPool}
-                onChange={e => setCompactPool(e.target.checked)}
+                checked={hideAllocated}
+                onChange={e => setHideAllocated(e.target.checked)}
               />
-              Compact view
+              Hide allocated
             </label>
           </div>
         </div>
@@ -810,7 +811,7 @@ export default function CohortsContinuityView({
         )}
 
         {/* Pool List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: compactPool ? '4px' : '8px', maxHeight: '72vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '72vh', overflowY: 'auto' }}>
           {filteredPool.length === 0 ? (
             <div className="notice notice-info ems-m-0">
               <p>No explorers match the current pool filters.</p>
@@ -842,11 +843,12 @@ export default function CohortsContinuityView({
                 {groupExplorers.map(exp => {
                   const isSelected = selectedSignupIds.includes(exp.expedition_signup_id);
                   const isExpanded = expandedSelectedIds.includes(exp.expedition_signup_id);
-                  const isCollapsed = isSelected && !isExpanded;
                   const membership = membershipBySignupId.get(exp.expedition_signup_id);
                   const memberStatus = membership?.member.member_status || '';
                   const isSplitPrac = memberStatus === 'split_practice';
                   const isSplitQual = memberStatus === 'split_qualifier';
+                  const isAllocated = Boolean(membership) && !isSplitPrac && !isSplitQual;
+                  const isCollapsed = (isSelected || isAllocated) && !isExpanded;
                   const isFA = hasValidFirstAid(null, exp.first_aid_status, exp.first_aid_expiry, null);
                   const hasAsnText = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
                   const wishlistTokens = parseWishlistTokens(exp.team_preferences);
@@ -885,31 +887,52 @@ export default function CohortsContinuityView({
                       style={{
                         border: isSplitPrac || isSplitQual
                           ? '1px solid #f59e0b'
-                          : isSelected
-                            ? '1px solid #93c5fd'
-                            : '1px solid #cbd5e1',
+                          : isAllocated
+                            ? '1px solid #bbf7d0'
+                            : isSelected
+                              ? '1px solid #93c5fd'
+                              : '1px solid #cbd5e1',
                         boxShadow: compat.isMatch
                           ? `0 0 0 2px ${compat.compatibleDates ? '#2563eb' : '#f59e0b'}`
                           : undefined,
                         background: compat.isMatch
                           ? '#eff6ff'
-                          : isSelected
-                            ? '#f0f9ff'
-                            : '#ffffff',
+                          : isAllocated
+                            ? '#f0fdf4'
+                            : isSelected
+                              ? '#f0f9ff'
+                              : '#ffffff',
                         borderRadius: '6px',
-                        padding: isCollapsed ? '6px 8px' : compactPool ? '6px 8px' : '10px',
+                        padding: isCollapsed ? '6px 8px' : '10px',
                         transition: 'background 0.15s, box-shadow 0.15s',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                        <input
-                          type="checkbox"
-                          className="ems-checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectSignup(exp.expedition_signup_id)}
-                          aria-label={`Select ${exp.first_name} ${exp.last_name}`}
-                          style={{ marginTop: '2px' }}
-                        />
+                        {isAllocated ? (
+                          <span
+                            title={`Allocated to ${membership?.cohort.name}`}
+                            aria-label={`${exp.first_name} ${exp.last_name} allocated to ${membership?.cohort.name}`}
+                            style={{
+                              color: '#15803d',
+                              marginTop: '2px',
+                              fontSize: '13px',
+                              width: '16px',
+                              textAlign: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faCheck} />
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            className="ems-checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectSignup(exp.expedition_signup_id)}
+                            aria-label={`Select ${exp.first_name} ${exp.last_name}`}
+                            style={{ marginTop: '2px' }}
+                          />
+                        )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', minWidth: 0 }}>
@@ -967,41 +990,42 @@ export default function CohortsContinuityView({
                                 </span>
                               )}
 
-                              {isCollapsed && (
+                              {isAllocated && membership && (
+                                <span
+                                  className="ems-matrix-tag"
+                                  style={{ background: '#dcfce7', color: '#166534', border: '1px solid #86efac' }}
+                                >
+                                  <FontAwesomeIcon icon={faCheck} /> {membership.cohort.name}
+                                </span>
+                              )}
+
+                              {!isAllocated && isCollapsed && (
                                 <span style={{ fontSize: '11px', color: '#1d4ed8', fontWeight: 500 }}>
                                   Selected
                                 </span>
                               )}
                             </div>
 
-                            {isSelected && (
-                              <button
-                                type="button"
-                                className="button button-small"
-                                style={{ fontSize: '11px', lineHeight: 1.2, padding: '2px 6px', minHeight: 'auto' }}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  toggleExpandedSelected(exp.expedition_signup_id);
-                                }}
-                              >
-                                {isCollapsed ? 'Details' : 'Collapse'}
-                              </button>
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                              <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
+                              {(isSelected || isAllocated) && (
+                                <button
+                                  type="button"
+                                  className="button button-small"
+                                  style={{ fontSize: '11px', lineHeight: 1.2, padding: '2px 6px', minHeight: 'auto' }}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    toggleExpandedSelected(exp.expedition_signup_id);
+                                  }}
+                                >
+                                  {isCollapsed ? 'Details' : 'Collapse'}
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           {!isCollapsed && (
                             <>
-                              {!compactPool && (
-                                <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                  <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
-                                  {membership && (
-                                    <span style={{ fontSize: '11px', color: '#475569' }}>
-                                      Team: <strong>{membership.cohort.name}</strong>
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-
                               {exp.team_preferences && (
                                 <div style={{ marginTop: '4px', fontSize: '11px', color: '#334155', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                                   <strong>Wishlist:</strong>
