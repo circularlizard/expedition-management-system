@@ -646,7 +646,19 @@ export default function CohortsContinuityView({
   return (
     <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
       {/* ── LEFT COLUMN (38%): Unassigned & Split Pool ── */}
-      <div className="ems-panel" style={{ flex: '0 0 38%', minWidth: 0, padding: '14px' }}>
+      <div className="ems-panel" style={{ flex: '0 0 38%', minWidth: 0, padding: '0 14px 14px' }}>
+        <div
+          style={{
+            position: 'sticky',
+            top: '32px',
+            zIndex: 5,
+            background: '#ffffff',
+            paddingTop: '14px',
+            paddingBottom: '10px',
+            borderBottom: '1px solid #e2e8f0',
+            marginBottom: '10px',
+          }}
+        >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
             Unassigned &amp; Split Pool ({filteredPool.length})
@@ -663,15 +675,19 @@ export default function CohortsContinuityView({
         </div>
 
         {/* Search & Filters */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div className="ems-search-box" style={{ width: '100%', position: 'relative' }}>
-            <span className="ems-search-icon" aria-hidden="true">
+            <span className="ems-search-icon" aria-hidden="true" style={{ zIndex: 1 }}>
               <FontAwesomeIcon icon={faMagnifyingGlass} />
             </span>
             <input
               type="text"
               className="ems-form-input ems-search-input"
-              style={{ width: '100%', paddingRight: searchQuery ? '28px' : undefined }}
+              style={{
+                width: '100%',
+                paddingLeft: '32px',
+                paddingRight: searchQuery ? '28px' : undefined,
+              }}
               placeholder="Search name, wishlist, or unit..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -809,9 +825,10 @@ export default function CohortsContinuityView({
             </div>
           </div>
         )}
+        </div>
 
         {/* Pool List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '72vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {filteredPool.length === 0 ? (
             <div className="notice notice-info ems-m-0">
               <p>No explorers match the current pool filters.</p>
