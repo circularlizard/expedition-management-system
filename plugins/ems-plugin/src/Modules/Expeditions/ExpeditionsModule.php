@@ -32,6 +32,12 @@ class ExpeditionsModule implements ModuleInterface, BackupContributorInterface {
 			new \EMS\Data\Signup_Repository()
 		);
 		$controller->register_routes();
+
+		$cohort_controller = new Rest\CohortController(
+			new Repositories\CohortRepository(),
+			new Repositories\CohortMemberRepository()
+		);
+		$cohort_controller->register_routes();
 	}
 
 	/**

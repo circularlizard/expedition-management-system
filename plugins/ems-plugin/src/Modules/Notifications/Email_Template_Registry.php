@@ -16,6 +16,14 @@ class Email_Template_Registry {
 	public const DEFAULT_OTP_SUBJECT = '[{{site_name}}] Your Verification Code: {{otp}}';
 	public const DEFAULT_OTP_BODY    = "<p>Hello,</p>\n<p>Your verification code is: <strong>{{otp}}</strong></p>\n<p>This code is valid for 30 minutes. If you did not request this code, please ignore this email.</p>\n<p>Regards,<br>{{site_name}}</p>";
 
+	public const OPTION_PLACE_OFFER_SUBJECT      = 'ems_expedition_place_offer_subject';
+	public const OPTION_PLACE_OFFER_REPLY_TO     = 'ems_expedition_place_offer_reply_to';
+	public const OPTION_PLACE_OFFER_BODY         = 'ems_expedition_place_offer_body';
+	public const OPTION_ACCEPTANCE_DEADLINE      = 'ems_expedition_offer_acceptance_deadline';
+	public const DEFAULT_ACCEPTANCE_DEADLINE     = '31 Dec';
+	public const DEFAULT_PLACE_OFFER_SUBJECT     = '[{{site_name}}] Expedition Place Offer — Team {{team_code}}';
+	public const DEFAULT_PLACE_OFFER_BODY        = "<p>Hi {{explorer_name}},</p>\n<p>We are pleased to offer you a place on <strong>Team {{team_code}}</strong> for your upcoming DofE Expedition.</p>\n<p><strong>Expedition Dates:</strong></p>\n<ul>\n<li><strong>Practice Expedition:</strong> {{practice_dates}}</li>\n<li><strong>Qualifying Expedition:</strong> {{qualifier_dates}}</li>\n</ul>\n<p><strong>Your Teammates:</strong></p>\n{{teammates_list}}\n{{date_conflict_notice}}\n<p>Please confirm your place via the Explorer Portal by <strong>{{acceptance_deadline}}</strong>:</p>\n<p><a href=\"{{portal_offer_url}}\">{{portal_offer_url}}</a></p>\n<p>Regards,<br>{{site_name}}</p>";
+
 	/**
 	 * @var array<string, array<string, mixed>>
 	 */
@@ -246,6 +254,76 @@ class Email_Template_Registry {
 						'label'       => 'Verification Code',
 						'description' => '6-digit one-time verification code',
 						'example'     => '482910',
+					),
+					array(
+						'token'       => '{{site_name}}',
+						'label'       => 'Site Name',
+						'description' => 'WordPress site title',
+						'example'     => $live_site_name,
+					),
+				),
+			)
+		);
+
+		$this->register_template(
+			array(
+				'slug'            => 'expedition_place_offer',
+				'label'           => 'Expedition Place Offer',
+				'category'        => 'Expeditions & Teams',
+				'description'     => 'Sent manually to explorers (and CC parent/guardian) offering their Practice and/or Qualifying expedition team place.',
+				'subject_option'  => self::OPTION_PLACE_OFFER_SUBJECT,
+				'reply_to_option' => self::OPTION_PLACE_OFFER_REPLY_TO,
+				'body_option'     => self::OPTION_PLACE_OFFER_BODY,
+				'default_subject' => self::DEFAULT_PLACE_OFFER_SUBJECT,
+				'default_body'    => self::DEFAULT_PLACE_OFFER_BODY,
+				'tokens'          => array(
+					array(
+						'token'       => '{{explorer_name}}',
+						'label'       => 'Explorer Name',
+						'description' => 'Full name of the explorer',
+						'example'     => 'Amy Brown',
+					),
+					array(
+						'token'       => '{{team_code}}',
+						'label'       => 'Team Code',
+						'description' => 'Assigned team code or cohort name',
+						'example'     => 'B-FOOT-01',
+					),
+					array(
+						'token'       => '{{practice_dates}}',
+						'label'       => 'Practice Dates',
+						'description' => 'Formatted Practice expedition dates (or TBC / Not assigned)',
+						'example'     => '16–17 May 2026',
+					),
+					array(
+						'token'       => '{{qualifier_dates}}',
+						'label'       => 'Qualifier Dates',
+						'description' => 'Formatted Qualifying expedition dates (or TBC / Not assigned)',
+						'example'     => '20–21 Jun 2026',
+					),
+					array(
+						'token'       => '{{teammates_list}}',
+						'label'       => 'Teammates List',
+						'description' => 'HTML list of other explorers in the same cohort/team',
+						'example'     => '<ul><li>Chris Davis</li><li>Liam Scott</li></ul>',
+					),
+					array(
+						'token'       => '{{date_conflict_notice}}',
+						'label'       => 'Date Conflict Notice',
+						'description' => 'Optional notice shown when the explorer has a pending date conflict',
+						'example'     => '<p><strong>Note:</strong> A date conflict is currently flagged for review.</p>',
+					),
+					array(
+						'token'       => '{{portal_offer_url}}',
+						'label'       => 'Portal Offer URL',
+						'description' => 'Link to the Explorer Portal to accept or query the offer',
+						'example'     => 'https://example.com/explorer-portal/',
+					),
+					array(
+						'token'       => '{{acceptance_deadline}}',
+						'label'       => 'Acceptance Deadline',
+						'description' => 'Deadline date for confirming the expedition place (defaults to 31 Dec)',
+						'example'     => self::DEFAULT_ACCEPTANCE_DEADLINE,
 					),
 					array(
 						'token'       => '{{site_name}}',
