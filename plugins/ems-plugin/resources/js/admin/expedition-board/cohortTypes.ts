@@ -200,3 +200,105 @@ export function isWishlistMatch(
     matchesName(bW, aFirstName, aLastName, aFull)
   );
 }
+
+const WISHLIST_STOP_WORDS = new Set([
+  'none',
+  'n/a',
+  'na',
+  'no',
+  'any',
+  'anyone',
+  'tbc',
+  'tbd',
+  'friends',
+  'please',
+  'with',
+]);
+
+/**
+ * Splits a free-text teammate wishlist string into individual name tokens.
+ */
+export function parseWishlistTokens(raw: string): string[] {
+  if (!raw || !raw.trim()) return [];
+  return raw
+    .split(/[,;\n/&]+|\band\b/gi)
+    .map(part => part.replace(/^[-•*\s]+|[-•*\s.]+$/g, '').trim())
+    .filter(part => part.length >= 2 && !WISHLIST_STOP_WORDS.has(part.toLowerCase()));
+}
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp: number[] = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const temp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = temp;
+    }
+  }
+  return dp[n];
+}
+
+function similarity(a: string, b: string): number {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshtein(a, b) / maxLen;
+}
+
+export interface FuzzyExplorerMatch {
+  id: number;
+  name: string;
+  score: number;
+}
+
+/**
+ * Finds the best fuzzy-matched explorer in a list for a single wishlist name token.
+ */
+export function fuzzyMatchExplorer(
+  token: string,
+  candidates: Array<{ id: number; name: string }>,
+  excludeId?: number
+): FuzzyExplorerMatch | null {
+  const q = token.trim().toLowerCase();
+  if (q.length < 2) return null;
+
+  const qParts = q.split(/\s+/).filter(p => p.length >= 2);
+  let best: FuzzyExplorerMatch | null = null;
+
+  for (const c of candidates) {
+    if (excludeId !== undefined && c.id === excludeId) continue;
+    const target = c.name.trim().toLowerCase();
+    if (!target) continue;
+
+    let score = 0;
+    if (target === q) {
+      score = 1;
+    } else if (target.includes(q) || q.includes(target)) {
+      score = 0.92;
+    } else {
+      const fullSim = similarity(q, target);
+      const tParts = target.split(/\s+/).filter(Boolean);
+      let partScore = 0;
+      if (qParts.length >= 2 && tParts.length >= 2) {
+        const firstSim = similarity(qParts[0], tParts[0]);
+        const lastSim = similarity(qParts[qParts.length - 1], tParts[tParts.length - 1]);
+        partScore = (firstSim + lastSim) / 2;
+      } else if (qParts.length === 1) {
+        const bestSingle = Math.max(...tParts.map(tp => similarity(qParts[0], tp)));
+        partScore = bestSingle * 0.85;
+      }
+      score = Math.max(fullSim, partScore);
+    }
+
+    if (score >= 0.65 && (!best || score > best.score)) {
+      best = { id: c.id, name: c.name, score };
+    }
+  }
+
+  return best;
+}

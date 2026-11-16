@@ -23,8 +23,10 @@ import {
   NotifyModalOptions,
   ScheduleCandidate,
   formatDateShort,
+  fuzzyMatchExplorer,
   hasValidFirstAid,
   isWishlistMatch,
+  parseWishlistTokens,
   toCohortTransportMode,
 } from './cohortTypes';
 
@@ -108,6 +110,8 @@ export default function CohortsContinuityView({
   const [unitFilter, setUnitFilter] = useState('all');
   const [asnFilter, setAsnFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'pool' | 'all' | 'split' | 'in_cohort'>('pool');
+  const [groupByUnit, setGroupByUnit] = useState(false);
+  const [compactPool, setCompactPool] = useState(false);
 
   // ── Multi-select & Create Cohort ───────────────────────────────────────────
   const [selectedSignupIds, setSelectedSignupIds] = useState<number[]>([]);
@@ -296,6 +300,29 @@ export default function CohortsContinuityView({
       return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
     });
   }, [mergedExplorers, membershipBySignupId, statusFilter, districtFilter, unitFilter, asnFilter, searchQuery, unitDistrictMap]);
+
+  const explorerLookupList = useMemo(
+    () =>
+      mergedExplorers.map(e => ({
+        id: e.expedition_signup_id,
+        name: `${e.first_name} ${e.last_name}`.trim(),
+      })),
+    [mergedExplorers]
+  );
+
+  const groupedPool = useMemo(() => {
+    if (!groupByUnit) {
+      return [['', filteredPool]] as Array<[string, typeof filteredPool]>;
+    }
+    const groups = new Map<string, typeof filteredPool>();
+    for (const exp of filteredPool) {
+      const key = exp.unit_name || 'Unassigned Unit';
+      const list = groups.get(key) || [];
+      list.push(exp);
+      groups.set(key, list);
+    }
+    return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filteredPool, groupByUnit]);
 
   const toggleSelectSignup = (signupId: number) => {
     setSelectedSignupIds(prev =>
@@ -552,18 +579,39 @@ export default function CohortsContinuityView({
 
         {/* Search & Filters */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
-          <div className="ems-search-box" style={{ width: '100%' }}>
+          <div className="ems-search-box" style={{ width: '100%', position: 'relative' }}>
             <span className="ems-search-icon" aria-hidden="true">
               <FontAwesomeIcon icon={faMagnifyingGlass} />
             </span>
             <input
               type="text"
               className="ems-form-input ems-search-input"
-              style={{ width: '100%' }}
+              style={{ width: '100%', paddingRight: searchQuery ? '28px' : undefined }}
               placeholder="Search name, wishlist, or unit..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                title="Clear search"
+                style={{
+                  position: 'absolute',
+                  right: '6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                }}
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -617,6 +665,25 @@ export default function CohortsContinuityView({
               <option value="all">All Explorers</option>
             </select>
           </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#475569' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={groupByUnit}
+                onChange={e => setGroupByUnit(e.target.checked)}
+              />
+              Group by Unit
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={compactPool}
+                onChange={e => setCompactPool(e.target.checked)}
+              />
+              Compact view
+            </label>
+          </div>
         </div>
 
         {/* Bulk Create Cohort Bar */}
@@ -659,165 +726,237 @@ export default function CohortsContinuityView({
         )}
 
         {/* Pool List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '72vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: compactPool ? '4px' : '8px', maxHeight: '72vh', overflowY: 'auto' }}>
           {filteredPool.length === 0 ? (
             <div className="notice notice-info ems-m-0">
               <p>No explorers match the current pool filters.</p>
             </div>
           ) : (
-            filteredPool.map(exp => {
-              const isSelected = selectedSignupIds.includes(exp.expedition_signup_id);
-              const membership = membershipBySignupId.get(exp.expedition_signup_id);
-              const memberStatus = membership?.member.member_status || '';
-              const isSplitPrac = memberStatus === 'split_practice';
-              const isSplitQual = memberStatus === 'split_qualifier';
-              const isFA = hasValidFirstAid(null, exp.first_aid_status, exp.first_aid_expiry, null);
-              const hasAsnText = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
+            groupedPool.map(([unitLabel, groupExplorers]) => (
+              <React.Fragment key={unitLabel || '__all'}>
+                {groupByUnit && unitLabel && (
+                  <div
+                    style={{
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 1,
+                      background: '#f1f5f9',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#334155',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>{unitLabel}</span>
+                    <span>{groupExplorers.length}</span>
+                  </div>
+                )}
+                {groupExplorers.map(exp => {
+                  const isSelected = selectedSignupIds.includes(exp.expedition_signup_id);
+                  const membership = membershipBySignupId.get(exp.expedition_signup_id);
+                  const memberStatus = membership?.member.member_status || '';
+                  const isSplitPrac = memberStatus === 'split_practice';
+                  const isSplitQual = memberStatus === 'split_qualifier';
+                  const isFA = hasValidFirstAid(null, exp.first_aid_status, exp.first_aid_expiry, null);
+                  const hasAsnText = Boolean(exp.additional_support_needs && exp.additional_support_needs.trim() !== '');
+                  const wishlistTokens = parseWishlistTokens(exp.team_preferences);
 
-              const compat = getCompatibilityInfo(
-                exp.expedition_signup_id,
-                exp.first_name,
-                exp.last_name,
-                exp.team_preferences,
-                exp.practiceAvail,
-                exp.qualifierAvail
-              );
+                  const compat = getCompatibilityInfo(
+                    exp.expedition_signup_id,
+                    exp.first_name,
+                    exp.last_name,
+                    exp.team_preferences,
+                    exp.practiceAvail,
+                    exp.qualifierAvail
+                  );
 
-              return (
-                <div
-                  key={exp.expedition_signup_id}
-                  onMouseEnter={() =>
-                    setHoveredExplorer({
-                      expedition_signup_id: exp.expedition_signup_id,
-                      first_name: exp.first_name,
-                      last_name: exp.last_name,
-                      wishlist: exp.team_preferences,
-                      practiceAvail: exp.practiceAvail,
-                      qualifierAvail: exp.qualifierAvail,
-                    })
-                  }
-                  onMouseLeave={() => setHoveredExplorer(null)}
-                  style={{
-                    border: compat.isMatch
-                      ? '2px solid #2563eb'
-                      : isSplitPrac || isSplitQual
-                        ? '1px solid #f59e0b'
-                        : '1px solid #cbd5e1',
-                    background: compat.isMatch
-                      ? '#eff6ff'
-                      : isSelected
-                        ? '#f0f9ff'
-                        : '#ffffff',
-                    borderRadius: '6px',
-                    padding: '10px',
-                    transition: 'border-color 0.15s, background 0.15s',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <input
-                      type="checkbox"
-                      className="ems-checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelectSignup(exp.expedition_signup_id)}
-                      aria-label={`Select ${exp.first_name} ${exp.last_name}`}
-                      style={{ marginTop: '2px' }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                        <strong style={{ fontSize: '13px', color: '#0f172a' }}>
-                          {exp.first_name} {exp.last_name}
-                        </strong>
+                  return (
+                    <div
+                      key={exp.expedition_signup_id}
+                      onMouseEnter={() =>
+                        setHoveredExplorer({
+                          expedition_signup_id: exp.expedition_signup_id,
+                          first_name: exp.first_name,
+                          last_name: exp.last_name,
+                          wishlist: exp.team_preferences,
+                          practiceAvail: exp.practiceAvail,
+                          qualifierAvail: exp.qualifierAvail,
+                        })
+                      }
+                      onMouseLeave={() => setHoveredExplorer(null)}
+                      style={{
+                        border: compat.isMatch
+                          ? '2px solid #2563eb'
+                          : isSplitPrac || isSplitQual
+                            ? '1px solid #f59e0b'
+                            : '1px solid #cbd5e1',
+                        background: compat.isMatch
+                          ? '#eff6ff'
+                          : isSelected
+                            ? '#f0f9ff'
+                            : '#ffffff',
+                        borderRadius: '6px',
+                        padding: compactPool ? '6px 8px' : '10px',
+                        transition: 'border-color 0.15s, background 0.15s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          className="ems-checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectSignup(exp.expedition_signup_id)}
+                          aria-label={`Select ${exp.first_name} ${exp.last_name}`}
+                          style={{ marginTop: '2px' }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                            <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                              {exp.first_name} {exp.last_name}
+                            </strong>
 
-                        {isSplitPrac && (
-                          <span
-                            className="ems-matrix-tag"
-                            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
-                          >
-                            <FontAwesomeIcon icon={faTriangleExclamation} /> Split Practice
-                          </span>
-                        )}
-                        {isSplitQual && (
-                          <span
-                            className="ems-matrix-tag"
-                            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
-                          >
-                            <FontAwesomeIcon icon={faTriangleExclamation} /> Split Qualifier
-                          </span>
-                        )}
+                            {isSplitPrac && (
+                              <span
+                                className="ems-matrix-tag"
+                                style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                              >
+                                <FontAwesomeIcon icon={faTriangleExclamation} /> Split Practice
+                              </span>
+                            )}
+                            {isSplitQual && (
+                              <span
+                                className="ems-matrix-tag"
+                                style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                              >
+                                <FontAwesomeIcon icon={faTriangleExclamation} /> Split Qualifier
+                              </span>
+                            )}
 
-                        {hasAsnText && (
-                          <span
-                            className={`ems-matrix-tag ${
-                              exp.asn_validated === 1
-                                ? 'ems-matrix-tag--asn-action'
-                                : exp.asn_validated === 0
-                                  ? 'ems-matrix-tag--asn-no-action'
-                                  : 'ems-matrix-tag--asn-pending'
-                            }`}
-                            style={{ cursor: onViewAsn ? 'pointer' : 'default' }}
-                            onClick={() => onViewAsn && exp.scout_id > 0 && onViewAsn(exp.scout_id)}
-                            title={exp.additional_support_needs}
-                          >
-                            {exp.asn_validated === 1 ? '! ASN' : exp.asn_validated === 0 ? '✓ ASN' : '? ASN'}
-                          </span>
-                        )}
+                            {hasAsnText && (
+                              <span
+                                className={`ems-matrix-tag ${
+                                  exp.asn_validated === 1
+                                    ? 'ems-matrix-tag--asn-action'
+                                    : exp.asn_validated === 0
+                                      ? 'ems-matrix-tag--asn-no-action'
+                                      : 'ems-matrix-tag--asn-pending'
+                                }`}
+                                style={{ cursor: onViewAsn ? 'pointer' : 'default' }}
+                                onClick={() => onViewAsn && exp.scout_id > 0 && onViewAsn(exp.scout_id)}
+                                title={exp.additional_support_needs}
+                              >
+                                {exp.asn_validated === 1 ? '! ASN' : exp.asn_validated === 0 ? '✓ ASN' : '? ASN'}
+                              </span>
+                            )}
 
-                        {isFA && (
-                          <span className="ems-matrix-tag ems-matrix-tag--fa" title="First Aid">
-                            <FontAwesomeIcon icon={faFirstAid} /> FA
-                          </span>
-                        )}
+                            {isFA && (
+                              <span className="ems-matrix-tag ems-matrix-tag--fa" title="First Aid">
+                                <FontAwesomeIcon icon={faFirstAid} /> FA
+                              </span>
+                            )}
 
-                        {exp.scout_id === 0 && (
-                          <span
-                            className="ems-matrix-tag"
-                            style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-                            title="Not matched in OSM"
-                          >
-                            <FontAwesomeIcon icon={faUserSlash} /> Unmatched OSM
-                          </span>
-                        )}
+                            {exp.scout_id === 0 && (
+                              <span
+                                className="ems-matrix-tag"
+                                style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
+                                title="Not matched in OSM"
+                              >
+                                <FontAwesomeIcon icon={faUserSlash} /> Unmatched OSM
+                              </span>
+                            )}
 
-                        {compat.isMatch && (
-                          <span
-                            className="ems-matrix-tag"
-                            style={{
-                              background: compat.compatibleDates ? '#ecfdf5' : '#fef3c7',
-                              color: compat.compatibleDates ? '#065f46' : '#92400e',
-                              border: `1px solid ${compat.compatibleDates ? '#a7f3d0' : '#fde68a'}`,
-                            }}
-                          >
-                            <FontAwesomeIcon icon={faLink} />{' '}
-                            {compat.compatibleDates ? 'Compatible Dates' : 'Date Conflict'}
-                          </span>
-                        )}
-                      </div>
+                            {compat.isMatch && (
+                              <span
+                                className="ems-matrix-tag"
+                                style={{
+                                  background: compat.compatibleDates ? '#ecfdf5' : '#fef3c7',
+                                  color: compat.compatibleDates ? '#065f46' : '#92400e',
+                                  border: `1px solid ${compat.compatibleDates ? '#a7f3d0' : '#fde68a'}`,
+                                }}
+                              >
+                                <FontAwesomeIcon icon={faLink} />{' '}
+                                {compat.compatibleDates ? 'Compatible Dates' : 'Date Conflict'}
+                              </span>
+                            )}
+                          </div>
 
-                      <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
-                        {membership && (
-                          <span style={{ fontSize: '11px', color: '#475569' }}>
-                            Cohort: <strong>{membership.cohort.name}</strong>
-                          </span>
-                        )}
-                      </div>
+                          {!compactPool && (
+                            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
+                              {membership && (
+                                <span style={{ fontSize: '11px', color: '#475569' }}>
+                                  Cohort: <strong>{membership.cohort.name}</strong>
+                                </span>
+                              )}
+                            </div>
+                          )}
 
-                      {exp.team_preferences && (
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#334155' }}>
-                          <strong>Wishlist:</strong> {exp.team_preferences}
+                          {exp.team_preferences && (
+                            <div style={{ marginTop: '4px', fontSize: '11px', color: '#334155', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                              <strong>Wishlist:</strong>
+                              {wishlistTokens.length > 0 ? (
+                                wishlistTokens.map((token, idx) => {
+                                  const match = fuzzyMatchExplorer(token, explorerLookupList, exp.expedition_signup_id);
+                                  const searchTarget = match ? match.name : token;
+                                  const pct = match ? Math.round(match.score * 100) : null;
+                                  return (
+                                    <button
+                                      key={`${token}-${idx}`}
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        setSearchQuery(searchTarget);
+                                      }}
+                                      title={
+                                        match
+                                          ? `Fuzzy match: ${match.name} (${pct}%). Click to search.`
+                                          : `Click to search pool for "${token}"`
+                                      }
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px',
+                                        padding: '1px 6px',
+                                        fontSize: '11px',
+                                        borderRadius: '9999px',
+                                        border: match ? '1px solid #93c5fd' : '1px solid #cbd5e1',
+                                        background: match ? '#eff6ff' : '#f8fafc',
+                                        color: match ? '#1d4ed8' : '#334155',
+                                        cursor: 'pointer',
+                                        textDecoration: 'underline',
+                                      }}
+                                    >
+                                      <span>{token}</span>
+                                      {match && match.name.toLowerCase() !== token.toLowerCase() && (
+                                        <span style={{ fontSize: '10px', color: '#0369a1', textDecoration: 'none' }}>
+                                          → {match.name} ({pct}%)
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })
+                              ) : (
+                                <span>{exp.team_preferences}</span>
+                              )}
+                            </div>
+                          )}
+
+                          <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b' }}>
+                            <span>Prac: {exp.practiceAvail.length > 0 ? exp.practiceAvail.join(', ') : 'None'}</span>
+                            {' · '}
+                            <span>Qual: {exp.qualifierAvail.length > 0 ? exp.qualifierAvail.join(', ') : 'None'}</span>
+                          </div>
                         </div>
-                      )}
-
-                      <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b' }}>
-                        <span>Prac: {exp.practiceAvail.length > 0 ? exp.practiceAvail.join(', ') : 'None'}</span>
-                        {' · '}
-                        <span>Qual: {exp.qualifierAvail.length > 0 ? exp.qualifierAvail.join(', ') : 'None'}</span>
                       </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })
+                  );
+                })}
+              </React.Fragment>
+            ))
           )}
         </div>
       </div>
