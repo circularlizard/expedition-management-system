@@ -26,13 +26,21 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'added_at', $team_members_sql );
         $this->assertStringContainsString( 'KEY idx_team_post_id', $team_members_sql );
         $this->assertStringContainsString( 'KEY idx_user_id', $team_members_sql );
+        $this->assertStringContainsString( 'expedition_signup_id', $team_members_sql );
+        $this->assertStringContainsString( 'cohort_id', $team_members_sql );
+        $this->assertStringContainsString( 'availability_override', $team_members_sql );
+        $this->assertStringContainsString( 'notification_status', $team_members_sql );
+        $this->assertStringContainsString( 'notified_at', $team_members_sql );
+        $this->assertStringContainsString( 'notified_by', $team_members_sql );
+        $this->assertStringContainsString( 'KEY idx_expedition_signup', $team_members_sql );
+        $this->assertStringContainsString( 'KEY idx_cohort', $team_members_sql );
     }
 
     public function test_generate_sql_contains_all_tables(): void {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( 'wp_', '' );
 
-        $this->assertCount( 13, $sql );
+        $this->assertCount( 15, $sql );
 
         $all_sql = implode( ' ', $sql );
         $this->assertStringContainsString( 'ems_volunteers', $all_sql );
@@ -103,6 +111,8 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertEquals( 'wp_ems_participant_signups', $names['participant_signups'] );
         $this->assertEquals( 'wp_ems_expedition_signups', $names['expedition_signups'] );
         $this->assertEquals( 'wp_dofe_route_cards', $names['dofe_route_cards'] );
+        $this->assertEquals( 'wp_ems_cohorts', $names['cohorts'] );
+        $this->assertEquals( 'wp_ems_cohort_members', $names['cohort_members'] );
     }
 
     public function test_route_submissions_includes_status_and_feedback(): void {
@@ -236,5 +246,46 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'KEY idx_volunteer_expedition', $avail_sql );
         $this->assertStringContainsString( 'KEY idx_user_expedition', $avail_sql );
         $this->assertStringContainsString( 'KEY idx_date', $avail_sql );
+    }
+
+    public function test_cohorts_and_cohort_members_tables_schema(): void {
+        $installer = new Table_Installer();
+        $sql = $installer->generate_sql( 'wp_', '' );
+
+        $cohorts_sql = null;
+        $members_sql = null;
+        foreach ( $sql as $statement ) {
+            if ( strpos( $statement, 'wp_ems_cohorts (' ) !== false ) {
+                $cohorts_sql = $statement;
+            }
+            if ( strpos( $statement, 'wp_ems_cohort_members (' ) !== false ) {
+                $members_sql = $statement;
+            }
+        }
+
+        $this->assertNotNull( $cohorts_sql );
+        $this->assertStringContainsString( 'dofe_level', $cohorts_sql );
+        $this->assertStringContainsString( 'transport_mode', $cohorts_sql );
+        $this->assertStringContainsString( 'practice_expedition_id', $cohorts_sql );
+        $this->assertStringContainsString( 'qualifier_expedition_id', $cohorts_sql );
+        $this->assertStringContainsString( 'practice_team_post_id', $cohorts_sql );
+        $this->assertStringContainsString( 'qualifier_team_post_id', $cohorts_sql );
+        $this->assertStringContainsString( 'cohort_status', $cohorts_sql );
+        $this->assertStringContainsString( 'PRIMARY KEY  (id)', $cohorts_sql );
+        $this->assertStringContainsString( 'KEY idx_level_mode (dofe_level, transport_mode)', $cohorts_sql );
+        $this->assertStringContainsString( 'KEY idx_practice_exp (practice_expedition_id)', $cohorts_sql );
+        $this->assertStringContainsString( 'KEY idx_qualifier_exp (qualifier_expedition_id)', $cohorts_sql );
+
+        $this->assertNotNull( $members_sql );
+        $this->assertStringContainsString( 'cohort_id', $members_sql );
+        $this->assertStringContainsString( 'expedition_signup_id', $members_sql );
+        $this->assertStringContainsString( 'scout_id', $members_sql );
+        $this->assertStringContainsString( 'availability_override', $members_sql );
+        $this->assertStringContainsString( 'member_status', $members_sql );
+        $this->assertStringContainsString( 'PRIMARY KEY  (id)', $members_sql );
+        $this->assertStringContainsString( 'UNIQUE KEY uniq_cohort_signup (cohort_id, expedition_signup_id)', $members_sql );
+        $this->assertStringContainsString( 'KEY idx_cohort (cohort_id)', $members_sql );
+        $this->assertStringContainsString( 'KEY idx_signup (expedition_signup_id)', $members_sql );
+        $this->assertStringContainsString( 'KEY idx_scout (scout_id)', $members_sql );
     }
 }

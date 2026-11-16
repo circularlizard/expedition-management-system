@@ -390,6 +390,43 @@ class Signup_Repository {
 		);
 		$this->wpdb->query( $e_sql );
 
+		// Atomically propagate scout_id to cohort_members and team_members anchored on expedition_signup_id.
+		if ( $signup_type !== 'participant' ) {
+			$this->wpdb->query(
+				$this->wpdb->prepare(
+					"UPDATE {$this->wpdb->prefix}ems_cohort_members SET scout_id = %d WHERE expedition_signup_id = %d",
+					$scout_id,
+					$signup_id
+				)
+			);
+			$this->wpdb->query(
+				$this->wpdb->prepare(
+					"UPDATE {$this->wpdb->prefix}ems_team_members SET scout_id = %d WHERE expedition_signup_id = %d",
+					$scout_id,
+					$signup_id
+				)
+			);
+		}
+
+		$this->wpdb->query(
+			$this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_cohort_members cm
+				INNER JOIN {$this->wpdb->prefix}ems_expedition_signups s ON s.id = cm.expedition_signup_id
+				SET cm.scout_id = s.scout_id
+				WHERE cm.scout_id = 0 AND s.scout_id = %d",
+				$scout_id
+			)
+		);
+		$this->wpdb->query(
+			$this->wpdb->prepare(
+				"UPDATE {$this->wpdb->prefix}ems_team_members tm
+				INNER JOIN {$this->wpdb->prefix}ems_expedition_signups s ON s.id = tm.expedition_signup_id
+				SET tm.scout_id = s.scout_id
+				WHERE tm.scout_id = 0 AND s.scout_id = %d",
+				$scout_id
+			)
+		);
+
 		$this->wpdb->query( 'COMMIT' );
 		return true;
 	}
@@ -425,8 +462,20 @@ class Signup_Repository {
 			SET e.scout_id = p.scout_id
 			WHERE e.scout_id = 0 AND p.scout_id > 0 AND e.signup_status = 'submitted' AND p.signup_status = 'submitted'";
 
+		$cm_sql = "UPDATE {$this->wpdb->prefix}ems_cohort_members cm
+			INNER JOIN {$this->wpdb->prefix}ems_expedition_signups s ON s.id = cm.expedition_signup_id
+			SET cm.scout_id = s.scout_id
+			WHERE cm.scout_id = 0 AND s.scout_id > 0";
+
+		$tm_sql = "UPDATE {$this->wpdb->prefix}ems_team_members tm
+			INNER JOIN {$this->wpdb->prefix}ems_expedition_signups s ON s.id = tm.expedition_signup_id
+			SET tm.scout_id = s.scout_id
+			WHERE tm.scout_id = 0 AND s.scout_id > 0";
+
 		$this->wpdb->query( $p_sql );
 		$this->wpdb->query( $e_sql );
+		$this->wpdb->query( $cm_sql );
+		$this->wpdb->query( $tm_sql );
 	}
 
 	/**

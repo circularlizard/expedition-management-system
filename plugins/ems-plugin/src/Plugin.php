@@ -17,12 +17,14 @@ use EMS\Integrations\TutorLMS_Client;
 class Plugin {
 	private CPT_Registry $cpt_registry;
 	private \EMS\Core\Module_Registry $module_registry;
+	private \EMS\Core\Backup_Manager $backup_manager;
 	private static bool $is_access_denied = false;
 
 	public function __construct() {
 		\EMS\Core\Legacy_Aliases::register_aliases();
 		$this->cpt_registry    = new CPT_Registry();
 		$this->module_registry = new \EMS\Core\Module_Registry();
+		$this->backup_manager  = new \EMS\Core\Backup_Manager();
 		$this->module_registry->register_module( new \EMS\Modules\Signups\SignupsModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Expeditions\ExpeditionsModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Volunteers\VolunteersModule() );
@@ -30,6 +32,11 @@ class Plugin {
 		$this->module_registry->register_module( new \EMS\Modules\Portal\PortalModule() );
 		$this->module_registry->register_module( new \EMS\Modules\Notifications\NotificationsModule() );
 		$this->module_registry->register_module( new \EMS\Modules\RouteEngine\RouteEngineModule() );
+		foreach ( $this->module_registry->get_modules() as $module ) {
+			if ( $module instanceof \EMS\Contracts\BackupContributorInterface ) {
+				$this->backup_manager->register_contributor( $module );
+			}
+		}
 		$this->init_hooks();
 		$this->module_registry->boot_all();
 		add_shortcode( 'ems-volunteer-signup', array( $this, 'render_volunteer_signup_shortcode' ) );

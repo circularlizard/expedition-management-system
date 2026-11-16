@@ -1,9 +1,10 @@
 <?php
 namespace EMS\Modules\Expeditions;
 
+use EMS\Contracts\BackupContributorInterface;
 use EMS\Contracts\ModuleInterface;
 
-class ExpeditionsModule implements ModuleInterface {
+class ExpeditionsModule implements ModuleInterface, BackupContributorInterface {
 
 	public function getSlug(): string {
 		return 'expeditions';
@@ -31,5 +32,44 @@ class ExpeditionsModule implements ModuleInterface {
 			new \EMS\Data\Signup_Repository()
 		);
 		$controller->register_routes();
+	}
+
+	/**
+	 * @return array<string>
+	 */
+	public function getBackupTables(): array {
+		return array(
+			'ems_cohorts',
+			'ems_cohort_members',
+		);
+	}
+
+	/**
+	 * @return array<string>
+	 */
+	public function getBackupPostTypes(): array {
+		return array();
+	}
+
+	/**
+	 * @return array<string>
+	 */
+	public function getBackupOptionNames(): array {
+		return array();
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	public function exportData(): array {
+		return array();
+	}
+
+	/**
+	 * @param array<string, mixed> $data
+	 * @return bool
+	 */
+	public function importData( array $data ): bool {
+		return true;
 	}
 }

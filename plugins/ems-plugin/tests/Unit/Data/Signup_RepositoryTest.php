@@ -231,6 +231,49 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertNotNull( $expedition_update );
     }
 
+    public function test_reconcile_signup_expedition_updates_cohort_and_team_members(): void {
+        $wpdb = new class {
+            public $prefix = 'wp_';
+            public $queries = [];
+            public $row = [
+                'explorer_first_name' => 'Alex',
+                'explorer_last_name' => 'Guest',
+                'explorer_email' => 'alex@example.com',
+                'parent_email' => 'parent@example.com',
+            ];
+
+            public function prepare( string $sql, ...$args ): string {
+                $i = 0;
+                return (string) preg_replace_callback(
+                    '/%[sd]/',
+                    static function ( array $m ) use ( &$args, &$i ): string {
+                        $val = $args[ $i++ ] ?? '';
+                        return $m[0] === '%d' ? (string) (int) $val : "'" . (string) $val . "'";
+                    },
+                    $sql
+                );
+            }
+
+            public function get_row( string $sql, string $output = ARRAY_A ) {
+                return $this->row;
+            }
+
+            public function query( string $sql ) {
+                $this->queries[] = $sql;
+                return true;
+            }
+        };
+
+        $repo = new Signup_Repository( $wpdb );
+        $result = $repo->reconcile_signup( 701, 'expedition', 55555 );
+
+        $this->assertTrue( $result );
+        $this->assertContains( 'START TRANSACTION', $wpdb->queries );
+        $this->assertContains( 'COMMIT', $wpdb->queries );
+        $this->assertContains( 'UPDATE wp_ems_cohort_members SET scout_id = 55555 WHERE expedition_signup_id = 701', $wpdb->queries );
+        $this->assertContains( 'UPDATE wp_ems_team_members SET scout_id = 55555 WHERE expedition_signup_id = 701', $wpdb->queries );
+    }
+
     public function test_auto_heal_paired_scout_ids_propagates_scout_id_bidirectionally(): void {
         $wpdb = new class {
             public $prefix = 'wp_';
@@ -248,6 +291,8 @@ class Signup_RepositoryTest extends EMSTestCase {
         $this->assertNotEmpty( $wpdb->queries );
         $has_p_update = false;
         $has_e_update = false;
+        $has_cm_update = false;
+        $has_tm_update = false;
         foreach ( $wpdb->queries as $q ) {
             if ( str_contains( $q, 'UPDATE wp_ems_participant_signups' ) && str_contains( $q, 'wp_ems_expedition_signups' ) ) {
                 $has_p_update = true;
@@ -255,9 +300,17 @@ class Signup_RepositoryTest extends EMSTestCase {
             if ( str_contains( $q, 'UPDATE wp_ems_expedition_signups' ) && str_contains( $q, 'wp_ems_participant_signups' ) ) {
                 $has_e_update = true;
             }
+            if ( str_contains( $q, 'UPDATE wp_ems_cohort_members' ) && str_contains( $q, 'wp_ems_expedition_signups' ) ) {
+                $has_cm_update = true;
+            }
+            if ( str_contains( $q, 'UPDATE wp_ems_team_members' ) && str_contains( $q, 'wp_ems_expedition_signups' ) ) {
+                $has_tm_update = true;
+            }
         }
         $this->assertTrue( $has_p_update, 'Should update participant signups from expedition signups' );
         $this->assertTrue( $has_e_update, 'Should update expedition signups from participant signups' );
+        $this->assertTrue( $has_cm_update, 'Should propagate scout_id to cohort_members' );
+        $this->assertTrue( $has_tm_update, 'Should propagate scout_id to team_members' );
     }
 
     public function test_unlink_signup_throws_exception_if_assigned_to_team(): void {

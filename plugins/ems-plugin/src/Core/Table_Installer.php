@@ -31,6 +31,40 @@ class Table_Installer {
 			$wpdb->query( "ALTER TABLE {$table} ADD KEY idx_scout_id (scout_id)" );
 		}
 
+		if ( ! $this->column_exists( $wpdb, $table, 'expedition_signup_id' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN expedition_signup_id BIGINT UNSIGNED NULL AFTER user_id" );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD KEY idx_expedition_signup (expedition_signup_id)" );
+		}
+
+		if ( ! $this->column_exists( $wpdb, $table, 'cohort_id' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN cohort_id BIGINT UNSIGNED NULL AFTER expedition_signup_id" );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD KEY idx_cohort (cohort_id)" );
+		}
+
+		if ( ! $this->column_exists( $wpdb, $table, 'availability_override' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN availability_override VARCHAR(32) NULL AFTER cohort_id" );
+		}
+
+		if ( ! $this->column_exists( $wpdb, $table, 'notification_status' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN notification_status VARCHAR(20) NOT NULL DEFAULT 'draft' AFTER availability_override" );
+		}
+
+		if ( ! $this->column_exists( $wpdb, $table, 'notified_at' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN notified_at DATETIME NULL AFTER notification_status" );
+		}
+
+		if ( ! $this->column_exists( $wpdb, $table, 'notified_by' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN notified_by BIGINT UNSIGNED NULL AFTER notified_at" );
+		}
+
 		$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
 		if ( ! $this->column_exists( $wpdb, $explorers_table, 'first_aid_level' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -380,16 +414,24 @@ class Table_Installer {
 		$sql = array();
 
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_team_members (
-            id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            team_post_id BIGINT UNSIGNED NOT NULL,
-            scout_id    BIGINT UNSIGNED NOT NULL DEFAULT 0,
-            user_id     BIGINT UNSIGNED NOT NULL DEFAULT 0,
-            added_by    BIGINT UNSIGNED NOT NULL,
-            added_at    DATETIME        NOT NULL,
-            PRIMARY KEY (id),
+            id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            team_post_id          BIGINT UNSIGNED NOT NULL,
+            scout_id              BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            user_id               BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            expedition_signup_id  BIGINT UNSIGNED          NULL,
+            cohort_id             BIGINT UNSIGNED          NULL,
+            availability_override VARCHAR(32)              NULL,
+            notification_status   VARCHAR(20)     NOT NULL DEFAULT 'draft',
+            notified_at           DATETIME                 NULL,
+            notified_by           BIGINT UNSIGNED          NULL,
+            added_by              BIGINT UNSIGNED NOT NULL,
+            added_at              DATETIME        NOT NULL,
+            PRIMARY KEY  (id),
             KEY idx_team_post_id (team_post_id),
             KEY idx_scout_id (scout_id),
-            KEY idx_user_id (user_id)
+            KEY idx_user_id (user_id),
+            KEY idx_expedition_signup (expedition_signup_id),
+            KEY idx_cohort (cohort_id)
         ) {$charset};";
 
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_volunteers (
@@ -620,6 +662,44 @@ class Table_Installer {
             KEY exp_team_day (expedition_id, team_id, day_number)
         ) {$charset};";
 
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_cohorts (
+            id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name                    VARCHAR(120)    NOT NULL,
+            dofe_level              VARCHAR(20)     NOT NULL,
+            transport_mode          VARCHAR(20)     NOT NULL DEFAULT 'foot',
+            practice_expedition_id  BIGINT UNSIGNED NULL,
+            qualifier_expedition_id BIGINT UNSIGNED NULL,
+            practice_team_post_id   BIGINT UNSIGNED NULL,
+            qualifier_team_post_id  BIGINT UNSIGNED NULL,
+            cohort_status           VARCHAR(32)     NOT NULL DEFAULT 'forming',
+            notes                   TEXT            NULL,
+            created_by              BIGINT UNSIGNED NOT NULL,
+            created_at              DATETIME        NOT NULL,
+            updated_at              DATETIME        NOT NULL,
+            PRIMARY KEY  (id),
+            KEY idx_level_mode (dofe_level, transport_mode),
+            KEY idx_practice_exp (practice_expedition_id),
+            KEY idx_qualifier_exp (qualifier_expedition_id)
+        ) {$charset};";
+
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_cohort_members (
+            id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            cohort_id             BIGINT UNSIGNED NOT NULL,
+            expedition_signup_id  BIGINT UNSIGNED NOT NULL,
+            scout_id              BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            availability_override VARCHAR(32)     NULL,
+            member_status         VARCHAR(32)     NOT NULL DEFAULT 'active',
+            notes                 TEXT            NULL,
+            added_by              BIGINT UNSIGNED NOT NULL,
+            created_at            DATETIME        NOT NULL,
+            updated_at            DATETIME        NOT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY uniq_cohort_signup (cohort_id, expedition_signup_id),
+            KEY idx_cohort (cohort_id),
+            KEY idx_signup (expedition_signup_id),
+            KEY idx_scout (scout_id)
+        ) {$charset};";
+
 		return $sql;
 	}
 
@@ -639,6 +719,8 @@ class Table_Installer {
 			'participant_signups'    => $wpdb->prefix . 'ems_participant_signups',
 			'expedition_signups'     => $wpdb->prefix . 'ems_expedition_signups',
 			'audit_logs'             => $wpdb->prefix . 'ems_audit_logs',
+			'cohorts'                => $wpdb->prefix . 'ems_cohorts',
+			'cohort_members'         => $wpdb->prefix . 'ems_cohort_members',
 		);
 	}
 }

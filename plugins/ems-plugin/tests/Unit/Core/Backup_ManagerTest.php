@@ -155,4 +155,21 @@ class Backup_ManagerTest extends EMSTestCase {
 		$this->assertCount( 1, $insertedRows );
 		$this->assertSame( 'wp_ems_osm_explorers', $insertedRows[0]['table'] );
 	}
+
+	public function test_expeditions_module_registers_cohort_tables_as_backup_contributor(): void {
+		$manager = new Backup_Manager();
+		$module  = new \EMS\Modules\Expeditions\ExpeditionsModule();
+
+		$this->assertInstanceOf( BackupContributorInterface::class, $module );
+
+		$manager->register_contributor( $module );
+
+		$tables = $manager->get_all_tables();
+		$this->assertContains( 'ems_cohorts', $tables );
+		$this->assertContains( 'ems_cohort_members', $tables );
+		$this->assertSame( array(), $module->getBackupPostTypes() );
+		$this->assertSame( array(), $module->getBackupOptionNames() );
+		$this->assertSame( array(), $module->exportData() );
+		$this->assertTrue( $module->importData( array() ) );
+	}
 }
