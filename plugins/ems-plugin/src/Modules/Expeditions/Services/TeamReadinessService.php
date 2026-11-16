@@ -326,17 +326,36 @@ class TeamReadinessService {
 	private function evaluateFirstAid( array $member, string $expedition_date ): array {
 		$osm_level    = trim( (string) ( $member['first_aid_level'] ?? '' ) );
 		$signup_level = trim( (string) ( $member['first_aid_status'] ?? '' ) );
-		$level        = $osm_level !== '' ? $osm_level : ( $signup_level !== '' ? $signup_level : 'none' );
+		$level        = ( $osm_level !== '' && strtolower( $osm_level ) !== 'none' )
+			? $osm_level
+			: ( $signup_level !== '' ? $signup_level : 'none' );
 		$norm         = strtolower( $level );
+
+		$valid_values = array(
+			'first-aid-yes',
+			'first_response',
+			'first-response',
+			'full_first_aid',
+			'first_aider',
+			'first_aid_plus',
+		);
 
 		$expiry_raw = trim( (string) ( $member['first_aid_expiry'] ?? '' ) );
 		$expiry     = $expiry_raw !== '' ? substr( $expiry_raw, 0, 10 ) : null;
 
-		if ( in_array( $norm, array( 'none', 'no' ), true ) || $expiry === null ) {
+		if ( ! in_array( $norm, $valid_values, true ) ) {
 			return array(
 				'level'  => $level,
 				'expiry' => $expiry,
 				'valid'  => false,
+			);
+		}
+
+		if ( $expiry === null ) {
+			return array(
+				'level'  => $level,
+				'expiry' => null,
+				'valid'  => $norm === 'first-aid-yes',
 			);
 		}
 

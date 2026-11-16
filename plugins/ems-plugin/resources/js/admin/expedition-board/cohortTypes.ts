@@ -140,6 +140,15 @@ export function formatDateShort(dateStr?: string | null): string {
   }
 }
 
+const VALID_FIRST_AID_VALUES = new Set([
+  'first-aid-yes',
+  'first_response',
+  'first-response',
+  'full_first_aid',
+  'first_aider',
+  'first_aid_plus',
+]);
+
 export function hasValidFirstAid(
   firstAidLevel?: string | null,
   firstAidStatus?: string | null,
@@ -149,7 +158,7 @@ export function hasValidFirstAid(
   const level = (firstAidLevel || '').trim().toLowerCase();
   const status = (firstAidStatus || '').trim().toLowerCase();
   const effective = level && level !== 'none' ? level : status;
-  if (!effective || effective === 'none' || effective === 'no') {
+  if (!VALID_FIRST_AID_VALUES.has(effective)) {
     return false;
   }
   if (expiry && onDate) {

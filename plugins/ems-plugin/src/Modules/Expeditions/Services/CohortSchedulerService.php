@@ -702,16 +702,27 @@ class CohortSchedulerService {
 		$osm_level    = trim( (string) ( $member['first_aid_level'] ?? '' ) );
 		$signup_level = trim( (string) ( $member['first_aid_status'] ?? '' ) );
 
-		$level = $osm_level !== '' ? $osm_level : ( $signup_level !== '' ? $signup_level : 'none' );
+		$level = ( $osm_level !== '' && strtolower( $osm_level ) !== 'none' )
+			? $osm_level
+			: ( $signup_level !== '' ? $signup_level : 'none' );
 		$norm  = strtolower( $level );
 
-		if ( in_array( $norm, array( 'none', 'no' ), true ) ) {
+		$valid_values = array(
+			'first-aid-yes',
+			'first_response',
+			'first-response',
+			'full_first_aid',
+			'first_aider',
+			'first_aid_plus',
+		);
+
+		if ( ! in_array( $norm, $valid_values, true ) ) {
 			return false;
 		}
 
 		$expiry = trim( (string) ( $member['first_aid_expiry'] ?? '' ) );
 		if ( $expiry === '' ) {
-			return false;
+			return $norm === 'first-aid-yes';
 		}
 
 		$expiry_ymd = substr( $expiry, 0, 10 );
