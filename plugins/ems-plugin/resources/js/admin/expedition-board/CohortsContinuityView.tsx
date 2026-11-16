@@ -118,6 +118,8 @@ export default function CohortsContinuityView({
   const [newCohortName, setNewCohortName] = useState('');
   const [creatingCohort, setCreatingCohort] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
+  const [mergingCohortId, setMergingCohortId] = useState<number | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState<number | ''>('');
 
   // ── Wishlist Hover Mutual-Highlighting ─────────────────────────────────────
   const [hoveredExplorer, setHoveredExplorer] = useState<HoveredExplorerInfo | null>(null);
@@ -432,6 +434,46 @@ export default function CohortsContinuityView({
       await onRefreshAll();
     } catch (err) {
       onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to delete team' });
+    } finally {
+      setBusyAction(false);
+    }
+  };
+
+  const handleMergeCohort = async (sourceCohort: Cohort) => {
+    if (!mergeTargetId || Number(mergeTargetId) === sourceCohort.id) return;
+    const targetCohort = cohorts.find(c => c.id === Number(mergeTargetId));
+    if (!targetCohort) return;
+    if (
+      !window.confirm(
+        `Merge "${sourceCohort.name}" (${sourceCohort.members.length} members) into "${targetCohort.name}"? "${sourceCohort.name}" will be removed.`
+      )
+    ) {
+      return;
+    }
+    setBusyAction(true);
+    onFeedback(null);
+    try {
+      const resp = await fetch(`${rootUrl}/cohorts/${sourceCohort.id}/merge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce,
+        },
+        body: JSON.stringify({ target_cohort_id: targetCohort.id }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.message || `HTTP ${resp.status}`);
+      }
+      setMergingCohortId(null);
+      setMergeTargetId('');
+      onFeedback({
+        ok: true,
+        msg: `Merged "${sourceCohort.name}" into "${targetCohort.name}" (${data?.moved_count ?? 0} member(s) moved).`,
+      });
+      await onRefreshAll();
+    } catch (err) {
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to merge teams' });
     } finally {
       setBusyAction(false);
     }
@@ -1068,6 +1110,26 @@ export default function CohortsContinuityView({
                         <FontAwesomeIcon icon={faEnvelope} /> Send Allocation Emails
                       </button>
                     )}
+                    {cohorts.length > 1 && (
+                      <button
+                        type="button"
+                        className="button button-small"
+                        disabled={busyAction}
+                        onClick={() => {
+                          if (mergingCohortId === cohort.id) {
+                            setMergingCohortId(null);
+                            setMergeTargetId('');
+                          } else {
+                            const firstOther = cohorts.find(c => c.id !== cohort.id);
+                            setMergingCohortId(cohort.id);
+                            setMergeTargetId(firstOther ? firstOther.id : '');
+                          }
+                        }}
+                        title="Merge this team into another team"
+                      >
+                        Merge…
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="button button-small button-link-delete"
@@ -1079,6 +1141,59 @@ export default function CohortsContinuityView({
                     </button>
                   </div>
                 </div>
+
+                {mergingCohortId === cohort.id && (
+                  <div
+                    style={{
+                      marginTop: '10px',
+                      padding: '8px 10px',
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                    }}
+                  >
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+                      Merge &ldquo;{cohort.name}&rdquo; into:
+                    </span>
+                    <select
+                      className="ems-select-sm"
+                      aria-label={`Select target team to merge ${cohort.name} into`}
+                      value={mergeTargetId}
+                      onChange={e => setMergeTargetId(e.target.value ? Number(e.target.value) : '')}
+                    >
+                      {cohorts
+                        .filter(c => c.id !== cohort.id)
+                        .map(other => (
+                          <option key={other.id} value={other.id}>
+                            {other.name} ({other.members.length}/7)
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="button button-primary button-small"
+                      disabled={busyAction || !mergeTargetId}
+                      onClick={() => handleMergeCohort(cohort)}
+                    >
+                      Confirm Merge
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-small"
+                      disabled={busyAction}
+                      onClick={() => {
+                        setMergingCohortId(null);
+                        setMergeTargetId('');
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
 
                 {/* Practice & Qualifier Date Selectors */}
                 <div

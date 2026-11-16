@@ -87,6 +87,19 @@ class CohortController {
 				),
 			)
 		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/cohorts/(?P<id>\d+)/merge',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'merge_cohort' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array(
+					'id' => $this->id_arg(),
+				),
+			)
+		);
 	}
 
 	private function register_member_routes(): void {
@@ -325,6 +338,142 @@ class CohortController {
 			array(
 				'deleted' => true,
 				'id'      => $id,
+			),
+			200
+		);
+	}
+
+	/**
+	 * POST /wp-json/ems/v1/cohorts/{id}/merge
+	 */
+	public function merge_cohort( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$source_id = absint( $request->get_param( 'id' ) );
+		$body      = $this->get_request_body( $request );
+		$target_id = absint( $body['target_cohort_id'] ?? 0 );
+
+		$source = $this->cohorts->find( $source_id );
+		if ( $source === null ) {
+			return $this->error( 'ems_cohort_not_found', 'Source team not found.', 404 );
+		}
+
+		if ( $target_id <= 0 || $target_id === $source_id ) {
+			return $this->error( 'ems_invalid_merge_target', 'Select a different target team to merge into.', 400 );
+		}
+
+		$target = $this->cohorts->find( $target_id );
+		if ( $target === null ) {
+			return $this->error( 'ems_target_cohort_not_found', 'Target team not found.', 404 );
+		}
+
+		if (
+			(string) ( $source['dofe_level'] ?? '' ) !== (string) ( $target['dofe_level'] ?? '' )
+			|| (string) ( $source['transport_mode'] ?? '' ) !== (string) ( $target['transport_mode'] ?? '' )
+		) {
+			return $this->error( 'ems_merge_scope_mismatch', 'Teams must share the same DofE level and transport mode to merge.', 400 );
+		}
+
+		$source_members = $this->members->listByCohort( $source_id );
+		$target_members = $this->members->listByCohort( $target_id );
+
+		$existing_signups = array();
+		foreach ( $target_members as $tm ) {
+			$existing_signups[ (int) ( $tm['expedition_signup_id'] ?? 0 ) ] = true;
+		}
+
+		$moved_count      = 0;
+		$moved_signup_ids = array();
+		$current_user_id  = (int) get_current_user_id();
+
+		foreach ( $source_members as $sm ) {
+			$signup_id = (int) ( $sm['expedition_signup_id'] ?? 0 );
+			if ( $signup_id <= 0 || isset( $existing_signups[ $signup_id ] ) ) {
+				continue;
+			}
+			$this->members->create(
+				array(
+					'cohort_id'             => $target_id,
+					'expedition_signup_id'  => $signup_id,
+					'scout_id'              => max( 0, (int) ( $sm['scout_id'] ?? 0 ) ),
+					'member_status'         => (string) ( $sm['member_status'] ?? 'active' ) ?: 'active',
+					'availability_override' => $sm['availability_override'] ?? null,
+					'notes'                 => $sm['notes'] ?? null,
+					'added_by'              => $current_user_id,
+				)
+			);
+			$existing_signups[ $signup_id ] = true;
+			$moved_signup_ids[]             = $signup_id;
+			++$moved_count;
+		}
+
+		global $wpdb;
+		$previously_notified = array();
+		if ( isset( $wpdb ) && is_object( $wpdb ) ) {
+			$tm_table = $wpdb->prefix . 'ems_team_members';
+			$rows     = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT DISTINCT expedition_signup_id FROM {$tm_table} WHERE cohort_id = %d AND notification_status IN ('notified', 're_notify_needed')",
+					$source_id
+				)
+			);
+			if ( is_array( $rows ) ) {
+				$previously_notified = array_map( 'intval', $rows );
+			}
+			$wpdb->delete( $tm_table, array( 'cohort_id' => $source_id ), array( '%d' ) );
+		}
+
+		foreach ( array( 'practice_team_post_id', 'qualifier_team_post_id' ) as $col ) {
+			$team_post_id = (int) ( $source[ $col ] ?? 0 );
+			if ( $team_post_id > 0 && function_exists( 'wp_delete_post' ) ) {
+				wp_delete_post( $team_post_id, true );
+			}
+		}
+
+		$this->members->deleteByCohort( $source_id );
+		$this->cohorts->delete( $source_id );
+
+		$practice_id  = $this->nullable_positive_int( $target['practice_expedition_id'] ?? null );
+		$qualifier_id = $this->nullable_positive_int( $target['qualifier_expedition_id'] ?? null );
+		$scheduler    = $this->get_scheduler();
+
+		if ( $scheduler !== null && method_exists( $scheduler, 'scheduleCohort' ) && ( $practice_id !== null || $qualifier_id !== null ) ) {
+			$this->invoke_schedule_cohort(
+				$scheduler,
+				$target_id,
+				array(
+					'practice_expedition_id'  => $practice_id,
+					'qualifier_expedition_id' => $qualifier_id,
+					'member_resolutions'      => array(),
+				)
+			);
+
+			if ( ! empty( $previously_notified ) && isset( $wpdb ) && is_object( $wpdb ) ) {
+				$tm_table = $wpdb->prefix . 'ems_team_members';
+				foreach ( $previously_notified as $sid ) {
+					if ( in_array( $sid, $moved_signup_ids, true ) ) {
+						$wpdb->update(
+							$tm_table,
+							array( 'notification_status' => 're_notify_needed' ),
+							array(
+								'cohort_id'            => $target_id,
+								'expedition_signup_id' => $sid,
+							),
+							array( '%s' ),
+							array( '%d', '%d' )
+						);
+					}
+				}
+			}
+		}
+
+		$updated_target = $this->cohorts->find( $target_id );
+
+		return new \WP_REST_Response(
+			array(
+				'merged'           => true,
+				'source_cohort_id' => $source_id,
+				'target_cohort_id' => $target_id,
+				'moved_count'      => $moved_count,
+				'target_cohort'    => $updated_target ? $this->hydrate_cohort( $target_id ) : null,
 			),
 			200
 		);
