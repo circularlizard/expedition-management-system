@@ -199,8 +199,8 @@ describe('CohortsContinuityView — Partial-Availability Resolution', () => {
     expect(await screen.findByText(/Partial-Availability Resolution/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Ben Fraser/).length).toBeGreaterThanOrEqual(2);
 
-    // Switch resolution radio to "Split to Alternate Date (Keep Cohort)"
-    const splitRadio = screen.getByRole('radio', { name: /Split to Alternate Date \(Keep Cohort\)/i });
+    // Switch resolution radio to "Split to Alternate Date (Keep Team)"
+    const splitRadio = screen.getByRole('radio', { name: /Split to Alternate Date \(Keep Team\)/i });
     fireEvent.click(splitRadio);
 
     // Click Confirm & Apply Schedule

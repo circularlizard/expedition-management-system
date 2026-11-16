@@ -388,7 +388,7 @@ export const ManualNotifyModal: React.FC<ManualNotifyModalProps> = ({
                 onChange={() => setScope('cohort')}
               />
               <span>
-                Single Cohort{cohortName ? `: ${cohortName}` : hasCohort ? ` (#${cohortId})` : ' (None selected)'}
+                Single Team{cohortName ? `: ${cohortName}` : hasCohort ? ` (#${cohortId})` : ' (None selected)'}
               </span>
             </label>
 
@@ -619,7 +619,7 @@ export const ManualNotifyModal: React.FC<ManualNotifyModalProps> = ({
                         <th style={{ width: '32px' }}>Send</th>
                         <th>Explorer</th>
                         <th>Explorer Email &amp; Parent CC</th>
-                        <th>Team / Cohort</th>
+                        <th>Team</th>
                         <th>Status</th>
                       </tr>
                     </thead>

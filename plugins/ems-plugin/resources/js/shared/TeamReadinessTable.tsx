@@ -244,7 +244,7 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
   isLicScoped = false,
   onSendReminder,
   loading = false,
-  emptyMessage = 'No teams or forming cohorts match the current filters.',
+  emptyMessage = 'No teams match the current filters.',
 }) => {
   const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
 
@@ -279,7 +279,7 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
       <table className="ems-table">
         <thead>
           <tr>
-            <th>Team / Cohort</th>
+            <th>Team</th>
             <th>Event &amp; Stage</th>
             <th>Size &amp; Place Offers</th>
             <th>First Aid (Rule of Two)</th>
@@ -343,7 +343,7 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
                       <div className="ems-table__meta">{record.team_title}</div>
                     )}
                     {record.cohort_name && record.cohort_name !== record.team_code && (
-                      <div className="ems-table__meta">Cohort: {record.cohort_name}</div>
+                      <div className="ems-table__meta">Team: {record.cohort_name}</div>
                     )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
                       {record.dofe_level && (
@@ -576,7 +576,7 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
 
                       {!record.members || record.members.length === 0 ? (
                         <div style={{ fontSize: '12px', color: '#646970', padding: '8px 0' }}>
-                          No members currently assigned to this {record.record_type === 'forming_cohort' ? 'cohort' : 'team'}.
+                          No members currently assigned to this team.
                         </div>
                       ) : (
                         <div style={{ border: '1px solid #dcdcde', borderRadius: '4px', background: '#fff', overflowX: 'auto' }}>

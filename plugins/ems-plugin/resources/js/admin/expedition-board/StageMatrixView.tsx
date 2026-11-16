@@ -386,7 +386,7 @@ export default function StageMatrixView({
           <input
             type="text"
             className="ems-form-input ems-search-input"
-            placeholder="Search explorer, cohort, or wishlist..."
+            placeholder="Search explorer, team, or wishlist..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -480,7 +480,7 @@ export default function StageMatrixView({
               {/* Super-header row when Both Stages or stage groups exist */}
               <tr>
                 <th colSpan={4} style={{ ...stickyHeaderBase, left: 0, textAlign: 'left' }}>
-                  Explorer Identity &amp; Cohort
+                  Explorer Identity &amp; Team
                 </th>
                 {visiblePracticeEvents.length > 0 && (
                   <th
@@ -519,7 +519,7 @@ export default function StageMatrixView({
               <tr>
                 <th style={{ ...stickyHeaderBase, left: 0, minWidth: '170px', maxWidth: '170px' }}>Explorer</th>
                 <th style={{ ...stickyHeaderBase, left: '170px', minWidth: '120px', maxWidth: '120px' }}>Unit</th>
-                <th style={{ ...stickyHeaderBase, left: '290px', minWidth: '120px', maxWidth: '120px' }}>Cohort</th>
+                <th style={{ ...stickyHeaderBase, left: '290px', minWidth: '120px', maxWidth: '120px' }}>Team</th>
                 <th
                   style={{
                     ...stickyHeaderBase,

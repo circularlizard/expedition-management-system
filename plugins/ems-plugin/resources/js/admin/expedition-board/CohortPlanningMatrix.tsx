@@ -168,7 +168,7 @@ export default function CohortPlanningMatrix({
       <div
         className="ems-planning-scope-bar"
         role="region"
-        aria-label="Cohort Scope Filters"
+        aria-label="Team Scope Filters"
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -212,7 +212,7 @@ export default function CohortPlanningMatrix({
                 className={`ems-scope-btn ${activeView === 'cohorts' ? 'ems-scope-btn--active' : ''}`}
                 onClick={() => setActiveView('cohorts')}
               >
-                <FontAwesomeIcon icon={faLayerGroup} className="ems-scope-btn-icon" /> 1. Cohorts &amp; Continuity
+                <FontAwesomeIcon icon={faLayerGroup} className="ems-scope-btn-icon" /> 1. Teams &amp; Continuity
               </button>
               <button
                 type="button"
@@ -264,7 +264,7 @@ export default function CohortPlanningMatrix({
           <span className="ems-spinner" aria-label="Loading cohort planning board…" />
         </div>
       ) : activeView === 'cohorts' ? (
-        <ModuleErrorBoundary moduleName="Cohorts & Continuity">
+        <ModuleErrorBoundary moduleName="Teams & Continuity">
           <CohortsContinuityView
             level={level}
             transport={transport}

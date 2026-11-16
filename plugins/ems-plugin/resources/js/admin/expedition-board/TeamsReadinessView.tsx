@@ -65,7 +65,7 @@ function buildReadinessCsv(records: TeamReadinessRecord[]): string {
     'Record Type',
     'Team Code',
     'Team Title',
-    'Cohort Name',
+    'Team Name',
     'DofE Level',
     'Transport Mode',
     'Event Code',

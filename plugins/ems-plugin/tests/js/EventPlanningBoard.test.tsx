@@ -213,7 +213,7 @@ describe('EventPlanningBoard - Cohort & Stage Matrix Planning', () => {
       expect(screen.getAllByText(/Fraser Myles/).length).toBeGreaterThan(0);
     });
 
-    const searchInput = screen.getByPlaceholderText(/Search explorer, cohort, or wishlist/i);
+    const searchInput = screen.getByPlaceholderText(/Search explorer, team, or wishlist/i);
     fireEvent.change(searchInput, { target: { value: 'Holly' } });
 
     await waitFor(() => {

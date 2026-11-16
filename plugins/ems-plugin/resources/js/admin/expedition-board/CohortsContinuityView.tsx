@@ -332,7 +332,7 @@ export default function CohortsContinuityView({
 
   const handleCreateCohort = async () => {
     if (selectedSignupIds.length === 0) return;
-    const trimmedName = newCohortName.trim() || `Cohort ${cohorts.length + 1}`;
+    const trimmedName = newCohortName.trim() || `Team ${cohorts.length + 1}`;
     setCreatingCohort(true);
     onFeedback(null);
 
@@ -356,10 +356,10 @@ export default function CohortsContinuityView({
       }
       setSelectedSignupIds([]);
       setNewCohortName('');
-      onFeedback({ ok: true, msg: `Created cohort "${trimmedName}" with ${selectedSignupIds.length} explorer(s).` });
+      onFeedback({ ok: true, msg: `Created team "${trimmedName}" with ${selectedSignupIds.length} explorer(s).` });
       await onRefreshAll();
     } catch (err) {
-      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to create cohort' });
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to create team' });
     } finally {
       setCreatingCohort(false);
     }
@@ -404,7 +404,7 @@ export default function CohortsContinuityView({
       if (!resp.ok) {
         throw new Error(data?.message || `HTTP ${resp.status}`);
       }
-      onFeedback({ ok: true, msg: `Removed ${memberName} from cohort.` });
+      onFeedback({ ok: true, msg: `Removed ${memberName} from team.` });
       await onRefreshAll();
     } catch (err) {
       onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to remove member' });
@@ -414,7 +414,7 @@ export default function CohortsContinuityView({
   };
 
   const handleDeleteCohort = async (cohort: Cohort) => {
-    if (!window.confirm(`Delete cohort "${cohort.name}"? Members will return to the unassigned pool.`)) {
+    if (!window.confirm(`Delete team "${cohort.name}"? Members will return to the unassigned pool.`)) {
       return;
     }
     setBusyAction(true);
@@ -428,10 +428,10 @@ export default function CohortsContinuityView({
       if (!resp.ok) {
         throw new Error(data?.message || `HTTP ${resp.status}`);
       }
-      onFeedback({ ok: true, msg: `Deleted cohort "${cohort.name}".` });
+      onFeedback({ ok: true, msg: `Deleted team "${cohort.name}".` });
       await onRefreshAll();
     } catch (err) {
-      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to delete cohort' });
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to delete team' });
     } finally {
       setBusyAction(false);
     }
@@ -467,7 +467,7 @@ export default function CohortsContinuityView({
         delete next[cohortId];
         return next;
       });
-      onFeedback({ ok: true, msg: 'Cohort schedule applied successfully.' });
+      onFeedback({ ok: true, msg: 'Team schedule applied successfully.' });
       await onRefreshAll();
       await fetchCandidatesForCohort(cohortId);
     } catch (err) {
@@ -661,7 +661,7 @@ export default function CohortsContinuityView({
             >
               <option value="pool">Unassigned &amp; Split</option>
               <option value="split">Split Date Only</option>
-              <option value="in_cohort">In Cohort</option>
+              <option value="in_cohort">In Team</option>
               <option value="all">All Explorers</option>
             </select>
           </div>
@@ -708,7 +708,7 @@ export default function CohortsContinuityView({
                 type="text"
                 className="ems-form-input"
                 style={{ flex: 1, minWidth: 0 }}
-                placeholder={`Cohort ${cohorts.length + 1}`}
+                placeholder={`Team ${cohorts.length + 1}`}
                 value={newCohortName}
                 onChange={e => setNewCohortName(e.target.value)}
               />
@@ -719,7 +719,7 @@ export default function CohortsContinuityView({
                 onClick={handleCreateCohort}
               >
                 <FontAwesomeIcon icon={faPlus} />{' '}
-                {creatingCohort ? 'Creating…' : 'Create Cohort from Selected'}
+                {creatingCohort ? 'Creating…' : 'Create Team from Selected'}
               </button>
             </div>
           </div>
@@ -889,7 +889,7 @@ export default function CohortsContinuityView({
                               <span className="ems-matrix-unit-badge">{exp.unit_name}</span>
                               {membership && (
                                 <span style={{ fontSize: '11px', color: '#475569' }}>
-                                  Cohort: <strong>{membership.cohort.name}</strong>
+                                  Team: <strong>{membership.cohort.name}</strong>
                                 </span>
                               )}
                             </div>
@@ -966,8 +966,8 @@ export default function CohortsContinuityView({
         {cohorts.length === 0 ? (
           <div className="ems-panel" style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
             <p style={{ margin: 0, fontSize: '13px' }}>
-              No cohorts formed yet for <strong>{level.toUpperCase()}</strong> ({transport}). Select explorers on the left
-              and click <strong>Create Cohort from Selected</strong> to begin.
+              No teams formed yet for <strong>{level.toUpperCase()}</strong> ({transport}). Select explorers on the left
+              and click <strong>Create Team from Selected</strong> to begin.
             </p>
           </div>
         ) : (
@@ -1073,7 +1073,7 @@ export default function CohortsContinuityView({
                       className="button button-small button-link-delete"
                       disabled={busyAction}
                       onClick={() => handleDeleteCohort(cohort)}
-                      title="Delete cohort"
+                      title="Delete team"
                     >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
@@ -1219,8 +1219,8 @@ export default function CohortsContinuityView({
                               {(
                                 [
                                   { val: 'assign_pending', label: 'Assign Pending Confirmation' },
-                                  { val: 'split_date', label: 'Split to Alternate Date (Keep Cohort)' },
-                                  { val: 'remove_from_cohort', label: 'Remove from Cohort' },
+                                  { val: 'split_date', label: 'Split to Alternate Date (Keep Team)' },
+                                  { val: 'remove_from_cohort', label: 'Remove from Team' },
                                 ] as const
                               ).map(opt => (
                                 <label key={opt.val} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
@@ -1427,8 +1427,8 @@ export default function CohortsContinuityView({
                                     `${member.first_name} ${member.last_name}`
                                   )
                                 }
-                                title="Remove from cohort"
-                                aria-label={`Remove ${member.first_name} ${member.last_name} from cohort`}
+                                title="Remove from team"
+                                aria-label={`Remove ${member.first_name} ${member.last_name} from team`}
                               >
                                 <FontAwesomeIcon icon={faXmark} />
                               </button>
