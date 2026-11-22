@@ -1630,11 +1630,11 @@ describe('SignupsBoard', () => {
         });
     });
 
-    it('renders Missing OSM Records and Unpaired Signups tabs with editable email preview and FluentSMTP link', async () => {
+    it('renders consolidated Anomalies & Chasers tab with Unit Leader and Individual chaser modals and FluentSMTP link', async () => {
         const signups = [
             {
                 id: 1,
-                type: 'participant',
+                type: 'expedition',
                 scout_id: 0,
                 unit_name: 'Kelso ESU',
                 explorer_first_name: 'Zoe',
@@ -1643,7 +1643,9 @@ describe('SignupsBoard', () => {
                 parent_email: 'pzoe@example.com',
                 dofe_level: 'bronze',
                 signup_status: 'submitted',
+                kanban_stage: 'new',
                 is_synced_osm: 0,
+                anomalies: ['unmatched_osm', 'expedition_without_place'],
                 created_at: '2026-08-10 10:00:00',
             },
         ];
@@ -1670,22 +1672,8 @@ describe('SignupsBoard', () => {
                             unit_name: 'Kelso ESU',
                             to: 'leader@kelso.scouts.org.uk',
                             subject: '[SES] OSM Share Request',
-                            message: '<p><strong>Bronze</strong></p><ul><li>Zoe Adams</li></ul>',
-                            raw_subject: '[{{site_name}}] OSM Share Request for {{unit_name}}',
-                            raw_message: '<p>Hi {{unit_name}},</p>{{explorer_list_osm}}',
-                            replacements: {
-                                '{{site_name}}': 'SES',
-                                '{{unit_name}}': 'Kelso ESU',
-                            },
-                            token_datasets: {
-                                explorer_list_osm: [
-                                    { first_name: 'Zoe', last_name: 'Adams', dofe_level: 'bronze' },
-                                ],
-                            },
-                            shortcodes: [
-                                { token: '{{unit_name}}', label: 'Unit Name' },
-                                { token: '{{explorer_list_osm}}', label: 'Unsynced Explorers List', supports_levels: true },
-                            ],
+                            message: '<p>Hi Kelso ESU,</p>',
+                            shortcodes: [],
                         }),
                     });
                 }
@@ -1714,34 +1702,24 @@ describe('SignupsBoard', () => {
 
         render(<SignupsBoard />);
 
-        await waitFor(() => expect(screen.getByRole('button', { name: /Missing OSM Records \(1\)/i })).toBeInTheDocument());
-        fireEvent.click(screen.getByRole('button', { name: /Missing OSM Records \(1\)/i }));
+        await waitFor(() => expect(screen.getByRole('button', { name: /Anomalies & Chasers/i })).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /Anomalies & Chasers/i }));
 
-        await waitFor(() => expect(screen.getByTestId('chaser-view-osm_share')).toBeInTheDocument());
-        expect(screen.getByTestId('fluent-smtp-logs-link')).toHaveAttribute(
+        await waitFor(() => expect(screen.getByText(/Anomalies & Chasers \(1 Explorers\)/i)).toBeInTheDocument());
+        expect(screen.getByRole('link', { name: /FluentSMTP Logs/i })).toHaveAttribute(
             'href',
             'https://example.com/wp-admin/admin.php?page=fluent-mail#/logs'
         );
 
-        fireEvent.click(screen.getByTestId('chaser-level-filter-gold'));
-        fireEvent.click(screen.getByTestId('preview-email-btn-Kelso ESU'));
+        // Unit Leader modal
+        fireEvent.click(screen.getByRole('button', { name: /Email Unit Leader/i }));
+        await waitFor(() => expect(screen.getByText(/Email Unit Leader — Kelso ESU/i)).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /Send Email/i }));
+        await waitFor(() => expect(screen.getByText(/Chaser email sent to leader@kelso.scouts.org.uk/i)).toBeInTheDocument());
 
-        await waitFor(() => expect(screen.getByLabelText('Subject')).toHaveValue('[{{site_name}}] OSM Share Request for {{unit_name}}'));
-        expect(screen.getByLabelText('HTML Body')).toHaveValue('<p>Hi {{unit_name}},</p>{{explorer_list_osm}}');
-        expect(screen.getByTestId('chaser-email-html-preview')).toHaveTextContent('Zoe Adams');
-        expect(screen.getByTestId('chaser-email-html-preview')).not.toHaveTextContent('{{explorer_list_osm}}');
-        const previewCall = (global.fetch as any).mock.calls.find(
-            (c: any[]) => typeof c[0] === 'string' && c[0].includes('/signups/send-chaser')
-        );
-        expect(JSON.parse(previewCall[1].body).levels).toEqual(['bronze', 'silver']);
-        fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Edited Subject' } });
-        fireEvent.click(screen.getByTestId('chaser-send-email-submit'));
-
-        await waitFor(() => expect(screen.getByTestId('last-requested-Kelso ESU')).toHaveTextContent('2026-08-12 12:00:00'));
-
-        // Also switch to Unpaired Signups tab
-        fireEvent.click(screen.getByRole('button', { name: /Unpaired Signups \(1\)/i }));
-        await waitFor(() => expect(screen.getByTestId('chaser-view-unpaired_signups')).toBeInTheDocument());
+        // Individual modal
+        fireEvent.click(screen.getByRole('button', { name: /Email Individual/i }));
+        await waitFor(() => expect(screen.getByText(/Email Individual \/ Parent — Zoe Adams/i)).toBeInTheDocument());
     });
 
     it('includes Register Interest expedition preferences in Paddling chips and drilldown', async () => {

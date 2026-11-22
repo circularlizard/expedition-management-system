@@ -14,34 +14,35 @@
 ## Slice 1A — Admin UI Consolidation, Sign-up Protection & Anomaly Triage (Current Stage / Days 1–2)
 *Goal: Cut the cluttered 11-page admin menu down to 7 clean hubs, eliminate duplicate/orphan screens and script bloat, lay down the additive DB columns/tables, and fix identity & anomaly detection before building the Kanban UI in Slice 1B.*
 
-1. **Pre-Flight Snapshot:** Export Unified JSON Backup (`EMS -> Settings -> Backups`).
-2. **Admin Menu & Navigation Rationalisation (`Menu_Manager.php` + `Admin_Page.php`):**
-   - Consolidate the 11 menus into the 7 clean domain hubs (`Sign-ups`, `Expeditions & Teams`, `Volunteers`, `Units & OSM Sync`, `Route Studio`, `Emails & Notifications`, `Settings & System`) with backward-compatible URL redirects from old slugs (`ems-explorers`, `ems-reference`, `ems-training-report`, `ems-units`, `ems-email-templates`, `ems-column-mapper`) so no bookmarks break.
-   - Remove the duplicate `ems-explorers` page (single home under `Units & OSM Sync -> Explorers & Patrols`), surface `Flexi-Record Mapper` as a proper tab under `Units & OSM Sync`, fold `Training Report` into `Expeditions & Teams -> Teams & Readiness`, and delete dead `Unit_Leader_Page::render_email_tab()` and legacy `Settings_Page` email handlers.
-   - Strip phantom `wp-components`, `wp-element`, and `wp-i18n` dependencies from PHP enqueues in `Plugin.php`.
-3. **Isolated Public Shortcode CSS Extraction (Reversible Step):**
-   - Extract the CSS classes used by `[ems_signup_banner]`, `[ems-portal]`, `[ems-leader-dashboard]`, and `[ems-volunteer-signup]` out of `ems-admin.css` into a dedicated front-end stylesheet (`ems-portal.css`) as a standalone, easily reversible commit **before** dequeuing `ems-admin.css` from public Elementor pages.
-4. **Additive Schema, Identity Fixes & Anomaly Chasers:**
-   - Add additive `kanban_stage VARCHAR(24) NOT NULL DEFAULT 'to_process'` and `processing_notes TEXT NULL` to `ems_participant_signups` and `ems_expedition_signups` in `Table_Installer.php` (do **not** alter `signup_status`, and keep `kanban_stage` independent so archiving prior-year sign-ups does not overwrite Kanban history), plus the `ems_notification_logs` table.
-   - Fix `ems_scout_id` (singular) -> `ems_scout_ids` (plural) lookups via `ExplorerUserResolver`.
-   - Keep OSM `scout_id = 0` matching **manual** in the Sign-ups hub (no auto-reconciliation during OSM syncs).
-   - Move/extend anomaly detection server-side (`place_without_expedition`, `expedition_without_place`, `level_mismatch`, `duplicate_signup`, `unmatched_osm` `scout_id = 0`, `pending_osm_sync`, `missing_edofe`, `unvalidated_asn`) and add `missing_form7` / `missing_edofe` manual chasers logged to `ems_notification_logs`.
-5. **Slice 1A Verification:** Confirm `[ems_signup_banner]` and public shortcodes render cleanly on Elementor without `ems-admin.css`, old admin URLs redirect cleanly, and `Table_Installer` migrations apply cleanly.
+1. **[PENDING — Operational]** **Pre-Flight Snapshot:** Export Unified JSON Backup (`EMS -> Settings -> Backups`) before production rollout.
+2. **[PARTIAL]** **Admin Menu & Navigation Rationalisation (`Menu_Manager.php` + `Admin_Page.php`):**
+   - **[DONE]** Consolidate the 11 menus into the 7 clean domain hubs (`Sign-ups`, `Expeditions & Teams`, `Volunteers`, `Units & OSM Sync`, `Route Studio`, `Emails & Notifications`, `Settings & System`) with backward-compatible URL redirects from old slugs (`ems-explorers`, `ems-reference`, `ems-training-report`, `ems-units`, `ems-email-templates`, `ems-column-mapper`). *(Gap: `ExpeditionBoard.tsx` does not read `?tab=readiness` from the URL yet, so `ems-training-report` redirect lands on `dashboard` instead of `readiness`.)*
+   - **[DONE]** Remove the duplicate `ems-explorers` page, surface `Flexi-Record Mapper` under `Units & OSM Sync`, fold `Training Report` into `Expeditions & Teams -> Teams & Readiness`, and delete dead `Unit_Leader_Page::render_email_tab()` and legacy `Settings_Page` email handlers. *(Note: unused `Training_Report_Page` / `Admin_Page::register_*` methods remain in `src/` as dead code.)*
+   - **[DONE]** Strip phantom `wp-components`, `wp-element`, and `wp-i18n` dependencies from PHP enqueues in `Plugin.php` and admin pages.
+3. **[DONE]** **Isolated Public Shortcode CSS Extraction (Reversible Step):**
+   - Extract the CSS classes used by `[ems_signup_banner]`, `[ems-portal]`, `[ems-leader-dashboard]`, and `[ems-volunteer-signup]` out of `ems-admin.css` into `ems-portal.css` and dequeue `ems-admin.css` from public pages.
+4. **[PARTIAL]** **Additive Schema, Identity Fixes & Anomaly Chasers:**
+   - **[DONE]** Add additive `kanban_stage VARCHAR(24) NOT NULL DEFAULT 'to_process'` and `processing_notes TEXT NULL` to `ems_participant_signups` and `ems_expedition_signups` in `Table_Installer.php` (keeping `signup_status` untouched and independent), plus the `ems_notification_logs` table.
+   - **[DONE]** Fix `ems_scout_id` (singular) -> `ems_scout_ids` (plural) lookups via `ExplorerUserResolver`.
+   - **[DONE]** Keep OSM `scout_id = 0` matching **manual** in the Sign-ups hub.
+   - **[PARTIAL]** Move/extend anomaly detection server-side (`SignupAnomalyService`, all 8 anomalies) and add `missing_form7` / `missing_edofe` manual chasers logged to `ems_notification_logs` in `Signup_Chaser_Controller.php`. *(Gap: `missing_form7` / `missing_edofe` chasers are not yet exposed in `UnitChaserView.tsx` / `SignupsBoard.tsx` UI.)*
+5. **[PARTIAL]** **Slice 1A Verification:** Build, TypeScript check, and local deploy verified; live browser check of `[ems_signup_banner]` on Elementor and `Table_Installer` upgrade in local WP pending user verification.
 
 ---
 
 ## Slice 1B — Sign-up Kanban Board & Processing Workflow (Triggered After Slice 1A)
 *Goal: Build the 5-stage Sign-up Kanban Board on top of the stabilised Slice 1A admin shell and schema without conflicting with in-progress Slice 1A changes.*
 
-1. **Ingestion & Repository Support (`Signup_Repository.php` + `Fluent_Forms_Sync.php`):**
-   - Ensure Form 6/7 submissions write `signup_status = 'submitted'` and `kanban_stage = 'to_process'`.
+1. **[DONE]** **Ingestion & Repository Support (`Signup_Repository.php` + `Fluent_Forms_Sync.php`):**
+   - Form 6/7 submissions write `signup_status = 'submitted'` and `kanban_stage = 'to_process'`.
    - Include `kanban_stage` and `processing_notes` in `Signup_Repository` queries and `GET /ems/v1/signups` responses (alongside server-side anomaly flags).
-2. **Kanban Transition Endpoint (`Expedition_Admin_Controller.php`):**
-   - Add `PATCH /ems/v1/signups/{id}/status` (`manage_options`) to transition `kanban_stage` (`to_process | on_hold | returned | processed | cancelled`) and save `processing_notes`, keeping `signup_status` (`'submitted' | 'archived'`) untouched.
-   - Enforce transition guards (`to_process -> processed` requires `scout_id > 0` and verified/waived `dofe_number`) and fire `ems.signup.processed` / `ems.signup.status_changed` via `Event_Bus`.
-3. **5-Stage Kanban UI (`SignupsBoard.tsx`):**
-   - Add the `Kanban Board` view (`To Process`, `On Hold`, `Returned`, `Processed`, `Cancelled`) alongside `All Sign-ups Table`, `Unmatched OSM (scout_id=0)`, and `Data Consistency & Chasers`, with drag/move stage transitions and inline `processing_notes`.
-4. **Slice 1B Verification:** Confirm Form 6/7 submissions write `signup_status = 'submitted'` and `kanban_stage = 'to_process'`, archiving prior-year sign-ups does not overwrite `kanban_stage`, and Kanban transitions persist cleanly.
+2. **[DONE]** **Kanban Transition Endpoint (`Expedition_Admin_Controller.php`):**
+   - Added `PATCH /ems/v1/signups/{id}/status` (`manage_options`) to transition `kanban_stage` (`to_process | on_hold | returned | processed | cancelled`) and save `processing_notes`, keeping `signup_status` (`'submitted' | 'archived'`) untouched.
+   - Enforced transition guards (`processed` requires `scout_id > 0` and verified/waived `dofe_number`) and wired `ems.signup.processed` / `ems.signup.status_changed` via `Event_Bus`.
+3. **[PARTIAL]** **5-Stage Kanban UI (`SignupsBoard.tsx` + `SignupsKanbanView.tsx`):**
+   - **[DONE]** Added the `Kanban Board` view (`To Process`, `On Hold`, `Returned`, `Processed`, `Cancelled`) with drag-and-drop, stage selector, inline `processing_notes`, and `"Participant Place"` / `"Expedition"` terminology (zero `"Form 6"`/`"Form 7"` strings).
+   - *(Gap: `SignupsDashboard` summary cards and `Signups Table` row badges still highlight only the original 4 anomalies; dedicated unit tests for `SignupsKanbanView` and `update_signup_kanban` guards are not yet added.)*
+4. **[PARTIAL]** **Slice 1B Verification:** `tsc --noEmit`, `SignupsBoard.test.tsx` (26/26), `SignupAnomalyServiceTest`, and `Signup_RepositoryTest` (17/17) passed and deployed locally; live browser verification pending.
 
 ---
 

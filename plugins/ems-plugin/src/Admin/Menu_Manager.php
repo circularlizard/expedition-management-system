@@ -13,13 +13,13 @@ class Menu_Manager {
 	private Admin_Page $admin_page;
 	private Unit_Leader_Page $unit_leader_page;
 	private Settings_Page $settings_page;
-	private Training_Report_Page $report_page;
+	private ?Training_Report_Page $report_page;
 
 	public function __construct(
 		Admin_Page $admin_page,
 		Unit_Leader_Page $unit_leader_page,
 		Settings_Page $settings_page,
-		Training_Report_Page $report_page
+		?Training_Report_Page $report_page = null
 	) {
 		$this->admin_page       = $admin_page;
 		$this->unit_leader_page = $unit_leader_page;

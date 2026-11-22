@@ -4,17 +4,15 @@ declare(strict_types=1);
 namespace EMS\Modules\Signups\Services;
 
 /**
- * Server-side anomaly detector for Form 6 (participant) and Form 7 (expedition) sign-ups.
+ * Server-side anomaly detector for Participant Place and Expedition sign-ups.
  *
- * Computes the 8 canonical anomalies:
- * - place_without_expedition
- * - expedition_without_place
- * - level_mismatch
- * - duplicate_signup
- * - unmatched_osm (scout_id = 0)
- * - pending_osm_sync (scout_id > 0 && !is_synced_osm)
- * - missing_edofe
- * - unvalidated_asn
+ * Rules:
+ * - Archived/confirmed Participant Places still count as an active Participant Place
+ *   when checking Expedition pairing (so archiving after eDofE setup does not trigger
+ *   expedition_without_place).
+ * - `participant_place_allocated = 1` on an Expedition sign-up also satisfies place pairing
+ *   (auto-linked via participant_signup_id or manually set for prior-year places).
+ * - OSM sync anomalies (unmatched_osm, pending_osm_sync) apply to Expedition sign-ups only.
  */
 class SignupAnomalyService {
 
@@ -38,7 +36,7 @@ class SignupAnomalyService {
 
 		$all = array();
 		foreach ( $participantRows as $row ) {
-			if ( ( $row['signup_status'] ?? 'submitted' ) === 'archived' ) {
+			if ( ( $row['kanban_stage'] ?? '' ) === 'cancelled' ) {
 				continue;
 			}
 			$row['_type'] = 'participant';
@@ -48,21 +46,26 @@ class SignupAnomalyService {
 			if ( ( $row['signup_status'] ?? 'submitted' ) === 'archived' ) {
 				continue;
 			}
+			if ( in_array( (string) ( $row['kanban_stage'] ?? '' ), array( 'cancelled', 'withdrawn' ), true ) ) {
+				continue;
+			}
 			$row['_type'] = 'expedition';
 			$all[]        = $row;
 		}
 
-		// Group active sign-ups by explorer identity (scout_id > 0, else normalized name + parent_email).
 		$buckets = array();
 		$dupMap  = array();
 		foreach ( $all as $item ) {
-			$identity = $this->buildIdentityKey( $item );
+			$identity               = $this->buildIdentityKey( $item );
 			$buckets[ $identity ][] = $item;
 
-			$type   = (string) $item['_type'];
-			$level  = strtolower( trim( (string) ( $item['dofe_level'] ?? '' ) ) );
-			$dupKey = $identity . '|' . $type . '|' . $level;
-			$dupMap[ $dupKey ][] = $type . '_' . (int) ( $item['id'] ?? 0 );
+			// Duplicate check only applies to active (non-archived) signups.
+			if ( ( $item['signup_status'] ?? 'submitted' ) !== 'archived' ) {
+				$type                = (string) $item['_type'];
+				$level               = strtolower( trim( (string) ( $item['dofe_level'] ?? '' ) ) );
+				$dupKey              = $identity . '|' . $type . '|' . $level;
+				$dupMap[ $dupKey ][] = $type . '_' . (int) ( $item['id'] ?? 0 );
+			}
 		}
 
 		foreach ( $buckets as $items ) {
@@ -83,6 +86,10 @@ class SignupAnomalyService {
 			$levelMismatch = $hasP && $hasE && array_keys( $pLevels ) !== array_keys( $eLevels );
 
 			foreach ( $items as $item ) {
+				if ( ( $item['signup_status'] ?? 'submitted' ) === 'archived' ) {
+					continue;
+				}
+
 				$type = (string) $item['_type'];
 				$id   = (int) ( $item['id'] ?? 0 );
 				$key  = $type . '_' . $id;
@@ -93,7 +100,7 @@ class SignupAnomalyService {
 				if ( $type === 'participant' && ! isset( $eLevels[ $lvl ] ) ) {
 					$flags[] = 'place_without_expedition';
 				}
-				if ( $type === 'expedition' && ! isset( $pLevels[ $lvl ] ) ) {
+				if ( $type === 'expedition' && ! isset( $pLevels[ $lvl ] ) && empty( $item['participant_place_allocated'] ) ) {
 					$flags[] = 'expedition_without_place';
 				}
 				if ( $levelMismatch ) {
@@ -105,23 +112,24 @@ class SignupAnomalyService {
 					$flags[] = 'duplicate_signup';
 				}
 
-				$scoutId = (int) ( $item['scout_id'] ?? 0 );
-				if ( $scoutId === 0 ) {
-					$flags[] = 'unmatched_osm';
-				} elseif ( empty( $item['is_synced_osm'] ) ) {
-					$flags[] = 'pending_osm_sync';
-				}
-
-				if ( trim( (string) ( $item['dofe_number'] ?? '' ) ) === '' ) {
-					$flags[] = 'missing_edofe';
-				}
-
+				// OSM sync only matters for Expedition sign-ups.
 				if ( $type === 'expedition' ) {
+					$scoutId = (int) ( $item['scout_id'] ?? 0 );
+					if ( $scoutId === 0 ) {
+						$flags[] = 'unmatched_osm';
+					} elseif ( empty( $item['is_synced_osm'] ) ) {
+						$flags[] = 'pending_osm_sync';
+					}
+
 					$asn          = trim( (string) ( $item['additional_support_needs'] ?? '' ) );
 					$asnValidated = $item['asn_validated'] ?? null;
 					if ( $asn !== '' && ( $asnValidated === null || (int) $asnValidated === 0 ) ) {
 						$flags[] = 'unvalidated_asn';
 					}
+				}
+
+				if ( trim( (string) ( $item['dofe_number'] ?? '' ) ) === '' ) {
+					$flags[] = 'missing_edofe';
 				}
 
 				$byKey[ $key ] = $flags;

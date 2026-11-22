@@ -38,8 +38,8 @@ class Signup_Chaser_Controller {
 	public const DEFAULT_UNPAIRED_SUBJECT = '[{{site_name}}] Incomplete DofE Signups for {{unit_name}}';
 	public const DEFAULT_UNPAIRED_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> currently have an incomplete DofE signup (missing either a Participant Place form or an Expedition Preference form):</p>\n<p><strong>Signed up for a Participant Place only (missing Expedition form):</strong></p>\n{{place_only_explorer_list}}\n<p><strong>Signed up for an Expedition only (missing Participant Place form):</strong></p>\n{{exped_only_explorer_list}}\n<p>Please could you follow up with these Explorer(s) / parents so both forms are completed?</p>\n<p>Thank you,<br>{{site_name}}</p>";
 
-	public const DEFAULT_MISSING_FORM7_SUBJECT = '[{{site_name}}] Missing Expedition Form (Form 7) for {{unit_name}}';
-	public const DEFAULT_MISSING_FORM7_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> have completed a Participant Place signup (Form 6) but have not yet submitted their Expedition Preferences (Form 7):</p>\n{{place_only_explorer_list}}\n<p>Please could you remind them/their parents to complete Form 7?</p>\n<p>Thank you,<br>{{site_name}}</p>";
+	public const DEFAULT_MISSING_FORM7_SUBJECT = '[{{site_name}}] Missing Expedition Sign-up for {{unit_name}}';
+	public const DEFAULT_MISSING_FORM7_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> have completed a Participant Place sign-up but have not yet submitted their Expedition Preferences:</p>\n{{place_only_explorer_list}}\n<p>Please could you remind them/their parents to complete their Expedition sign-up?</p>\n<p>Thank you,<br>{{site_name}}</p>";
 
 	public const DEFAULT_MISSING_EDOFE_SUBJECT = '[{{site_name}}] Missing eDofE Number(s) for {{unit_name}}';
 	public const DEFAULT_MISSING_EDOFE_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> do not yet have an eDofE ID recorded on their signups:</p>\n{{missing_edofe_explorer_list}}\n<p>Please could you confirm or register their eDofE numbers so we can verify their award status?</p>\n<p>Thank you,<br>{{site_name}}</p>";
@@ -81,6 +81,71 @@ class Signup_Chaser_Controller {
 				'permission_callback' => fn() => current_user_can( 'manage_options' ),
 			)
 		);
+
+		register_rest_route(
+			'ems/v1',
+			'/signups/(?P<type>participant|expedition)/(?P<id>\d+)/history',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_signup_chase_history' ),
+				'permission_callback' => fn() => current_user_can( 'manage_options' ),
+			)
+		);
+	}
+
+	/**
+	 * GET /ems/v1/signups/{type}/{id}/history
+	 */
+	public function get_signup_chase_history( \WP_REST_Request $request ): \WP_REST_Response {
+		$type     = sanitize_key( (string) $request->get_param( 'type' ) );
+		$id       = (int) $request->get_param( 'id' );
+		$scout_id = (int) $request->get_param( 'scout_id' );
+
+		$history = array();
+		global $wpdb;
+		if ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'get_results' ) && method_exists( $wpdb, 'prepare' ) ) {
+			$logs_table = $wpdb->prefix . 'ems_notification_logs';
+			if ( $scout_id > 0 ) {
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT id, template_slug, trigger_type, recipient_email, cc_emails, subject, metadata, status, sent_at
+						 FROM {$logs_table}
+						 WHERE (target_signup_id = %d AND target_signup_type = %s) OR target_scout_id = %d
+						 ORDER BY sent_at DESC LIMIT 50",
+						$id,
+						$type,
+						$scout_id
+					),
+					ARRAY_A
+				);
+			} else {
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT id, template_slug, trigger_type, recipient_email, cc_emails, subject, metadata, status, sent_at
+						 FROM {$logs_table}
+						 WHERE target_signup_id = %d AND target_signup_type = %s
+						 ORDER BY sent_at DESC LIMIT 50",
+						$id,
+						$type
+					),
+					ARRAY_A
+				);
+			}
+			foreach ( (array) $rows as $row ) {
+				$meta      = ! empty( $row['metadata'] ) ? json_decode( (string) $row['metadata'], true ) : null;
+				$history[] = array(
+					'id'              => (int) ( $row['id'] ?? 0 ),
+					'template_slug'   => (string) ( $row['template_slug'] ?? '' ),
+					'recipient_email' => (string) ( $row['recipient_email'] ?? '' ),
+					'cc_emails'       => (string) ( $row['cc_emails'] ?? '' ),
+					'subject'         => (string) ( $row['subject'] ?? '' ),
+					'metadata'        => is_array( $meta ) ? $meta : array(),
+					'sent_at'         => (string) ( $row['sent_at'] ?? '' ),
+				);
+			}
+		}
+
+		return new \WP_REST_Response( array( 'history' => $history ), 200 );
 	}
 
 	/**
@@ -147,6 +212,14 @@ class Signup_Chaser_Controller {
 				'Invalid chaser_type. Expected osm_share, unpaired_signups, missing_form7, or missing_edofe.',
 				array( 'status' => 400 )
 			);
+		}
+
+		$target_audience = sanitize_key( (string) ( $request->get_param( 'target_audience' ) ?: 'unit_leader' ) );
+		$raw_anomalies   = $request->get_param( 'anomalies' );
+		$anomalies       = is_array( $raw_anomalies ) ? array_values( array_map( 'sanitize_key', $raw_anomalies ) ) : array();
+
+		if ( $target_audience === 'individual' ) {
+			return $this->send_individual_chaser( $request, $chaser_type, $anomalies );
 		}
 
 		$unit_name = trim( (string) $request->get_param( 'unit_name' ) );
@@ -396,22 +469,62 @@ class Signup_Chaser_Controller {
 		$all_history[ $chaser_type ][ $unit_name ] = $now;
 		update_option( self::OPTION_HISTORY, $all_history );
 
-		// Log dispatch to canonical ems_notification_logs table.
+		// Log dispatch to canonical ems_notification_logs table (unit summary + per-Explorer entries).
 		global $wpdb;
 		if ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'insert' ) ) {
+			$subject_used = $subject_override !== '' ? $subject_override : $rendered['subject'];
+			$user_id      = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
+			$meta_json    = wp_json_encode(
+				array(
+					'audience'  => 'unit_leader',
+					'unit_name' => $unit_name,
+					'anomalies' => $anomalies,
+				)
+			);
+
 			$wpdb->insert(
 				$wpdb->prefix . 'ems_notification_logs',
 				array(
 					'template_slug'   => $chaser_type,
 					'trigger_type'    => 'manual',
 					'recipient_email' => $recipient,
-					'subject'         => $subject_override !== '' ? $subject_override : $rendered['subject'],
+					'subject'         => $subject_used,
+					'metadata'        => $meta_json,
 					'status'          => 'sent',
-					'triggered_by'    => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
+					'triggered_by'    => $user_id,
 					'sent_at'         => $now,
 				),
-				array( '%s', '%s', '%s', '%s', '%s', '%d', '%s' )
+				array( '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' )
 			);
+
+			$included = $request->get_param( 'included_signups' );
+			if ( is_array( $included ) ) {
+				foreach ( $included as $inc ) {
+					$inc_id    = (int) ( $inc['id'] ?? 0 );
+					$inc_type  = sanitize_key( (string) ( $inc['type'] ?? '' ) );
+					$inc_scout = (int) ( $inc['scout_id'] ?? 0 );
+					if ( $inc_id <= 0 && $inc_scout <= 0 ) {
+						continue;
+					}
+					$wpdb->insert(
+						$wpdb->prefix . 'ems_notification_logs',
+						array(
+							'template_slug'      => $chaser_type,
+							'trigger_type'       => 'manual',
+							'recipient_email'    => $recipient,
+							'subject'            => $subject_used,
+							'target_scout_id'    => $inc_scout,
+							'target_signup_id'   => $inc_id > 0 ? $inc_id : null,
+							'target_signup_type' => in_array( $inc_type, array( 'participant', 'expedition' ), true ) ? $inc_type : null,
+							'metadata'           => $meta_json,
+							'status'             => 'sent',
+							'triggered_by'       => $user_id,
+							'sent_at'            => $now,
+						),
+						array( '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%d', '%s' )
+					);
+				}
+			}
 		}
 
 		if ( class_exists( Audit_Logger::class ) && method_exists( Audit_Logger::class, 'log' ) ) {
@@ -439,6 +552,81 @@ class Signup_Chaser_Controller {
 				'to'        => $recipient,
 				'sent_at'   => $now,
 				'history'   => $all_history[ $chaser_type ],
+			),
+			200
+		);
+	}
+
+	/**
+	 * Sends an individual/parent anomaly chaser email and logs per-Explorer history.
+	 *
+	 * @param string[] $anomalies
+	 */
+	private function send_individual_chaser( \WP_REST_Request $request, string $chaser_type, array $anomalies ): \WP_REST_Response|\WP_Error {
+		$to           = trim( (string) $request->get_param( 'to_override' ) );
+		$cc           = trim( (string) $request->get_param( 'cc_email' ) );
+		$subject      = trim( (string) $request->get_param( 'subject_override' ) );
+		$body         = (string) $request->get_param( 'body_override' );
+		$signup_id    = (int) $request->get_param( 'target_signup_id' );
+		$signup_type  = sanitize_key( (string) $request->get_param( 'target_signup_type' ) );
+		$scout_id     = (int) $request->get_param( 'target_scout_id' );
+		$explorer     = trim( (string) $request->get_param( 'explorer_name' ) ) ?: 'Explorer';
+
+		if ( $to === '' || ! is_email( $to ) ) {
+			return new \WP_Error( 'ems_invalid_recipient_email', 'A valid recipient email address is required.', array( 'status' => 400 ) );
+		}
+
+		if ( $subject === '' ) {
+			$subject = 'Action Required: DofE Expedition Sign-up for ' . $explorer;
+		}
+		if ( trim( $body ) === '' ) {
+			$body = '<p>Hello,</p><p>We need a quick update on the DofE Expedition sign-up for <strong>' . esc_html( $explorer ) . '</strong>.</p><p>Thank you.</p>';
+		}
+
+		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
+		if ( $cc !== '' && is_email( $cc ) && strcasecmp( $cc, $to ) !== 0 ) {
+			$headers[] = 'Cc: ' . (string) preg_replace( '/[\r\n\t]+/', '', $cc );
+		}
+
+		$sent = (bool) wp_mail( $to, $subject, $body, $headers );
+		if ( ! $sent ) {
+			return new \WP_Error( 'ems_email_send_failed', 'Failed to send individual chaser email.', array( 'status' => 500 ) );
+		}
+
+		$now = current_time( 'mysql' ) ?: gmdate( 'Y-m-d H:i:s' );
+		global $wpdb;
+		if ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'insert' ) ) {
+			$wpdb->insert(
+				$wpdb->prefix . 'ems_notification_logs',
+				array(
+					'template_slug'      => $chaser_type,
+					'trigger_type'       => 'manual',
+					'recipient_email'    => $to,
+					'cc_emails'          => $cc !== '' ? $cc : null,
+					'subject'            => $subject,
+					'target_scout_id'    => $scout_id,
+					'target_signup_id'   => $signup_id > 0 ? $signup_id : null,
+					'target_signup_type' => in_array( $signup_type, array( 'participant', 'expedition' ), true ) ? $signup_type : null,
+					'metadata'           => wp_json_encode(
+						array(
+							'audience'  => 'individual',
+							'anomalies' => $anomalies,
+						)
+					),
+					'status'             => 'sent',
+					'triggered_by'       => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
+					'sent_at'            => $now,
+				),
+				array( '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%d', '%s' )
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'sent'    => true,
+				'to'      => $to,
+				'cc'      => $cc,
+				'sent_at' => $now,
 			),
 			200
 		);

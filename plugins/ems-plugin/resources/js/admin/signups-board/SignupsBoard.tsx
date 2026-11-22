@@ -14,7 +14,6 @@ import {
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
 import { normalizeExpeditionType } from './dashboardMetrics';
 import UnitChaserView from './UnitChaserView';
-import SignupsKanbanView from './SignupsKanbanView';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 import { computeSignupsDashboardMetrics, getMatchSuggestions as findMatchSuggestions, getSignupRecordKey, groupSignupsByExplorerIdentity, isSignupSyncedWithOsm } from './dashboardMetrics';
 import {
@@ -47,7 +46,7 @@ export default function SignupsBoard() {
     const osmIconUrl = `${pluginUrl}assets/images/osm_icon.png`;
     const osmIconInverseUrl = `${pluginUrl}assets/images/osm_icon_inverse.png`;
 
-    const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'kanban' | 'table' | 'unmatched_osm' | 'unpaired_signups'>('dashboard');
+    const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'table' | 'anomalies'>('dashboard');
     const [signups, setSignups] = useState<any[]>([]);
     const [explorers, setExplorers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -55,6 +54,7 @@ export default function SignupsBoard() {
 
     // Filters
     const [statusFilter, setStatusFilter] = useState<string>('submitted');
+    const [stageFilter, setStageFilter] = useState<string>('all');
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [expeditionTypeFilter, setExpeditionTypeFilter] = useState<string>('all');
@@ -62,6 +62,9 @@ export default function SignupsBoard() {
     const [districtFilter, setDistrictFilter] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [anomalyFilter, setAnomalyFilter] = useState<'all' | 'no_expedition' | 'no_participant' | 'level_mismatch' | 'duplicate' | 'unmatched_osm' | 'pending_osm_sync' | 'missing_edofe' | 'unvalidated_asn'>('all');
+    const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
+    const [bulkStage, setBulkStage] = useState<string>('team_allocated');
+    const [chaseHistory, setChaseHistory] = useState<any[]>([]);
 
     // Grouping & Sorting
     const [grouping, setGrouping] = useState<'none' | 'level' | 'expedition' | 'unit' | 'explorer' | 'parent'>('none');
@@ -115,6 +118,101 @@ export default function SignupsBoard() {
             inspectorRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
         }
     }, [selectedSignup]);
+
+    const [chaseHistoryLoading, setChaseHistoryLoading] = useState<boolean>(false);
+    const [chaseHistoryLoaded, setChaseHistoryLoaded] = useState<boolean>(false);
+
+    useEffect(() => {
+        setChaseHistory([]);
+        setChaseHistoryLoaded(false);
+    }, [selectedSignup?.id, selectedSignup?.type]);
+
+    const handleLoadChaseHistory = async () => {
+        if (!selectedSignup || !config.root_url) return;
+        setChaseHistoryLoading(true);
+        try {
+            const res = await fetch(
+                `${config.root_url}/signups/${selectedSignup.type}/${selectedSignup.id}/history?scout_id=${Number(selectedSignup.scout_id || 0)}`,
+                { headers: { 'X-WP-Nonce': config.nonce } }
+            );
+            const data = res && res.ok ? await res.json() : null;
+            setChaseHistory(Array.isArray(data?.history) ? data.history : []);
+            setChaseHistoryLoaded(true);
+        } catch {
+            setChaseHistory([]);
+            setChaseHistoryLoaded(true);
+        } finally {
+            setChaseHistoryLoading(false);
+        }
+    };
+
+    const handleUpdateProcessingStatus = async (id: number, type: string, kanbanStage: string) => {
+        try {
+            const res = await fetch(`${config.root_url}/signups/${id}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce,
+                },
+                body: JSON.stringify({ type, kanban_stage: kanbanStage }),
+            });
+            if (res.ok) {
+                setSignups((prev) =>
+                    prev.map((s) => (s.id === id && s.type === type ? { ...s, kanban_stage: kanbanStage } : s))
+                );
+                if (selectedSignup && selectedSignup.id === id && selectedSignup.type === type) {
+                    setSelectedSignup({ ...selectedSignup, kanban_stage: kanbanStage });
+                }
+            }
+        } catch {}
+    };
+
+    const handleBulkUpdateStatus = async () => {
+        if (selectedRowKeys.size === 0) return;
+        const items: { id: number; type: string }[] = [];
+        explorerRows.forEach((row) => {
+            if (selectedRowKeys.has(row.rowKey) && row.entries[0]) {
+                items.push({ id: row.entries[0].id, type: row.entries[0].type });
+            }
+        });
+        if (items.length === 0) return;
+        const res = await fetch(`${config.root_url}/signups/bulk-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-WP-Nonce': config.nonce,
+            },
+            body: JSON.stringify({ items, kanban_stage: bulkStage }),
+        });
+        if (res.ok) {
+            setSelectedRowKeys(new Set());
+            fetchData();
+        }
+    };
+
+    const handleTogglePlaceAllocated = async (expeditionSignupId: number, nextAllocated: boolean) => {
+        const res = await fetch(`${config.root_url}/signups/expeditions/${expeditionSignupId}/place-allocated`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-WP-Nonce': config.nonce,
+            },
+            body: JSON.stringify({ participant_place_allocated: nextAllocated }),
+        });
+        if (res.ok) {
+            setSignups((prev) =>
+                prev.map((s) =>
+                    s.id === expeditionSignupId && s.type === 'expedition'
+                        ? { ...s, participant_place_allocated: nextAllocated }
+                        : s
+                )
+            );
+            if (selectedSignup && selectedSignup.id === expeditionSignupId && selectedSignup.type === 'expedition') {
+                setSelectedSignup({ ...selectedSignup, participant_place_allocated: nextAllocated });
+            }
+            fetchData();
+        }
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -483,6 +581,10 @@ export default function SignupsBoard() {
                 return false;
             }
         }
+        if (stageFilter !== 'all') {
+            const curStage = (s.kanban_stage || 'new') === 'to_process' ? 'new' : (s.kanban_stage || 'new');
+            if (curStage !== stageFilter) return false;
+        }
         if (anomalyFilter !== 'all') {
             const key = getSignupRecordKey(s);
             const serverAnomalies: string[] = Array.isArray(s.anomalies) ? s.anomalies : [];
@@ -735,13 +837,6 @@ export default function SignupsBoard() {
                     </button>
                     <button
                         type="button"
-                        className={`nav-tab ${activeViewTab === 'kanban' ? 'nav-tab-active' : ''}`}
-                        onClick={() => setActiveViewTab('kanban')}
-                    >
-                        Kanban Board
-                    </button>
-                    <button
-                        type="button"
                         className={`nav-tab ${activeViewTab === 'table' ? 'nav-tab-active' : ''}`}
                         onClick={() => setActiveViewTab('table')}
                     >
@@ -749,23 +844,13 @@ export default function SignupsBoard() {
                     </button>
                     <button
                         type="button"
-                        className={`nav-tab ${activeViewTab === 'unmatched_osm' ? 'nav-tab-active' : ''}`}
+                        className={`nav-tab ${activeViewTab === 'anomalies' ? 'nav-tab-active' : ''}`}
                         onClick={() => {
                             setSelectedSignup(null);
-                            setActiveViewTab('unmatched_osm');
+                            setActiveViewTab('anomalies');
                         }}
                     >
-                        Missing OSM Records ({dashboardMetrics.unmatchedOsm.explorersCount})
-                    </button>
-                    <button
-                        type="button"
-                        className={`nav-tab ${activeViewTab === 'unpaired_signups' ? 'nav-tab-active' : ''}`}
-                        onClick={() => {
-                            setSelectedSignup(null);
-                            setActiveViewTab('unpaired_signups');
-                        }}
-                    >
-                        Unpaired Signups ({dashboardMetrics.participantWithoutExpedition.totalExplorers + dashboardMetrics.expeditionWithoutParticipant.totalExplorers})
+                        Anomalies &amp; Chasers ({dashboardMetrics.unmatchedOsm.explorersCount + dashboardMetrics.participantWithoutExpedition.totalExplorers + dashboardMetrics.expeditionWithoutParticipant.totalExplorers})
                     </button>
                 </nav>
 
@@ -776,38 +861,19 @@ export default function SignupsBoard() {
                             explorers={explorers}
                             units={availableUnits}
                             onNavigateToTable={handleNavigateToTable}
-                            onOpenChaserTab={(tab) => {
+                            onOpenChaserTab={() => {
                                 setSelectedSignup(null);
-                                setActiveViewTab(tab);
+                                setActiveViewTab('anomalies');
                             }}
                         />
                     </ModuleErrorBoundary>
-                ) : activeViewTab === 'kanban' ? (
-                    <ModuleErrorBoundary moduleName="Signups Kanban Board">
-                        <SignupsKanbanView
-                            signups={signups}
-                            rootUrl={config.root_url}
-                            nonce={config.nonce}
-                            onSelectSignup={(s) => setSelectedSignup(s)}
-                            onUpdated={fetchData}
-                        />
-                    </ModuleErrorBoundary>
-                ) : activeViewTab === 'unmatched_osm' ? (
-                    <ModuleErrorBoundary moduleName="Missing OSM Records">
+                ) : activeViewTab === 'anomalies' ? (
+                    <ModuleErrorBoundary moduleName="Anomalies & Chasers">
                         <UnitChaserView
-                            chaserType="osm_share"
                             signups={signups}
                             units={availableUnits}
                             onSelectExplorer={(s) => setSelectedSignup(s)}
-                        />
-                    </ModuleErrorBoundary>
-                ) : activeViewTab === 'unpaired_signups' ? (
-                    <ModuleErrorBoundary moduleName="Unpaired Signups">
-                        <UnitChaserView
-                            chaserType="unpaired_signups"
-                            signups={signups}
-                            units={availableUnits}
-                            onSelectExplorer={(s) => setSelectedSignup(s)}
+                            onChaserSent={fetchData}
                         />
                     </ModuleErrorBoundary>
                 ) : (
@@ -952,6 +1018,26 @@ export default function SignupsBoard() {
                                     />
                                 </div>
 
+                                {/* Processing Status filter */}
+                                <div className="ems-flex-center ems-gap-8">
+                                    <label htmlFor="stage-filter" className="ems-toolbar__label">Processing Status:</label>
+                                    <select
+                                        id="stage-filter"
+                                        value={stageFilter}
+                                        onChange={(e) => setStageFilter(e.target.value)}
+                                        className="ems-select"
+                                    >
+                                        <option value="all">All Statuses</option>
+                                        <option value="new">New</option>
+                                        <option value="on_hold">On Hold (Place)</option>
+                                        <option value="place_allocated">Place Allocated</option>
+                                        <option value="team_allocated">Team Allocated</option>
+                                        <option value="expedition_completed">Expedition Completed</option>
+                                        <option value="withdrawn">Withdrawn</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+
                                 {/* Quick View / Anomaly selector */}
                                 <div className="ems-flex-center ems-gap-8">
                                     <label htmlFor="anomaly-filter" className="ems-toolbar__label">Filter View:</label>
@@ -962,8 +1048,8 @@ export default function SignupsBoard() {
                                         className="ems-select"
                                     >
                                         <option value="all">All Records</option>
-                                        <option value="no_expedition">Participant Only (No Form 7)</option>
-                                        <option value="no_participant">Expedition Only (No Form 6)</option>
+                                        <option value="no_expedition">Participant Only (No Expedition)</option>
+                                        <option value="no_participant">Expedition Only (No Participant Place)</option>
                                         <option value="level_mismatch">Award Level Mismatch</option>
                                         <option value="duplicate">Duplicate Signups</option>
                                         <option value="unmatched_osm">Unmatched OSM (scout_id=0)</option>
@@ -1021,12 +1107,51 @@ export default function SignupsBoard() {
                             </div>
                         )}
 
+                        {selectedRowKeys.size > 0 && (
+                            <div className="ems-signups-toolbar ems-mb-12" style={{ background: '#f0f6fc', padding: '8px 12px', borderRadius: '4px' }}>
+                                <span><strong>{selectedRowKeys.size}</strong> selected</span>
+                                <select
+                                    value={bulkStage}
+                                    onChange={(e) => setBulkStage(e.target.value)}
+                                    className="ems-select"
+                                >
+                                    <option value="new">New</option>
+                                    <option value="on_hold">On Hold (Place)</option>
+                                    <option value="place_allocated">Place Allocated</option>
+                                    <option value="team_allocated">Team Allocated</option>
+                                    <option value="expedition_completed">Expedition Completed</option>
+                                    <option value="withdrawn">Withdrawn</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <button type="button" className="button button-primary button-small" onClick={handleBulkUpdateStatus}>
+                                    Set Status
+                                </button>
+                                <button type="button" className="button button-small" onClick={() => setSelectedRowKeys(new Set())}>
+                                    Clear Selection
+                                </button>
+                            </div>
+                        )}
+
                         {/* Table Grid */}
                         <div className="ems-panel">
                             <div className="ems-signups-table-wrap">
                                 <table className="ems-table">
                                     <thead>
                                         <tr>
+                                            <th style={{ width: '28px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label="Select all visible rows"
+                                                    checked={explorerRows.length > 0 && explorerRows.every((r) => selectedRowKeys.has(r.rowKey))}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedRowKeys(new Set(explorerRows.map((r) => r.rowKey)));
+                                                        } else {
+                                                            setSelectedRowKeys(new Set());
+                                                        }
+                                                    }}
+                                                />
+                                            </th>
                                             {renderHeader('OSM Sync', 'osm_sync')}
                                             {renderHeader('Explorer Name', 'explorer_first_name')}
                                             {renderHeader('Level', 'dofe_level')}
@@ -1037,12 +1162,13 @@ export default function SignupsBoard() {
                                             {renderHeader('Unit', 'unit_name')}
                                             {renderHeader('Email', 'explorer_email')}
                                             {renderHeader('DofE Number', 'dofe_number')}
+                                            <th>Processing Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {paginatedGroupedSignups.length === 0 || (paginatedGroupedSignups.length === 1 && paginatedGroupedSignups[0].items.length === 0) ? (
                                             <tr>
-                                                <td colSpan={10} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
+                                                <td colSpan={12} className="ems-table-cell--center ems-p-20 ems-meta-text ems-italic">
                                                     No signup records found for this filter state.
                                                 </td>
                                             </tr>
@@ -1079,6 +1205,21 @@ export default function SignupsBoard() {
                                                                 onClick={() => setSelectedSignup(row.entries[0])}
                                                                 className={`ems-row-hoverable ${isRowSelected ? 'ems-table-row--selected' : ''}`}
                                                             >
+                                                                <td onClick={(e) => e.stopPropagation()}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        aria-label={`Select ${row.explorer_first_name} ${row.explorer_last_name}`}
+                                                                        checked={selectedRowKeys.has(row.rowKey)}
+                                                                        onChange={(e) => {
+                                                                            setSelectedRowKeys((prev) => {
+                                                                                const next = new Set(prev);
+                                                                                if (e.target.checked) next.add(row.rowKey);
+                                                                                else next.delete(row.rowKey);
+                                                                                return next;
+                                                                            });
+                                                                        }}
+                                                                    />
+                                                                </td>
                                                                 <td className="ems-table-cell--center">
                                                                     {row.is_synced_osm ? (
                                                                         <img
@@ -1217,6 +1358,37 @@ export default function SignupsBoard() {
                                                                             <FontAwesomeIcon icon={faTriangleExclamation} /> Transfer Req.
                                                                         </div>
                                                                     )}
+                                                                </td>
+                                                                <td onClick={(e) => e.stopPropagation()}>
+                                                                    {(() => {
+                                                                        const primaryEntry = row.entries[0];
+                                                                        const curStage = (primaryEntry?.kanban_stage || 'new') === 'to_process' ? 'new' : (primaryEntry?.kanban_stage || 'new');
+                                                                        const isPart = primaryEntry?.type === 'participant';
+                                                                        return (
+                                                                            <select
+                                                                                aria-label="Processing status"
+                                                                                value={curStage}
+                                                                                onChange={(e) => primaryEntry && handleUpdateProcessingStatus(primaryEntry.id, primaryEntry.type, e.target.value)}
+                                                                                className="ems-select ems-select-sm"
+                                                                            >
+                                                                                <option value="new">New</option>
+                                                                                {isPart ? (
+                                                                                    <>
+                                                                                        <option value="on_hold">On Hold</option>
+                                                                                        <option value="place_allocated">Place Allocated</option>
+                                                                                        <option value="cancelled">Cancelled</option>
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <option value="team_allocated">Team Allocated</option>
+                                                                                        <option value="expedition_completed">Expedition Completed</option>
+                                                                                        <option value="withdrawn">Withdrawn</option>
+                                                                                        <option value="cancelled">Cancelled</option>
+                                                                                    </>
+                                                                                )}
+                                                                            </select>
+                                                                        );
+                                                                    })()}
                                                                 </td>
                                                             </tr>
                                                         );
@@ -1565,6 +1737,50 @@ export default function SignupsBoard() {
                             </div>
 
                             <div className="ems-signups-detail-item">
+                                <span className="ems-signups-inspector__label">Processing Status</span>
+                                <div className="ems-mt-4">
+                                    <select
+                                        aria-label="Inspector Processing Status"
+                                        value={(selectedSignup.kanban_stage || 'new') === 'to_process' ? 'new' : (selectedSignup.kanban_stage || 'new')}
+                                        onChange={(e) => handleUpdateProcessingStatus(selectedSignup.id, selectedSignup.type, e.target.value)}
+                                        className="ems-select ems-select-sm"
+                                    >
+                                        <option value="new">New</option>
+                                        {selectedSignup.type === 'participant' ? (
+                                            <>
+                                                <option value="on_hold">On Hold</option>
+                                                <option value="place_allocated">Place Allocated</option>
+                                                <option value="cancelled">Cancelled</option>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <option value="team_allocated">Team Allocated</option>
+                                                <option value="expedition_completed">Expedition Completed</option>
+                                                <option value="withdrawn">Withdrawn</option>
+                                                <option value="cancelled">Cancelled</option>
+                                            </>
+                                        )}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {selectedSignup.type === 'expedition' && (
+                                <div className="ems-signups-detail-item ems-signups-detail-item--full">
+                                    <label className="ems-flex-center ems-gap-8">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(selectedSignup.participant_place_allocated)}
+                                            onChange={(e) => handleTogglePlaceAllocated(selectedSignup.id, e.target.checked)}
+                                        />
+                                        <span>
+                                            <strong>Participant Place Allocated</strong>
+                                            {selectedSignup.participant_signup_id ? ` (Linked #${selectedSignup.participant_signup_id})` : ' (Manual / Prior Year)'}
+                                        </span>
+                                    </label>
+                                </div>
+                            )}
+
+                            <div className="ems-signups-detail-item">
                                 <span className="ems-signups-inspector__label">Level</span>
                                 <div className="ems-flex-center ems-gap-8 ems-mt-4">
                                     <select
@@ -1817,6 +2033,34 @@ export default function SignupsBoard() {
                                 <span className="ems-signups-inspector__label">Submitted At</span>
                                 <div className="ems-signups-inspector__value">{selectedSignup.created_at || '—'}</div>
                             </div>
+                        </div>
+
+                        {/* Chase History */}
+                        <div className="ems-signups-inspector__section-title">Chase History</div>
+                        <div style={{ marginBottom: '16px' }}>
+                            {!chaseHistoryLoaded ? (
+                                <button
+                                    type="button"
+                                    className="button button-small"
+                                    disabled={chaseHistoryLoading}
+                                    onClick={handleLoadChaseHistory}
+                                >
+                                    {chaseHistoryLoading ? 'Loading…' : 'Load Chase History'}
+                                </button>
+                            ) : chaseHistory.length === 0 ? (
+                                <div className="ems-meta-text ems-italic ems-small-text">No chaser emails logged for this Explorer yet.</div>
+                            ) : (
+                                <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px' }}>
+                                    {chaseHistory.map((h: any) => (
+                                        <li key={h.id} style={{ marginBottom: '4px' }}>
+                                            <strong>{h.sent_at}</strong> &middot; {h.metadata?.audience === 'individual' ? 'Individual/Parent' : 'Unit Leader'} ({h.recipient_email})
+                                            {Array.isArray(h.metadata?.anomalies) && h.metadata.anomalies.length > 0 && (
+                                                <span className="ems-meta-text"> — {h.metadata.anomalies.join(', ')}</span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
                     </div>
 

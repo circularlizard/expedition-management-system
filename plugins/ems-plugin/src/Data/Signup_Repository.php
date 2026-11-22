@@ -35,6 +35,7 @@ class Signup_Repository {
 			'bronze_completion'   => ! empty( $data['bronze_completion'] ) ? ( is_array( $data['bronze_completion'] ) ? json_encode( $data['bronze_completion'] ) : $data['bronze_completion'] ) : null,
 			'silver_completion'   => ! empty( $data['silver_completion'] ) ? ( is_array( $data['silver_completion'] ) ? json_encode( $data['silver_completion'] ) : $data['silver_completion'] ) : null,
 			'signup_status'       => sanitize_text_field( $data['signup_status'] ?? 'submitted' ),
+			'kanban_stage'        => sanitize_text_field( $data['kanban_stage'] ?? 'new' ),
 			'payment_status'      => sanitize_text_field( $data['payment_status'] ?? 'pending' ),
 			'form_submission_id'  => (int) ( $data['form_submission_id'] ?? 0 ),
 			'created_at'          => $now,
@@ -45,6 +46,7 @@ class Signup_Repository {
 			'%d',
 			'%d',
 			'%d',
+			'%s',
 			'%s',
 			'%s',
 			'%s',
@@ -103,6 +105,7 @@ class Signup_Repository {
 			'first_aid_status'         => sanitize_text_field( $data['first_aid_status'] ?? 'none' ),
 			'first_aid_expiry'         => ! empty( $data['first_aid_expiry'] ) ? sanitize_text_field( $data['first_aid_expiry'] ) : null,
 			'signup_status'            => sanitize_text_field( $data['signup_status'] ?? 'submitted' ),
+			'kanban_stage'             => sanitize_text_field( $data['kanban_stage'] ?? 'new' ),
 			'form_submission_id'       => (int) ( $data['form_submission_id'] ?? 0 ),
 			'created_at'               => $now,
 			'updated_at'               => $now,
@@ -112,6 +115,7 @@ class Signup_Repository {
 			'%d',
 			'%d',
 			'%d',
+			'%s',
 			'%s',
 			'%s',
 			'%s',
@@ -317,10 +321,13 @@ class Signup_Repository {
 	}
 
 	/**
-	 * Update additive Kanban stage & processing notes without altering signup_status.
+	 * Update additive processing status & notes without altering signup_status.
 	 */
 	public function update_kanban_stage( int $id, string $signup_type, string $kanban_stage, ?string $processing_notes = null ): bool {
-		$valid_stages = array( 'to_process', 'on_hold', 'returned', 'processed', 'cancelled' );
+		$valid_stages = $signup_type === 'participant'
+			? array( 'new', 'on_hold', 'place_allocated', 'cancelled' )
+			: array( 'new', 'team_allocated', 'expedition_completed', 'cancelled', 'withdrawn' );
+
 		if ( ! in_array( $kanban_stage, $valid_stages, true ) ) {
 			return false;
 		}
@@ -344,6 +351,32 @@ class Signup_Repository {
 			$table,
 			$data,
 			array( 'id' => $id ),
+			$format,
+			array( '%d' )
+		);
+
+		return $result !== false;
+	}
+
+	/**
+	 * Set or clear participant_place_allocated (and optional participant_signup_id) on an expedition signup.
+	 */
+	public function set_participant_place_allocated( int $expedition_signup_id, bool $allocated, ?int $participant_signup_id = null ): bool {
+		$data   = array(
+			'participant_place_allocated' => $allocated ? 1 : 0,
+			'updated_at'                  => current_time( 'mysql' ),
+		);
+		$format = array( '%d', '%s' );
+
+		if ( $participant_signup_id !== null ) {
+			$data['participant_signup_id'] = $participant_signup_id > 0 ? $participant_signup_id : null;
+			$format[]                      = $participant_signup_id > 0 ? '%d' : '%s';
+		}
+
+		$result = $this->wpdb->update(
+			"{$this->wpdb->prefix}ems_expedition_signups",
+			$data,
+			array( 'id' => $expedition_signup_id ),
 			$format,
 			array( '%d' )
 		);

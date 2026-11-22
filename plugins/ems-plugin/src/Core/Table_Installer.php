@@ -98,10 +98,12 @@ class Table_Installer {
 		}
 		if ( ! $this->column_exists( $wpdb, $participant_table, 'kanban_stage' ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN kanban_stage VARCHAR(24) NOT NULL DEFAULT 'to_process' AFTER signup_status" );
+			$wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN kanban_stage VARCHAR(24) NOT NULL DEFAULT 'new' AFTER signup_status" );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$participant_table} ADD KEY idx_kanban_stage (kanban_stage)" );
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "UPDATE {$participant_table} SET kanban_stage = 'new' WHERE kanban_stage = 'to_process'" );
 		if ( ! $this->column_exists( $wpdb, $participant_table, 'processing_notes' ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN processing_notes TEXT NULL AFTER kanban_stage" );
@@ -110,13 +112,39 @@ class Table_Installer {
 		$expedition_signups_table = $wpdb->prefix . 'ems_expedition_signups';
 		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'kanban_stage' ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN kanban_stage VARCHAR(24) NOT NULL DEFAULT 'to_process' AFTER signup_status" );
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN kanban_stage VARCHAR(24) NOT NULL DEFAULT 'new' AFTER signup_status" );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD KEY idx_kanban_stage (kanban_stage)" );
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "UPDATE {$expedition_signups_table} SET kanban_stage = 'new' WHERE kanban_stage = 'to_process'" );
 		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'processing_notes' ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN processing_notes TEXT NULL AFTER kanban_stage" );
+		}
+		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'participant_place_allocated' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN participant_place_allocated TINYINT(1) NOT NULL DEFAULT 0 AFTER processing_notes" );
+		}
+		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'participant_signup_id' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN participant_signup_id BIGINT UNSIGNED NULL AFTER participant_place_allocated" );
+		}
+
+		$notif_table = $wpdb->prefix . 'ems_notification_logs';
+		if ( $this->column_exists( $wpdb, $notif_table, 'id' ) ) {
+			if ( ! $this->column_exists( $wpdb, $notif_table, 'target_signup_id' ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( "ALTER TABLE {$notif_table} ADD COLUMN target_signup_id BIGINT UNSIGNED NULL AFTER target_scout_id" );
+			}
+			if ( ! $this->column_exists( $wpdb, $notif_table, 'target_signup_type' ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( "ALTER TABLE {$notif_table} ADD COLUMN target_signup_type VARCHAR(16) NULL AFTER target_signup_id" );
+			}
+			if ( ! $this->column_exists( $wpdb, $notif_table, 'metadata' ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( "ALTER TABLE {$notif_table} ADD COLUMN metadata LONGTEXT NULL AFTER error_message" );
+			}
 		}
 		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'dob' ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -622,7 +650,7 @@ class Table_Installer {
             bronze_completion      TEXT                     DEFAULT NULL,
             silver_completion      TEXT                     DEFAULT NULL,
             signup_status          VARCHAR(30)     NOT NULL DEFAULT 'submitted',
-            kanban_stage           VARCHAR(24)     NOT NULL DEFAULT 'to_process',
+            kanban_stage           VARCHAR(24)     NOT NULL DEFAULT 'new',
             processing_notes       TEXT                     DEFAULT NULL,
             payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending',
             processed_by           BIGINT UNSIGNED          DEFAULT NULL,
@@ -656,11 +684,13 @@ class Table_Installer {
             additional_support_needs TEXT                   DEFAULT NULL,
             asn_validated          TINYINT(1)               DEFAULT NULL,
             first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
-            first_aid_expiry       DATE                     DEFAULT NULL,
-            signup_status          VARCHAR(30)     NOT NULL DEFAULT 'submitted',
-            kanban_stage           VARCHAR(24)     NOT NULL DEFAULT 'to_process',
-            processing_notes       TEXT                     DEFAULT NULL,
-            form_submission_id     BIGINT UNSIGNED NOT NULL,
+            first_aid_expiry           DATE                     DEFAULT NULL,
+            signup_status              VARCHAR(30)     NOT NULL DEFAULT 'submitted',
+            kanban_stage               VARCHAR(24)     NOT NULL DEFAULT 'new',
+            processing_notes           TEXT                     DEFAULT NULL,
+            participant_place_allocated TINYINT(1)     NOT NULL DEFAULT 0,
+            participant_signup_id      BIGINT UNSIGNED          DEFAULT NULL,
+            form_submission_id         BIGINT UNSIGNED NOT NULL,
             created_at             DATETIME        NOT NULL,
             updated_at             DATETIME        NOT NULL,
             PRIMARY KEY (id),
@@ -734,11 +764,14 @@ class Table_Installer {
             cc_emails              TEXT                     DEFAULT NULL,
             subject                VARCHAR(255)    NOT NULL,
             target_scout_id        BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            target_signup_id       BIGINT UNSIGNED          DEFAULT NULL,
+            target_signup_type     VARCHAR(16)              DEFAULT NULL,
             target_team_id         BIGINT UNSIGNED          DEFAULT NULL,
             target_expedition_id   BIGINT UNSIGNED          DEFAULT NULL,
             dedupe_key             VARCHAR(128)             DEFAULT NULL,
             status                 VARCHAR(24)     NOT NULL DEFAULT 'sent',
             error_message          TEXT                     DEFAULT NULL,
+            metadata               LONGTEXT                 DEFAULT NULL,
             triggered_by           BIGINT UNSIGNED NOT NULL DEFAULT 0,
             sent_at                DATETIME        NOT NULL,
             PRIMARY KEY (id),

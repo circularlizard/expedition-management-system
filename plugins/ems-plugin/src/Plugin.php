@@ -106,13 +106,11 @@ class Plugin {
 		$admin_page       = new Admin_Page( new Diagnostic_Panel() );
 		$unit_leader_page = new \EMS\Modules\LeaderDashboard\Unit_Leader_Page();
 		$settings_page    = new Settings_Page();
-		$report_page      = new Training_Report_Page( new TutorLMS_Client() );
 
 		$menu_manager = new \EMS\Admin\Menu_Manager(
 			$admin_page,
 			$unit_leader_page,
-			$settings_page,
-			$report_page
+			$settings_page
 		);
 		$menu_manager->init();
 

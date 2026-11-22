@@ -20,6 +20,10 @@ const ExpeditionBoard: React.FC = () => {
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab') as BoardTab | null;
+        if (tab && ['dashboard', 'planning', 'readiness', 'create'].includes(tab)) {
+            setActiveTab(tab);
+        }
         const eventId = params.get('event_id');
         if (eventId && data?.seasons) {
             for (const season of data.seasons) {

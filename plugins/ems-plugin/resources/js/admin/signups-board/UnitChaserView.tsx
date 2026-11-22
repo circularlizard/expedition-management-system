@@ -5,6 +5,7 @@ import {
     faExternalLinkAlt,
     faTriangleExclamation,
     faClock,
+    faUser,
 } from '@fortawesome/free-solid-svg-icons';
 import {
     groupSignupsByExplorerIdentity,
@@ -13,13 +14,25 @@ import {
 import { getUnitDistrictMap, normalize } from './tableUtils';
 import { RichTextEditor, ShortcodeOption } from '../expedition-board/RichTextEditor';
 
-export type ChaserType = 'osm_share' | 'unpaired_signups';
+export type ChaserType = 'osm_share' | 'unpaired_signups' | 'missing_edofe';
+
+export const ANOMALY_META: { key: string; label: string }[] = [
+    { key: 'unmatched_osm', label: 'Unmatched OSM' },
+    { key: 'pending_osm_sync', label: 'Pending OSM Sync' },
+    { key: 'expedition_without_place', label: 'Expedition Without Place' },
+    { key: 'place_without_expedition', label: 'Place Without Expedition' },
+    { key: 'missing_edofe', label: 'Missing eDofE' },
+    { key: 'level_mismatch', label: 'Level Mismatch' },
+    { key: 'duplicate_signup', label: 'Duplicate' },
+    { key: 'unvalidated_asn', label: 'Unvalidated ASN' },
+];
 
 interface UnitChaserViewProps {
-    chaserType: ChaserType;
+    chaserType?: ChaserType;
     signups: any[];
     units: any[];
     onSelectExplorer?: (signup: any) => void;
+    onChaserSent?: () => void;
 }
 
 interface ChaserExplorerItem {
@@ -27,9 +40,10 @@ interface ChaserExplorerItem {
     name: string;
     firstName: string;
     level: string;
-    stateLabel: string;
+    anomalies: string[];
     scoutId: number;
     email: string;
+    parentEmail: string;
     primarySignup: any;
 }
 
@@ -40,19 +54,20 @@ interface UnitChaserGroup {
     explorers: ChaserExplorerItem[];
 }
 
-interface ChaserExplorerTokenItem {
-    first_name?: string;
-    last_name?: string;
-    dofe_level?: string;
-}
-
 interface EmailDraft {
+    audience: 'unit_leader' | 'individual';
+    chaserType: ChaserType;
     unitName: string;
     to: string;
+    cc: string;
     subject: string;
     message: string;
-    replacements?: Record<string, string>;
-    tokenDatasets?: Record<string, ChaserExplorerTokenItem[]>;
+    anomalies: string[];
+    includedSignups: { id: number; type: string; scout_id: number }[];
+    targetSignupId?: number;
+    targetSignupType?: string;
+    targetScoutId?: number;
+    explorerName?: string;
     shortcodes?: ShortcodeOption[];
 }
 
@@ -64,83 +79,17 @@ const escapeHtml = (str: string): string =>
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
-const formatGroupedExplorerListHtml = (explorers: ChaserExplorerTokenItem[]): string => {
-    if (!explorers || explorers.length === 0) {
-        return '<p><em>None</em></p>';
-    }
-    const grouped: Record<string, ChaserExplorerTokenItem[]> = { bronze: [], silver: [], gold: [], other: [] };
-    explorers.forEach((exp) => {
-        const lvl = (exp.dofe_level || '').trim().toLowerCase();
-        if (lvl === 'bronze' || lvl === 'silver' || lvl === 'gold') {
-            grouped[lvl].push(exp);
-        } else {
-            grouped.other.push(exp);
-        }
-    });
-
-    const labels: Record<string, string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', other: 'Other' };
-    let html = '';
-    (['bronze', 'silver', 'gold', 'other'] as const).forEach((lvl) => {
-        const items = grouped[lvl];
-        if (items.length === 0) return;
-        const sorted = [...items].sort((a, b) => {
-            const cmp = (a.first_name || '').localeCompare(b.first_name || '');
-            return cmp !== 0 ? cmp : (a.last_name || '').localeCompare(b.last_name || '');
-        });
-        html += `<p><strong>${labels[lvl]}</strong></p><ul>`;
-        sorted.forEach((item) => {
-            const name = `${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown Explorer';
-            html += `<li>${escapeHtml(name)}</li>`;
-        });
-        html += '</ul>';
-    });
-    return html || '<p><em>None</em></p>';
-};
-
-const renderChaserPreview = (
-    template: string,
-    replacements?: Record<string, string>,
-    tokenDatasets?: Record<string, ChaserExplorerTokenItem[]>
-): string => {
-    let result = template;
-    if (tokenDatasets) {
-        result = result.replace(
-            /\{\{\s*([a-zA-Z0-9_]+)(?:\s+levels\s*=\s*(?:"|&quot;)([^"&]*)(?:"|&quot;))?\s*\}\}/g,
-            (match, token: string, rawLevels?: string) => {
-                if (!Object.prototype.hasOwnProperty.call(tokenDatasets, token)) {
-                    return match;
-                }
-                let explorers = tokenDatasets[token] || [];
-                if (rawLevels && rawLevels.trim() !== '') {
-                    const allowed = rawLevels
-                        .split(',')
-                        .map((l) => l.trim().toLowerCase())
-                        .filter(Boolean);
-                    explorers = explorers.filter((exp) =>
-                        allowed.includes((exp.dofe_level || '').trim().toLowerCase())
-                    );
-                }
-                return formatGroupedExplorerListHtml(explorers);
-            }
-        );
-    }
-    if (replacements) {
-        Object.entries(replacements).forEach(([key, val]) => {
-            result = result.split(key).join(val);
-        });
-    }
-    return result;
-};
-
 export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
-    chaserType,
     signups,
     units,
     onSelectExplorer,
+    onChaserSent,
 }) => {
+    const [selectedAnomalies, setSelectedAnomalies] = useState<string[]>(
+        ANOMALY_META.map((a) => a.key)
+    );
     const [history, setHistory] = useState<Record<string, string>>({});
     const [fluentSmtpUrl, setFluentSmtpUrl] = useState<string>('admin.php?page=fluent-mail#/logs');
-    const [selectedLevels, setSelectedLevels] = useState<string[]>(['bronze', 'silver', 'gold']);
     const [draft, setDraft] = useState<EmailDraft | null>(null);
     const [loadingPreview, setLoadingPreview] = useState<string | null>(null);
     const [sending, setSending] = useState<boolean>(false);
@@ -153,26 +102,24 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
     useEffect(() => {
         if (!rootUrl) return;
         let active = true;
-        fetch(`${rootUrl}/signups/chaser-history?type=${encodeURIComponent(chaserType)}`, {
+        fetch(`${rootUrl}/signups/chaser-history?type=osm_share`, {
             headers: { 'X-WP-Nonce': nonce },
         })
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
                 if (!active || !data) return;
-                if (data.history && typeof data.history === 'object') {
+                if (data.history && typeof data.history === 'object' && !Array.isArray(data.history)) {
                     setHistory(data.history);
                 }
                 if (data.fluent_smtp_url) {
                     setFluentSmtpUrl(data.fluent_smtp_url);
                 }
             })
-            .catch(() => {
-                // Non-fatal: history is informational
-            });
+            .catch(() => {});
         return () => {
             active = false;
         };
-    }, [rootUrl, nonce, chaserType]);
+    }, [rootUrl, nonce]);
 
     const unitLookup = useMemo(() => {
         const map: Record<string, any> = {};
@@ -185,15 +132,37 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
 
     const unitDistrictMap = useMemo(() => getUnitDistrictMap(units), [units]);
 
+    const toggleAnomaly = (key: string) => {
+        setSelectedAnomalies((prev) =>
+            prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+        );
+    };
+
     const unitGroups = useMemo<UnitChaserGroup[]>(() => {
         const activeSignups = (signups || []).filter((s: any) => s.signup_status !== 'archived');
         const buckets = groupSignupsByExplorerIdentity(activeSignups);
         const byUnit: Record<string, UnitChaserGroup> = {};
-        const levels = ['bronze', 'silver', 'gold'] as const;
 
         buckets.forEach((bucket, idx) => {
             const primary = bucket.items[0];
             if (!primary) return;
+
+            const explorerAnomalies = new Set<string>();
+            bucket.items.forEach((item: any) => {
+                if (Array.isArray(item.anomalies) && item.anomalies.length > 0) {
+                    item.anomalies.forEach((a: string) => explorerAnomalies.add(a));
+                } else {
+                    if (item.type === 'expedition' && !isSignupSyncedWithOsm(item)) {
+                        explorerAnomalies.add(Number(item.scout_id || 0) === 0 ? 'unmatched_osm' : 'pending_osm_sync');
+                    }
+                    if (!item.dofe_number) {
+                        explorerAnomalies.add('missing_edofe');
+                    }
+                }
+            });
+
+            const matching = Array.from(explorerAnomalies).filter((a) => selectedAnomalies.includes(a));
+            if (matching.length === 0) return;
 
             const rawUnit = (
                 bucket.items.find((i: any) => i.unit_name && i.unit_name !== 'Unassigned')?.unit_name ||
@@ -201,105 +170,47 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 'Unassigned'
             ).trim();
             const unitMeta = unitLookup[normalize(rawUnit)];
-            const district =
-                (primary.district || unitMeta?.district || unitDistrictMap[rawUnit] || 'Unassigned').trim();
+            const district = (primary.district || unitMeta?.district || unitDistrictMap[rawUnit] || 'Unassigned').trim();
             const leaderEmail = (unitMeta?.leader_email || primary.leader_email || '').trim();
 
-            const ensureGroup = (): UnitChaserGroup => {
-                if (!byUnit[rawUnit]) {
-                    byUnit[rawUnit] = {
-                        unitName: rawUnit,
-                        district,
-                        leaderEmail,
-                        explorers: [],
-                    };
-                }
-                return byUnit[rawUnit];
-            };
+            if (!byUnit[rawUnit]) {
+                byUnit[rawUnit] = {
+                    unitName: rawUnit,
+                    district,
+                    leaderEmail,
+                    explorers: [],
+                };
+            }
 
             const fullName = `${primary.explorer_first_name || ''} ${primary.explorer_last_name || ''}`.trim() || 'Unknown';
-            const email =
-                bucket.items.find((i: any) => i.explorer_email)?.explorer_email ||
-                bucket.items.find((i: any) => i.parent_email)?.parent_email ||
-                '';
+            const explorerEmail = (bucket.items.find((i: any) => i.explorer_email)?.explorer_email || '').trim();
+            const parentEmail = (bucket.items.find((i: any) => i.parent_email)?.parent_email || '').trim();
 
-            if (chaserType === 'osm_share') {
-                const hasUnsynced = bucket.items.some((i: any) => !isSignupSyncedWithOsm(i));
-                if (!hasUnsynced) return;
-
-                const grp = ensureGroup();
-                grp.explorers.push({
-                    key: `osm_${bucket.scoutId || idx}_${rawUnit}`,
-                    name: fullName,
-                    firstName: (primary.explorer_first_name || '').trim(),
-                    level: (primary.dofe_level || '').trim().toLowerCase(),
-                    stateLabel: Number(bucket.scoutId || 0) !== 0 ? `Scout ID ${bucket.scoutId} (Not Synced)` : 'No OSM Record',
-                    scoutId: Number(bucket.scoutId || 0),
-                    email,
-                    primarySignup: primary,
-                });
-            } else {
-                levels.forEach((lvl) => {
-                    const pItems = bucket.items.filter(
-                        (i: any) => i.type === 'participant' && normalize(i.dofe_level) === lvl
-                    );
-                    const eItems = bucket.items.filter(
-                        (i: any) => i.type === 'expedition' && normalize(i.dofe_level) === lvl
-                    );
-
-                    if (pItems.length > 0 && eItems.length === 0) {
-                        const grp = ensureGroup();
-                        grp.explorers.push({
-                            key: `unp_p_${bucket.scoutId || idx}_${lvl}`,
-                            name: fullName,
-                            firstName: (primary.explorer_first_name || '').trim(),
-                            level: lvl,
-                            stateLabel: 'Place Only (No Exped)',
-                            scoutId: Number(bucket.scoutId || 0),
-                            email,
-                            primarySignup: pItems[0],
-                        });
-                    } else if (eItems.length > 0 && pItems.length === 0) {
-                        const grp = ensureGroup();
-                        grp.explorers.push({
-                            key: `unp_e_${bucket.scoutId || idx}_${lvl}`,
-                            name: fullName,
-                            firstName: (primary.explorer_first_name || '').trim(),
-                            level: lvl,
-                            stateLabel: 'Exped Only (No Place)',
-                            scoutId: Number(bucket.scoutId || 0),
-                            email,
-                            primarySignup: eItems[0],
-                        });
-                    }
-                });
-            }
+            byUnit[rawUnit].explorers.push({
+                key: `${rawUnit}_${idx}`,
+                name: fullName,
+                firstName: primary.explorer_first_name || '',
+                level: (primary.dofe_level || '').toUpperCase(),
+                anomalies: matching,
+                scoutId: bucket.scoutId,
+                email: explorerEmail,
+                parentEmail,
+                primarySignup: primary,
+            });
         });
 
-        return Object.values(byUnit)
-            .map((grp) => ({
-                ...grp,
-                explorers: [...grp.explorers]
-                    .filter((e) => !e.level || selectedLevels.includes(e.level))
-                    .sort((a, b) => a.firstName.localeCompare(b.firstName)),
-            }))
-            .filter((grp) => grp.explorers.length > 0)
-            .sort((a, b) => {
-                if (a.unitName === 'Unassigned') return 1;
-                if (b.unitName === 'Unassigned') return -1;
-                return a.unitName.localeCompare(b.unitName);
-            });
-    }, [signups, units, unitLookup, unitDistrictMap, chaserType, selectedLevels]);
+        return Object.values(byUnit).sort((a, b) => a.unitName.localeCompare(b.unitName));
+    }, [signups, selectedAnomalies, unitLookup, unitDistrictMap]);
 
-    const toggleLevel = (lvl: string) => {
-        setSelectedLevels((prev) =>
-            prev.includes(lvl) ? prev.filter((item) => item !== lvl) : [...prev, lvl]
-        );
-    };
-
-    const handleOpenPreview = async (group: UnitChaserGroup) => {
+    const openUnitChaserModal = async (group: UnitChaserGroup) => {
         setNotice(null);
         setLoadingPreview(group.unitName);
+
+        const hasOsm = group.explorers.some((e) =>
+            e.anomalies.some((a) => a === 'unmatched_osm' || a === 'pending_osm_sync')
+        );
+        const inferredType: ChaserType = hasOsm ? 'osm_share' : 'unpaired_signups';
+
         try {
             const res = await fetch(`${rootUrl}/signups/send-chaser`, {
                 method: 'POST',
@@ -308,34 +219,80 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                     'X-WP-Nonce': nonce,
                 },
                 body: JSON.stringify({
-                    chaser_type: chaserType,
+                    chaser_type: inferredType,
                     unit_name: group.unitName,
-                    levels: selectedLevels,
                     preview: true,
                 }),
             });
             const data = await res.json();
-            if (!res.ok || data?.code) {
-                throw new Error(data?.message || 'Failed to load email preview.');
-            }
+            const listHtml = `<ul>${group.explorers
+                .map(
+                    (e) =>
+                        `<li><strong>${escapeHtml(e.name)}</strong> (${escapeHtml(e.level)}) — ${e.anomalies
+                            .map((a) => ANOMALY_META.find((m) => m.key === a)?.label || a)
+                            .join(', ')}</li>`
+                )
+                .join('')}</ul>`;
+
             setDraft({
+                audience: 'unit_leader',
+                chaserType: inferredType,
                 unitName: group.unitName,
-                to: data.to || group.leaderEmail || '',
-                subject: data.raw_subject ?? data.subject ?? '',
-                message: data.raw_message ?? data.message ?? '',
-                replacements: data.replacements,
-                tokenDatasets: data.token_datasets,
-                shortcodes: Array.isArray(data.shortcodes) ? data.shortcodes : undefined,
+                to: data?.to || group.leaderEmail || '',
+                cc: '',
+                subject: data?.subject || `DofE Sign-up Anomalies for ${group.unitName}`,
+                message:
+                    (data?.message ? data.message : '<p>Hello,</p><p>Please review the following Explorers:</p>') +
+                    `<p><strong>Selected Anomalies:</strong></p>${listHtml}`,
+                anomalies: Array.from(new Set(group.explorers.flatMap((e) => e.anomalies))),
+                includedSignups: group.explorers.map((e) => ({
+                    id: Number(e.primarySignup.id),
+                    type: String(e.primarySignup.type),
+                    scout_id: Number(e.scoutId || 0),
+                })),
+                shortcodes: Array.isArray(data?.shortcodes) ? data.shortcodes : [],
             });
-        } catch (err: any) {
-            setNotice({ type: 'error', text: err?.message || 'Failed to load email preview.' });
+        } catch {
+            setNotice({ type: 'error', text: 'Could not load chaser email preview.' });
         } finally {
             setLoadingPreview(null);
         }
     };
 
-    const handleSendEmail = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const openIndividualChaserModal = (group: UnitChaserGroup, exp: ChaserExplorerItem) => {
+        setNotice(null);
+        const anomalyList = exp.anomalies
+            .map((a) => ANOMALY_META.find((m) => m.key === a)?.label || a)
+            .join(', ');
+        const to = exp.email || exp.parentEmail;
+        const cc = exp.email && exp.parentEmail && exp.email.toLowerCase() !== exp.parentEmail.toLowerCase()
+            ? exp.parentEmail
+            : '';
+
+        setDraft({
+            audience: 'individual',
+            chaserType: 'unpaired_signups',
+            unitName: group.unitName,
+            to,
+            cc,
+            subject: `Action Required: DofE Sign-up for ${exp.name}`,
+            message: `<p>Hello,</p><p>We are reviewing the DofE sign-up for <strong>${escapeHtml(exp.name)}</strong> (${escapeHtml(exp.level)}) and noticed the following item(s) to resolve:</p><p><strong>${escapeHtml(anomalyList)}</strong></p><p>Please reply to let us know or complete the missing details.</p><p>Thank you</p>`,
+            anomalies: exp.anomalies,
+            includedSignups: [
+                {
+                    id: Number(exp.primarySignup.id),
+                    type: String(exp.primarySignup.type),
+                    scout_id: Number(exp.scoutId || 0),
+                },
+            ],
+            targetSignupId: Number(exp.primarySignup.id),
+            targetSignupType: String(exp.primarySignup.type),
+            targetScoutId: Number(exp.scoutId || 0),
+            explorerName: exp.name,
+        });
+    };
+
+    const handleSend = async () => {
         if (!draft) return;
         setSending(true);
         setNotice(null);
@@ -347,260 +304,238 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                     'X-WP-Nonce': nonce,
                 },
                 body: JSON.stringify({
-                    chaser_type: chaserType,
+                    target_audience: draft.audience,
+                    chaser_type: draft.chaserType,
                     unit_name: draft.unitName,
-                    levels: selectedLevels,
-                    preview: false,
                     to_override: draft.to,
+                    cc_email: draft.cc,
                     subject_override: draft.subject,
                     body_override: draft.message,
+                    anomalies: draft.anomalies,
+                    included_signups: draft.includedSignups,
+                    target_signup_id: draft.targetSignupId,
+                    target_signup_type: draft.targetSignupType,
+                    target_scout_id: draft.targetScoutId,
+                    explorer_name: draft.explorerName,
                 }),
             });
             const data = await res.json();
-            if (!res.ok || data?.code) {
+            if (!res.ok) {
                 throw new Error(data?.message || 'Failed to send email.');
             }
-            if (data.history) {
+            if (data?.history && typeof data.history === 'object') {
                 setHistory(data.history);
-            } else if (data.sent_at) {
-                setHistory((prev) => ({ ...prev, [draft.unitName]: data.sent_at }));
             }
-            setNotice({
-                type: 'success',
-                text: `Email sent to ${draft.to} for ${draft.unitName}.`,
-            });
+            setNotice({ type: 'success', text: `Chaser email sent to ${draft.to}.` });
             setDraft(null);
+            onChaserSent?.();
         } catch (err: any) {
-            setNotice({ type: 'error', text: err?.message || 'Failed to send email.' });
+            setNotice({ type: 'error', text: err?.message || 'Failed to send chaser email.' });
         } finally {
             setSending(false);
         }
     };
 
-    const heading =
-        chaserType === 'osm_share'
-            ? 'Explorers Without Synced OSM Records'
-            : 'Explorers With Unpaired Signups (Place vs Expedition)';
-
-    const description =
-        chaserType === 'osm_share'
-            ? 'Grouped by unit so you can email unit leaders to share these explorers in OSM.'
-            : 'Grouped by unit so you can chase unit leaders for missing Participant Place or Expedition forms.';
+    const totalExplorers = unitGroups.reduce((acc, g) => acc + g.explorers.length, 0);
 
     return (
-        <div className="ems-unit-chaser-view" data-testid={`chaser-view-${chaserType}`}>
-            <div className="ems-overview-card ems-mb-16">
-                <div className="ems-flex-between ems-wrap ems-gap-12">
+        <div className="ems-chaser-view">
+            <div className="ems-panel ems-p-16 ems-mb-16">
+                <div className="ems-flex-between ems-wrap ems-gap-12 ems-mb-12">
                     <div>
-                        <h3 className="ems-m-0 ems-font-semibold">{heading}</h3>
-                        <div className="ems-meta-text ems-mt-4">{description}</div>
+                        <h3 className="ems-m-0">Anomalies &amp; Chasers ({totalExplorers} Explorers)</h3>
+                        <p className="ems-meta-text ems-m-0">
+                            Filter by anomaly type and chase either Unit Leaders (batched by Unit) or Individuals / Parents.
+                        </p>
                     </div>
-                    <div className="ems-flex-center ems-gap-12 ems-wrap">
-                        <div className="ems-flex-center ems-gap-8" role="group" aria-label="Filter chaser levels">
-                            <span className="ems-small-text ems-font-semibold">Levels:</span>
-                            {(['bronze', 'silver', 'gold'] as const).map((lvl) => (
-                                <label key={lvl} className="ems-flex-center ems-gap-4 ems-small-text ems-cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedLevels.includes(lvl)}
-                                        onChange={() => toggleLevel(lvl)}
-                                        data-testid={`chaser-level-filter-${lvl}`}
-                                    />
-                                    {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
-                                </label>
-                            ))}
-                        </div>
-                        <a
-                            href={fluentSmtpUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="button button-secondary"
-                            data-testid="fluent-smtp-logs-link"
-                        >
-                            <FontAwesomeIcon icon={faExternalLinkAlt} className="ems-btn-icon" />
-                            View Sent Emails (FluentSMTP)
-                        </a>
-                    </div>
+                    <a href={fluentSmtpUrl} target="_blank" rel="noreferrer" className="button button-secondary">
+                        <FontAwesomeIcon icon={faExternalLinkAlt} /> FluentSMTP Logs
+                    </a>
+                </div>
+
+                <div className="ems-flex-center ems-wrap ems-gap-8">
+                    {ANOMALY_META.map((a) => {
+                        const checked = selectedAnomalies.includes(a.key);
+                        return (
+                            <label
+                                key={a.key}
+                                className={`ems-filter-pill ${checked ? 'ems-filter-pill--active' : ''}`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleAnomaly(a.key)}
+                                />
+                                <span>{a.label}</span>
+                            </label>
+                        );
+                    })}
                 </div>
             </div>
 
             {notice && (
-                <div
-                    className={`notice ${notice.type === 'success' ? 'notice-success' : 'notice-error'} ems-mb-16`}
-                    role="alert"
-                >
+                <div className={`notice ${notice.type === 'success' ? 'notice-success' : 'notice-error'} ems-mb-16`}>
                     <p>{notice.text}</p>
                 </div>
             )}
 
             {unitGroups.length === 0 ? (
-                <div className="ems-overview-card">
-                    <p className="ems-meta-text ems-m-0">
-                        No explorers currently require follow-up in this view.
-                    </p>
+                <div className="ems-panel ems-p-20 ems-meta-text">
+                    No active Explorers match the selected anomalies.
                 </div>
             ) : (
-                unitGroups.map((group) => {
-                    const lastRequested = history[group.unitName];
-                    return (
-                        <div
-                            key={group.unitName}
-                            className="ems-overview-card ems-mb-16"
-                            data-testid={`chaser-unit-card-${group.unitName}`}
-                        >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {unitGroups.map((group) => (
+                        <div key={group.unitName} className="ems-panel ems-p-16">
                             <div className="ems-flex-between ems-wrap ems-gap-12 ems-mb-12">
                                 <div>
-                                    <div className="ems-flex-center ems-gap-8 ems-wrap">
-                                        <strong className="ems-font-semibold">{group.unitName}</strong>
-                                        <span className="ems-badge">{group.district}</span>
-                                        <span className="ems-badge ems-badge--warning">
-                                            {group.explorers.length} explorer{group.explorers.length === 1 ? '' : 's'}
+                                    <strong>{group.unitName}</strong>{' '}
+                                    <span className="ems-meta-text">
+                                        ({group.district}) &middot; Leader: {group.leaderEmail || 'No email'}
+                                    </span>
+                                    {history[group.unitName] && (
+                                        <span className="ems-meta-text" style={{ marginLeft: '10px' }}>
+                                            <FontAwesomeIcon icon={faClock} /> Last unit chase: {history[group.unitName]}
                                         </span>
-                                        {lastRequested && (
-                                            <span
-                                                className="ems-meta-text ems-small-text"
-                                                data-testid={`last-requested-${group.unitName}`}
-                                            >
-                                                <FontAwesomeIcon icon={faClock} /> Last requested: {lastRequested}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="ems-meta-text ems-small-text ems-mt-4">
-                                        {group.leaderEmail ? (
-                                            <span>Leader Email: {group.leaderEmail}</span>
-                                        ) : (
-                                            <span className="ems-fa-warning">
-                                                <FontAwesomeIcon icon={faTriangleExclamation} /> No leader email configured
-                                            </span>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
-
                                 <button
                                     type="button"
                                     className="button button-primary"
                                     disabled={loadingPreview === group.unitName}
-                                    onClick={() => handleOpenPreview(group)}
-                                    data-testid={`preview-email-btn-${group.unitName}`}
+                                    onClick={() => openUnitChaserModal(group)}
                                 >
-                                    <FontAwesomeIcon icon={faEnvelope} className="ems-btn-icon" />
-                                    {loadingPreview === group.unitName ? 'Loading…' : 'Preview & Edit Email'}
+                                    <FontAwesomeIcon icon={faEnvelope} />{' '}
+                                    {loadingPreview === group.unitName ? 'Loading…' : 'Email Unit Leader'}
                                 </button>
                             </div>
 
-                            <table className="widefat striped">
+                            <table className="ems-table">
                                 <thead>
                                     <tr>
                                         <th>Explorer</th>
-                                        <th>DofE Level</th>
-                                        <th>Status</th>
-                                        <th>Email</th>
+                                        <th>Level</th>
+                                        <th>Anomalies</th>
+                                        <th>Contact</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {group.explorers.map((exp) => (
-                                        <tr
-                                            key={exp.key}
-                                            className={onSelectExplorer ? 'ems-row-hoverable ems-cursor-pointer' : ''}
-                                            onClick={() => onSelectExplorer?.(exp.primarySignup)}
-                                        >
-                                            <td><strong>{exp.name}</strong></td>
+                                        <tr key={exp.key}>
                                             <td>
-                                                <span className={`ems-pill ems-pill--${exp.level}`}>
-                                                    {exp.level || '—'}
-                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="button-link"
+                                                    onClick={() => onSelectExplorer?.(exp.primarySignup)}
+                                                >
+                                                    <strong>{exp.name}</strong>
+                                                </button>
                                             </td>
-                                            <td>{exp.stateLabel}</td>
-                                            <td>{exp.email || '—'}</td>
+                                            <td>{exp.level}</td>
+                                            <td>
+                                                <div className="ems-flex-center ems-wrap ems-gap-4">
+                                                    {exp.anomalies.map((flag) => (
+                                                        <span key={flag} className="ems-status-badge ems-status-badge--warning">
+                                                            <FontAwesomeIcon icon={faTriangleExclamation} />{' '}
+                                                            {ANOMALY_META.find((m) => m.key === flag)?.label || flag}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="ems-small-text">
+                                                {exp.email || exp.parentEmail || 'No email'}
+                                            </td>
+                                            <td>
+                                                <button
+                                                    type="button"
+                                                    className="button button-small"
+                                                    disabled={!exp.email && !exp.parentEmail}
+                                                    onClick={() => openIndividualChaserModal(group, exp)}
+                                                >
+                                                    <FontAwesomeIcon icon={faUser} /> Email Individual
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                    );
-                })
+                    ))}
+                </div>
             )}
 
             {draft && (
-                <div className="ems-modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit Leader Email">
-                    <div className="ems-modal-card ems-overview-card">
+                <div className="ems-modal-backdrop">
+                    <div className="ems-modal" style={{ maxWidth: '680px', width: '95%' }}>
                         <h3 className="ems-m-0 ems-mb-12">
-                            Edit Email for {draft.unitName}
+                            {draft.audience === 'unit_leader'
+                                ? `Email Unit Leader — ${draft.unitName}`
+                                : `Email Individual / Parent — ${draft.explorerName}`}
                         </h3>
-                        <form onSubmit={handleSendEmail}>
+
+                        <div className="ems-mb-12">
+                            <label className="ems-toolbar__label">To</label>
+                            <input
+                                type="email"
+                                className="regular-text"
+                                style={{ width: '100%' }}
+                                value={draft.to}
+                                onChange={(e) => setDraft({ ...draft, to: e.target.value })}
+                            />
+                        </div>
+
+                        {draft.audience === 'individual' && (
                             <div className="ems-mb-12">
-                                <label htmlFor="chaser-email-to" className="ems-font-semibold">
-                                    To
-                                </label>
+                                <label className="ems-toolbar__label">CC (Parent Email)</label>
                                 <input
-                                    id="chaser-email-to"
                                     type="email"
-                                    className="regular-text ems-w-full"
-                                    required
-                                    value={draft.to}
-                                    onChange={(e) => setDraft({ ...draft, to: e.target.value })}
+                                    className="regular-text"
+                                    style={{ width: '100%' }}
+                                    value={draft.cc}
+                                    onChange={(e) => setDraft({ ...draft, cc: e.target.value })}
                                 />
                             </div>
-                            <div className="ems-mb-12">
-                                <label htmlFor="chaser-email-subject" className="ems-font-semibold">
-                                    Subject
-                                </label>
-                                <input
-                                    id="chaser-email-subject"
-                                    type="text"
-                                    className="large-text ems-w-full"
-                                    required
-                                    value={draft.subject}
-                                    onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
-                                />
-                            </div>
-                            <div className="ems-mb-12">
-                                <label className="ems-font-semibold">
-                                    HTML Body
-                                </label>
-                                <RichTextEditor
-                                    value={draft.message}
-                                    onChange={(val) => setDraft({ ...draft, message: val })}
-                                    minHeight="220px"
-                                    ariaLabel="HTML Body"
-                                    shortcodes={draft.shortcodes}
-                                />
-                            </div>
-                            <div className="ems-mb-12">
-                                <div className="ems-font-semibold ems-mb-4">Rendered Preview</div>
-                                {renderChaserPreview(draft.subject, draft.replacements, draft.tokenDatasets) !== draft.subject && (
-                                    <div className="ems-meta-text ems-mb-4">
-                                        <strong>Subject:</strong>{' '}
-                                        {renderChaserPreview(draft.subject, draft.replacements, draft.tokenDatasets)}
-                                    </div>
-                                )}
-                                <div
-                                    className="ems-email-preview-box"
-                                    data-testid="chaser-email-html-preview"
-                                    dangerouslySetInnerHTML={{
-                                        __html: renderChaserPreview(draft.message, draft.replacements, draft.tokenDatasets),
-                                    }}
-                                />
-                            </div>
-                            <div className="ems-flex-end ems-gap-8">
-                                <button
-                                    type="button"
-                                    className="button button-secondary"
-                                    onClick={() => setDraft(null)}
-                                    disabled={sending}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="button button-primary"
-                                    disabled={sending}
-                                    data-testid="chaser-send-email-submit"
-                                >
-                                    {sending ? 'Sending…' : 'Send Email'}
-                                </button>
-                            </div>
-                        </form>
+                        )}
+
+                        <div className="ems-mb-12">
+                            <label className="ems-toolbar__label">Subject</label>
+                            <input
+                                type="text"
+                                className="regular-text"
+                                style={{ width: '100%' }}
+                                value={draft.subject}
+                                onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="ems-mb-16">
+                            <label className="ems-toolbar__label">Message</label>
+                            <RichTextEditor
+                                value={draft.message}
+                                onChange={(html) => setDraft({ ...draft, message: html })}
+                                shortcodes={draft.shortcodes}
+                            />
+                        </div>
+
+                        <div className="ems-flex-between">
+                            <button
+                                type="button"
+                                className="button button-secondary"
+                                disabled={sending}
+                                onClick={() => setDraft(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="button button-primary"
+                                disabled={sending || !draft.to}
+                                onClick={handleSend}
+                            >
+                                {sending ? 'Sending…' : 'Send Email'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
