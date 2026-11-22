@@ -467,54 +467,59 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
 
             {draft && (
                 <div className="ems-modal-backdrop">
-                    <div className="ems-modal" style={{ maxWidth: '680px', width: '95%' }}>
+                    <div
+                        className="ems-modal ems-chaser-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Compose Chaser Email"
+                    >
                         <h3 className="ems-m-0 ems-mb-12">
                             {draft.audience === 'unit_leader'
                                 ? `Email Unit Leader — ${draft.unitName}`
                                 : `Email Individual / Parent — ${draft.explorerName}`}
                         </h3>
 
-                        <div className="ems-mb-12">
-                            <label className="ems-toolbar__label">To</label>
-                            <input
-                                type="email"
-                                className="regular-text"
-                                style={{ width: '100%' }}
-                                value={draft.to}
-                                onChange={(e) => setDraft({ ...draft, to: e.target.value })}
-                            />
-                        </div>
-
-                        {draft.audience === 'individual' && (
-                            <div className="ems-mb-12">
-                                <label className="ems-toolbar__label">CC (Parent Email)</label>
+                        <div className={draft.audience === 'individual' ? 'ems-chaser-modal__recipients' : 'ems-mb-12'}>
+                            <div>
+                                <label className="ems-toolbar__label">To</label>
                                 <input
                                     type="email"
-                                    className="regular-text"
-                                    style={{ width: '100%' }}
-                                    value={draft.cc}
-                                    onChange={(e) => setDraft({ ...draft, cc: e.target.value })}
+                                    className="regular-text ems-w-full"
+                                    value={draft.to}
+                                    onChange={(e) => setDraft({ ...draft, to: e.target.value })}
                                 />
                             </div>
-                        )}
+
+                            {draft.audience === 'individual' && (
+                                <div>
+                                    <label className="ems-toolbar__label">CC (Parent Email)</label>
+                                    <input
+                                        type="email"
+                                        className="regular-text ems-w-full"
+                                        value={draft.cc}
+                                        onChange={(e) => setDraft({ ...draft, cc: e.target.value })}
+                                    />
+                                </div>
+                            )}
+                        </div>
 
                         <div className="ems-mb-12">
                             <label className="ems-toolbar__label">Subject</label>
                             <input
                                 type="text"
-                                className="regular-text"
-                                style={{ width: '100%' }}
+                                className="regular-text ems-w-full"
                                 value={draft.subject}
                                 onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
                             />
                         </div>
 
-                        <div className="ems-mb-16">
+                        <div className="ems-chaser-modal__body ems-mb-16">
                             <label className="ems-toolbar__label">Message</label>
                             <RichTextEditor
                                 value={draft.message}
                                 onChange={(html) => setDraft({ ...draft, message: html })}
                                 shortcodes={draft.shortcodes}
+                                minHeight="480px"
                             />
                         </div>
 

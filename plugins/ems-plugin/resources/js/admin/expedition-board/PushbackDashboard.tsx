@@ -66,6 +66,7 @@ export const PushbackDashboard: React.FC = () => {
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [expandedEvents, setExpandedEvents] = useState<Record<number, boolean>>({});
 	const [failedQueue, setFailedQueue] = useState<FailedQueueInfo | null>(null);
+	const [includeUnaccepted, setIncludeUnaccepted] = useState<boolean>(false);
 
 	const fetchSyncStatus = async () => {
 		try {
@@ -114,9 +115,10 @@ export const PushbackDashboard: React.FC = () => {
 			const pushbackEl = document.getElementById('ems-pushback-root');
 			const token = pushbackEl?.getAttribute('data-token') || '';
 			const tokenParam = token ? `&access_token=${encodeURIComponent(token)}` : '';
+			const offerParam = includeUnaccepted ? '&include_unaccepted=1' : '';
 
 			const response = await fetch(
-				`${config.root_url}/admin/sync-preview?section_id=${sectionId}${tokenParam}`,
+				`${config.root_url}/admin/sync-preview?section_id=${sectionId}${tokenParam}${offerParam}`,
 				{
 					headers: {
 						'X-WP-Nonce': config.nonce,
@@ -146,9 +148,10 @@ export const PushbackDashboard: React.FC = () => {
 			const pushbackEl = document.getElementById('ems-pushback-root');
 			const token = pushbackEl?.getAttribute('data-token') || '';
 			const tokenParam = token ? `&access_token=${encodeURIComponent(token)}` : '';
+			const offerParam = includeUnaccepted ? '&include_unaccepted=1' : '';
 
 			const response = await fetch(
-				`${config.root_url}/admin/sync-push?section_id=${selectedSection}${tokenParam}`,
+				`${config.root_url}/admin/sync-push?section_id=${selectedSection}${tokenParam}${offerParam}`,
 				{
 					method: 'POST',
 					headers: {
@@ -231,6 +234,14 @@ export const PushbackDashboard: React.FC = () => {
 							</option>
 						))}
 					</select>
+					<label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
+						<input
+							type="checkbox"
+							checked={includeUnaccepted}
+							onChange={(e) => setIncludeUnaccepted(e.target.checked)}
+						/>
+						<span>Include pending / unaccepted offers</span>
+					</label>
 					<button
 						type="button"
 						className="button"

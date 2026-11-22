@@ -1551,7 +1551,18 @@ export default function CohortsContinuityView({
                         );
                         const isSplitPrac = member.member_status === 'split_practice';
                         const isSplitQual = member.member_status === 'split_qualifier';
-                        const notif = getNotificationBadge(member.notification_status);
+                        const effectiveStatus =
+                          member.offer_status && ['accepted', 'queried', 'declined'].includes(member.offer_status.toLowerCase())
+                            ? member.offer_status
+                            : member.notification_status;
+                        const notif =
+                          effectiveStatus === 'accepted'
+                            ? { label: 'Accepted', bg: '#dcfce7', color: '#166534', border: '#86efac' }
+                            : effectiveStatus === 'queried'
+                            ? { label: 'Queried', bg: '#fef3c7', color: '#92400e', border: '#f59e0b' }
+                            : effectiveStatus === 'declined'
+                            ? { label: 'Declined', bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' }
+                            : getNotificationBadge(member.notification_status);
 
                         return (
                           <tr
@@ -1646,9 +1657,15 @@ export default function CohortsContinuityView({
                                   border: `1px solid ${notif.border}`,
                                   marginLeft: 0,
                                 }}
+                                title={member.offer_query_message || undefined}
                               >
                                 {notif.label}
                               </span>
+                              {member.offer_status === 'queried' && member.offer_query_message && (
+                                <div style={{ fontSize: '11px', color: '#92400e', marginTop: '3px', maxWidth: '180px' }}>
+                                  {member.offer_query_message}
+                                </div>
+                              )}
                             </td>
                             <td style={{ textAlign: 'right' }}>
                               <button

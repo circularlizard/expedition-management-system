@@ -49,6 +49,9 @@ export interface CohortMember {
   availability_override: string | null;
   member_status: string;
   notification_status?: string;
+  offer_status?: string;
+  offer_query_message?: string | null;
+  offer_responded_at?: string | null;
   notes: string | null;
   unit_id: number | null;
   unit_name: string | null;

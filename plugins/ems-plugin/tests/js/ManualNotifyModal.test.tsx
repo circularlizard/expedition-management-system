@@ -108,17 +108,17 @@ describe('ManualNotifyModal — Two-Step Confirmation Gate', () => {
     expect(await screen.findByText(/Your DofE Expedition Place Offer — Alpha Team/i)).toBeInTheDocument();
 
     // Dispatch button must be disabled before confirmation checkbox is checked
-    const dispatchBtn = screen.getByRole('button', { name: /Dispatch Place Offers/i });
+    const dispatchBtn = screen.getByRole('button', { name: /Dispatch Emails \(2\)/i });
     expect(dispatchBtn).toBeDisabled();
 
     // Check explicit confirmation checkbox
     const confirmCheckbox = screen.getByRole('checkbox', {
-      name: /I confirm I have reviewed the recipients and safety warnings/i,
+      name: /I confirm I have reviewed the recipients and warnings/i,
     });
     fireEvent.click(confirmCheckbox);
     expect(dispatchBtn).not.toBeDisabled();
 
-    // Click Dispatch Place Offers
+    // Click Dispatch Emails
     fireEvent.click(dispatchBtn);
 
     await waitFor(() => {

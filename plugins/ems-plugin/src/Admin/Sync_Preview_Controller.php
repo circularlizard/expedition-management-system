@@ -80,7 +80,8 @@ class Sync_Preview_Controller {
 			$this->api_client->set_access_token( $token );
 		}
 
-		$preview = $this->sync_manager->get_preview( $section_id );
+		$include_unaccepted = filter_var( $request->get_param( 'include_unaccepted' ), FILTER_VALIDATE_BOOLEAN );
+		$preview            = $this->sync_manager->get_preview( $section_id, $include_unaccepted );
 
 		return new \WP_REST_Response( $preview, 200 );
 	}
@@ -118,7 +119,8 @@ class Sync_Preview_Controller {
 		set_transient( 'ems_pushback_sync_lock', true, 300 );
 
 		try {
-			$result = $this->sync_manager->execute_sync( $section_id );
+			$include_unaccepted = filter_var( $request->get_param( 'include_unaccepted' ), FILTER_VALIDATE_BOOLEAN );
+			$result             = $this->sync_manager->execute_sync( $section_id, $include_unaccepted );
 			delete_option( 'ems_failed_pushback_queue' );
 
 			return new \WP_REST_Response(
@@ -135,7 +137,8 @@ class Sync_Preview_Controller {
 		} catch ( \Exception $e ) {
 			$unsynced = 0;
 			try {
-				$preview = $this->sync_manager->get_preview( $section_id );
+				$include_unaccepted = filter_var( $request->get_param( 'include_unaccepted' ), FILTER_VALIDATE_BOOLEAN );
+		$preview            = $this->sync_manager->get_preview( $section_id, $include_unaccepted );
 				$flexi_count = isset( $preview['flexi_record']['updates'] ) ? count( $preview['flexi_record']['updates'] ) : 0;
 				$event_count = 0;
 				if ( isset( $preview['events'] ) ) {

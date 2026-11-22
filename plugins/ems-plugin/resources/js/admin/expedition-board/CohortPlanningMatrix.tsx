@@ -11,6 +11,7 @@ import {
 import CohortsContinuityView from './CohortsContinuityView';
 import StageMatrixView from './StageMatrixView';
 import { ManualNotifyModal } from './ManualNotifyModal';
+import Explorer360Drawer from '../shared/Explorer360Drawer';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 import {
   Cohort,
@@ -56,6 +57,7 @@ export default function CohortPlanningMatrix({
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
   const [notifyModalOpts, setNotifyModalOpts] = useState<NotifyModalOptions | null>(null);
+  const [drawerTarget, setDrawerTarget] = useState<{ scoutId?: number; signupId?: number } | null>(null);
 
   const handleOpenNotifyModal = useCallback(
     (opts: NotifyModalOptions) => {
@@ -261,7 +263,7 @@ export default function CohortPlanningMatrix({
       {/* ── Active Sub-View Content ── */}
       {loading ? (
         <div className="ems-planning-spinner">
-          <span className="ems-spinner" aria-label="Loading cohort planning board…" />
+          <span className="ems-spinner" aria-label="Loading team planning board…" />
         </div>
       ) : activeView === 'cohorts' ? (
         <ModuleErrorBoundary moduleName="Teams & Continuity">
@@ -311,6 +313,7 @@ export default function CohortPlanningMatrix({
             cohortName={notifyModalOpts.cohortName ?? null}
             dofeLevel={notifyModalOpts.level ?? level}
             transportMode={toCohortTransportMode(notifyModalOpts.transport ?? transport)}
+            onInspectExplorer={(target) => setDrawerTarget(target)}
             onDispatched={(res) => {
               const count = typeof res?.dispatched_count === 'number' ? res.dispatched_count : undefined;
               setFeedback({
@@ -324,6 +327,18 @@ export default function CohortPlanningMatrix({
           />
         </ModuleErrorBoundary>
       )}
+
+      <Explorer360Drawer
+        isOpen={drawerTarget !== null}
+        scoutId={drawerTarget?.scoutId && drawerTarget.scoutId > 0 ? drawerTarget.scoutId : undefined}
+        signupType={drawerTarget?.signupId ? 'expedition' : undefined}
+        signupId={drawerTarget?.signupId}
+        rootUrl={rootUrl}
+        nonce={nonce}
+        initialTab="teams"
+        onClose={() => setDrawerTarget(null)}
+        onUpdated={fetchAllData}
+      />
     </div>
   );
 }

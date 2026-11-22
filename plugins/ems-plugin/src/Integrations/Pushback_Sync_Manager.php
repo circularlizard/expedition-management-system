@@ -14,7 +14,7 @@ class Pushback_Sync_Manager {
 		$this->parser     = $parser ?? new OSM_Parser();
 	}
 
-	public function get_preview( int $section_id ): array {
+	public function get_preview( int $section_id, bool $include_unaccepted = false ): array {
 		global $wpdb;
 
 		$preview = array(
@@ -106,6 +106,7 @@ class Pushback_Sync_Manager {
 				)
 			) ?: array();
 
+			$offer_filter = $include_unaccepted ? '' : " AND tm.offer_status = 'accepted'";
 			$local_assignments = array();
 			if ( ! empty( $team_ids ) ) {
 				$in_clause = implode( ',', array_map( 'intval', $team_ids ) );
@@ -129,7 +130,7 @@ class Pushback_Sync_Manager {
 					LEFT JOIN {$postmeta} m_type ON m_type.post_id = exp.ID AND m_type.meta_key = 'ems_type'
 					LEFT JOIN {$postmeta} m_date ON m_date.post_id = exp.ID AND m_date.meta_key = 'ems_start_date'
 					LEFT JOIN {$postmeta} m_event_code ON m_event_code.post_id = exp.ID AND m_event_code.meta_key = 'ems_event_code'
-					WHERE tm.team_post_id IN ({$in_clause}) AND t.post_type = 'team' AND t.post_status = 'publish'"
+					WHERE tm.team_post_id IN ({$in_clause}) AND t.post_type = 'team' AND t.post_status = 'publish'{$offer_filter}"
 				) ?: array();
 			}
 
@@ -445,9 +446,9 @@ class Pushback_Sync_Manager {
 	 * @return array
 	 * @throws \Exception
 	 */
-	public function execute_sync( int $section_id ): array {
+	public function execute_sync( int $section_id, bool $include_unaccepted = false ): array {
 		$flexi_id = $this->ensure_flexi_record( $section_id );
-		$preview  = $this->get_preview( $section_id );
+		$preview  = $this->get_preview( $section_id, $include_unaccepted );
 
 		$flexi_updates_count = 0;
 		$event_invites_count = 0;

@@ -129,6 +129,16 @@ class CohortController {
 				),
 			)
 		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/cohorts/resolve-query',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'resolve_member_query' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 
 	private function register_schedule_routes(): void {
@@ -219,10 +229,19 @@ class CohortController {
 
 		$cohort_ids        = array_map( static fn( array $c ): int => (int) $c['id'], $cohorts );
 		$all_members       = $this->members->listByCohorts( $cohort_ids );
+		$offer_map         = $this->fetch_member_offer_statuses( $cohort_ids );
 		$members_by_cohort = array();
 
 		foreach ( $all_members as $member ) {
-			$cid                         = (int) $member['cohort_id'];
+			$cid  = (int) $member['cohort_id'];
+			$esid = (int) $member['expedition_signup_id'];
+			$key  = "{$cid}:{$esid}";
+			if ( isset( $offer_map[ $key ] ) ) {
+				$member['notification_status'] = $offer_map[ $key ]['notification_status'];
+				$member['offer_status']        = $offer_map[ $key ]['offer_status'];
+				$member['offer_query_message'] = $offer_map[ $key ]['offer_query_message'];
+				$member['offer_responded_at']  = $offer_map[ $key ]['offer_responded_at'];
+			}
 			$members_by_cohort[ $cid ][] = $member;
 		}
 
@@ -952,5 +971,116 @@ class CohortController {
 
 	private function error( string $code, string $message, int $status ): \WP_Error {
 		return new \WP_Error( $code, $message, array( 'status' => $status ) );
+	}
+
+	/**
+	 * POST /wp-json/ems/v1/cohorts/resolve-query
+	 */
+	public function resolve_member_query( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$body                 = $this->get_request_body( $request );
+		$cohort_id            = (int) ( $body['cohort_id'] ?? 0 );
+		$expedition_signup_id = (int) ( $body['expedition_signup_id'] ?? 0 );
+		$team_post_id         = (int) ( $body['team_post_id'] ?? 0 );
+		$scout_id             = (int) ( $body['scout_id'] ?? 0 );
+		$reply_message        = sanitize_textarea_field( (string) ( $body['reply_message'] ?? '' ) );
+		$new_status           = sanitize_key( (string) ( $body['new_status'] ?? 'pending' ) );
+		if ( ! in_array( $new_status, array( 'pending', 'accepted' ), true ) ) {
+			$new_status = 'pending';
+		}
+
+		global $wpdb;
+		$tm_table = $wpdb->prefix . 'ems_team_members';
+		if ( $cohort_id > 0 && $expedition_signup_id > 0 ) {
+			$updated = $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$tm_table} SET offer_status = %s, offer_query_message = NULL WHERE cohort_id = %d AND expedition_signup_id = %d",
+					$new_status,
+					$cohort_id,
+					$expedition_signup_id
+				)
+			);
+		} elseif ( $team_post_id > 0 && $scout_id > 0 ) {
+			$updated = $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$tm_table} SET offer_status = %s, offer_query_message = NULL WHERE team_post_id = %d AND scout_id = %d",
+					$new_status,
+					$team_post_id,
+					$scout_id
+				)
+			);
+		} else {
+			return $this->error( 'ems_invalid_params', 'Missing cohort_id/expedition_signup_id or team_post_id/scout_id.', 400 );
+		}
+
+		if ( $reply_message !== '' && $expedition_signup_id > 0 && function_exists( 'wp_mail' ) ) {
+			$signup = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT explorer_email, parent_email, explorer_first_name, explorer_last_name FROM {$wpdb->prefix}ems_expedition_signups WHERE id = %d",
+					$expedition_signup_id
+				),
+				ARRAY_A
+			);
+			if ( $signup ) {
+				$to = array_filter(
+					array_unique(
+						array(
+							sanitize_email( (string) ( $signup['explorer_email'] ?? '' ) ),
+							sanitize_email( (string) ( $signup['parent_email'] ?? '' ) ),
+						)
+					)
+				);
+				if ( ! empty( $to ) ) {
+					$name    = trim( ( $signup['explorer_first_name'] ?? '' ) . ' ' . ( $signup['explorer_last_name'] ?? '' ) );
+					$subject = 'Re: Your DofE Expedition Place Offer Query';
+					$body_tx = "Hi {$name},\n\n{$reply_message}\n\nYou can now log back into the Explorer Portal to respond to your Place Offer.\n";
+					wp_mail( $to, $subject, $body_tx );
+				}
+			}
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'resolved'     => true,
+				'new_status'   => $new_status,
+				'rows_updated' => (int) $updated,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Fetches offer & notification statuses keyed by "{cohort_id}:{expedition_signup_id}".
+	 *
+	 * @param array<int, int> $cohort_ids
+	 * @return array<string, array<string, mixed>>
+	 */
+	private function fetch_member_offer_statuses( array $cohort_ids ): array {
+		if ( empty( $cohort_ids ) ) {
+			return array();
+		}
+		global $wpdb;
+		$tm_table     = $wpdb->prefix . 'ems_team_members';
+		$placeholders = implode( ', ', array_fill( 0, count( $cohort_ids ), '%d' ) );
+		$rows         = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT cohort_id, expedition_signup_id, notification_status, offer_status, offer_query_message, offer_responded_at
+				FROM {$tm_table}
+				WHERE cohort_id IN ({$placeholders}) AND expedition_signup_id IS NOT NULL",
+				...$cohort_ids
+			),
+			ARRAY_A
+		) ?: array();
+
+		$map = array();
+		foreach ( $rows as $row ) {
+			$key         = (int) $row['cohort_id'] . ':' . (int) $row['expedition_signup_id'];
+			$map[ $key ] = array(
+				'notification_status' => (string) ( $row['notification_status'] ?? 'draft' ),
+				'offer_status'        => (string) ( $row['offer_status'] ?? 'pending' ),
+				'offer_query_message' => $row['offer_query_message'] ?? null,
+				'offer_responded_at'  => $row['offer_responded_at'] ?? null,
+			);
+		}
+		return $map;
 	}
 }

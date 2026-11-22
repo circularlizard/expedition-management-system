@@ -261,9 +261,11 @@ class TeamReadinessService {
 		$enriched_members = array();
 
 		foreach ( $members as $member ) {
-			$notif_status = strtolower( trim( (string) ( $member['notification_status'] ?? 'draft' ) ) );
-			if ( array_key_exists( $notif_status, $offer_counts ) ) {
-				++$offer_counts[ $notif_status ];
+			$notif_status    = strtolower( trim( (string) ( $member['notification_status'] ?? 'draft' ) ) );
+			$offer_status    = strtolower( trim( (string) ( $member['offer_status'] ?? 'pending' ) ) );
+			$effective_offer = in_array( $offer_status, array( 'accepted', 'queried', 'declined' ), true ) ? $offer_status : $notif_status;
+			if ( array_key_exists( $effective_offer, $offer_counts ) ) {
+				++$offer_counts[ $effective_offer ];
 			} else {
 				++$offer_counts['draft'];
 			}
@@ -286,6 +288,9 @@ class TeamReadinessService {
 				'name'                  => $this->formatMemberName( $member ),
 				'availability_override' => $member['availability_override'] ?? null,
 				'notification_status'   => $notif_status,
+				'offer_status'          => $offer_status,
+				'offer_query_message'   => $member['offer_query_message'] ?? null,
+				'offer_responded_at'    => $member['offer_responded_at'] ?? null,
 				'first_aid_level'       => $fa_info['level'],
 				'first_aid_expiry'      => $fa_info['expiry'],
 				'first_aid_valid'       => $fa_info['valid'],
@@ -496,6 +501,9 @@ class TeamReadinessService {
 				COALESCE(NULLIF(e.wp_user_id, 0), NULLIF(tm.user_id, 0)) AS wp_user_id,
 				tm.availability_override,
 				tm.notification_status,
+				tm.offer_status,
+				tm.offer_query_message,
+				tm.offer_responded_at,
 				s.first_aid_status,
 				s.first_aid_expiry,
 				e.first_aid_level,

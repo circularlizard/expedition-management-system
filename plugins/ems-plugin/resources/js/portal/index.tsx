@@ -80,12 +80,73 @@ interface ExplorerDetail {
         qualifying: EventData[];
     };
     training_checklist: TrainingCourse[];
+    training_readonly?: boolean;
     team: {
         team_code: string;
         route_status: string;
         whatsapp_link: string | null;
         teammates: Teammate[];
     } | null;
+    offers?: Array<{
+        cohort_id: number;
+        expedition_signup_id: number;
+        team_post_id?: number;
+        team_name: string;
+        dofe_level: string;
+        transport_mode: string;
+        offer_status: 'pending' | 'accepted' | 'queried' | 'declined';
+        offer_query_message?: string | null;
+        offer_responded_at?: string | null;
+        deadline?: {
+            allowed: boolean;
+            communicated_date: string | null;
+            effective_hard_cutoff: string | null;
+            reason?: string;
+        };
+        stages?: Array<{
+            expedition_id: number;
+            expedition_name: string;
+            type: string;
+            start_date: string;
+            end_date: string;
+        }>;
+    }>;
+}
+
+const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function formatOrdinalDate(raw?: string | null): string {
+    if (!raw) return '';
+    const match = String(raw).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    let day: number;
+    let monthIdx: number;
+    let year: number;
+    if (match) {
+        year = Number(match[1]);
+        monthIdx = Number(match[2]) - 1;
+        day = Number(match[3]);
+    } else {
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) return String(raw);
+        day = parsed.getDate();
+        monthIdx = parsed.getMonth();
+        year = parsed.getFullYear();
+    }
+    const mod100 = day % 100;
+    const suffix =
+        mod100 >= 11 && mod100 <= 13
+            ? 'th'
+            : day % 10 === 1
+            ? 'st'
+            : day % 10 === 2
+            ? 'nd'
+            : day % 10 === 3
+            ? 'rd'
+            : 'th';
+    return `${day}${suffix} ${MONTHS[monthIdx] || ''} ${year}`;
 }
 
 const ResolvedLocation: React.FC<{ value?: string }> = ({ value }) => {
@@ -197,6 +258,8 @@ interface Profile {
     first_name: string;
     last_name: string;
     patrol: string;
+    relationship?: 'self' | 'child';
+    label?: string;
 }
 
 export function PortalApp() {
@@ -235,6 +298,72 @@ export function PortalApp() {
     const [activeSubTab, setActiveSubTab] = useState<'overview' | 'team' | 'training' | 'resources' | 'route'>('overview');
     const [currentPage, setCurrentPage] = useState<'signups' | 'expeditions'>('expeditions');
     const [selectedSignupId, setSelectedSignupId] = useState<number | null>(null);
+    const [queryingOfferKey, setQueryingOfferKey] = useState<string | null>(null);
+    const [queryMessage, setQueryMessage] = useState<string>('');
+    const [offerSavingKey, setOfferSavingKey] = useState<string | null>(null);
+    const [offerNotice, setOfferNotice] = useState<string | null>(null);
+
+    const handleRespondToOffer = async (
+        cohortId: number,
+        expeditionSignupId: number,
+        teamPostId: number | undefined,
+        action: 'accept' | 'query' | 'decline',
+        message = ''
+    ) => {
+        const key = cohortId > 0 && expeditionSignupId > 0 ? `${cohortId}:${expeditionSignupId}` : `team:${teamPostId || 0}`;
+        setOfferSavingKey(key);
+        setError(null);
+        setOfferNotice(null);
+        try {
+            const res = await fetch(`${config.root_url}/portal/offers/respond`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce,
+                },
+                body: JSON.stringify({
+                    scout_id: activeScout,
+                    cohort_id: cohortId,
+                    expedition_signup_id: expeditionSignupId,
+                    team_post_id: teamPostId || 0,
+                    action,
+                    message,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.message || 'Failed to record your offer response.');
+            }
+            setQueryingOfferKey(null);
+            setQueryMessage('');
+            setOfferNotice(`Offer marked as ${data.offer_status}.`);
+            setExplorerDetail((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          offers: (prev.offers || []).map((o) => {
+                              const oKey =
+                                  o.cohort_id > 0 && o.expedition_signup_id > 0
+                                      ? `${o.cohort_id}:${o.expedition_signup_id}`
+                                      : `team:${o.team_post_id || 0}`;
+                              return oKey === key
+                                  ? {
+                                        ...o,
+                                        offer_status: data.offer_status,
+                                        offer_query_message: data.offer_query_message,
+                                        offer_responded_at: data.offer_responded_at,
+                                    }
+                                  : o;
+                          }),
+                      }
+                    : prev
+            );
+        } catch (err: any) {
+            setError(err?.message || 'Failed to record your offer response.');
+        } finally {
+            setOfferSavingKey(null);
+        }
+    };
 
     const activeScout = activeScoutId || (me?.profiles && me.profiles.length > 0 ? me.profiles[0].scout_id : null);
     const isAdmin = Boolean(config.user_data?.is_admin || me?.is_admin);
@@ -428,7 +557,9 @@ export function PortalApp() {
                         >
                             {me.profiles.map(p => (
                                 <option key={p.scout_id} value={p.scout_id}>
-                                    {p.first_name} {p.last_name}
+                                    {p.label === 'Myself'
+                                        ? `Myself (${p.first_name} ${p.last_name})`
+                                        : `${p.first_name} ${p.last_name}`}
                                 </option>
                             ))}
                         </select>
@@ -487,6 +618,121 @@ export function PortalApp() {
 
             {!loading && explorerDetail && (
                 <div className="portal-content">
+                    {offerNotice && (
+                        <div className="notice notice-success" style={{ padding: '10px 14px', marginBottom: '16px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px' }}>
+                            {offerNotice}
+                        </div>
+                    )}
+                    {Array.isArray(explorerDetail.offers) && explorerDetail.offers.length > 0 && (
+                        <div className="portal-section" style={{ marginBottom: '24px' }}>
+                            <h3>Expedition Place Offers</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {explorerDetail.offers.map((offer) => {
+                                    const key =
+                                        offer.cohort_id > 0 && offer.expedition_signup_id > 0
+                                            ? `${offer.cohort_id}:${offer.expedition_signup_id}`
+                                            : `team:${offer.team_post_id || 0}`;
+                                    const canRespond = offer.deadline?.allowed !== false;
+                                    return (
+                                        <div
+                                            key={key}
+                                            style={{
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                padding: '14px',
+                                                background: '#ffffff',
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                <strong>
+                                                    {offer.team_name}{offer.dofe_level ? ` (${offer.dofe_level}${offer.transport_mode ? ` / ${offer.transport_mode}` : ''})` : ''}
+                                                </strong>
+                                                <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                                                    Status: {offer.offer_status}
+                                                </span>
+                                            </div>
+                                            {offer.stages && offer.stages.length > 0 && (
+                                                <ul style={{ margin: '0 0 8px 18px', fontSize: '13px' }}>
+                                                    {offer.stages.map((st, idx) => (
+                                                        <li key={idx}>
+                                                            {st.expedition_name}{st.type ? ` (${st.type})` : ''} — {formatOrdinalDate(st.start_date)} to {formatOrdinalDate(st.end_date)}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {offer.deadline?.communicated_date && (
+                                                <div style={{ fontSize: '12px', color: '#475569', marginBottom: '8px' }}>
+                                                    Please respond by <strong>{formatOrdinalDate(offer.deadline.communicated_date)}</strong>
+                                                    {offer.deadline.effective_hard_cutoff && ` (hard cutoff: ${formatOrdinalDate(offer.deadline.effective_hard_cutoff)})`}
+                                                </div>
+                                            )}
+                                            {offer.offer_query_message && (
+                                                <div style={{ fontSize: '13px', background: '#fef3c7', padding: '8px', borderRadius: '4px', marginBottom: '8px' }}>
+                                                    <strong>Query:</strong> {offer.offer_query_message}
+                                                </div>
+                                            )}
+                                            {!canRespond ? (
+                                                <div style={{ color: '#991b1b', fontSize: '13px' }}>
+                                                    {offer.deadline?.reason || 'The response deadline has passed.'}
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="button button-primary"
+                                                        disabled={offerSavingKey === key}
+                                                        onClick={() => handleRespondToOffer(offer.cohort_id, offer.expedition_signup_id, offer.team_post_id, 'accept')}
+                                                    >
+                                                        Accept Offer
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="button"
+                                                        disabled={offerSavingKey === key}
+                                                        onClick={() => {
+                                                            setQueryingOfferKey(queryingOfferKey === key ? null : key);
+                                                            setQueryMessage('');
+                                                        }}
+                                                    >
+                                                        Query / Request Changes
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="button"
+                                                        disabled={offerSavingKey === key}
+                                                        onClick={() => handleRespondToOffer(offer.cohort_id, offer.expedition_signup_id, offer.team_post_id, 'decline')}
+                                                    >
+                                                        Decline
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {queryingOfferKey === key && (
+                                                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <textarea
+                                                        rows={3}
+                                                        placeholder="Enter your question for the expedition team..."
+                                                        value={queryMessage}
+                                                        onChange={(e) => setQueryMessage(e.target.value)}
+                                                        style={{ width: '100%' }}
+                                                    />
+                                                    <div>
+                                                        <button
+                                                            type="button"
+                                                            className="button button-primary"
+                                                            disabled={offerSavingKey === key || !queryMessage.trim()}
+                                                            onClick={() => handleRespondToOffer(offer.cohort_id, offer.expedition_signup_id, offer.team_post_id, 'query', queryMessage)}
+                                                        >
+                                                            Submit Query
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                     {/* Page 1: Sign-up Applications */}
                     {currentPage === 'signups' && (
                         <ModuleErrorBoundary moduleName="Portal Signups">
@@ -520,7 +766,7 @@ export function PortalApp() {
                                                         <td style={{ textTransform: 'capitalize' }}>{s.type}</td>
                                                         <td><span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span></td>
                                                         <td>{s.payment_status ? <span className={`payment-badge payment-${s.payment_status}`} style={{ textTransform: 'capitalize' }}>{s.payment_status}</span> : '—'}</td>
-                                                        <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                                                        <td>{formatOrdinalDate(s.created_at)}</td>
                                                         <td style={{ textAlign: 'right', fontWeight: '500' }}>
                                                             <span style={{ color: '#0073aa', textDecoration: 'underline' }}>
                                                                 {selectedSignupId === s.id ? 'Hide' : 'View'}
@@ -572,7 +818,7 @@ export function PortalApp() {
                                                             {s.dob && (
                                                                 <div>
                                                                     <span className="ems-signups-inspector__label">Date of Birth</span>
-                                                                    <div className="ems-signups-inspector__value">{new Date(s.dob).toLocaleDateString()}</div>
+                                                                    <div className="ems-signups-inspector__value">{formatOrdinalDate(s.dob)}</div>
                                                                 </div>
                                                             )}
                                                             <div>
@@ -632,7 +878,7 @@ export function PortalApp() {
                                                             {s.first_aid_expiry && (
                                                                 <div>
                                                                     <span className="ems-signups-inspector__label">First Aid Expiry</span>
-                                                                    <div className="ems-signups-inspector__value">{s.first_aid_expiry}</div>
+                                                                    <div className="ems-signups-inspector__value">{formatOrdinalDate(s.first_aid_expiry)}</div>
                                                                 </div>
                                                             )}
                                                             {s.additional_support_needs && (
@@ -746,7 +992,7 @@ export function PortalApp() {
                                                 className="button button-secondary"
                                                 style={{ textAlign: 'left', padding: '15px' }}
                                             >
-                                                <strong>{ev.name}</strong> ({ev.start_date} {ev.start_time && `@ ${ev.start_time}`} to {ev.end_date} {ev.end_time && `@ ${ev.end_time}`})
+                                                <strong>{ev.name}</strong> ({formatOrdinalDate(ev.start_date)} {ev.start_time && `@ ${ev.start_time}`} to {formatOrdinalDate(ev.end_date)} {ev.end_time && `@ ${ev.end_time}`})
                                             </button>
                                         ))}
                                     </div>
@@ -763,7 +1009,7 @@ export function PortalApp() {
                                             <div>
                                                 <h4 style={{ margin: 0 }}>{ev.name} {ev.event_code && `(${ev.event_code})`}</h4>
                                                 <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '14px' }}>
-                                                    <strong>Dates & Times:</strong> {ev.start_date} {ev.start_time && `@ ${ev.start_time}`} to {ev.end_date} {ev.end_time && `@ ${ev.end_time}`}
+                                                    <strong>Dates & Times:</strong> {formatOrdinalDate(ev.start_date)} {ev.start_time && `@ ${ev.start_time}`} to {formatOrdinalDate(ev.end_date)} {ev.end_time && `@ ${ev.end_time}`}
                                                 </p>
                                             </div>
                                             {explorerDetail.events[activeTab].length > 1 && (
@@ -821,8 +1067,8 @@ export function PortalApp() {
                                                                 <div>
                                                                     <p><strong>Level:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.level}</span></p>
                                                                     <p><strong>Type:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.type}</span></p>
-                                                                    <p><strong>Start Date & Time:</strong> {ev.start_date} {ev.start_time && `@ ${ev.start_time}`}</p>
-                                                                    <p><strong>End Date & Time:</strong> {ev.end_date} {ev.end_time && `@ ${ev.end_time}`}</p>
+                                                                    <p><strong>Start Date & Time:</strong> {formatOrdinalDate(ev.start_date)} {ev.start_time && `@ ${ev.start_time}`}</p>
+                                                                    <p><strong>End Date & Time:</strong> {formatOrdinalDate(ev.end_date)} {ev.end_time && `@ ${ev.end_time}`}</p>
                                                                 </div>
                                                                 <div>
                                                                     {ev.leader_in_charge?.name && (
@@ -918,7 +1164,9 @@ export function PortalApp() {
                                                             </div>
                                                             <h5>Training Course Requirements</h5>
                                                             {explorerDetail.training_checklist.length === 0 ? (
-                                                                <p>No training course requirements configured for this event.</p>
+                                                                <p style={{ color: '#475569', fontStyle: 'italic' }}>
+                                                                    Training information has not been specified yet and will be added later.
+                                                                </p>
                                                             ) : (
                                                                 <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
                                                                     {explorerDetail.training_checklist.map((tc, idx) => (
@@ -936,33 +1184,54 @@ export function PortalApp() {
                                                         </div>
                                                     )}
 
-                                                    {activeSubTab === 'route' && (
+                                                    {activeSubTab === 'route' && (() => {
+                                                        const cleanRouteInfo = (ev.route_info || '').replace(/<[^>]*>/g, '').trim();
+                                                        const hasStart = Boolean((ev.location || '').trim());
+                                                        const hasEnd = Boolean((ev.end_location || '').trim());
+                                                        const hasAnyRoute = hasStart || hasEnd || Boolean(cleanRouteInfo) || Boolean((ev.route_deadline || '').trim());
+
+                                                        return (
                                                         <div>
                                                             <h5>Route details</h5>
-                                                            <p><strong><IconMapPin />Start Point:</strong> <ResolvedLocation value={ev.location} /></p>
-                                                            <p><strong><IconMapPin />End Point:</strong> <ResolvedLocation value={ev.end_location} /></p>
-                                                            <p><strong>Route Status:</strong> <span className={`status-badge status-${explorerDetail.team?.route_status || 'pending'}`} style={{ textTransform: 'capitalize' }}>{explorerDetail.team?.route_status || 'pending'}</span></p>
-                                                            <p><strong>Route Deadline:</strong> {ev.route_deadline || 'No Deadline Set'}</p>
-
-                                                            <div style={{ marginTop: '20px', marginBottom: '20px' }}>
-                                                                <OSMReadOnlyMap startLocation={ev.location} endLocation={ev.end_location} />
-                                                            </div>
-
-                                                            {ev.route_info && (
-                                                                <div style={{ marginTop: '15px', marginBottom: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
-                                                                    <strong>Route Planning Information:</strong>
-                                                                    <div style={{ margin: '10px 0 0 0' }} dangerouslySetInnerHTML={{ __html: ev.route_info }} />
-                                                                </div>
-                                                            )}
-
-                                                            <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #0073aa', borderRadius: '6px', background: '#fcfdff', textAlign: 'center' }}>
-                                                                <p style={{ margin: 0, fontWeight: 'bold', color: '#0073aa' }}>
-                                                                    <FontAwesomeIcon icon={faFolder} /> Route Card & GPX Upload Area
+                                                            {!hasAnyRoute ? (
+                                                                <p style={{ color: '#475569', fontStyle: 'italic' }}>
+                                                                    Route information has not been specified yet and will be added later.
                                                                 </p>
-                                                                <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>Route card PDF/GPX submission tools will be wired here (Milestone 9).</p>
-                                                            </div>
+                                                            ) : (
+                                                                <>
+                                                                    {hasStart && <p><strong><IconMapPin />Start Point:</strong> <ResolvedLocation value={ev.location} /></p>}
+                                                                    {hasEnd && <p><strong><IconMapPin />End Point:</strong> <ResolvedLocation value={ev.end_location} /></p>}
+                                                                    <p><strong>Route Status:</strong> <span className={`status-badge status-${explorerDetail.team?.route_status || 'pending'}`} style={{ textTransform: 'capitalize' }}>{explorerDetail.team?.route_status || 'pending'}</span></p>
+                                                                    <p><strong>Route Deadline:</strong> {ev.route_deadline ? formatOrdinalDate(ev.route_deadline) : 'To be added later'}</p>
+
+                                                                    {(hasStart || hasEnd) && (
+                                                                        <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+                                                                            <OSMReadOnlyMap startLocation={ev.location} endLocation={ev.end_location} />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {cleanRouteInfo ? (
+                                                                        <div style={{ marginTop: '15px', marginBottom: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
+                                                                            <strong>Route Planning Information:</strong>
+                                                                            <div style={{ margin: '10px 0 0 0' }} dangerouslySetInnerHTML={{ __html: ev.route_info || '' }} />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p style={{ color: '#475569', fontStyle: 'italic', marginTop: '12px' }}>
+                                                                            Route planning information has not been specified yet and will be added later.
+                                                                        </p>
+                                                                    )}
+
+                                                                    <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #0073aa', borderRadius: '6px', background: '#fcfdff', textAlign: 'center' }}>
+                                                                        <p style={{ margin: 0, fontWeight: 'bold', color: '#0073aa' }}>
+                                                                            <FontAwesomeIcon icon={faFolder} /> Route Card & GPX Upload Area
+                                                                        </p>
+                                                                        <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>Route card PDF/GPX submission tools will be wired here (Milestone 9).</p>
+                                                                    </div>
+                                                                </>
+                                                            )}
                                                         </div>
-                                                    )}
+                                                        );
+                                                    })()}
                                                     </ModuleErrorBoundary>
                                                 </div>
                                             </div>

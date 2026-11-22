@@ -50,6 +50,16 @@ class Portal_Controller {
 
 		register_rest_route(
 			'ems/v1',
+			'/portal/offers/respond',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'respond_to_offer' ),
+				'permission_callback' => 'is_user_logged_in',
+			)
+		);
+
+		register_rest_route(
+			'ems/v1',
 			'/leader-dashboard/signups',
 			array(
 				'methods'             => 'GET',
@@ -335,28 +345,50 @@ class Portal_Controller {
 		if ( $access_type === 'parent' ) {
 			foreach ( (array) $children as $child ) {
 				$profiles[] = array(
-					'scout_id'   => (int) ( $child['scout_id'] ?? 0 ),
-					'first_name' => $child['first_name'] ?? '',
-					'last_name'  => $child['last_name'] ?? '',
-					'patrol'     => $child['patrol'] ?? '',
+					'scout_id'     => (int) ( $child['scout_id'] ?? 0 ),
+					'first_name'   => $child['first_name'] ?? '',
+					'last_name'    => $child['last_name'] ?? '',
+					'patrol'       => $child['patrol'] ?? '',
+					'relationship' => 'child',
+					'label'        => trim( ( $child['first_name'] ?? '' ) . ' ' . ( $child['last_name'] ?? '' ) ),
 				);
 			}
 		} elseif ( $access_type === 'member' || $access_type === 'network_member' ) {
 			$explorer = $this->explorer_repo->find_by_wp_user_id( $user->ID );
 			if ( $explorer ) {
 				$profiles[] = array(
-					'scout_id'   => (int) $explorer['scout_id'],
-					'first_name' => $explorer['first_name'] ?? '',
-					'last_name'  => $explorer['last_name'] ?? '',
-					'patrol'     => $explorer['patrol'] ?? '',
+					'scout_id'     => (int) $explorer['scout_id'],
+					'first_name'   => $explorer['first_name'] ?? '',
+					'last_name'    => $explorer['last_name'] ?? '',
+					'patrol'       => $explorer['patrol'] ?? '',
+					'relationship' => 'self',
+					'label'        => 'Myself',
 				);
 			} elseif ( ! empty( $scout_ids ) ) {
 				$profiles[] = array(
-					'scout_id'   => (int) $scout_ids[0],
-					'first_name' => get_user_meta( $user->ID, 'first_name', true ) ?: $user->first_name,
-					'last_name'  => get_user_meta( $user->ID, 'last_name', true ) ?: $user->last_name,
-					'patrol'     => get_user_meta( $user->ID, 'ems_unit', true ) ?: '',
+					'scout_id'     => (int) $scout_ids[0],
+					'first_name'   => get_user_meta( $user->ID, 'first_name', true ) ?: $user->first_name,
+					'last_name'    => get_user_meta( $user->ID, 'last_name', true ) ?: $user->last_name,
+					'patrol'       => get_user_meta( $user->ID, 'ems_unit', true ) ?: '',
+					'relationship' => 'self',
+					'label'        => 'Myself',
 				);
+			}
+
+			// Networker support: also include any linked children alongside "Myself".
+			$self_sid = ! empty( $profiles ) ? (int) $profiles[0]['scout_id'] : 0;
+			foreach ( (array) $children as $child ) {
+				$child_sid = (int) ( $child['scout_id'] ?? 0 );
+				if ( $child_sid > 0 && $child_sid !== $self_sid ) {
+					$profiles[] = array(
+						'scout_id'     => $child_sid,
+						'first_name'   => $child['first_name'] ?? '',
+						'last_name'    => $child['last_name'] ?? '',
+						'patrol'       => $child['patrol'] ?? '',
+						'relationship' => 'child',
+						'label'        => trim( ( $child['first_name'] ?? '' ) . ' ' . ( $child['last_name'] ?? '' ) ),
+					);
+				}
 			}
 		}
 
@@ -397,7 +429,12 @@ class Portal_Controller {
 				$authorized = true;
 			} else {
 				$member_scout_ids = get_user_meta( $user_id, 'ems_scout_ids', true ) ?: array();
-				if ( in_array( $scout_id, array_map( 'intval', $member_scout_ids ), true ) ) {
+				$children         = get_user_meta( $user_id, 'ems_children', true ) ?: array();
+				$child_scout_ids  = array_map( static fn( $c ) => (int) ( $c['scout_id'] ?? 0 ), (array) $children );
+				if (
+					in_array( $scout_id, array_map( 'intval', $member_scout_ids ), true )
+					|| in_array( $scout_id, $child_scout_ids, true )
+				) {
 					$authorized = true;
 				}
 			}
@@ -705,6 +742,14 @@ class Portal_Controller {
 			)
 		) ?: '';
 
+		$is_viewing_child = ( $access_type === 'parent' );
+		if ( $access_type === 'network_member' ) {
+			$own_explorer     = $this->explorer_repo->find_by_wp_user_id( $user_id );
+			$is_viewing_child = ! $own_explorer || (int) $own_explorer['scout_id'] !== $scout_id;
+		}
+
+		$offers = $this->build_offers_for_scout( $wpdb, $scout_id );
+
 		return new \WP_REST_Response(
 			array(
 				'explorer'           => array(
@@ -717,9 +762,257 @@ class Portal_Controller {
 				'signups'            => $signups,
 				'events'             => $events,
 				'training_checklist' => $training_checklist,
+				'training_readonly'  => $is_viewing_child,
 				'team'               => $team_info,
+				'offers'             => $offers,
 			),
 			200
 		);
+	}
+
+	/**
+	 * Handles Place Offer Accept / Query / Decline atomically across all team_members rows
+	 * sharing (cohort_id, expedition_signup_id).
+	 */
+	public function respond_to_offer( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$body                 = $request->get_json_params() ?: $request->get_params();
+		$scout_id             = (int) ( $body['scout_id'] ?? 0 );
+		$cohort_id            = (int) ( $body['cohort_id'] ?? 0 );
+		$expedition_signup_id = (int) ( $body['expedition_signup_id'] ?? 0 );
+		$team_post_id         = (int) ( $body['team_post_id'] ?? 0 );
+		$action               = sanitize_key( (string) ( $body['action'] ?? '' ) );
+		$message              = sanitize_textarea_field( (string) ( $body['message'] ?? '' ) );
+
+		$status_map = array(
+			'accept'  => 'accepted',
+			'query'   => 'queried',
+			'decline' => 'declined',
+		);
+
+		$has_cohort_key = ( $cohort_id > 0 && $expedition_signup_id > 0 );
+		$has_team_key   = ( $team_post_id > 0 && $scout_id > 0 );
+
+		if ( ( ! $has_cohort_key && ! $has_team_key ) || ! isset( $status_map[ $action ] ) ) {
+			return new \WP_Error(
+				'ems_invalid_offer_response',
+				'Missing or invalid offer identifier or action.',
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( $action === 'query' && trim( $message ) === '' ) {
+			return new \WP_Error(
+				'ems_query_message_required',
+				'Please enter a message explaining your query.',
+				array( 'status' => 400 )
+			);
+		}
+
+		$user_id  = get_current_user_id();
+		$is_admin = current_user_can( 'manage_options' );
+		if ( ! $is_admin ) {
+			$access_type     = (string) get_user_meta( $user_id, 'ems_access_type', true );
+			$member_sids     = array_map( 'intval', (array) ( get_user_meta( $user_id, 'ems_scout_ids', true ) ?: array() ) );
+			$children        = (array) ( get_user_meta( $user_id, 'ems_children', true ) ?: array() );
+			$child_sids      = array_map( static fn( $c ) => (int) ( $c['scout_id'] ?? 0 ), $children );
+			$own_explorer    = $this->explorer_repo->find_by_wp_user_id( $user_id );
+			$own_sid         = $own_explorer ? (int) $own_explorer['scout_id'] : 0;
+			$allowed_sids    = array_filter( array_merge( $member_sids, $child_sids, array( $own_sid ) ) );
+			$signup_parent   = 0;
+
+			global $wpdb;
+			$signup_row = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT scout_id, parent_user_id FROM {$wpdb->prefix}ems_expedition_signups WHERE id = %d",
+					$expedition_signup_id
+				),
+				ARRAY_A
+			);
+			if ( $signup_row ) {
+				$signup_parent = (int) ( $signup_row['parent_user_id'] ?? 0 );
+				if ( $scout_id <= 0 ) {
+					$scout_id = (int) ( $signup_row['scout_id'] ?? 0 );
+				}
+			}
+
+			if (
+				$signup_parent !== $user_id
+				&& ! in_array( $scout_id, $allowed_sids, true )
+				&& ( $access_type === '' || ! in_array( $scout_id, $allowed_sids, true ) )
+			) {
+				return new \WP_Error( 'ems_forbidden', 'Unauthorized to respond to this offer.', array( 'status' => 403 ) );
+			}
+		}
+
+		global $wpdb;
+		$tm_table = $wpdb->prefix . 'ems_team_members';
+		if ( $has_cohort_key ) {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, notified_at, notification_status FROM {$tm_table} WHERE cohort_id = %d AND expedition_signup_id = %d",
+					$cohort_id,
+					$expedition_signup_id
+				),
+				ARRAY_A
+			) ?: array();
+		} else {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, notified_at, notification_status FROM {$tm_table} WHERE team_post_id = %d AND scout_id = %d",
+					$team_post_id,
+					$scout_id
+				),
+				ARRAY_A
+			) ?: array();
+		}
+
+		if ( empty( $rows ) ) {
+			return new \WP_Error( 'ems_offer_not_found', 'No active place offer found for this team and registration.', array( 'status' => 404 ) );
+		}
+
+		$notified_at = $rows[0]['notified_at'] ?? null;
+		$deadline    = ( new \EMS\Services\DeadlinePolicyService() )->evaluate_cutoff( 'place_offer', $notified_at ? (string) $notified_at : null );
+		if ( empty( $deadline['allowed'] ) ) {
+			return new \WP_Error( 'ems_offer_cutoff_passed', (string) ( $deadline['reason'] ?: 'The response cutoff has passed.' ), array( 'status' => 403 ) );
+		}
+
+		$new_status   = $status_map[ $action ];
+		$responded_at = current_time( 'mysql' );
+		$wpdb->query( 'START TRANSACTION' );
+		if ( $has_cohort_key ) {
+			$updated = $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$tm_table}
+					SET offer_status = %s,
+						offer_query_message = %s,
+						offer_responded_at = %s,
+						offer_responded_by = %d
+					WHERE cohort_id = %d AND expedition_signup_id = %d",
+					$new_status,
+					$action === 'query' ? $message : null,
+					$responded_at,
+					$user_id,
+					$cohort_id,
+					$expedition_signup_id
+				)
+			);
+		} else {
+			$updated = $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$tm_table}
+					SET offer_status = %s,
+						offer_query_message = %s,
+						offer_responded_at = %s,
+						offer_responded_by = %d
+					WHERE team_post_id = %d AND scout_id = %d",
+					$new_status,
+					$action === 'query' ? $message : null,
+					$responded_at,
+					$user_id,
+					$team_post_id,
+					$scout_id
+				)
+			);
+		}
+
+		if ( $updated === false ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'ems_db_error', 'Failed to record offer response.', array( 'status' => 500 ) );
+		}
+		$wpdb->query( 'COMMIT' );
+
+		if ( $action === 'query' ) {
+			$admin_email = (string) get_option( 'admin_email', '' );
+			if ( $admin_email !== '' && function_exists( 'wp_mail' ) ) {
+				$cohort_name = (string) ( $wpdb->get_var(
+					$wpdb->prepare( "SELECT name FROM {$wpdb->prefix}ems_cohorts WHERE id = %d", $cohort_id )
+				) ?: "Team #{$cohort_id}" );
+				$subject = sprintf( '[EMS] Place Offer Query — %s (Signup #%d)', $cohort_name, $expedition_signup_id );
+				$body_tx = sprintf(
+					"A Place Offer query was submitted.\n\nTeam: %s\nExpedition Signup ID: %d\nScout ID: %d\nMessage:\n%s\n",
+					$cohort_name,
+					$expedition_signup_id,
+					$scout_id,
+					$message
+				);
+				wp_mail( $admin_email, $subject, $body_tx );
+			}
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'updated'              => true,
+				'cohort_id'            => $cohort_id,
+				'expedition_signup_id' => $expedition_signup_id,
+				'offer_status'         => $new_status,
+				'offer_query_message'  => $action === 'query' ? $message : null,
+				'offer_responded_at'   => $responded_at,
+				'rows_updated'         => (int) $updated,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Builds grouped Place Offers for a given scout_id.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function build_offers_for_scout( object $wpdb, int $scout_id ): array {
+		$tm_table = $wpdb->prefix . 'ems_team_members';
+		$c_table  = $wpdb->prefix . 'ems_cohorts';
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT tm.*, c.name AS cohort_name, c.dofe_level, c.transport_mode,
+						t.post_title AS team_name, exp.ID AS expedition_id, exp.post_title AS expedition_name
+				FROM {$tm_table} tm
+				LEFT JOIN {$c_table} c ON c.id = tm.cohort_id
+				LEFT JOIN {$wpdb->posts} t ON t.ID = tm.team_post_id
+				LEFT JOIN {$wpdb->posts} exp ON exp.ID = t.post_parent
+				WHERE tm.scout_id = %d
+				ORDER BY tm.id ASC",
+				$scout_id
+			),
+			ARRAY_A
+		) ?: array();
+
+		$grouped      = array();
+		$deadline_svc = new \EMS\Services\DeadlinePolicyService();
+		foreach ( $rows as $row ) {
+			$cid    = (int) ( $row['cohort_id'] ?? 0 );
+			$esid   = (int) ( $row['expedition_signup_id'] ?? 0 );
+			$tpid   = (int) ( $row['team_post_id'] ?? 0 );
+			$exp_id = (int) ( $row['expedition_id'] ?? 0 );
+			$key    = ( $cid > 0 && $esid > 0 ) ? "{$cid}:{$esid}" : "team:{$tpid}";
+			if ( ! isset( $grouped[ $key ] ) ) {
+				$notified_at     = $row['notified_at'] ?? null;
+				$eval            = $deadline_svc->evaluate_cutoff( 'place_offer', $notified_at ? (string) $notified_at : null );
+				$level           = $row['dofe_level'] ?: ( $exp_id > 0 ? ( get_post_meta( $exp_id, 'ems_level', true ) ?: '' ) : '' );
+				$grouped[ $key ] = array(
+					'cohort_id'            => $cid,
+					'expedition_signup_id' => $esid,
+					'team_post_id'         => $tpid,
+					'team_name'            => $row['cohort_name'] ?: ( $row['team_name'] ?: ( $row['expedition_name'] ?: "Team #{$tpid}" ) ),
+					'dofe_level'           => $level,
+					'transport_mode'       => $row['transport_mode'] ?? '',
+					'offer_status'         => $row['offer_status'] ?: 'pending',
+					'offer_query_message'  => $row['offer_query_message'] ?? null,
+					'offer_responded_at'   => $row['offer_responded_at'] ?? null,
+					'notified_at'          => $notified_at,
+					'deadline'             => $eval,
+					'stages'               => array(),
+				);
+			}
+			$grouped[ $key ]['stages'][] = array(
+				'expedition_id'   => $exp_id,
+				'expedition_name' => $row['expedition_name'] ?? '',
+				'type'            => $exp_id > 0 ? ( get_post_meta( $exp_id, 'ems_type', true ) ?: '' ) : '',
+				'start_date'      => $exp_id > 0 ? ( get_post_meta( $exp_id, 'ems_start_date', true ) ?: '' ) : '',
+				'end_date'        => $exp_id > 0 ? ( get_post_meta( $exp_id, 'ems_end_date', true ) ?: '' ) : '',
+			);
+		}
+
+		return array_values( $grouped );
 	}
 }

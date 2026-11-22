@@ -88,15 +88,18 @@ describe('TeamReadinessTable', () => {
 
     render(<TeamReadinessTable records={sampleRecords} onSendReminder={onSendReminder} />);
 
-    // Columns & summary badges
+    // Columns & summary status text
+    expect(screen.getByText('Cohort Alpha')).toBeInTheDocument();
     expect(screen.getByText('H-SP1-1')).toBeInTheDocument();
-    expect(screen.getByText('H-SP1')).toBeInTheDocument();
-    expect(screen.getByText(/5 members \(4–7\)/)).toBeInTheDocument();
-    expect(screen.getByText('Rule of Two met')).toBeInTheDocument();
-    expect(screen.getByText(/12d until 14-day cutoff/i)).toBeInTheDocument();
+    expect(screen.getByText(/H-SP1 · Practice/)).toBeInTheDocument();
+    expect(screen.getByText('5 Jun 2027')).toBeInTheDocument();
+    expect(screen.getByText('5/7 members')).toBeInTheDocument();
+    expect(screen.getByText('2/2 valid')).toBeInTheDocument();
+    expect(screen.getByText(/12d until cutoff/i)).toBeInTheDocument();
 
-    // Send Reminder button visible in admin mode
+    // Send Reminder button visible in admin mode (enabled because notified: 2)
     const reminderBtn = screen.getByRole('button', { name: /Send Reminder/i });
+    expect(reminderBtn).not.toBeDisabled();
     fireEvent.click(reminderBtn);
     expect(onSendReminder).toHaveBeenCalledWith(sampleRecords[0]);
 
@@ -104,23 +107,37 @@ describe('TeamReadinessTable', () => {
     const expandBtn = screen.getByRole('button', { name: /Details/i });
     fireEvent.click(expandBtn);
 
-    expect(screen.getByText('Alice MacLeod')).toBeInTheDocument();
+    expect(screen.getByText('Alice MacLeod', { selector: 'span' })).toBeInTheDocument();
     expect(screen.getByText('Ben Fraser')).toBeInTheDocument();
-    expect(screen.getByText(/2028-01-15/)).toBeInTheDocument();
-    expect(screen.getByText('6 / 6 modules')).toBeInTheDocument();
+    expect(screen.getByText('First Response · Exp: Jan 2028')).toBeInTheDocument();
+    expect(screen.getByText('None recorded')).toBeInTheDocument();
+    expect(screen.getByText('6/6 modules')).toBeInTheDocument();
     expect(screen.getByText('Unlinked OIDC')).toBeInTheDocument();
+    expect(screen.getByText(/Cutoff: 22 May 2027/)).toBeInTheDocument();
+    expect(screen.getByText('Date conflict pending')).toBeInTheDocument();
   });
 
   it('hides Send Reminder and redacts admin-only labels when isLicScoped is true', () => {
     render(<TeamReadinessTable records={sampleRecords} isLicScoped={true} onSendReminder={vi.fn()} />);
 
     expect(screen.queryByRole('button', { name: /Send Reminder/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/Pending: 1/)).toBeInTheDocument();
+    expect(screen.getByText(/1 pending/)).toBeInTheDocument();
     expect(screen.getByText(/Not Linked: 1/)).toBeInTheDocument();
 
     // Expand drawer and verify LIC-scoped redaction
     fireEvent.click(screen.getByRole('button', { name: /Details/i }));
     expect(screen.getByText('Not Linked')).toBeInTheDocument();
+    expect(screen.queryByText('Date conflict pending')).not.toBeInTheDocument();
     expect(screen.queryByText('date_conflict_pending')).not.toBeInTheDocument();
+  });
+
+  it('disables Send Reminder when all members are still draft', () => {
+    const draftOnlyRecord: TeamReadinessRecord = {
+      ...sampleRecords[0],
+      offer_counts: { draft: 2, notified: 0, accepted: 0, queried: 0, declined: 0 },
+      members: sampleRecords[0].members.map((m) => ({ ...m, notification_status: 'draft' })),
+    };
+    render(<TeamReadinessTable records={[draftOnlyRecord]} onSendReminder={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /Send Reminder/i })).toBeDisabled();
   });
 });

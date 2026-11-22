@@ -127,6 +127,8 @@ class Settings_Page {
 			$this->handle_resync_fluent_forms();
 		} elseif ( isset( $post_data['ems_save_access_control'] ) ) {
 			$this->save_access_control( $post_data );
+		} elseif ( isset( $post_data['ems_save_deadlines'] ) ) {
+			$this->save_deadlines( $post_data );
 		} else {
 			$this->save_general( $post_data );
 		}
@@ -195,6 +197,10 @@ class Settings_Page {
 					class="nav-tab<?php echo $active_tab === 'access_control' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Access Control', 'ems-plugin' ); ?>
 				</a>
+				<a href="<?php echo esc_url( $page_url . '&tab=deadlines' ); ?>"
+					class="nav-tab<?php echo $active_tab === 'deadlines' ? ' nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Deadlines & Cutoffs', 'ems-plugin' ); ?>
+				</a>
 				<a href="<?php echo esc_url( $page_url . '&tab=help' ); ?>"
 					class="nav-tab<?php echo $active_tab === 'help' ? ' nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Help & Shortcodes', 'ems-plugin' ); ?>
@@ -211,6 +217,8 @@ class Settings_Page {
 				$this->render_audit_logs_tab();
 			} elseif ( $active_tab === 'access_control' ) {
 				$this->render_access_control_tab();
+			} elseif ( $active_tab === 'deadlines' ) {
+				$this->render_deadlines_tab();
 			} elseif ( $active_tab === 'help' ) {
 				$this->render_help_tab();
 			} else {
@@ -1405,6 +1413,61 @@ class Settings_Page {
 				<pre style="background: #f6f7f7; padding: 10px 14px; border: 1px solid #dcdcde; border-radius: 4px; overflow-x: auto;"><code>[ems_route_card_studio expedition_id="42" team_id="3" day="2"]</code></pre>
 			</div>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Saves two-tier deadline policies from Settings & System -> Deadlines & Cutoffs.
+	 */
+	public function save_deadlines( array $post_data ): void {
+		$service = new \EMS\Services\DeadlinePolicyService();
+		$raw     = isset( $post_data['ems_deadline_policies'] ) && is_array( $post_data['ems_deadline_policies'] )
+			? $post_data['ems_deadline_policies']
+			: array();
+		$service->save_policies( $raw );
+	}
+
+	private function render_deadlines_tab(): void {
+		$service  = new \EMS\Services\DeadlinePolicyService();
+		$policies = $service->get_policies();
+		?>
+		<form method="post">
+			<?php wp_nonce_field( 'ems_settings_deadlines' ); ?>
+			<div class="card" style="max-width: 900px; padding: 20px; margin-top: 16px;">
+				<h2><?php esc_html_e( 'Two-Tier Deadlines & Cutoffs', 'ems-plugin' ); ?></h2>
+				<p class="description">
+					<?php esc_html_e( 'Configure a communicated (soft) deadline shown to Explorers & Parents alongside a hard system cutoff. Rolling grace days automatically extend the hard cutoff for late allocations/notifications.', 'ems-plugin' ); ?>
+				</p>
+				<table class="form-table">
+					<?php foreach ( $policies as $key => $policy ) : ?>
+						<tr>
+							<th scope="row"><?php echo esc_html( (string) $policy['label'] ); ?></th>
+							<td>
+								<label style="display: inline-block; margin-right: 16px;">
+									<?php esc_html_e( 'Communicated Date', 'ems-plugin' ); ?><br>
+									<input type="date"
+										name="ems_deadline_policies[<?php echo esc_attr( $key ); ?>][communicated_date]"
+										value="<?php echo esc_attr( (string) $policy['communicated_date'] ); ?>">
+								</label>
+								<label style="display: inline-block; margin-right: 16px;">
+									<?php esc_html_e( 'Hard System Cutoff', 'ems-plugin' ); ?><br>
+									<input type="date"
+										name="ems_deadline_policies[<?php echo esc_attr( $key ); ?>][hard_cutoff_date]"
+										value="<?php echo esc_attr( (string) $policy['hard_cutoff_date'] ); ?>">
+								</label>
+								<label style="display: inline-block;">
+									<?php esc_html_e( 'Rolling Grace (days)', 'ems-plugin' ); ?><br>
+									<input type="number" min="0" max="60" style="width: 80px;"
+										name="ems_deadline_policies[<?php echo esc_attr( $key ); ?>][grace_days]"
+										value="<?php echo esc_attr( (string) $policy['grace_days'] ); ?>">
+								</label>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</table>
+				<?php submit_button( __( 'Save Deadlines & Cutoffs', 'ems-plugin' ), 'primary', 'ems_save_deadlines' ); ?>
+			</div>
+		</form>
 		<?php
 	}
 }

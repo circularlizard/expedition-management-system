@@ -2,22 +2,21 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowsRotate,
-  faBell,
-  faCircleCheck,
   faCircleExclamation,
   faDownload,
-  faEnvelope,
-  faFilter,
   faMagnifyingGlass,
-  faPaperPlane,
-  faSpinner,
-  faTriangleExclamation,
-  faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import TeamReadinessTable, {
   TeamReadinessMember,
   TeamReadinessRecord,
 } from '../../shared/TeamReadinessTable';
+import TeamEmailDispatchModal, {
+  DispatchModalRecipient,
+  DispatchModalResult,
+  DispatchModalSampleEmail,
+  DispatchModalWarning,
+  formatEventSubtitle,
+} from '../../shared/TeamEmailDispatchModal';
 import Explorer360Drawer from '../shared/Explorer360Drawer';
 
 export interface TeamsReadinessViewProps {
@@ -147,7 +146,10 @@ function buildReadinessCsv(records: TeamReadinessRecord[]): string {
 
 function getMemberGaps(member: TeamReadinessMember, trainingAvailable: boolean): string[] {
   const gaps: string[] = [];
-  const offerStatus = (member.notification_status || 'draft').toLowerCase();
+  const rawOffer = (member.offer_status || '').toLowerCase();
+  const offerStatus = ['accepted', 'queried', 'declined'].includes(rawOffer)
+    ? rawOffer
+    : (member.notification_status || 'draft').toLowerCase();
   if (offerStatus !== 'accepted' && offerStatus !== 'declined') {
     gaps.push(`Offer: ${offerStatus.replace(/_/g, ' ')}`);
   }
@@ -172,6 +174,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
   const [transportMode, setTransportMode] = useState<string>('');
   const [stage, setStage] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [kpiFilter, setKpiFilter] = useState<'all' | 'size_valid' | 'first_aid_valid' | 'route_approved'>('all');
 
   const [records, setRecords] = useState<TeamReadinessRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -180,12 +183,16 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
   // Send Reminder modal state
   const [reminderRecord, setReminderRecord] = useState<TeamReadinessRecord | null>(null);
   const [drawerTarget, setDrawerTarget] = useState<{ scoutId?: number; signupId?: number } | null>(null);
+  const [queryReplyTarget, setQueryReplyTarget] = useState<{ member: TeamReadinessMember; record: TeamReadinessRecord } | null>(null);
+  const [queryReplyText, setQueryReplyText] = useState<string>('');
+  const [queryReplyBusy, setQueryReplyBusy] = useState<boolean>(false);
   const [selectedSignupIds, setSelectedSignupIds] = useState<number[]>([]);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [dispatching, setDispatching] = useState<boolean>(false);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [modalSuccess, setModalSuccess] = useState<string | null>(null);
+  const [dispatchResult, setDispatchResult] = useState<DispatchModalResult | null>(null);
 
   const fetchReadiness = useCallback(async () => {
     setLoading(true);
@@ -226,7 +233,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
     fetchReadiness();
   }, [fetchReadiness]);
 
-  const filteredRecords = useMemo(() => {
+  const searchFilteredRecords = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return records;
     return records.filter((r) => {
@@ -239,13 +246,22 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
     });
   }, [records, searchQuery]);
 
+  const filteredRecords = useMemo(() => {
+    if (kpiFilter === 'size_valid') return searchFilteredRecords.filter((r) => r.size_valid);
+    if (kpiFilter === 'first_aid_valid') return searchFilteredRecords.filter((r) => r.first_aid_valid);
+    if (kpiFilter === 'route_approved') {
+      return searchFilteredRecords.filter((r) => r.route_plan?.status === 'approved');
+    }
+    return searchFilteredRecords;
+  }, [searchFilteredRecords, kpiFilter]);
+
   const stats = useMemo(() => {
-    const total = filteredRecords.length;
-    const sizeValid = filteredRecords.filter((r) => r.size_valid).length;
-    const firstAidValid = filteredRecords.filter((r) => r.first_aid_valid).length;
-    const routeApproved = filteredRecords.filter((r) => r.route_plan?.status === 'approved').length;
+    const total = searchFilteredRecords.length;
+    const sizeValid = searchFilteredRecords.filter((r) => r.size_valid).length;
+    const firstAidValid = searchFilteredRecords.filter((r) => r.first_aid_valid).length;
+    const routeApproved = searchFilteredRecords.filter((r) => r.route_plan?.status === 'approved').length;
     return { total, sizeValid, firstAidValid, routeApproved };
-  }, [filteredRecords]);
+  }, [searchFilteredRecords]);
 
   const handleExportCsv = () => {
     const csv = buildReadinessCsv(filteredRecords);
@@ -261,42 +277,29 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const handleOpenReminderModal = (record: TeamReadinessRecord) => {
+  const handleOpenReminderModal = async (record: TeamReadinessRecord) => {
     setReminderRecord(record);
     setPreviewData(null);
+    setPreviewError(null);
     setModalError(null);
-    setModalSuccess(null);
+    setDispatchResult(null);
 
-    // Pre-select members who have pending/incomplete compliance and a valid expedition_signup_id
-    const preselected = (record.members || [])
-      .filter((m) => {
-        if (!m.expedition_signup_id || m.expedition_signup_id <= 0) return false;
-        return getMemberGaps(m, record.training_available).length > 0;
-      })
-      .map((m) => m.expedition_signup_id);
+    const allMemberIds = (record.members || [])
+      .map((m) => m.expedition_signup_id || 0)
+      .filter((id) => id > 0);
 
-    setSelectedSignupIds(preselected);
-  };
-
-  const handleCloseReminderModal = () => {
-    if (dispatching) return;
-    setReminderRecord(null);
-    setPreviewData(null);
-    setModalError(null);
-    setModalSuccess(null);
-  };
-
-  const toggleMemberSelection = (signupId: number) => {
-    setSelectedSignupIds((prev) =>
-      prev.includes(signupId) ? prev.filter((id) => id !== signupId) : [...prev, signupId]
+    const gapMemberIds = new Set(
+      (record.members || [])
+        .filter((m) => (m.expedition_signup_id || 0) > 0 && getMemberGaps(m, record.training_available).length > 0)
+        .map((m) => m.expedition_signup_id)
     );
-  };
 
-  const handlePreviewReminder = async () => {
-    if (!reminderRecord || selectedSignupIds.length === 0) return;
+    if (allMemberIds.length === 0) {
+      setSelectedSignupIds([]);
+      return;
+    }
+
     setPreviewLoading(true);
-    setModalError(null);
-    setModalSuccess(null);
     try {
       const res = await fetch(`${rootUrl}/expeditions/notifications/preview`, {
         method: 'POST',
@@ -306,29 +309,118 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
         },
         body: JSON.stringify({
           scope: 'cohort',
-          cohort_id: reminderRecord.cohort_id ?? null,
-          expedition_signup_ids: selectedSignupIds,
-          dofe_level: reminderRecord.dofe_level || undefined,
-          transport_mode: reminderRecord.transport_mode || undefined,
+          cohort_id: record.cohort_id ?? null,
+          expedition_signup_ids: allMemberIds,
+          dofe_level: record.dofe_level || undefined,
+          transport_mode: record.transport_mode || undefined,
         }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(body?.message || `Preview failed (HTTP ${res.status})`);
       }
-      setPreviewData(body as PreviewResponse);
+      const normalized = body as PreviewResponse;
+      setPreviewData(normalized);
+      const validIds = (normalized.recipients || [])
+        .filter((r) => r.has_valid_email && gapMemberIds.has(r.expedition_signup_id))
+        .map((r) => r.expedition_signup_id);
+      setSelectedSignupIds(validIds);
     } catch (err) {
-      setModalError(err instanceof Error ? err.message : 'Failed to preview reminder.');
+      setPreviewError(err instanceof Error ? err.message : 'Failed to preview reminder.');
+      setSelectedSignupIds(Array.from(gapMemberIds));
     } finally {
       setPreviewLoading(false);
     }
   };
 
+  const handleCloseReminderModal = () => {
+    if (dispatching) return;
+    setReminderRecord(null);
+    setPreviewData(null);
+    setPreviewError(null);
+    setModalError(null);
+    setDispatchResult(null);
+  };
+
+  const toggleMemberSelection = (signupId: number) => {
+    setSelectedSignupIds((prev) =>
+      prev.includes(signupId) ? prev.filter((id) => id !== signupId) : [...prev, signupId]
+    );
+  };
+
+  const reminderRecipients: DispatchModalRecipient[] = useMemo(() => {
+    if (!reminderRecord) return [];
+    const previewById = new Map<number, PreviewRecipient>();
+    for (const r of previewData?.recipients || []) {
+      previewById.set(r.expedition_signup_id, r);
+    }
+
+    return (reminderRecord.members || []).map((member) => {
+      const signupId = member.expedition_signup_id || 0;
+      const previewRec = previewById.get(signupId) as (PreviewRecipient & { parent_email?: string }) | undefined;
+      const gaps = getMemberGaps(member, reminderRecord.training_available);
+      return {
+        expedition_signup_id: signupId,
+        scout_id: member.scout_id,
+        explorer_name: previewRec?.explorer_name || member.name || 'Unnamed Explorer',
+        explorer_email: previewRec?.explorer_email || '',
+        parent_email: previewRec?.parent_email || '',
+        has_valid_email: previewRec ? previewRec.has_valid_email : false,
+        notification_status: previewRec?.notification_status || member.notification_status || 'draft',
+        warnings: previewRec?.warnings || [],
+        gaps,
+      };
+    });
+  }, [reminderRecord, previewData]);
+
+  const reminderWarnings: DispatchModalWarning[] = useMemo(() => {
+    if (!reminderRecord) return [];
+    const list: DispatchModalWarning[] = [...((previewData?.warnings as DispatchModalWarning[]) || [])];
+    const hasCode = (code: string) => list.some((w) => w.code === code);
+
+    if (!reminderRecord.size_valid && !hasCode('team_size_out_of_range')) {
+      list.push({
+        code: 'team_size_out_of_range',
+        severity: 'warning',
+        message: `Team size is ${reminderRecord.member_count} (recommended 4–7).`,
+      });
+    }
+    if (!reminderRecord.first_aid_valid && !hasCode('insufficient_first_aid')) {
+      list.push({
+        code: 'insufficient_first_aid',
+        severity: 'error',
+        message: `Team has ${reminderRecord.first_aid_count} valid First Aider(s); Rule of Two requires at least 2.`,
+      });
+    }
+    if ((reminderRecord.training_summary?.unlinked_oidc || 0) > 0 && !hasCode('unlinked_oidc')) {
+      list.push({
+        code: 'unlinked_oidc',
+        severity: 'warning',
+        message: `${reminderRecord.training_summary.unlinked_oidc} member(s) have not linked their OSM/OIDC account.`,
+      });
+    }
+    return list;
+  }, [reminderRecord, previewData]);
+
+  const validReminderIds = useMemo(
+    () =>
+      reminderRecipients
+        .filter((r) => r.has_valid_email && r.expedition_signup_id > 0)
+        .map((r) => r.expedition_signup_id),
+    [reminderRecipients]
+  );
+
+  const toggleSelectAllReminder = () => {
+    const allSelected =
+      validReminderIds.length > 0 && validReminderIds.every((id) => selectedSignupIds.includes(id));
+    setSelectedSignupIds(allSelected ? [] : validReminderIds);
+  };
+
   const handleDispatchReminder = async () => {
-    if (!reminderRecord || selectedSignupIds.length === 0) return;
+    if (!reminderRecord || selectedSignupIds.length === 0 || dispatching) return;
     setDispatching(true);
     setModalError(null);
-    setModalSuccess(null);
+    setDispatchResult(null);
     try {
       const res = await fetch(`${rootUrl}/expeditions/notifications/dispatch`, {
         method: 'POST',
@@ -347,7 +439,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
         throw new Error(body?.message || `Send reminder failed (HTTP ${res.status})`);
       }
       const sent = body.dispatched_count ?? body.sent_count ?? selectedSignupIds.length;
-      setModalSuccess(`Reminder dispatched to ${sent} member${sent === 1 ? '' : 's'}.`);
+      setDispatchResult({ ...body, dispatched_count: sent });
       fetchReadiness();
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Failed to send reminder.');
@@ -359,27 +451,13 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
   return (
     <div className="ems-teams-readiness-view">
       {/* Toolbar & Filters */}
-      <div
-        className="ems-panel"
-        style={{
-          padding: '14px 16px',
-          marginBottom: '16px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontWeight: 600, fontSize: '13px', color: '#1d2327', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <FontAwesomeIcon icon={faFilter} style={{ color: '#646970' }} />
-            Filters:
-          </span>
+      <div className="ems-panel ems-readiness-toolbar">
+        <div className="ems-readiness-filters">
+          <span className="ems-readiness-filters__label">Filters:</span>
 
           <select
             aria-label="Filter by DofE Level"
-            className="ems-select"
+            className="ems-select ems-readiness-filter-select"
             value={dofeLevel}
             onChange={(e) => setDofeLevel(e.target.value)}
           >
@@ -391,7 +469,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
 
           <select
             aria-label="Filter by Transport Mode"
-            className="ems-select"
+            className="ems-select ems-readiness-filter-select"
             value={transportMode}
             onChange={(e) => setTransportMode(e.target.value)}
           >
@@ -403,7 +481,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
 
           <select
             aria-label="Filter by Stage"
-            className="ems-select"
+            className="ems-select ems-readiness-filter-select"
             value={stage}
             onChange={(e) => setStage(e.target.value)}
           >
@@ -412,22 +490,22 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
             <option value="qualifier">Qualifier</option>
           </select>
 
-          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+          <div className="ems-readiness-search-wrap">
             <FontAwesomeIcon
               icon={faMagnifyingGlass}
-              style={{ position: 'absolute', left: '9px', color: '#646970', fontSize: '12px', pointerEvents: 'none' }}
+              className="ems-readiness-search-icon"
             />
             <input
               type="search"
-              aria-label="Search teams, cohorts, events, or members"
+              aria-label="Search teams, events, or members"
+              className="ems-readiness-search-input"
               placeholder="Search team, event, member…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ paddingLeft: '28px', minWidth: '210px', height: '30px' }}
             />
           </div>
 
-          {(dofeLevel || transportMode || stage || searchQuery) && (
+          {(dofeLevel || transportMode || stage || searchQuery || kpiFilter !== 'all') && (
             <button
               type="button"
               className="button button-link"
@@ -436,6 +514,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
                 setTransportMode('');
                 setStage('');
                 setSearchQuery('');
+                setKpiFilter('all');
               }}
             >
               Reset
@@ -443,7 +522,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="ems-readiness-actions">
           <button
             type="button"
             className="button"
@@ -465,29 +544,56 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
         </div>
       </div>
 
-      {/* Summary Strip */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '12px',
-          marginBottom: '14px',
-          fontSize: '12px',
-          color: '#50575e',
-        }}
-      >
-        <span className="ems-pill">
-          Teams / Cohorts: <strong>&nbsp;{stats.total}</strong>
-        </span>
-        <span className="ems-pill ems-pill--asn-validated">
-          Size Valid (4–7): <strong>&nbsp;{stats.sizeValid} / {stats.total}</strong>
-        </span>
-        <span className="ems-pill ems-pill--asn-validated">
-          First Aid Rule of Two Met: <strong>&nbsp;{stats.firstAidValid} / {stats.total}</strong>
-        </span>
-        <span className="ems-pill">
-          Route Plans Approved: <strong>&nbsp;{stats.routeApproved} / {stats.total}</strong>
-        </span>
+      {/* Clickable KPI Summary Strip */}
+      <div className="ems-readiness-kpi-strip" role="group" aria-label="Team Readiness KPI Filters">
+        <button
+          type="button"
+          className={`ems-readiness-kpi-card ${kpiFilter === 'all' ? 'ems-readiness-kpi-card--active' : ''}`}
+          aria-pressed={kpiFilter === 'all'}
+          onClick={() => setKpiFilter('all')}
+        >
+          <span className="ems-readiness-kpi-card__label">Total Teams</span>
+          <span className="ems-readiness-kpi-card__value">{stats.total}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`ems-readiness-kpi-card ${kpiFilter === 'size_valid' ? 'ems-readiness-kpi-card--active' : ''}`}
+          aria-pressed={kpiFilter === 'size_valid'}
+          onClick={() => setKpiFilter((prev) => (prev === 'size_valid' ? 'all' : 'size_valid'))}
+        >
+          <span className="ems-readiness-kpi-card__label">Valid Size (4–7)</span>
+          <span className="ems-readiness-kpi-card__value">
+            {stats.sizeValid}
+            <span className="ems-readiness-kpi-card__sub">/ {stats.total}</span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`ems-readiness-kpi-card ${kpiFilter === 'first_aid_valid' ? 'ems-readiness-kpi-card--active' : ''}`}
+          aria-pressed={kpiFilter === 'first_aid_valid'}
+          onClick={() => setKpiFilter((prev) => (prev === 'first_aid_valid' ? 'all' : 'first_aid_valid'))}
+        >
+          <span className="ems-readiness-kpi-card__label">First Aid Rule of Two</span>
+          <span className="ems-readiness-kpi-card__value">
+            {stats.firstAidValid}
+            <span className="ems-readiness-kpi-card__sub">/ {stats.total}</span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`ems-readiness-kpi-card ${kpiFilter === 'route_approved' ? 'ems-readiness-kpi-card--active' : ''}`}
+          aria-pressed={kpiFilter === 'route_approved'}
+          onClick={() => setKpiFilter((prev) => (prev === 'route_approved' ? 'all' : 'route_approved'))}
+        >
+          <span className="ems-readiness-kpi-card__label">Routes Approved</span>
+          <span className="ems-readiness-kpi-card__value">
+            {stats.routeApproved}
+            <span className="ems-readiness-kpi-card__sub">/ {stats.total}</span>
+          </span>
+        </button>
       </div>
 
       {error && (
@@ -501,217 +607,41 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
         records={filteredRecords}
         loading={loading}
         onSendReminder={handleOpenReminderModal}
+        onResolveQuery={(member, record) => {
+          setQueryReplyTarget({ member, record });
+          setQueryReplyText('');
+        }}
       />
 
-      {/* Manual Send Reminder Modal */}
+      {/* Unified Send Reminder Modal */}
       {reminderRecord && (
-        <div
-          className="ems-modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Send Team Readiness Reminder"
-        >
-          <div className="ems-modal-card ems-overview-card" style={{ maxWidth: '760px', padding: '20px 24px' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: '1px solid #dcdcde',
-                paddingBottom: '12px',
-                marginBottom: '14px',
-              }}
-            >
-              <h2 className="ems-m-0" style={{ fontSize: '17px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FontAwesomeIcon icon={faBell} style={{ color: '#2271b1' }} />
-                Send Reminder — {reminderRecord.team_code || reminderRecord.team_title}
-              </h2>
-              <button
-                type="button"
-                className="button button-link"
-                onClick={handleCloseReminderModal}
-                disabled={dispatching}
-                aria-label="Close reminder modal"
-              >
-                <FontAwesomeIcon icon={faXmark} size="lg" />
-              </button>
-            </div>
-
-            <div style={{ fontSize: '13px', color: '#50575e', marginBottom: '12px' }}>
-              {reminderRecord.expedition_code || reminderRecord.expedition_title ? (
-                <>
-                  Event: <strong>{reminderRecord.expedition_code}</strong>{' '}
-                  {reminderRecord.expedition_title}
-                  {reminderRecord.expedition_date ? ` (${reminderRecord.expedition_date})` : ''}
-                </>
-              ) : (
-                'Unscheduled Forming Cohort'
-              )}
-            </div>
-
-            {modalError && (
-              <div className="ems-error-notice">
-                <FontAwesomeIcon icon={faTriangleExclamation} style={{ marginRight: '6px' }} />
-                {modalError}
-              </div>
-            )}
-
-            {modalSuccess && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  background: '#dcfce7',
-                  borderLeft: '4px solid #16a34a',
-                  color: '#166534',
-                  marginBottom: '14px',
-                  fontSize: '13px',
-                  borderRadius: '2px',
-                }}
-              >
-                <FontAwesomeIcon icon={faCircleCheck} style={{ marginRight: '6px' }} />
-                {modalSuccess}
-              </div>
-            )}
-
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
-                Select Members to Remind ({selectedSignupIds.length} selected)
-              </div>
-              <div style={{ maxHeight: '260px', overflowY: 'auto', border: '1px solid #dcdcde', borderRadius: '4px' }}>
-                <table className="ems-table" style={{ fontSize: '12px' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '32px' }} />
-                      <th>Explorer</th>
-                      <th>Compliance Gaps</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(reminderRecord.members || []).map((member, idx) => {
-                      const signupId = member.expedition_signup_id || 0;
-                      const canSelect = signupId > 0;
-                      const isChecked = canSelect && selectedSignupIds.includes(signupId);
-                      const gaps = getMemberGaps(member, reminderRecord.training_available);
-
-                      return (
-                        <tr key={`${signupId}-${idx}`}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              disabled={!canSelect || dispatching}
-                              onChange={() => canSelect && toggleMemberSelection(signupId)}
-                            />
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="button-link"
-                              onClick={() =>
-                                setDrawerTarget({
-                                  scoutId: member.scout_id,
-                                  signupId: member.expedition_signup_id,
-                                })
-                              }
-                            >
-                              <strong>{member.name || 'Unnamed Explorer'}</strong>
-                            </button>
-                            {!canSelect && (
-                              <div className="ems-table__meta">No linked expedition signup</div>
-                            )}
-                          </td>
-                          <td>
-                            {gaps.length === 0 ? (
-                              <span style={{ color: '#166534', fontWeight: 600 }}>
-                                <FontAwesomeIcon icon={faCircleCheck} style={{ marginRight: '4px' }} />
-                                All checks complete
-                              </span>
-                            ) : (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                {gaps.map((g, gIdx) => (
-                                  <span
-                                    key={gIdx}
-                                    className="ems-badge ems-badge--allocated"
-                                    style={{ fontSize: '11px' }}
-                                  >
-                                    {g}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Preview Box */}
-            {previewData && (
-              <div
-                style={{
-                  background: '#f6f7f7',
-                  border: '1px solid #dcdcde',
-                  borderRadius: '4px',
-                  padding: '12px',
-                  marginBottom: '14px',
-                  fontSize: '12px',
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <FontAwesomeIcon icon={faEnvelope} style={{ color: '#2271b1' }} />
-                  Reminder Preview ({previewData.total_count ?? previewData.recipients?.length ?? 0} recipient
-                  {(previewData.total_count ?? previewData.recipients?.length ?? 0) === 1 ? '' : 's'})
-                </div>
-                {previewData.sample_email?.subject && (
-                  <div style={{ marginBottom: '6px' }}>
-                    <strong>Subject:</strong> {previewData.sample_email.subject}
-                  </div>
-                )}
-                {previewData.sample_email?.message && (
-                  <div className="ems-email-preview-box">{previewData.sample_email.message}</div>
-                )}
-                {previewData.sample_email?.html && !previewData.sample_email?.message && (
-                  <div
-                    className="ems-email-preview-box"
-                    dangerouslySetInnerHTML={{ __html: previewData.sample_email.html }}
-                  />
-                )}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button
-                type="button"
-                className="button"
-                onClick={handleCloseReminderModal}
-                disabled={dispatching}
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                className="button"
-                onClick={handlePreviewReminder}
-                disabled={selectedSignupIds.length === 0 || previewLoading || dispatching}
-              >
-                <FontAwesomeIcon icon={previewLoading ? faSpinner : faEnvelope} spin={previewLoading} style={{ marginRight: '6px' }} />
-                Preview
-              </button>
-              <button
-                type="button"
-                className="button button-primary"
-                onClick={handleDispatchReminder}
-                disabled={selectedSignupIds.length === 0 || dispatching}
-              >
-                <FontAwesomeIcon icon={dispatching ? faSpinner : faPaperPlane} spin={dispatching} style={{ marginRight: '6px' }} />
-                {dispatching ? 'Sending…' : `Send Reminder (${selectedSignupIds.length})`}
-              </button>
-            </div>
-          </div>
-        </div>
+        <TeamEmailDispatchModal
+          isOpen={true}
+          onClose={handleCloseReminderModal}
+          mode="compliance_reminder"
+          title={`Send Reminder — ${reminderRecord.cohort_name || reminderRecord.team_code || reminderRecord.team_title}`}
+          subtitle={
+            formatEventSubtitle(
+              reminderRecord.expedition_code,
+              reminderRecord.expedition_title,
+              reminderRecord.expedition_date
+            ) || 'Unscheduled Forming Team'
+          }
+          ariaLabel="Send Team Readiness Reminder"
+          recipients={reminderRecipients}
+          warnings={reminderWarnings}
+          loadingPreview={previewLoading}
+          previewError={previewError}
+          sampleEmail={(previewData?.sample_email as DispatchModalSampleEmail) || null}
+          selectedIds={selectedSignupIds}
+          onToggleRecipient={toggleMemberSelection}
+          onToggleSelectAll={toggleSelectAllReminder}
+          onInspectExplorer={(target) => setDrawerTarget(target)}
+          dispatching={dispatching}
+          dispatchError={modalError}
+          dispatchResult={dispatchResult}
+          onDispatch={handleDispatchReminder}
+        />
       )}
 
       <Explorer360Drawer
@@ -725,6 +655,76 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
         onClose={() => setDrawerTarget(null)}
         onUpdated={fetchReadiness}
       />
+
+      {queryReplyTarget && (
+        <div className="ems-modal-backdrop">
+          <div className="ems-modal" role="dialog" aria-modal="true" aria-label="Respond to Offer Query" style={{ maxWidth: '580px' }}>
+            <h3 className="ems-m-0 ems-mb-12">
+              Offer Query — {queryReplyTarget.member.name}
+            </h3>
+            <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', padding: '10px 12px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px', color: '#78350f' }}>
+              <strong>Explorer / Parent Query:</strong>
+              <div style={{ marginTop: '4px' }}>{queryReplyTarget.member.offer_query_message}</div>
+            </div>
+            <div className="ems-mb-16">
+              <label className="ems-toolbar__label">Reply Message (emailed to Explorer &amp; Parent if provided)</label>
+              <textarea
+                rows={4}
+                className="ems-w-full"
+                placeholder="Write a reply explaining any changes or confirming details..."
+                value={queryReplyText}
+                onChange={(e) => setQueryReplyText(e.target.value)}
+              />
+            </div>
+            <div className="ems-flex-between" style={{ gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="button"
+                disabled={queryReplyBusy}
+                onClick={() => setQueryReplyTarget(null)}
+              >
+                Cancel
+              </button>
+              <div className="ems-flex-center ems-gap-8">
+                <button
+                  type="button"
+                  className="button button-primary"
+                  disabled={queryReplyBusy}
+                  onClick={async () => {
+                    setQueryReplyBusy(true);
+                    try {
+                      const res = await fetch(`${rootUrl}/cohorts/resolve-query`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'X-WP-Nonce': nonce,
+                        },
+                        body: JSON.stringify({
+                          cohort_id: queryReplyTarget.record.cohort_id || 0,
+                          expedition_signup_id: queryReplyTarget.member.expedition_signup_id || 0,
+                          team_post_id: queryReplyTarget.record.team_post_id || 0,
+                          scout_id: queryReplyTarget.member.scout_id || 0,
+                          reply_message: queryReplyText,
+                          new_status: 'pending',
+                        }),
+                      });
+                      if (!res.ok) throw new Error('Failed to resolve query.');
+                      setQueryReplyTarget(null);
+                      await fetchReadiness();
+                    } catch (err: any) {
+                      setError(err?.message || 'Failed to resolve query.');
+                    } finally {
+                      setQueryReplyBusy(false);
+                    }
+                  }}
+                >
+                  {queryReplyBusy ? 'Sending…' : queryReplyText.trim() ? 'Send Reply & Re-open Offer' : 'Mark Query Resolved'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

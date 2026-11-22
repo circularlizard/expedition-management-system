@@ -844,7 +844,13 @@ class ExpeditionOfferDispatcher {
 			$wpdb->query(
 				$wpdb->prepare(
 					"UPDATE {$team_table}
-					SET notification_status = 'notified', notified_at = %s, notified_by = %d
+					SET notification_status = 'notified',
+						notified_at = %s,
+						notified_by = %d,
+						offer_status = 'pending',
+						offer_query_message = NULL,
+						offer_responded_at = NULL,
+						offer_responded_by = NULL
 					WHERE expedition_signup_id = %d AND cohort_id = %d",
 					$notified_at,
 					$notified_by,
@@ -858,7 +864,13 @@ class ExpeditionOfferDispatcher {
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$team_table}
-				SET notification_status = 'notified', notified_at = %s, notified_by = %d
+				SET notification_status = 'notified',
+					notified_at = %s,
+					notified_by = %d,
+					offer_status = 'pending',
+					offer_query_message = NULL,
+					offer_responded_at = NULL,
+					offer_responded_by = NULL
 				WHERE expedition_signup_id = %d",
 				$notified_at,
 				$notified_by,

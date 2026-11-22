@@ -2,21 +2,10 @@ import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faBell,
-  faBicycle,
-  faCalendarDay,
   faChevronDown,
   faChevronRight,
-  faCircleCheck,
-  faCircleExclamation,
-  faClock,
-  faGraduationCap,
-  faKitMedical,
-  faMapLocationDot,
-  faPersonHiking,
   faSpinner,
-  faTriangleExclamation,
   faUsers,
-  faWater,
 } from '@fortawesome/free-solid-svg-icons';
 
 export interface TeamReadinessMember {
@@ -26,6 +15,9 @@ export interface TeamReadinessMember {
   name: string;
   availability_override: string | null;
   notification_status: string;
+  offer_status?: string;
+  offer_query_message?: string | null;
+  offer_responded_at?: string | null;
   first_aid_level: string;
   first_aid_expiry: string | null;
   first_aid_valid: boolean;
@@ -91,8 +83,32 @@ export interface TeamReadinessTableProps {
   records: TeamReadinessRecord[];
   isLicScoped?: boolean;
   onSendReminder?: (record: TeamReadinessRecord) => void;
+  onResolveQuery?: (member: TeamReadinessMember, record: TeamReadinessRecord) => void;
   loading?: boolean;
   emptyMessage?: string;
+}
+
+const UK_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatUkDate(value: string | null | undefined): string {
+  if (!value) return '';
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return value;
+  const year = match[1];
+  const monthIdx = parseInt(match[2], 10) - 1;
+  const day = parseInt(match[3], 10);
+  if (monthIdx < 0 || monthIdx > 11 || Number.isNaN(day)) return value;
+  return `${day} ${UK_MONTHS[monthIdx]} ${year}`;
+}
+
+function formatUkMonthYear(value: string | null | undefined): string {
+  if (!value) return '';
+  const match = value.trim().match(/^(\d{4})-(\d{2})/);
+  if (!match) return value;
+  const year = match[1];
+  const monthIdx = parseInt(match[2], 10) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return value;
+  return `${UK_MONTHS[monthIdx]} ${year}`;
 }
 
 function getRecordKey(record: TeamReadinessRecord, index: number): string {
@@ -113,136 +129,98 @@ function formatDofeLevelClass(level: string): string {
   return 'ems-pill';
 }
 
-function getTransportMeta(mode: string): { icon: typeof faPersonHiking; label: string } {
+function formatDofeLevelLabel(level: string): string {
+  const norm = (level || '').trim().toLowerCase();
+  if (!norm) return '';
+  return norm.charAt(0).toUpperCase() + norm.slice(1);
+}
+
+function formatTransportLabel(mode: string): string {
   const norm = (mode || '').toLowerCase();
-  if (norm === 'biking' || norm === 'bike' || norm === 'cycling') {
-    return { icon: faBicycle, label: 'Biking' };
-  }
-  if (norm === 'paddling' || norm === 'paddle' || norm === 'canoe') {
-    return { icon: faWater, label: 'Paddling' };
-  }
-  return { icon: faPersonHiking, label: 'Foot' };
+  if (norm === 'biking' || norm === 'bike' || norm === 'cycling') return 'Biking';
+  if (norm === 'paddling' || norm === 'paddle' || norm === 'canoe') return 'Paddling';
+  return 'Foot';
 }
 
-function formatStageLabel(stage: string): { label: string; bg: string; color: string; border: string } {
+function formatStageText(stage: string): string {
   const norm = (stage || '').toLowerCase();
-  if (norm === 'practice') {
-    return { label: 'Practice', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' };
-  }
-  if (norm === 'qualifier' || norm === 'qualifying') {
-    return { label: 'Qualifier', bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' };
-  }
-  return { label: 'Unscheduled', bg: '#f3f4f6', color: '#4b5563', border: '#d1d5db' };
+  if (norm === 'practice') return 'Practice';
+  if (norm === 'qualifier' || norm === 'qualifying') return 'Qualifier';
+  return 'Unscheduled';
 }
 
-function formatOfferStatusBadge(
-  status: string,
-  isLicScoped: boolean
-): { label: string; bg: string; color: string; border: string } {
+function formatOfferLabel(status: string, isLicScoped: boolean): { label: string; toneClass: string } {
   const norm = (status || 'draft').toLowerCase();
   switch (norm) {
     case 'accepted':
-      return { label: 'Accepted', bg: '#dcfce7', color: '#166534', border: '#86efac' };
+      return { label: 'Accepted', toneClass: 'ems-readiness-status--ok' };
     case 'notified':
-      return { label: 'Notified', bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' };
+      return { label: 'Notified', toneClass: 'ems-readiness-status--info' };
     case 'queried':
-      return { label: 'Queried', bg: '#fef3c7', color: '#92400e', border: '#fcd34d' };
+      return { label: 'Queried', toneClass: 'ems-readiness-status--warn' };
     case 'declined':
-      return { label: 'Declined', bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' };
+      return { label: 'Declined', toneClass: 'ems-readiness-status--danger' };
     case 're_notify_needed':
-      return {
-        label: isLicScoped ? 'Pending' : 'Re-notify',
-        bg: '#fef3c7',
-        color: '#92400e',
-        border: '#fcd34d',
-      };
+      return { label: isLicScoped ? 'Pending' : 'Re-notify', toneClass: 'ems-readiness-status--warn' };
     case 'ready_to_notify':
-      return {
-        label: isLicScoped ? 'Pending' : 'Ready',
-        bg: '#f3f4f6',
-        color: '#374151',
-        border: '#d1d5db',
-      };
+      return { label: isLicScoped ? 'Pending' : 'Ready', toneClass: 'ems-readiness-status--muted' };
     case 'draft':
     default:
-      return {
-        label: isLicScoped ? 'Pending' : 'Draft',
-        bg: '#f3f4f6',
-        color: '#374151',
-        border: '#d1d5db',
-      };
+      return { label: isLicScoped ? 'Pending' : 'Draft', toneClass: 'ems-readiness-status--muted' };
   }
 }
 
-function formatFirstAidLevel(level: string): string {
-  const norm = (level || 'none').toLowerCase();
-  if (norm === 'full_first_aid') return 'Full First Aid';
-  if (norm === 'first_response') return 'First Response';
-  if (norm === 'none' || norm === 'no') return 'None';
-  return level.replace(/_/g, ' ');
-}
-
-function formatTrainingStatusBadge(
-  status: string,
-  isLicScoped: boolean
-): { label: string; bg: string; color: string; border: string } {
-  const norm = (status || 'not_started').toLowerCase();
-  switch (norm) {
-    case 'complete':
-      return { label: 'Complete', bg: '#dcfce7', color: '#166534', border: '#86efac' };
-    case 'in_progress':
-      return { label: 'In Progress', bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' };
-    case 'unlinked_oidc':
-      return {
-        label: isLicScoped ? 'Not Linked' : 'Unlinked OIDC',
-        bg: '#fef3c7',
-        color: '#92400e',
-        border: '#fcd34d',
-      };
-    case 'unavailable':
-      return { label: 'Unavailable', bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' };
-    case 'not_started':
-    default:
-      return { label: 'Not Started', bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' };
+function formatFirstAidTitle(level: string): string | null {
+  const norm = (level || '').trim().toLowerCase().replace(/_/g, '-');
+  if (!norm || norm === 'none' || norm === 'no' || norm === 'first-aid-no') {
+    return null;
   }
+  if (norm === 'full-first-aid') return 'Full First Aid';
+  if (norm === 'first-response') return 'First Response';
+  return level.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatRoutePlanBadge(status: string): { label: string; bg: string; color: string; border: string } {
+function formatAvailabilityException(override: string | null, isLicScoped: boolean): string | null {
+  if (!override) return null;
+  const norm = override.trim().toLowerCase();
+  if (!norm || norm === 'matched' || norm === 'none') return null;
+  if (norm === 'date_conflict_pending') {
+    return isLicScoped ? null : 'Date conflict pending';
+  }
+  if (norm === 'split_date' || norm === 'split_practice' || norm === 'split_qualifier') {
+    return 'Split date';
+  }
+  return isLicScoped ? null : override.replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatRouteStatus(status: string): { label: string; toneClass: string } {
   const norm = (status || 'not_started').toLowerCase();
   switch (norm) {
     case 'approved':
-      return { label: 'Approved', bg: '#dcfce7', color: '#166534', border: '#86efac' };
+      return { label: 'Approved', toneClass: 'ems-readiness-status--ok' };
     case 'submitted':
-      return { label: 'Submitted', bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' };
+      return { label: 'Submitted', toneClass: 'ems-readiness-status--warn' };
     case 'revisions_requested':
-      return { label: 'Revisions Requested', bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' };
+      return { label: 'Revisions Requested', toneClass: 'ems-readiness-status--danger' };
     case 'draft':
-      return { label: 'Draft', bg: '#fef3c7', color: '#92400e', border: '#fcd34d' };
+      return { label: 'Draft', toneClass: 'ems-readiness-status--muted' };
     case 'not_started':
     default:
-      return { label: 'Not Started', bg: '#f3f4f6', color: '#374151', border: '#d1d5db' };
+      return { label: 'Not started', toneClass: 'ems-readiness-status--muted' };
   }
 }
 
-const pillStyle = (colors: { bg: string; color: string; border: string }): React.CSSProperties => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '4px',
-  padding: '2px 8px',
-  borderRadius: '9999px',
-  fontSize: '11px',
-  fontWeight: 600,
-  lineHeight: 1.3,
-  backgroundColor: colors.bg,
-  color: colors.color,
-  border: `1px solid ${colors.border}`,
-  whiteSpace: 'nowrap',
-});
+function formatRouteDrawerStatus(status: string): string {
+  const norm = (status || 'not_started').toLowerCase();
+  if (norm === 'not_started') return 'Not Started';
+  return formatRouteStatus(norm).label;
+}
 
 export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
   records,
   isLicScoped = false,
   onSendReminder,
+  onResolveQuery,
   loading = false,
   emptyMessage = 'No teams match the current filters.',
 }) => {
@@ -272,10 +250,10 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
     );
   }
 
-  const showActionsCol = true; // Always show expand toggle; Send Reminder shown only when !isLicScoped && onSendReminder
+  const showActionsCol = true;
 
   return (
-    <div className="ems-table-wrap" style={{ overflowX: 'auto' }}>
+    <div className="ems-table-wrap">
       <table className="ems-table">
         <thead>
           <tr>
@@ -292,9 +270,11 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
           {records.map((record, idx) => {
             const rowKey = getRecordKey(record, idx);
             const isExpanded = !!expandedKeys[rowKey];
-            const transport = getTransportMeta(record.transport_mode);
-            const stageBadge = formatStageLabel(record.stage);
-            const routeBadge = formatRoutePlanBadge(record.route_plan?.status ?? 'not_started');
+            const canonicalTeamName = record.cohort_name || record.team_title || record.team_code || 'Unnamed Team';
+            const levelLabel = formatDofeLevelLabel(record.dofe_level);
+            const transportLabel = formatTransportLabel(record.transport_mode);
+            const stageLabel = formatStageText(record.stage);
+            const routeMeta = formatRouteStatus(record.route_plan?.status ?? 'not_started');
 
             const offers = record.offer_counts || {
               draft: 0,
@@ -305,6 +285,12 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
             };
             const draftCount =
               (offers.draft || 0) + (offers.ready_to_notify || 0) + (offers.re_notify_needed || 0);
+            const notifiedCount = offers.notified || 0;
+            const queriedCount = offers.queried || 0;
+            const declinedCount = offers.declined || 0;
+            const hasNotifiedMembers =
+              notifiedCount > 0 ||
+              (record.members || []).some((m) => (m.notification_status || '').toLowerCase() === 'notified');
 
             const training = record.training_summary || {
               complete: 0,
@@ -312,112 +298,99 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
               not_started: 0,
               unlinked_oidc: 0,
             };
+            const trainingTotal =
+              record.member_count > 0
+                ? record.member_count
+                : (training.complete || 0) +
+                  (training.in_progress || 0) +
+                  (training.not_started || 0) +
+                  (training.unlinked_oidc || 0);
+            const trainingComplete = training.complete || 0;
+            const trainingPct = trainingTotal > 0 ? Math.min(100, Math.round((trainingComplete / trainingTotal) * 100)) : 0;
+
+            const validFirstAiders = (record.members || [])
+              .filter((m) => m.first_aid_valid && m.name)
+              .map((m) => m.name);
 
             const daysUntilCutoff = record.route_plan?.days_until_cutoff;
             const isPastCutoff = !!record.route_plan?.is_past_cutoff;
+            const sizeToneClass = record.size_valid ? 'ems-readiness-status--ok' : 'ems-readiness-status--warn';
+            const faToneClass =
+              record.first_aid_count >= 2
+                ? 'ems-readiness-status--ok'
+                : record.first_aid_count === 1
+                ? 'ems-readiness-status--warn'
+                : 'ems-readiness-status--danger';
 
             return (
               <React.Fragment key={rowKey}>
                 <tr
-                  className={isExpanded ? 'ems-table-row--selected' : ''}
-                  style={{ cursor: 'pointer' }}
+                  className={`ems-readiness-row ${isExpanded ? 'ems-table-row--selected' : ''}`}
                   onClick={() => toggleRow(rowKey)}
                 >
-                  {/* 1. Team / Cohort */}
+                  {/* 1. Team */}
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div className="ems-readiness-team-title">
                       <FontAwesomeIcon
                         icon={isExpanded ? faChevronDown : faChevronRight}
-                        style={{ color: '#646970', fontSize: '11px', width: '12px' }}
+                        className="ems-readiness-team-chevron"
                       />
-                      <span className="ems-table__name">{record.team_code || record.team_title}</span>
-                      {record.record_type === 'forming_cohort' && (
-                        <span
-                          style={pillStyle({ bg: '#f3f4f6', color: '#4b5563', border: '#d1d5db' })}
-                        >
-                          Forming
-                        </span>
-                      )}
+                      <span>{canonicalTeamName}</span>
                     </div>
-                    {record.team_title && record.team_title !== record.team_code && (
-                      <div className="ems-table__meta">{record.team_title}</div>
-                    )}
-                    {record.cohort_name && record.cohort_name !== record.team_code && (
-                      <div className="ems-table__meta">Team: {record.cohort_name}</div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
-                      {record.dofe_level && (
-                        <span className={formatDofeLevelClass(record.dofe_level)}>
-                          {record.dofe_level}
-                        </span>
+                    <div className="ems-readiness-team-meta">
+                      {record.team_code && (
+                        <>
+                          <span>{record.team_code}</span>
+                          <span aria-hidden="true">·</span>
+                        </>
                       )}
-                      <span style={{ fontSize: '11px', color: '#50575e', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <FontAwesomeIcon icon={transport.icon} />
-                        {transport.label}
-                      </span>
+                      {levelLabel && (
+                        <>
+                          <span className={formatDofeLevelClass(record.dofe_level)}>{levelLabel}</span>
+                          <span aria-hidden="true">·</span>
+                        </>
+                      )}
+                      <span>{transportLabel}</span>
                     </div>
                   </td>
 
                   {/* 2. Event & Stage */}
                   <td>
                     {record.expedition_code || record.expedition_title ? (
-                      <>
-                        <div className="ems-table__name">
-                          {record.expedition_code ? `${record.expedition_code}` : record.expedition_title}
-                        </div>
-                        {record.expedition_title && record.expedition_code && (
-                          <div className="ems-table__meta">{record.expedition_title}</div>
-                        )}
-                      </>
+                      <div className="ems-readiness-status" style={{ color: '#0f172a' }}>
+                        {record.expedition_code || record.expedition_title} · {stageLabel}
+                      </div>
                     ) : (
-                      <div className="ems-table__meta">No event assigned</div>
+                      <div className="ems-readiness-status ems-readiness-status--muted">Unscheduled</div>
                     )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
-                      <span style={pillStyle(stageBadge)}>{stageBadge.label}</span>
-                      {record.expedition_date && (
-                        <span style={{ fontSize: '11px', color: '#50575e', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <FontAwesomeIcon icon={faCalendarDay} />
-                          {record.expedition_date}
-                        </span>
-                      )}
-                    </div>
+                    {record.expedition_date && (
+                      <div className="ems-readiness-subtext">{formatUkDate(record.expedition_date)}</div>
+                    )}
                   </td>
 
                   {/* 3. Size & Place Offers */}
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                      <span
-                        className={`ems-pill ${
-                          record.size_valid ? 'ems-pill--asn-validated' : 'ems-pill--asn-action'
-                        }`}
-                      >
-                        <FontAwesomeIcon
-                          icon={record.size_valid ? faCircleCheck : faTriangleExclamation}
-                          style={{ marginRight: '4px' }}
-                        />
-                        {record.member_count} {record.member_count === 1 ? 'member' : 'members'} (4–7)
-                      </span>
+                    <div className={`ems-readiness-status ${sizeToneClass}`}>
+                      {record.member_count}/7 members
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', fontSize: '11px' }}>
-                      <span style={pillStyle({ bg: '#dcfce7', color: '#166534', border: '#86efac' })}>
-                        Accepted: {offers.accepted || 0}
+                    <div className="ems-readiness-subtext">
+                      <span>
+                        {offers.accepted || 0}/{record.member_count} accepted · {draftCount}{' '}
+                        {isLicScoped ? 'pending' : 'draft'}
                       </span>
-                      <span style={pillStyle({ bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' })}>
-                        Notified: {offers.notified || 0}
-                      </span>
-                      {draftCount > 0 && (
-                        <span style={pillStyle({ bg: '#f3f4f6', color: '#374151', border: '#d1d5db' })}>
-                          {isLicScoped ? 'Pending' : 'Draft'}: {draftCount}
+                      {notifiedCount > 0 && (
+                        <span className="ems-readiness-status--info" style={{ fontWeight: 600 }}>
+                          {' '}· {notifiedCount} notified
                         </span>
                       )}
-                      {(offers.queried || 0) > 0 && (
-                        <span style={pillStyle({ bg: '#fef3c7', color: '#92400e', border: '#fcd34d' })}>
-                          Queried: {offers.queried}
+                      {queriedCount > 0 && (
+                        <span className="ems-readiness-status--warn" style={{ fontWeight: 600 }}>
+                          {' '}· {queriedCount} queried
                         </span>
                       )}
-                      {(offers.declined || 0) > 0 && (
-                        <span style={pillStyle({ bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' })}>
-                          Declined: {offers.declined}
+                      {declinedCount > 0 && (
+                        <span className="ems-readiness-status--danger" style={{ fontWeight: 600 }}>
+                          {' '}· {declinedCount} declined
                         </span>
                       )}
                     </div>
@@ -425,46 +398,49 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
 
                   {/* 4. First Aid (Rule of Two) */}
                   <td>
-                    <span
-                      className={`ems-pill ${
-                        record.first_aid_valid ? 'ems-pill--asn-validated' : 'ems-pill--asn-action'
-                      }`}
-                    >
-                      <FontAwesomeIcon
-                        icon={record.first_aid_valid ? faKitMedical : faTriangleExclamation}
-                        style={{ marginRight: '5px' }}
-                      />
-                      {record.first_aid_count} / 2+ valid
-                    </span>
-                    <div className="ems-table__meta" style={{ marginTop: '4px' }}>
-                      {record.first_aid_valid ? 'Rule of Two met' : 'Needs valid First Aiders'}
+                    <div className={`ems-readiness-status ${faToneClass}`}>
+                      {record.first_aid_count}/2 valid
+                    </div>
+                    <div className="ems-readiness-subtext">
+                      {record.first_aid_count >= 2
+                        ? validFirstAiders.length > 0
+                          ? validFirstAiders.join(', ')
+                          : 'Rule of Two met'
+                        : validFirstAiders.length > 0
+                        ? `${validFirstAiders.join(', ')} · Needs 1 more`
+                        : 'Needs First Aiders'}
                     </div>
                   </td>
 
                   {/* 5. Training (Tutor LMS) */}
                   <td>
                     {!record.training_available ? (
-                      <span style={pillStyle({ bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' })}>
-                        <FontAwesomeIcon icon={faGraduationCap} />
-                        Tutor LMS Unavailable
+                      <span className="ems-readiness-status ems-readiness-status--muted">
+                        Tutor LMS unavailable
                       </span>
                     ) : (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        <span style={pillStyle({ bg: '#dcfce7', color: '#166534', border: '#86efac' })}>
-                          Complete: {training.complete || 0}
-                        </span>
-                        <span style={pillStyle({ bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' })}>
-                          In Progress: {training.in_progress || 0}
-                        </span>
-                        {(training.not_started || 0) > 0 && (
-                          <span style={pillStyle({ bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' })}>
-                            Not Started: {training.not_started}
+                      <div>
+                        <div className="ems-readiness-progress-wrap">
+                          <div className="ems-readiness-progress" aria-hidden="true">
+                            <div
+                              className={`ems-readiness-progress__fill ${
+                                trainingTotal > 0 && trainingComplete >= trainingTotal
+                                  ? 'ems-readiness-progress__fill--complete'
+                                  : ''
+                              }`}
+                              style={{ width: `${trainingPct}%` }}
+                            />
+                          </div>
+                          <span className="ems-readiness-status" style={{ color: '#0f172a', fontWeight: 500 }}>
+                            {trainingComplete}/{trainingTotal} complete
                           </span>
-                        )}
+                        </div>
                         {(training.unlinked_oidc || 0) > 0 && (
-                          <span style={pillStyle({ bg: '#fef3c7', color: '#92400e', border: '#fcd34d' })}>
-                            {isLicScoped ? 'Not Linked' : 'Unlinked OIDC'}: {training.unlinked_oidc}
-                          </span>
+                          <div style={{ marginTop: '4px' }}>
+                            <span className="ems-readiness-pill-warn">
+                              {isLicScoped ? 'Not Linked' : 'Unlinked OIDC'}: {training.unlinked_oidc}
+                            </span>
+                          </div>
                         )}
                       </div>
                     )}
@@ -472,35 +448,21 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
 
                   {/* 6. Route Plan Status */}
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span style={pillStyle(routeBadge)}>
-                        <FontAwesomeIcon icon={faMapLocationDot} />
-                        {routeBadge.label}
-                        {record.route_plan?.version > 0 ? ` (v${record.route_plan.version})` : ''}
-                      </span>
+                    <div className={`ems-readiness-status ${routeMeta.toneClass}`}>
+                      {routeMeta.label}
+                      {record.route_plan?.version > 0 ? ` v${record.route_plan.version}` : ''}
                     </div>
                     {daysUntilCutoff !== null && daysUntilCutoff !== undefined && (
                       <div
-                        className="ems-table__meta"
-                        style={{
-                          marginTop: '5px',
-                          color: isPastCutoff
-                            ? '#991b1b'
-                            : daysUntilCutoff <= 7
-                            ? '#92400e'
-                            : '#646970',
-                          fontWeight: isPastCutoff || daysUntilCutoff <= 7 ? 600 : 400,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
+                        className={`ems-readiness-subtext ${
+                          isPastCutoff ? 'ems-readiness-status--danger' : ''
+                        }`}
                       >
-                        <FontAwesomeIcon icon={faClock} />
                         {isPastCutoff
-                          ? `${Math.abs(daysUntilCutoff)}d past 14-day cutoff`
+                          ? `${Math.abs(daysUntilCutoff)}d past cutoff`
                           : daysUntilCutoff === 0
-                          ? '14-day cutoff is today'
-                          : `${daysUntilCutoff}d until 14-day cutoff`}
+                          ? 'Cutoff is today'
+                          : `${daysUntilCutoff}d until cutoff`}
                       </div>
                     )}
                   </td>
@@ -516,8 +478,13 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
                           <button
                             type="button"
                             className="button button-small"
+                            disabled={!hasNotifiedMembers}
                             onClick={() => onSendReminder(record)}
-                            title="Send targeted reminder to pending or incomplete members"
+                            title={
+                              hasNotifiedMembers
+                                ? 'Send targeted reminder to notified members'
+                                : 'Available once place offers have been notified'
+                            }
                           >
                             <FontAwesomeIcon icon={faBell} style={{ marginRight: '4px' }} />
                             Send Reminder
@@ -525,14 +492,10 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
                         )}
                         <button
                           type="button"
-                          className="button button-small"
+                          className="ems-btn-ghost"
                           onClick={() => toggleRow(rowKey)}
                           aria-expanded={isExpanded}
                         >
-                          <FontAwesomeIcon
-                            icon={isExpanded ? faChevronDown : faChevronRight}
-                            style={{ marginRight: '4px' }}
-                          />
                           {isExpanded ? 'Hide' : 'Details'}
                         </button>
                       </div>
@@ -543,43 +506,28 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
                 {/* Expandable Row Drawer */}
                 {isExpanded && (
                   <tr className="ems-readiness-drawer-row">
-                    <td
-                      colSpan={showActionsCol ? 7 : 6}
-                      style={{ background: '#f8fafc', padding: '14px 18px', borderBottom: '1px solid #ccd0d4' }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          gap: '10px',
-                          marginBottom: '10px',
-                        }}
-                      >
-                        <div style={{ fontWeight: 600, fontSize: '13px', color: '#1d2327' }}>
-                          Member Compliance Breakdown — {record.team_code || record.team_title} (
-                          {record.members?.length || 0} members)
+                    <td colSpan={showActionsCol ? 7 : 6} className="ems-readiness-drawer-cell">
+                      <div className="ems-readiness-drawer-header">
+                        <div className="ems-readiness-drawer-title">
+                          Member Compliance Breakdown — {canonicalTeamName} ({record.members?.length || 0} members)
                         </div>
-                        <div style={{ fontSize: '12px', color: '#50575e', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <div className="ems-readiness-drawer-sub">
                           <span>
-                            <strong>Route Card:</strong> {routeBadge.label}
+                            Route Card: <strong>{formatRouteDrawerStatus(record.route_plan?.status ?? 'not_started')}</strong>
                             {record.route_plan?.version > 0 ? ` v${record.route_plan.version}` : ''}
                           </span>
                           {record.route_plan?.cutoff_date && (
-                            <span>
-                              <strong>14-Day Cutoff:</strong> {record.route_plan.cutoff_date}
-                            </span>
+                            <span> · Cutoff: {formatUkDate(record.route_plan.cutoff_date)}</span>
                           )}
                         </div>
                       </div>
 
                       {!record.members || record.members.length === 0 ? (
-                        <div style={{ fontSize: '12px', color: '#646970', padding: '8px 0' }}>
+                        <div className="ems-readiness-subtext" style={{ padding: '8px 0' }}>
                           No members currently assigned to this team.
                         </div>
                       ) : (
-                        <div style={{ border: '1px solid #dcdcde', borderRadius: '4px', background: '#fff', overflowX: 'auto' }}>
+                        <div className="ems-readiness-drawer-table-wrap">
                           <table className="ems-table" style={{ fontSize: '12px' }}>
                             <thead>
                               <tr>
@@ -592,71 +540,109 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
                             </thead>
                             <tbody>
                               {record.members.map((member, mIdx) => {
-                                const offerBadge = formatOfferStatusBadge(
-                                  member.notification_status,
+                                const effectiveOfferStatus =
+                                  member.offer_status && ['accepted', 'queried', 'declined'].includes(member.offer_status.toLowerCase())
+                                    ? member.offer_status
+                                    : member.notification_status;
+                                const offerInfo = formatOfferLabel(effectiveOfferStatus, isLicScoped);
+                                const exceptionLabel = formatAvailabilityException(
+                                  member.availability_override,
                                   isLicScoped
                                 );
-                                const trainingBadge = formatTrainingStatusBadge(
-                                  member.training_status,
-                                  isLicScoped
-                                );
+                                const faTitle = formatFirstAidTitle(member.first_aid_level);
+                                const faExpiryFormatted = formatUkMonthYear(member.first_aid_expiry);
+                                const memberTotal = member.total_modules || 0;
+                                const memberDone = member.completed_modules || 0;
+                                const memberPct =
+                                  memberTotal > 0 ? Math.min(100, Math.round((memberDone / memberTotal) * 100)) : 0;
                                 const memberKey = `${rowKey}-m-${member.expedition_signup_id || member.scout_id || mIdx}`;
 
                                 return (
                                   <tr key={memberKey}>
                                     <td>
-                                      <span style={{ fontWeight: 600, color: '#1d2327' }}>
+                                      <span style={{ fontWeight: 600, color: '#0f172a' }}>
                                         {member.name || 'Unnamed Explorer'}
                                       </span>
-                                      {!isLicScoped && member.availability_override && (
-                                        <div className="ems-table__meta">
-                                          Override: {member.availability_override}
+                                      {exceptionLabel && (
+                                        <div style={{ marginTop: '3px' }}>
+                                          <span className="ems-readiness-pill-warn">{exceptionLabel}</span>
                                         </div>
                                       )}
                                     </td>
                                     <td>
-                                      <span style={pillStyle(offerBadge)}>{offerBadge.label}</span>
+                                      <span className={`ems-readiness-status ${offerInfo.toneClass}`}>
+                                        {offerInfo.label}
+                                      </span>
+                                      {member.offer_status === 'queried' && member.offer_query_message && (
+                                        <div style={{ marginTop: '4px', padding: '4px 6px', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px', fontSize: '11px', color: '#78350f' }}>
+                                          <div><strong>Query:</strong> {member.offer_query_message}</div>
+                                          {onResolveQuery && !isLicScoped && (
+                                            <button
+                                              type="button"
+                                              className="button-link"
+                                              style={{ fontSize: '11px', padding: 0, marginTop: '2px' }}
+                                              onClick={() => onResolveQuery(member, record)}
+                                            >
+                                              Reply / Resolve
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
                                     </td>
                                     <td>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                        <span
-                                          style={pillStyle(
-                                            member.first_aid_valid
-                                              ? { bg: '#dcfce7', color: '#166534', border: '#86efac' }
-                                              : { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' }
-                                          )}
-                                        >
-                                          <FontAwesomeIcon
-                                            icon={member.first_aid_valid ? faCircleCheck : faCircleExclamation}
-                                          />
-                                          {member.first_aid_valid ? 'Valid' : 'Invalid / Missing'}
+                                      {!faTitle ? (
+                                        <span className="ems-readiness-status ems-readiness-status--danger">
+                                          None recorded
                                         </span>
-                                        <span style={{ color: '#50575e' }}>
-                                          {formatFirstAidLevel(member.first_aid_level)}
+                                      ) : member.first_aid_valid ? (
+                                        <span className="ems-readiness-status ems-readiness-status--ok">
+                                          {faTitle}
+                                          {faExpiryFormatted ? ` · Exp: ${faExpiryFormatted}` : ''}
                                         </span>
-                                        {member.first_aid_expiry && (
-                                          <span style={{ color: '#646970' }}>
-                                            (exp. {member.first_aid_expiry})
+                                      ) : (
+                                        <span className="ems-readiness-status ems-readiness-status--danger">
+                                          {faTitle}
+                                          {faExpiryFormatted ? ` · Expired ${faExpiryFormatted}` : ' · Invalid'}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      {member.training_status === 'unlinked_oidc' ? (
+                                        <span className="ems-readiness-pill-warn">
+                                          {isLicScoped ? 'Not Linked' : 'Unlinked OIDC'}
+                                        </span>
+                                      ) : !record.training_available || member.training_status === 'unavailable' ? (
+                                        <span className="ems-readiness-status ems-readiness-status--muted">
+                                          Unavailable
+                                        </span>
+                                      ) : (
+                                        <div className="ems-readiness-progress-wrap">
+                                          <div className="ems-readiness-progress" aria-hidden="true">
+                                            <div
+                                              className={`ems-readiness-progress__fill ${
+                                                member.training_status === 'complete'
+                                                  ? 'ems-readiness-progress__fill--complete'
+                                                  : ''
+                                              }`}
+                                              style={{ width: `${memberPct}%` }}
+                                            />
+                                          </div>
+                                          <span
+                                            className={`ems-readiness-status ${
+                                              member.training_status === 'complete'
+                                                ? 'ems-readiness-status--ok'
+                                                : 'ems-readiness-status--muted'
+                                            }`}
+                                          >
+                                            {memberDone}/{memberTotal} modules
                                           </span>
-                                        )}
-                                      </div>
+                                        </div>
+                                      )}
                                     </td>
                                     <td>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                        <span style={pillStyle(trainingBadge)}>{trainingBadge.label}</span>
-                                        {record.training_available &&
-                                          member.training_status !== 'unlinked_oidc' &&
-                                          member.training_status !== 'unavailable' && (
-                                            <span style={{ color: '#50575e' }}>
-                                              {member.completed_modules} / {member.total_modules} modules
-                                            </span>
-                                          )}
-                                      </div>
-                                    </td>
-                                    <td>
-                                      <span style={pillStyle(routeBadge)}>
-                                        {routeBadge.label}
-                                        {record.route_plan?.version > 0 ? ` (v${record.route_plan.version})` : ''}
+                                      <span className={`ems-readiness-status ${routeMeta.toneClass}`}>
+                                        {routeMeta.label}
+                                        {record.route_plan?.version > 0 ? ` v${record.route_plan.version}` : ''}
                                       </span>
                                     </td>
                                   </tr>

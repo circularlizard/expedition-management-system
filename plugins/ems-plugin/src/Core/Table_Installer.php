@@ -65,6 +65,26 @@ class Table_Installer {
 			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN notified_by BIGINT UNSIGNED NULL AFTER notified_at" );
 		}
 
+		if ( ! $this->column_exists( $wpdb, $table, 'offer_status' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN offer_status VARCHAR(20) NOT NULL DEFAULT 'pending' AFTER notified_by" );
+		}
+
+		if ( ! $this->column_exists( $wpdb, $table, 'offer_query_message' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN offer_query_message TEXT NULL AFTER offer_status" );
+		}
+
+		if ( ! $this->column_exists( $wpdb, $table, 'offer_responded_at' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN offer_responded_at DATETIME NULL AFTER offer_query_message" );
+		}
+
+		if ( ! $this->column_exists( $wpdb, $table, 'offer_responded_by' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN offer_responded_by BIGINT UNSIGNED NULL AFTER offer_responded_at" );
+		}
+
 		$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
 		if ( ! $this->column_exists( $wpdb, $explorers_table, 'first_aid_level' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -472,6 +492,10 @@ class Table_Installer {
             notification_status   VARCHAR(20)     NOT NULL DEFAULT 'draft',
             notified_at           DATETIME                 NULL,
             notified_by           BIGINT UNSIGNED          NULL,
+            offer_status          VARCHAR(20)     NOT NULL DEFAULT 'pending',
+            offer_query_message   TEXT                     NULL,
+            offer_responded_at    DATETIME                 NULL,
+            offer_responded_by    BIGINT UNSIGNED          NULL,
             added_by              BIGINT UNSIGNED NOT NULL,
             added_at              DATETIME        NOT NULL,
             PRIMARY KEY  (id),
