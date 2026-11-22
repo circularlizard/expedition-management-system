@@ -434,4 +434,123 @@ describe('PortalApp', () => {
             expect(screen.queryByText('Exit Preview')).toBeNull();
         });
     });
+
+    it('renders Scouts Scotland 4-tab navigation, unified offer card with collapsed query box, and deduplicated event details', async () => {
+        sessionStorage.clear();
+        global.window.emsPortal = {
+            ...mockConfig,
+            user_data: {
+                logged_in: true,
+                first_name: 'David',
+                last_name: 'Strachan',
+                email: 'david@example.com',
+                access_type: 'member',
+                is_admin: false,
+            },
+        };
+
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/portal/me')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        logged_in: true,
+                        is_admin: false,
+                        access_type: 'member',
+                        display_name: 'David Strachan',
+                        profiles: [{ scout_id: 30001, first_name: 'David', last_name: 'Strachan', patrol: 'Falcons' }],
+                    }),
+                });
+            }
+            if (url.includes('/portal/explorer/30001')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        explorer: { scout_id: 30001, first_name: 'David', last_name: 'Strachan', first_aid_level: 'none' },
+                        signups: [],
+                        events: {
+                            training: [],
+                            practice: [
+                                {
+                                    id: 101,
+                                    name: 'H-SP2',
+                                    event_code: 'H-SP2',
+                                    start_date: '2027-06-04',
+                                    end_date: '2027-06-06',
+                                    location: '',
+                                    required_first_aid_level: 'first_response',
+                                    whatsapp_explorers: null,
+                                    whatsapp_parents: null,
+                                    level: 'silver',
+                                    type: 'practice',
+                                    osm_event_url: null,
+                                    leader_in_charge: { name: 'Jane Doe', email: 'jane@example.com', phone: '' },
+                                },
+                            ],
+                            qualifying: [],
+                        },
+                        training_checklist: [],
+                        team: {
+                            team_code: 'H-SP2-1',
+                            route_status: 'draft',
+                            whatsapp_link: null,
+                            teammates: [{ first_name: 'Alice', last_initial: 'M', patrol: 'Eagles' }],
+                        },
+                        offers: [
+                            {
+                                cohort_id: 11,
+                                expedition_signup_id: 501,
+                                team_name: 'Team 1',
+                                dofe_level: 'silver',
+                                transport_mode: 'foot',
+                                offer_status: 'pending',
+                                deadline: {
+                                    allowed: true,
+                                    communicated_date: '2026-12-15',
+                                    effective_hard_cutoff: '2026-12-31',
+                                },
+                                stages: [
+                                    {
+                                        expedition_id: 101,
+                                        expedition_name: 'H-SP2',
+                                        type: 'practice',
+                                        start_date: '2027-06-04',
+                                        end_date: '2027-06-06',
+                                    },
+                                ],
+                            },
+                        ],
+                    }),
+                });
+            }
+            return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+        });
+
+        render(<PortalApp />);
+
+        // 4-tab navigation & default My Expeditions view
+        expect(await screen.findByRole('tab', { name: 'My Expeditions' })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByRole('tab', { name: 'Training' })).toBeDefined();
+        expect(screen.getByRole('tab', { name: 'Route Planner' })).toBeDefined();
+        expect(screen.getByRole('tab', { name: 'My Sign-ups' })).toBeDefined();
+
+        // Unified Team & Place Offer Card with nested expedition sub-card
+        expect(screen.getByText('Team 1 · Silver · Hillwalking')).toBeDefined();
+        expect(screen.getByText(/Respond by 15th December 2026/)).toBeDefined();
+        expect(screen.getByText('Eagles')).toBeDefined();
+        expect(screen.getByText('Alice M')).toBeDefined();
+        expect(screen.getByText('Practice · H-SP2')).toBeDefined();
+        expect(screen.getByText('4th–6th June 2027')).toBeDefined();
+        expect(screen.getByText(/Mode: Hillwalking · Leader in Charge:/)).toBeDefined();
+        expect(screen.getByText('Jane Doe')).toBeDefined();
+        expect(screen.queryByText(/WhatsApp Groups & QR Codes/i)).toBeNull();
+
+        // Query textarea collapsed by default, expands on click
+        expect(screen.queryByPlaceholderText(/Describe the team or date changes/i)).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: /Request Team or Date Change/i }));
+        expect(screen.getByText(/If you cannot make the proposed dates/i)).toBeDefined();
+        expect(screen.getByText('expeditions@sesscouts.org.uk')).toBeDefined();
+        expect(screen.getByPlaceholderText(/Describe the team or date changes/i)).toBeDefined();
+        expect(screen.getByRole('button', { name: 'Submit Request' })).toBeDefined();
+    });
 });

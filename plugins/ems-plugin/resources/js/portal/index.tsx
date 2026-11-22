@@ -1,7 +1,5 @@
 import '../../css/ems-portal.css';
 import React, { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder } from '@fortawesome/free-solid-svg-icons';
 import { createRoot } from 'react-dom/client';
 import { OSMReadOnlyMap } from '../admin/expedition-board/OSMReadOnlyMap';
 import { ModuleErrorBoundary } from '../shared/ModuleErrorBoundary';
@@ -29,6 +27,7 @@ interface EventData {
     whatsapp_parents?: string | null;
     level: string;
     type: string;
+    transport_mode?: string;
     event_code?: string;
     osm_event_url: string | null;
     leader_in_charge: {
@@ -65,6 +64,34 @@ interface TrainingCourse {
     course_url: string;
 }
 
+interface OfferStage {
+    expedition_id: number;
+    expedition_name: string;
+    event_code?: string;
+    type: string;
+    start_date: string;
+    end_date: string;
+}
+
+interface OfferRecord {
+    cohort_id: number;
+    expedition_signup_id: number;
+    team_post_id?: number;
+    team_name: string;
+    dofe_level: string;
+    transport_mode: string;
+    offer_status: 'pending' | 'accepted' | 'queried' | 'declined';
+    offer_query_message?: string | null;
+    offer_responded_at?: string | null;
+    deadline?: {
+        allowed: boolean;
+        communicated_date: string | null;
+        effective_hard_cutoff: string | null;
+        reason?: string;
+    };
+    stages?: OfferStage[];
+}
+
 interface ExplorerDetail {
     explorer: {
         scout_id: number;
@@ -87,30 +114,7 @@ interface ExplorerDetail {
         whatsapp_link: string | null;
         teammates: Teammate[];
     } | null;
-    offers?: Array<{
-        cohort_id: number;
-        expedition_signup_id: number;
-        team_post_id?: number;
-        team_name: string;
-        dofe_level: string;
-        transport_mode: string;
-        offer_status: 'pending' | 'accepted' | 'queried' | 'declined';
-        offer_query_message?: string | null;
-        offer_responded_at?: string | null;
-        deadline?: {
-            allowed: boolean;
-            communicated_date: string | null;
-            effective_hard_cutoff: string | null;
-            reason?: string;
-        };
-        stages?: Array<{
-            expedition_id: number;
-            expedition_name: string;
-            type: string;
-            start_date: string;
-            end_date: string;
-        }>;
-    }>;
+    offers?: OfferRecord[];
 }
 
 const MONTHS = [
@@ -118,35 +122,87 @@ const MONTHS = [
     'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-function formatOrdinalDate(raw?: string | null): string {
-    if (!raw) return '';
-    const match = String(raw).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-    let day: number;
-    let monthIdx: number;
-    let year: number;
-    if (match) {
-        year = Number(match[1]);
-        monthIdx = Number(match[2]) - 1;
-        day = Number(match[3]);
-    } else {
-        const parsed = new Date(raw);
-        if (Number.isNaN(parsed.getTime())) return String(raw);
-        day = parsed.getDate();
-        monthIdx = parsed.getMonth();
-        year = parsed.getFullYear();
-    }
+function getOrdinalSuffix(day: number): string {
     const mod100 = day % 100;
-    const suffix =
-        mod100 >= 11 && mod100 <= 13
-            ? 'th'
-            : day % 10 === 1
-            ? 'st'
-            : day % 10 === 2
-            ? 'nd'
-            : day % 10 === 3
-            ? 'rd'
-            : 'th';
-    return `${day}${suffix} ${MONTHS[monthIdx] || ''} ${year}`;
+    if (mod100 >= 11 && mod100 <= 13) return 'th';
+    if (day % 10 === 1) return 'st';
+    if (day % 10 === 2) return 'nd';
+    if (day % 10 === 3) return 'rd';
+    return 'th';
+}
+
+function parseDateParts(raw?: string | null): { day: number; monthIdx: number; year: number } | null {
+    if (!raw) return null;
+    const match = String(raw).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        return {
+            year: Number(match[1]),
+            monthIdx: Number(match[2]) - 1,
+            day: Number(match[3]),
+        };
+    }
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return {
+        day: parsed.getDate(),
+        monthIdx: parsed.getMonth(),
+        year: parsed.getFullYear(),
+    };
+}
+
+function formatOrdinalDate(raw?: string | null): string {
+    const parts = parseDateParts(raw);
+    if (!parts) return raw ? String(raw) : '';
+    return `${parts.day}${getOrdinalSuffix(parts.day)} ${MONTHS[parts.monthIdx] || ''} ${parts.year}`;
+}
+
+function formatDateRange(startRaw?: string | null, endRaw?: string | null): string {
+    const s = parseDateParts(startRaw);
+    const e = parseDateParts(endRaw);
+    if (!s && !e) return '';
+    if (s && !e) return formatOrdinalDate(startRaw);
+    if (!s && e) return formatOrdinalDate(endRaw);
+    if (!s || !e) return '';
+
+    if (s.year === e.year && s.monthIdx === e.monthIdx) {
+        if (s.day === e.day) {
+            return `${s.day}${getOrdinalSuffix(s.day)} ${MONTHS[s.monthIdx]} ${s.year}`;
+        }
+        return `${s.day}${getOrdinalSuffix(s.day)}–${e.day}${getOrdinalSuffix(e.day)} ${MONTHS[s.monthIdx]} ${s.year}`;
+    }
+    return `${formatOrdinalDate(startRaw)} – ${formatOrdinalDate(endRaw)}`;
+}
+
+function capitalizeLabel(value?: string | null): string {
+    const norm = (value || '').trim();
+    if (!norm) return '';
+    if (norm.toLowerCase() === 'foot' || norm.toLowerCase() === 'hillwalking') return 'Hillwalking';
+    return norm.charAt(0).toUpperCase() + norm.slice(1).toLowerCase();
+}
+
+function formatEventCardTitle(ev: EventData): string {
+    const code = (ev.event_code || '').trim();
+    const name = (ev.name || '').trim();
+    const typeNorm = (ev.type || '').toLowerCase();
+    const stageLabel =
+        typeNorm === 'practice'
+            ? 'Practice Expedition'
+            : typeNorm === 'qualifying' || typeNorm === 'qualifier'
+            ? 'Qualifying Expedition'
+            : typeNorm === 'training'
+            ? 'Training Event'
+            : '';
+
+    if (code) {
+        if (!name || name.toLowerCase() === code.toLowerCase()) {
+            return stageLabel ? `${code} · ${stageLabel}` : code;
+        }
+        if (name.toLowerCase().startsWith(code.toLowerCase())) {
+            return name;
+        }
+        return `${code} · ${name}`;
+    }
+    return name || stageLabel || 'Expedition Event';
 }
 
 const ResolvedLocation: React.FC<{ value?: string }> = ({ value }) => {
@@ -163,13 +219,10 @@ const ResolvedLocation: React.FC<{ value?: string }> = ({ value }) => {
         const lng = parseFloat(coordsMatch[2]);
         setLoading(true);
         fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-            headers: { 'Accept-Language': 'en' }
+            headers: { 'Accept-Language': 'en' },
         })
-            .then(res => {
-                if (res.ok) return res.json();
-                throw new Error();
-            })
-            .then(data => {
+            .then((res) => (res.ok ? res.json() : Promise.reject()))
+            .then((data) => {
                 const addr = data.address;
                 const name = addr.road || addr.suburb || addr.town || addr.city || addr.county || '';
                 const county = addr.county || addr.state || '';
@@ -180,10 +233,7 @@ const ResolvedLocation: React.FC<{ value?: string }> = ({ value }) => {
     }, [value]);
 
     if (!value) return <span>Not Specified</span>;
-
-    if (!coordsMatch) {
-        return <span>{value}</span>;
-    }
+    if (!coordsMatch) return <span>{value}</span>;
 
     const lat = coordsMatch[1];
     const lng = coordsMatch[2];
@@ -192,66 +242,15 @@ const ResolvedLocation: React.FC<{ value?: string }> = ({ value }) => {
     return (
         <span>
             <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="ems-detail-link" style={{ marginRight: '8px' }}>
-                {lat}, {lng} <IconExternalLink />
+                {lat}, {lng}
             </a>
-            {loading && <span style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>Resolving address…</span>}
+            {loading && <span style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>Resolving address…</span>}
             {!loading && resolvedName && (
-                <span style={{ fontSize: '13px', color: '#444' }}>
-                    ({resolvedName})
-                </span>
+                <span style={{ fontSize: '13px', color: '#475569' }}>({resolvedName})</span>
             )}
         </span>
     );
 };
-
-const IconUser = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-    </svg>
-);
-
-const IconWarning = ({ color = '#0073aa' }: { color?: string }) => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-    </svg>
-);
-
-const IconCheck = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2e7d32" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-        <polyline points="20 6 9 17 4 12" />
-    </svg>
-);
-
-const IconCross = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d32f2f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-);
-
-const IconMapPin = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px', verticalAlign: 'middle' }}>
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-        <circle cx="12" cy="10" r="3" />
-    </svg>
-);
-
-const IconWhatsApp = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.739-1.453L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.025 14.12 1 11.49 1 6.059 1 1.633 5.37 1.63 10.8c-.001 1.73.456 3.418 1.32 4.925L1.91 20.353l4.737-1.199z" />
-    </svg>
-);
-
-const IconExternalLink = () => (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '2px', verticalAlign: 'middle' }}>
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-        <polyline points="15 3 21 3 21 9" />
-        <line x1="10" y1="14" x2="21" y2="3" />
-    </svg>
-);
 
 interface Profile {
     scout_id: number;
@@ -262,12 +261,14 @@ interface Profile {
     label?: string;
 }
 
+type PortalMainTab = 'expeditions' | 'training' | 'route' | 'signups';
+
 export function PortalApp() {
     const config = (window as any).emsPortal || {
         root_url: '/wp-json/ems/v1',
         nonce: '',
         user_data: { logged_in: false, first_name: '', last_name: '', email: '', access_type: '' },
-        login_url: '#'
+        login_url: '#',
     };
 
     const [me, setMe] = useState<{
@@ -293,15 +294,16 @@ export function PortalApp() {
     const [explorerDetail, setExplorerDetail] = useState<ExplorerDetail | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'training' | 'practice' | 'qualifying'>('training');
-    const [activeEventId, setActiveEventId] = useState<number | null>(null);
-    const [activeSubTab, setActiveSubTab] = useState<'overview' | 'team' | 'training' | 'resources' | 'route'>('overview');
-    const [currentPage, setCurrentPage] = useState<'signups' | 'expeditions'>('expeditions');
+    const [currentPage, setCurrentPage] = useState<PortalMainTab>('expeditions');
     const [selectedSignupId, setSelectedSignupId] = useState<number | null>(null);
     const [queryingOfferKey, setQueryingOfferKey] = useState<string | null>(null);
+    const [updatingOfferKey, setUpdatingOfferKey] = useState<string | null>(null);
     const [queryMessage, setQueryMessage] = useState<string>('');
     const [offerSavingKey, setOfferSavingKey] = useState<string | null>(null);
     const [offerNotice, setOfferNotice] = useState<string | null>(null);
+
+    const activeScout = activeScoutId || (me?.profiles && me.profiles.length > 0 ? me.profiles[0].scout_id : null);
+    const isAdmin = Boolean(config.user_data?.is_admin || me?.is_admin);
 
     const handleRespondToOffer = async (
         cohortId: number,
@@ -335,6 +337,7 @@ export function PortalApp() {
                 throw new Error(data?.message || 'Failed to record your offer response.');
             }
             setQueryingOfferKey(null);
+            setUpdatingOfferKey(null);
             setQueryMessage('');
             setOfferNotice(`Offer marked as ${data.offer_status}.`);
             setExplorerDetail((prev) =>
@@ -365,9 +368,6 @@ export function PortalApp() {
         }
     };
 
-    const activeScout = activeScoutId || (me?.profiles && me.profiles.length > 0 ? me.profiles[0].scout_id : null);
-    const isAdmin = Boolean(config.user_data?.is_admin || me?.is_admin);
-
     const fetchSession = (target: PreviewTarget | null) => {
         if (!config.user_data?.logged_in) {
             setLoading(false);
@@ -387,10 +387,10 @@ export function PortalApp() {
         }
 
         fetch(url, {
-            headers: { 'X-WP-Nonce': config.nonce }
+            headers: { 'X-WP-Nonce': config.nonce },
         })
-            .then(res => res.ok ? res.json() : Promise.reject())
-            .then(data => {
+            .then((res) => (res.ok ? res.json() : Promise.reject()))
+            .then((data) => {
                 setMe(data);
                 if (data.profiles && data.profiles.length > 0) {
                     setActiveScoutId(data.profiles[0].scout_id);
@@ -432,7 +432,6 @@ export function PortalApp() {
 
         setLoading(true);
         setError(null);
-        setActiveEventId(null);
 
         let explorerUrl = `${config.root_url}/portal/explorer/${activeScout}`;
         if (isAdmin && (previewTarget?.accessType === 'parent' || me?.access_type === 'parent')) {
@@ -440,9 +439,9 @@ export function PortalApp() {
         }
 
         fetch(explorerUrl, {
-            headers: { 'X-WP-Nonce': config.nonce }
+            headers: { 'X-WP-Nonce': config.nonce },
         })
-            .then(res => {
+            .then((res) => {
                 if (res.status === 403) {
                     return Promise.reject('You do not have permission to view this explorer profile.');
                 }
@@ -451,38 +450,33 @@ export function PortalApp() {
                 }
                 return res.ok ? res.json() : Promise.reject('Failed to load explorer details.');
             })
-            .then(data => {
+            .then((data) => {
                 setExplorerDetail(data);
                 setLoading(false);
             })
-            .catch(err => {
+            .catch((err) => {
                 setError(typeof err === 'string' ? err : 'An error occurred while loading.');
                 setLoading(false);
             });
     }, [activeScout, previewTarget]);
 
-    // Handle initial selection for tab event view
-    useEffect(() => {
-        if (explorerDetail) {
-            const list = explorerDetail.events[activeTab] || [];
-            if (list.length === 1) {
-                setActiveEventId(list[0].id);
-            } else {
-                setActiveEventId(null);
-            }
-        }
-    }, [activeTab, explorerDetail]);
-
     if (loading && !me) {
-        return <div className="ems-portal-container"><p>Loading portal...</p></div>;
+        return (
+            <div className="ems-portal-root ems-portal-container">
+                <p>Loading portal...</p>
+            </div>
+        );
     }
 
     if (!config.user_data?.logged_in || (me && !me.logged_in)) {
         return (
-            <div className="ems-portal-container portal-login-prompt ems-portal-welcome-card">
+            <div className="ems-portal-root ems-portal-container portal-login-prompt ems-portal-welcome-card">
                 <h2>Expedition Management System</h2>
-                <p>Welcome to the expedition portal. Please log in using your Online Scout Manager account to access training, team information, and expedition details.</p>
-                <a href={config.login_url} className="button button-primary button-large" style={{ marginTop: '20px', display: 'inline-block' }}>
+                <p>
+                    Welcome to the expedition portal. Please log in using your Online Scout Manager account to access
+                    training, team information, and expedition details.
+                </p>
+                <a href={config.login_url} className="ems-btn-scout-primary" style={{ marginTop: '16px' }}>
                     Log In via Online Scout Manager
                 </a>
             </div>
@@ -492,7 +486,7 @@ export function PortalApp() {
     if (me && me.access_type !== 'parent' && me.access_type !== 'member' && !me.profiles?.length) {
         if (isAdmin) {
             return (
-                <div className="ems-portal-container" style={{ maxWidth: '1000px', margin: '0 auto', fontFamily: 'inherit' }}>
+                <div className="ems-portal-root ems-portal-container">
                     <AdminPreviewBar
                         isAdmin={isAdmin}
                         activeTarget={previewTarget}
@@ -500,10 +494,14 @@ export function PortalApp() {
                         rootUrl={config.root_url}
                         nonce={config.nonce}
                     />
-                    <div className="portal-login-prompt ems-portal-welcome-card" style={{ textAlign: 'center', padding: '30px', marginTop: '20px' }}>
+                    <div
+                        className="portal-login-prompt ems-portal-welcome-card"
+                        style={{ textAlign: 'center', padding: '30px', marginTop: '20px' }}
+                    >
                         <h2>Administrator Portal Preview</h2>
-                        <p style={{ maxWidth: '600px', margin: '0 auto 20px', color: '#555' }}>
-                            You are logged in with administrator privileges. Use the selector above to preview the portal experience as any parent or explorer without needing to switch user accounts.
+                        <p style={{ maxWidth: '600px', margin: '0 auto 20px', color: '#475569' }}>
+                            You are logged in with administrator privileges. Use the selector above to preview the portal
+                            experience as any parent or explorer without needing to switch user accounts.
                         </p>
                     </div>
                 </div>
@@ -511,33 +509,32 @@ export function PortalApp() {
         }
 
         return (
-            <div className="ems-portal-container" style={{ padding: '20px', background: '#fff9e6', borderLeft: '4px solid #ffcc00' }}>
+            <div
+                className="ems-portal-root ems-portal-container"
+                style={{ padding: '20px', background: '#fffbeb', borderLeft: '4px solid #ffe627' }}
+            >
                 <h3>Administrator / Leader View</h3>
-                <p>Logged in as: <strong>{me.display_name}</strong> ({me.access_type})</p>
-                <p>You do not currently have a linked explorer or parent role. To manage expeditions, please visit the internal admin dashboard.</p>
+                <p>
+                    Logged in as: <strong>{me.display_name}</strong> ({me.access_type})
+                </p>
+                <p>
+                    You do not currently have a linked explorer or parent role. To manage expeditions, please visit the
+                    internal admin dashboard.
+                </p>
             </div>
         );
     }
 
-    const currentTimelineStep = () => {
-        if (!explorerDetail) return 0;
-        if (explorerDetail.team) {
-            if (explorerDetail.team.route_status === 'approved') return 4;
-            if (explorerDetail.team.team_code !== 'UNALLOCATED') return 3;
-            return 2;
-        }
-        if (explorerDetail.signups && explorerDetail.signups.length > 0) return 1;
-        return 0;
-    };
+    const expeditionEvents = [
+        ...(explorerDetail?.events?.practice || []),
+        ...(explorerDetail?.events?.qualifying || []),
+    ];
 
-    const getTimelineClass = (step: number) => {
-        const current = currentTimelineStep();
-        if (current >= step) return 'step-complete';
-        return 'step-pending';
-    };
+    const primaryOffer = explorerDetail?.offers?.[0];
+    const defaultTransport = primaryOffer?.transport_mode ? capitalizeLabel(primaryOffer.transport_mode) : 'Hillwalking';
 
     return (
-        <div className="ems-portal-container" style={{ maxWidth: '1000px', margin: '0 auto', fontFamily: 'inherit' }}>
+        <div className="ems-portal-root ems-portal-container">
             <AdminPreviewBar
                 isAdmin={isAdmin}
                 activeTarget={previewTarget}
@@ -545,17 +542,23 @@ export function PortalApp() {
                 rootUrl={config.root_url}
                 nonce={config.nonce}
             />
-            <div className="portal-header" style={{ marginBottom: '30px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
-                {me?.access_type === 'parent' && me.profiles && me.profiles.length > 1 && (
-                    <div className="child-selector" style={{ marginTop: '15px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <label htmlFor="ems-child-select" style={{ fontWeight: 'bold' }}>Showing details for:</label>
+
+            <div className="portal-header" style={{ marginBottom: '20px' }}>
+                {me?.profiles && me.profiles.length > 1 && (
+                    <div className="ems-portal-switcher">
+                        <label htmlFor="ems-child-select" className="ems-portal-switcher__label">
+                            Showing details for:
+                        </label>
                         <select
                             id="ems-child-select"
+                            className="ems-portal-switcher__select"
                             value={activeScout || ''}
-                            onChange={(e) => setActiveScoutId(Number(e.target.value))}
-                            style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid #ccc', background: '#fff', fontSize: '14px' }}
+                            onChange={(e) => {
+                                setActiveScoutId(Number(e.target.value));
+                                setSelectedSignupId(null);
+                            }}
                         >
-                            {me.profiles.map(p => (
+                            {me.profiles.map((p) => (
                                 <option key={p.scout_id} value={p.scout_id}>
                                     {p.label === 'Myself'
                                         ? `Myself (${p.first_name} ${p.last_name})`
@@ -566,50 +569,42 @@ export function PortalApp() {
                     </div>
                 )}
 
-                {/* Top-Level Portal Page Navigation */}
-                <div className="portal-nav-tabs ems-portal-tabs-nav">
-                    <button
-                        onClick={() => setCurrentPage('expeditions')}
-                        className={`portal-tab ${currentPage === 'expeditions' ? 'active' : ''}`}
-                        style={{
-                            padding: '10px 20px',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: currentPage === 'expeditions' ? '3px solid #0073aa' : '3px solid transparent',
-                            color: currentPage === 'expeditions' ? '#0073aa' : '#555',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            fontSize: '15px',
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        Expeditions & Events
-                    </button>
-                    <button
-                        onClick={() => {
-                            setCurrentPage('signups');
-                            setSelectedSignupId(null);
-                        }}
-                        className={`portal-tab ${currentPage === 'signups' ? 'active' : ''}`}
-                        style={{
-                            padding: '10px 20px',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: currentPage === 'signups' ? '3px solid #0073aa' : '3px solid transparent',
-                            color: currentPage === 'signups' ? '#0073aa' : '#555',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            fontSize: '15px',
-                            transition: 'all 0.2s ease'
-                        }}
-                    >
-                        Sign up forms
-                    </button>
+                {/* 4-Tab Portal Navigation */}
+                <div className="ems-portal-tabs" role="tablist" aria-label="Participant Portal Navigation">
+                    {(
+                        [
+                            { id: 'expeditions', label: 'My Expeditions' },
+                            { id: 'training', label: 'Training' },
+                            { id: 'route', label: 'Route Planner' },
+                            { id: 'signups', label: 'My Sign-ups' },
+                        ] as const
+                    ).map((tab) => {
+                        const isActive = currentPage === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={isActive}
+                                onClick={() => {
+                                    setCurrentPage(tab.id);
+                                    if (tab.id !== 'signups') setSelectedSignupId(null);
+                                }}
+                                className={`ems-portal-tab ${isActive ? 'is-active' : ''}`}
+                            >
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
             {error && (
-                <div className="portal-error" style={{ background: '#fbebeb', color: '#cc0000', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
+                <div
+                    className="portal-error"
+                    role="alert"
+                    style={{ background: '#fef2f2', color: '#991b1b', padding: '12px 16px', borderRadius: '6px', marginBottom: '16px', border: '1px solid #fecaca' }}
+                >
                     {error}
                 </div>
             )}
@@ -619,629 +614,687 @@ export function PortalApp() {
             {!loading && explorerDetail && (
                 <div className="portal-content">
                     {offerNotice && (
-                        <div className="notice notice-success" style={{ padding: '10px 14px', marginBottom: '16px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px' }}>
+                        <div
+                            className="notice notice-success"
+                            style={{ padding: '10px 14px', marginBottom: '16px', background: '#edfaef', border: '1px solid #86efac', borderRadius: '6px', color: '#166534' }}
+                        >
                             {offerNotice}
                         </div>
                     )}
-                    {Array.isArray(explorerDetail.offers) && explorerDetail.offers.length > 0 && (
-                        <div className="portal-section" style={{ marginBottom: '24px' }}>
-                            <h3>Expedition Place Offers</h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                {explorerDetail.offers.map((offer) => {
+
+                    {/* TAB 1: My Expeditions (Default) */}
+                    {currentPage === 'expeditions' && (
+                        <ModuleErrorBoundary moduleName="Portal Expeditions">
+                            {(() => {
+                                const eventsById = new Map<number, EventData>();
+                                for (const ev of expeditionEvents) {
+                                    eventsById.set(ev.id, ev);
+                                }
+                                const matchedEventIds = new Set<number>();
+
+                                const offers = Array.isArray(explorerDetail.offers) ? explorerDetail.offers : [];
+
+                                type TeamContainer = {
+                                    key: string;
+                                    offer: OfferRecord | null;
+                                    title: string;
+                                    transportLabel: string;
+                                    stages: Array<{
+                                        stageLabel: string;
+                                        eventCode: string;
+                                        startDate: string;
+                                        endDate: string;
+                                        event?: EventData;
+                                    }>;
+                                };
+
+                                const teamContainers: TeamContainer[] = offers.map((offer) => {
                                     const key =
                                         offer.cohort_id > 0 && offer.expedition_signup_id > 0
                                             ? `${offer.cohort_id}:${offer.expedition_signup_id}`
                                             : `team:${offer.team_post_id || 0}`;
-                                    const canRespond = offer.deadline?.allowed !== false;
+                                    const title = [
+                                        offer.team_name,
+                                        capitalizeLabel(offer.dofe_level),
+                                        capitalizeLabel(offer.transport_mode),
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ');
+                                    const transportLabel = capitalizeLabel(offer.transport_mode) || defaultTransport;
+
+                                    const sortedStages = [...(offer.stages || [])].sort((a, b) => {
+                                        const aRank = a.type?.toLowerCase() === 'practice' ? 0 : 1;
+                                        const bRank = b.type?.toLowerCase() === 'practice' ? 0 : 1;
+                                        return aRank - bRank;
+                                    });
+
+                                    const stages = sortedStages.map((st) => {
+                                        const matchedEv = eventsById.get(st.expedition_id);
+                                        if (matchedEv) matchedEventIds.add(matchedEv.id);
+                                        const stageLabel =
+                                            st.type?.toLowerCase() === 'practice'
+                                                ? 'Practice'
+                                                : st.type?.toLowerCase().includes('qualif')
+                                                ? 'Qualifier'
+                                                : capitalizeLabel(st.type) || 'Stage';
+                                        return {
+                                            stageLabel,
+                                            eventCode: st.event_code || matchedEv?.event_code || st.expedition_name,
+                                            startDate: st.start_date || matchedEv?.start_date || '',
+                                            endDate: st.end_date || matchedEv?.end_date || '',
+                                            event: matchedEv,
+                                        };
+                                    });
+
+                                    return { key, offer, title, transportLabel, stages };
+                                });
+
+                                const unmatchedEvents = expeditionEvents.filter((ev) => !matchedEventIds.has(ev.id));
+                                if (unmatchedEvents.length > 0 || (teamContainers.length === 0 && explorerDetail.team)) {
+                                    teamContainers.push({
+                                        key: `team:${explorerDetail.team?.team_code || 'assigned'}`,
+                                        offer: null,
+                                        title: explorerDetail.team?.team_code
+                                            ? `${explorerDetail.team.team_code} · ${defaultTransport}`
+                                            : 'Assigned Expeditions',
+                                        transportLabel: defaultTransport,
+                                        stages: unmatchedEvents.map((ev) => ({
+                                            stageLabel:
+                                                ev.type?.toLowerCase() === 'practice'
+                                                    ? 'Practice'
+                                                    : ev.type?.toLowerCase().includes('qualif')
+                                                    ? 'Qualifier'
+                                                    : capitalizeLabel(ev.type) || 'Expedition',
+                                            eventCode: ev.event_code || ev.name,
+                                            startDate: ev.start_date,
+                                            endDate: ev.end_date,
+                                            event: ev,
+                                        })),
+                                    });
+                                }
+
+                                if (teamContainers.length === 0) {
                                     return (
-                                        <div
-                                            key={key}
-                                            style={{
-                                                border: '1px solid #cbd5e1',
-                                                borderRadius: '6px',
-                                                padding: '14px',
-                                                background: '#ffffff',
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                <strong>
-                                                    {offer.team_name}{offer.dofe_level ? ` (${offer.dofe_level}${offer.transport_mode ? ` / ${offer.transport_mode}` : ''})` : ''}
-                                                </strong>
-                                                <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>
-                                                    Status: {offer.offer_status}
-                                                </span>
-                                            </div>
-                                            {offer.stages && offer.stages.length > 0 && (
-                                                <ul style={{ margin: '0 0 8px 18px', fontSize: '13px' }}>
-                                                    {offer.stages.map((st, idx) => (
-                                                        <li key={idx}>
-                                                            {st.expedition_name}{st.type ? ` (${st.type})` : ''} — {formatOrdinalDate(st.start_date)} to {formatOrdinalDate(st.end_date)}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                            {offer.deadline?.communicated_date && (
-                                                <div style={{ fontSize: '12px', color: '#475569', marginBottom: '8px' }}>
-                                                    Please respond by <strong>{formatOrdinalDate(offer.deadline.communicated_date)}</strong>
-                                                    {offer.deadline.effective_hard_cutoff && ` (hard cutoff: ${formatOrdinalDate(offer.deadline.effective_hard_cutoff)})`}
-                                                </div>
-                                            )}
-                                            {offer.offer_query_message && (
-                                                <div style={{ fontSize: '13px', background: '#fef3c7', padding: '8px', borderRadius: '4px', marginBottom: '8px' }}>
-                                                    <strong>Query:</strong> {offer.offer_query_message}
-                                                </div>
-                                            )}
-                                            {!canRespond ? (
-                                                <div style={{ color: '#991b1b', fontSize: '13px' }}>
-                                                    {offer.deadline?.reason || 'The response deadline has passed.'}
-                                                </div>
-                                            ) : (
-                                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    <button
-                                                        type="button"
-                                                        className="button button-primary"
-                                                        disabled={offerSavingKey === key}
-                                                        onClick={() => handleRespondToOffer(offer.cohort_id, offer.expedition_signup_id, offer.team_post_id, 'accept')}
-                                                    >
-                                                        Accept Offer
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="button"
-                                                        disabled={offerSavingKey === key}
-                                                        onClick={() => {
-                                                            setQueryingOfferKey(queryingOfferKey === key ? null : key);
-                                                            setQueryMessage('');
-                                                        }}
-                                                    >
-                                                        Query / Request Changes
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="button"
-                                                        disabled={offerSavingKey === key}
-                                                        onClick={() => handleRespondToOffer(offer.cohort_id, offer.expedition_signup_id, offer.team_post_id, 'decline')}
-                                                    >
-                                                        Decline
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {queryingOfferKey === key && (
-                                                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                    <textarea
-                                                        rows={3}
-                                                        placeholder="Enter your question for the expedition team..."
-                                                        value={queryMessage}
-                                                        onChange={(e) => setQueryMessage(e.target.value)}
-                                                        style={{ width: '100%' }}
-                                                    />
-                                                    <div>
-                                                        <button
-                                                            type="button"
-                                                            className="button button-primary"
-                                                            disabled={offerSavingKey === key || !queryMessage.trim()}
-                                                            onClick={() => handleRespondToOffer(offer.cohort_id, offer.expedition_signup_id, offer.team_post_id, 'query', queryMessage)}
-                                                        >
-                                                            Submit Query
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
+                                        <div className="ems-portal-event-card">
+                                            <p style={{ margin: 0, color: '#475569' }}>
+                                                No expeditions have been assigned yet for {explorerDetail.explorer.first_name}{' '}
+                                                {explorerDetail.explorer.last_name}.
+                                            </p>
                                         </div>
                                     );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                    {/* Page 1: Sign-up Applications */}
-                    {currentPage === 'signups' && (
-                        <ModuleErrorBoundary moduleName="Portal Signups">
-                            <div className="portal-section" style={{ marginBottom: '35px' }}>
-                            <h3>Sign up forms for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
-                            {explorerDetail.signups.length === 0 ? (
-                                <p>No active sign-ups found.</p>
-                            ) : (
-                                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                    <div style={{ flex: 1, minWidth: '300px', overflowX: 'auto' }}>
-                                        <table className="wp-list-table widefat fixed striped" style={{ width: '100%' }}>
-                                            <thead>
-                                                <tr>
-                                                    <th>Level</th>
-                                                    <th>Application Type</th>
-                                                    <th>Status</th>
-                                                    <th>Payment</th>
-                                                    <th>Submitted</th>
-                                                    <th style={{ width: '100px', textAlign: 'right' }}>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {explorerDetail.signups.map(s => (
-                                                    <tr 
-                                                        key={s.id}
-                                                        onClick={() => setSelectedSignupId(s.id === selectedSignupId ? null : s.id)}
-                                                        className="ems-clickable-row"
-                                                        style={{ cursor: 'pointer', background: selectedSignupId === s.id ? '#f0f6fa' : undefined }}
-                                                    >
-                                                        <td style={{ textTransform: 'capitalize' }}><strong>{s.dofe_level}</strong></td>
-                                                        <td style={{ textTransform: 'capitalize' }}>{s.type}</td>
-                                                        <td><span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span></td>
-                                                        <td>{s.payment_status ? <span className={`payment-badge payment-${s.payment_status}`} style={{ textTransform: 'capitalize' }}>{s.payment_status}</span> : '—'}</td>
-                                                        <td>{formatOrdinalDate(s.created_at)}</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: '500' }}>
-                                                            <span style={{ color: '#0073aa', textDecoration: 'underline' }}>
-                                                                {selectedSignupId === s.id ? 'Hide' : 'View'}
+                                }
+
+                                return (
+                                    <div>
+                                        {teamContainers.map((teamItem) => {
+                                            const offer = teamItem.offer;
+                                            const canRespond = offer ? offer.deadline?.allowed !== false : false;
+                                            const isEditingResponse = offer
+                                                ? offer.offer_status === 'pending' || updatingOfferKey === teamItem.key
+                                                : false;
+                                            const showDeadlinePill =
+                                                offer &&
+                                                offer.offer_status === 'pending' &&
+                                                Boolean(offer.deadline?.communicated_date);
+
+                                            return (
+                                                <div key={teamItem.key} className="ems-portal-offer-card">
+                                                    <div className="ems-portal-offer-card__header">
+                                                        <h3 className="ems-portal-offer-card__title">{teamItem.title}</h3>
+                                                        {showDeadlinePill && offer?.deadline?.communicated_date && (
+                                                            <span className="ems-portal-deadline-pill">
+                                                                Respond by {formatOrdinalDate(offer.deadline.communicated_date)}
                                                             </span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    {selectedSignupId && (() => {
-                                        const s = explorerDetail.signups.find(item => item.id === selectedSignupId);
-                                        if (!s) return null;
-                                        return (
-                                            <div className="ems-signups-inspector" style={{ alignSelf: 'flex-start' }}>
-                                                <div className="ems-signups-inspector__header">
-                                                    <h3 className="ems-signups-inspector__title" style={{ margin: 0, fontSize: '15px' }}>Application Details</h3>
-                                                    <button 
-                                                        onClick={() => setSelectedSignupId(null)} 
-                                                        style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 5px', color: '#666' }}
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </div>
-                                                <div className="ems-signups-inspector__body">
-                                                    <div>
-                                                        <span className="ems-signups-inspector__label">DofE Level</span>
-                                                        <div className="ems-signups-inspector__value--large" style={{ textTransform: 'capitalize' }}>{s.dofe_level}</div>
+                                                        )}
                                                     </div>
-                                                    <div>
-                                                        <span className="ems-signups-inspector__label">Application Type</span>
-                                                        <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize' }}>{s.type} signup</div>
-                                                    </div>
-                                                    <div>
-                                                        <span className="ems-signups-inspector__label">Signup Status</span>
-                                                        <div className="ems-signups-inspector__value">
-                                                            <span className={`status-badge status-${s.signup_status}`} style={{ textTransform: 'capitalize' }}>{s.signup_status}</span>
-                                                        </div>
-                                                    </div>
-                                                    {s.type === 'participant' && (
-                                                        <>
-                                                            <div>
-                                                                <span className="ems-signups-inspector__label">Payment Status</span>
-                                                                <div className="ems-signups-inspector__value">
-                                                                    <span className={`payment-badge payment-${s.payment_status || 'pending'}`} style={{ textTransform: 'capitalize' }}>{s.payment_status || 'pending'}</span>
-                                                                </div>
-                                                            </div>
-                                                            {s.dob && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">Date of Birth</span>
-                                                                    <div className="ems-signups-inspector__value">{formatOrdinalDate(s.dob)}</div>
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <span className="ems-signups-inspector__label">DofE Registered</span>
-                                                                <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize' }}>{s.dofe_registered}</div>
-                                                            </div>
-                                                            {s.dofe_number && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">DofE Number</span>
-                                                                    <div className="ems-signups-inspector__value ems-monospace">{s.dofe_number}</div>
-                                                                </div>
-                                                            )}
-                                                            {s.dofe_org && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">DofE Operating Authority</span>
-                                                                    <div className="ems-signups-inspector__value">{s.dofe_org}</div>
-                                                                </div>
-                                                            )}
-                                                            {s.bronze_completion && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">Bronze Completion Details</span>
-                                                                    <div className="ems-signups-inspector__value" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
-                                                                        {Object.entries(s.bronze_completion).map(([key, val]) => (
-                                                                            <div key={key}><strong>{key.replace(/_/g, ' ')}:</strong> {String(val)}</div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                            {s.silver_completion && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">Silver Completion Details</span>
-                                                                    <div className="ems-signups-inspector__value" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
-                                                                        {Object.entries(s.silver_completion).map(([key, val]) => (
-                                                                            <div key={key}><strong>{key.replace(/_/g, ' ')}:</strong> {String(val)}</div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    {s.type === 'expedition' && (
-                                                        <>
-                                                            {s.expedition_preferences?.exped_type && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">Expedition Type</span>
-                                                                    <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
-                                                                        {s.expedition_preferences.exped_type}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                            {s.first_aid_status && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">First Aid Status</span>
-                                                                    <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize' }}>{s.first_aid_status}</div>
-                                                                </div>
-                                                            )}
-                                                            {s.first_aid_expiry && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">First Aid Expiry</span>
-                                                                    <div className="ems-signups-inspector__value">{formatOrdinalDate(s.first_aid_expiry)}</div>
-                                                                </div>
-                                                            )}
-                                                            {s.additional_support_needs && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">Additional Support Needs</span>
-                                                                    <div className="ems-signups-inspector__value" style={{ background: '#fff0f0', padding: '8px 10px', borderRadius: '4px', borderLeft: '3px solid #d32f2f', color: '#c00' }}>
-                                                                        {s.additional_support_needs}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                            {s.expedition_preferences && (
-                                                                <div>
-                                                                    <span className="ems-signups-inspector__label">Expedition Preferences</span>
-                                                                    <div style={{ margin: '5px 0 10px 0', padding: '8px 12px', background: '#eef7fa', borderRadius: '4px', borderLeft: '3px solid #0073aa', fontSize: '12px', color: '#0073aa' }}>
-                                                                        <strong>Note:</strong> We will do our best to honour these preferences, but they are not definitive and cannot be guaranteed.
-                                                                    </div>
-                                                                    <div className="ems-signups-inspector__value" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
-                                                                        {(() => {
-                                                                            const formatPrefKey = (k: string): string => {
-                                                                                const maps: Record<string, string> = {
-                                                                                    transport: 'Preferred Transport',
-                                                                                    location_preference: 'Preferred Location',
-                                                                                    date_preference: 'Preferred Dates',
-                                                                                    exped_practice_dates: 'Practice availability',
-                                                                                    exped_qualifier_dates: 'Qualifier availability',
-                                                                                    exped_team_names: 'Preferred team mates',
-                                                                                    notes: 'Additional Preference Notes',
-                                                                                    dofe_level: 'DofE Level Preferences',
-                                                                                };
-                                                                                return maps[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                                                                            };
-                                                                            const prefs = { ...s.expedition_preferences };
-                                                                            delete prefs.exped_type;
 
-                                                                            return Object.entries(prefs).map(([key, val]) => (
-                                                                                <div key={key} style={{ marginBottom: '5px' }}>
-                                                                                    <strong>{formatPrefKey(key)}:</strong> {String(val)}
-                                                                                </div>
-                                                                            ));
-                                                                        })()}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    <div>
-                                                        <span className="ems-signups-inspector__label">Submission Date</span>
-                                                        <div className="ems-signups-inspector__value">{new Date(s.created_at).toLocaleString()}</div>
-                                                    </div>
-                                                    {s.form_submission_id && (
-                                                        <div>
-                                                            <span className="ems-signups-inspector__label">Fluent Forms Entry ID</span>
-                                                            <div className="ems-signups-inspector__value ems-monospace">#{s.form_submission_id}</div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-                            )}
-                        </div>
-                        </ModuleErrorBoundary>
-                    )}
-
-                    {/* Page 2: Expeditions & Events */}
-                    {currentPage === 'expeditions' && (
-                        <ModuleErrorBoundary moduleName="Portal Expeditions">
-                            <div className="portal-section">
-                            <h3>Expeditions & Events for {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}</h3>
-                            <div className="category-tabs" style={{ display: 'flex', borderBottom: '2px solid #ccc', marginBottom: '20px', flexWrap: 'wrap' }}>
-                            {(['training', 'practice', 'qualifying'] as const).map(tab => {
-                                const count = explorerDetail.events[tab]?.length || 0;
-                                const isGreyed = count === 0;
-                                return (
-                                    <button
-                                        key={tab}
-                                        onClick={() => !isGreyed && setActiveTab(tab)}
-                                        className={`tab-link ${activeTab === tab ? 'active' : ''} ${isGreyed ? 'greyed-out' : ''}`}
-                                        style={{
-                                            padding: '10px 20px',
-                                            border: 'none',
-                                            background: activeTab === tab ? '#0073aa' : 'transparent',
-                                            color: activeTab === tab ? '#white' : (isGreyed ? '#bbb' : '#333'),
-                                            cursor: isGreyed ? 'not-allowed' : 'pointer',
-                                            fontWeight: 'bold',
-                                            borderBottom: activeTab === tab ? '3px solid #005177' : 'none'
-                                        }}
-                                        disabled={isGreyed}
-                                    >
-                                        {tab.toUpperCase()} ({count})
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {/* Category Tab Content */}
-                        <div className="tab-content">
-                            {/* If multiple events, render a list selector */}
-                            {explorerDetail.events[activeTab]?.length > 1 && !activeEventId && (
-                                <div className="event-selector-list">
-                                    <p>Please select an event below to view its details:</p>
-                                    <div className="list-group" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                        {explorerDetail.events[activeTab].map(ev => (
-                                            <button
-                                                key={ev.id}
-                                                onClick={() => {
-                                                    setActiveEventId(ev.id);
-                                                    setActiveSubTab('overview');
-                                                }}
-                                                className="button button-secondary"
-                                                style={{ textAlign: 'left', padding: '15px' }}
-                                            >
-                                                <strong>{ev.name}</strong> ({formatOrdinalDate(ev.start_date)} {ev.start_time && `@ ${ev.start_time}`} to {formatOrdinalDate(ev.end_date)} {ev.end_time && `@ ${ev.end_time}`})
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeEventId && (() => {
-                                const ev = explorerDetail.events[activeTab]?.find(e => e.id === activeEventId);
-                                if (!ev) return null;
-
-                                return (
-                                    <div className="event-details-card" style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '8px', padding: '20px' }}>
-                                        <div className="ems-portal-event-header">
-                                            <div>
-                                                <h4 style={{ margin: 0 }}>{ev.name} {ev.event_code && `(${ev.event_code})`}</h4>
-                                                <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '14px' }}>
-                                                    <strong>Dates & Times:</strong> {formatOrdinalDate(ev.start_date)} {ev.start_time && `@ ${ev.start_time}`} to {formatOrdinalDate(ev.end_date)} {ev.end_time && `@ ${ev.end_time}`}
-                                                </p>
-                                            </div>
-                                            {explorerDetail.events[activeTab].length > 1 && (
-                                                <button onClick={() => setActiveEventId(null)} className="button">
-                                                    Back to list
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Sub-tabs for Practice and Qualifying, Training displays basic details directly */}
-                                        {activeTab === 'training' ? (
-                                            <div className="training-event-details">
-                                                <p><strong>Location:</strong> {ev.location}</p>
-                                                {ev.osm_event_url && (
-                                                    <p>
-                                                        <a href={ev.osm_event_url} target="_blank" rel="noopener noreferrer" className="button button-secondary">
-                                                            View Online Scout Manager Event
-                                                        </a>
-                                                    </p>
-                                                )}
-                                                {ev.leader_in_charge?.name && (
-                                                    <div style={{ marginTop: '15px', padding: '10px', background: '#f9f9f9', borderRadius: '4px' }}>
-                                                        <strong>Leader in Charge:</strong> {ev.leader_in_charge.name}<br/>
-                                                        Email: <a href={`mailto:${ev.leader_in_charge.email}`}>{ev.leader_in_charge.email}</a><br/>
-                                                        Phone: {ev.leader_in_charge.phone}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="expedition-event-details">
-                                                <div className="sub-tabs" style={{ display: 'flex', gap: '5px', borderBottom: '1px solid #eee', marginBottom: '15px', flexWrap: 'wrap' }}>
-                                                    {(['overview', 'team', 'training', 'route'] as const).map(subTab => (
-                                                        <button
-                                                            key={subTab}
-                                                            onClick={() => setActiveSubTab(subTab)}
-                                                            className={`sub-tab-link ${activeSubTab === subTab ? 'active' : ''}`}
-                                                            style={{
-                                                                padding: '8px 15px',
-                                                                border: 'none',
-                                                                background: activeSubTab === subTab ? '#eaeaea' : 'transparent',
-                                                                cursor: 'pointer',
-                                                                fontWeight: activeSubTab === subTab ? 'bold' : 'normal'
-                                                            }}
-                                                        >
-                                                            {subTab.toUpperCase()}
-                                                        </button>
-                                                    ))}
-                                                </div>
-
-                                                <div className="sub-tab-content">
-                                                    <ModuleErrorBoundary moduleName="Portal Event Details">
-                                                    {activeSubTab === 'overview' && (
-                                                        <div>
-                                                            <div className="ems-portal-overview-grid">
-                                                                <div>
-                                                                    <p><strong>Level:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.level}</span></p>
-                                                                    <p><strong>Type:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.type}</span></p>
-                                                                    <p><strong>Start Date & Time:</strong> {formatOrdinalDate(ev.start_date)} {ev.start_time && `@ ${ev.start_time}`}</p>
-                                                                    <p><strong>End Date & Time:</strong> {formatOrdinalDate(ev.end_date)} {ev.end_time && `@ ${ev.end_time}`}</p>
-                                                                </div>
-                                                                <div>
-                                                                    {ev.leader_in_charge?.name && (
-                                                                        <div style={{ padding: '10px', background: '#f9f9f9', borderRadius: '4px' }}>
-                                                                            <strong>Leader in Charge:</strong> {ev.leader_in_charge.name}<br/>
-                                                                            Email: <a href={`mailto:${ev.leader_in_charge.email}`}>{ev.leader_in_charge.email}</a><br/>
-                                                                            Phone: {ev.leader_in_charge.phone}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            {explorerDetail.explorer.additional_support_needs && (
-                                                                <div style={{ marginTop: '15px', padding: '15px', background: '#fff0f0', borderRadius: '6px', borderLeft: '4px solid #d32f2f', color: '#c00', marginBottom: '15px' }}>
-                                                                    <strong>Additional Support Needs:</strong>
-                                                                    <p style={{ margin: '5px 0 0 0' }}>{explorerDetail.explorer.additional_support_needs}</p>
-                                                                </div>
-                                                            )}
-
-                                                            <div style={{ borderTop: '1px solid #eee', paddingTop: '15px', marginTop: '15px' }}>
-                                                                <h5>WhatsApp Groups & QR Codes</h5>
-                                                                <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
-                                                                    {ev.whatsapp_explorers && (
-                                                                        <div style={{ flex: 1, minWidth: '200px', textAlign: 'center', padding: '10px', border: '1px solid #eee', borderRadius: '6px' }}>
-                                                                            <h6 style={{ margin: '0 0 10px 0' }}>Explorers Group</h6>
-                                                                            <p style={{ color: '#0073aa', fontSize: '12px', fontWeight: 'bold', margin: '5px 0 10px 0' }}>
-                                                                                <IconWarning />Note: Explorers groups are for explorers only.
-                                                                            </p>
-                                                                            <a href={ev.whatsapp_explorers} target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ marginBottom: '10px', display: 'inline-block' }}>
-                                                                                <IconWhatsApp />Join Explorers Chat
-                                                                            </a>
-                                                                            <div style={{ marginTop: '10px' }}>
-                                                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ev.whatsapp_explorers)}`} alt="Explorer WhatsApp QR" style={{ width: '120px', height: '120px' }} />
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                    {ev.whatsapp_parents && (
-                                                                        <div style={{ flex: 1, minWidth: '200px', textAlign: 'center', padding: '10px', border: '1px solid #eee', borderRadius: '6px' }}>
-                                                                            <h6 style={{ margin: '0 0 10px 0' }}>Parents Group</h6>
-                                                                            <a href={ev.whatsapp_parents} target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ marginBottom: '10px', display: 'inline-block' }}>
-                                                                                <IconWhatsApp />Join Parents Chat
-                                                                            </a>
-                                                                            <div style={{ marginTop: '10px' }}>
-                                                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ev.whatsapp_parents)}`} alt="Parent WhatsApp QR" style={{ width: '120px', height: '120px' }} />
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                    {!ev.whatsapp_explorers && !ev.whatsapp_parents && (
-                                                                        <p style={{ color: '#666', fontStyle: 'italic' }}>No WhatsApp group links configured for this event yet.</p>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {activeSubTab === 'team' && (
-                                                        <div>
-                                                            {explorerDetail.team ? (
-                                                                <div>
-                                                                    <p><strong>Team Code:</strong> {explorerDetail.team.team_code}</p>
-
-                                                                    <div style={{ margin: '15px 0', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
-                                                                        <p style={{ margin: '0 0 8px 0' }}><strong>Required First Aid Level:</strong> <span style={{ textTransform: 'capitalize' }}>{ev.required_first_aid_level.replace(/_/g, ' ')}</span></p>
-                                                                        <p style={{ margin: '0 0 8px 0' }}><strong>Your First Aid Status:</strong> <span style={{ textTransform: 'capitalize' }}>{explorerDetail.explorer.first_aid_level.replace(/_/g, ' ')}</span></p>
-                                                                        {ev.required_first_aid_level !== 'none' && (
-                                                                            <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#0073aa', fontWeight: 'bold' }}>
-                                                                                <IconWarning />Note: At least 2 people in the team need the required level of first aid.
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-
-                                                                    <h5>Teammates</h5>
-                                                                    <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
-                                                                        {explorerDetail.team.teammates.map((tm, idx) => (
-                                                                            <li key={idx} style={{ padding: '8px 10px', borderBottom: '1px solid #eee', background: '#fff' }}>
-                                                                                <IconUser /> {tm.first_name} {tm.last_initial} ({tm.patrol || 'No Patrol'})
+                                                    {/* Your Teammates */}
+                                                    <div style={{ marginBottom: '12px' }}>
+                                                        <div className="ems-portal-offer-section-label">Your Teammates</div>
+                                                        {explorerDetail.team && explorerDetail.team.teammates.length > 0 ? (
+                                                            (() => {
+                                                                const groups = new Map<string, string[]>();
+                                                                for (const tm of explorerDetail.team.teammates) {
+                                                                    const unit = (tm.patrol || '').trim();
+                                                                    const displayName = `${tm.first_name} ${tm.last_initial}`.trim();
+                                                                    if (!groups.has(unit)) groups.set(unit, []);
+                                                                    groups.get(unit)!.push(displayName);
+                                                                }
+                                                                return (
+                                                                    <ul className="ems-portal-teammate-groups">
+                                                                        {Array.from(groups.entries()).map(([unit, names]) => (
+                                                                            <li key={unit || '__none'} className="ems-portal-teammate-group">
+                                                                                {unit && (
+                                                                                    <span className="ems-portal-unit-pill">{unit}</span>
+                                                                                )}
+                                                                                <span className="ems-portal-teammate-names">
+                                                                                    {names.join(', ')}
+                                                                                </span>
                                                                             </li>
                                                                         ))}
                                                                     </ul>
-                                                                </div>
-                                                            ) : (
-                                                                <p>You have not been allocated to a specific team yet.</p>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                                );
+                                                            })()
+                                                        ) : (
+                                                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                                                                Teammates will appear here once allocated.
+                                                            </p>
+                                                        )}
+                                                    </div>
 
-                                                    {activeSubTab === 'training' && (
-                                                        <div>
-                                                            <div style={{ margin: '0 0 15px 0', padding: '12px 15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
-                                                                <p style={{ margin: 0, fontSize: '13px', color: '#0073aa', fontWeight: 'bold' }}>
-                                                                    <IconWarning />Note: The explorer must log in to their own account to complete the training. If a parent completes it, the progress will not be logged against the explorer.
-                                                                </p>
-                                                            </div>
-                                                            <h5>Training Course Requirements</h5>
-                                                            {explorerDetail.training_checklist.length === 0 ? (
-                                                                <p style={{ color: '#475569', fontStyle: 'italic' }}>
-                                                                    Training information has not been specified yet and will be added later.
-                                                                </p>
-                                                            ) : (
-                                                                <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
-                                                                    {explorerDetail.training_checklist.map((tc, idx) => (
-                                                                        <li key={idx} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                                            <span>
-                                                                                {tc.completed ? <IconCheck /> : <IconCross />} {tc.course_name}
-                                                                            </span>
-                                                                            <a href={tc.course_url} target="_blank" rel="noopener noreferrer" className="button button-small">
-                                                                                Go to Course
-                                                                            </a>
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    {activeSubTab === 'route' && (() => {
-                                                        const cleanRouteInfo = (ev.route_info || '').replace(/<[^>]*>/g, '').trim();
-                                                        const hasStart = Boolean((ev.location || '').trim());
-                                                        const hasEnd = Boolean((ev.end_location || '').trim());
-                                                        const hasAnyRoute = hasStart || hasEnd || Boolean(cleanRouteInfo) || Boolean((ev.route_deadline || '').trim());
-
-                                                        return (
-                                                        <div>
-                                                            <h5>Route details</h5>
-                                                            {!hasAnyRoute ? (
-                                                                <p style={{ color: '#475569', fontStyle: 'italic' }}>
-                                                                    Route information has not been specified yet and will be added later.
-                                                                </p>
-                                                            ) : (
-                                                                <>
-                                                                    {hasStart && <p><strong><IconMapPin />Start Point:</strong> <ResolvedLocation value={ev.location} /></p>}
-                                                                    {hasEnd && <p><strong><IconMapPin />End Point:</strong> <ResolvedLocation value={ev.end_location} /></p>}
-                                                                    <p><strong>Route Status:</strong> <span className={`status-badge status-${explorerDetail.team?.route_status || 'pending'}`} style={{ textTransform: 'capitalize' }}>{explorerDetail.team?.route_status || 'pending'}</span></p>
-                                                                    <p><strong>Route Deadline:</strong> {ev.route_deadline ? formatOrdinalDate(ev.route_deadline) : 'To be added later'}</p>
-
-                                                                    {(hasStart || hasEnd) && (
-                                                                        <div style={{ marginTop: '20px', marginBottom: '20px' }}>
-                                                                            <OSMReadOnlyMap startLocation={ev.location} endLocation={ev.end_location} />
+                                                    {/* Place Offer Status / Actions */}
+                                                    {offer && (
+                                                        <>
+                                                            {offer.offer_status !== 'pending' &&
+                                                                updatingOfferKey !== teamItem.key && (
+                                                                    <div
+                                                                        className={`ems-portal-offer-confirmation ems-portal-offer-confirmation--${offer.offer_status}`}
+                                                                    >
+                                                                        <div>
+                                                                            <strong>
+                                                                                {offer.offer_status === 'accepted'
+                                                                                    ? 'Offer Accepted'
+                                                                                    : offer.offer_status === 'queried'
+                                                                                    ? 'Query Sent to Expedition Team'
+                                                                                    : 'Offer Declined'}
+                                                                            </strong>
+                                                                            {offer.offer_status === 'queried' &&
+                                                                                offer.offer_query_message && (
+                                                                                    <div style={{ marginTop: '4px', fontSize: '13px' }}>
+                                                                                        “{offer.offer_query_message}”
+                                                                                    </div>
+                                                                                )}
                                                                         </div>
-                                                                    )}
+                                                                        {canRespond && (
+                                                                            <button
+                                                                                type="button"
+                                                                                className="ems-btn-scout-link"
+                                                                                onClick={() => {
+                                                                                    setUpdatingOfferKey(teamItem.key);
+                                                                                    setQueryingOfferKey(null);
+                                                                                }}
+                                                                            >
+                                                                                Update Response
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
 
-                                                                    {cleanRouteInfo ? (
-                                                                        <div style={{ marginTop: '15px', marginBottom: '15px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', borderLeft: '4px solid #0073aa' }}>
-                                                                            <strong>Route Planning Information:</strong>
-                                                                            <div style={{ margin: '10px 0 0 0' }} dangerouslySetInnerHTML={{ __html: ev.route_info || '' }} />
+                                                            {isEditingResponse && (
+                                                                <>
+                                                                    {!canRespond ? (
+                                                                        <div style={{ color: '#991b1b', fontSize: '13px', marginTop: '8px' }}>
+                                                                            {offer.deadline?.reason ||
+                                                                                'The response deadline has passed.'}
                                                                         </div>
                                                                     ) : (
-                                                                        <p style={{ color: '#475569', fontStyle: 'italic', marginTop: '12px' }}>
-                                                                            Route planning information has not been specified yet and will be added later.
-                                                                        </p>
+                                                                        <div className="ems-portal-offer-actions">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="ems-btn-scout-primary"
+                                                                                disabled={offerSavingKey === teamItem.key}
+                                                                                onClick={() =>
+                                                                                    handleRespondToOffer(
+                                                                                        offer.cohort_id,
+                                                                                        offer.expedition_signup_id,
+                                                                                        offer.team_post_id,
+                                                                                        'accept'
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                Accept Offer
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="ems-btn-scout-secondary"
+                                                                                disabled={offerSavingKey === teamItem.key}
+                                                                                onClick={() => {
+                                                                                    setQueryingOfferKey(
+                                                                                        queryingOfferKey === teamItem.key
+                                                                                            ? null
+                                                                                            : teamItem.key
+                                                                                    );
+                                                                                    setQueryMessage('');
+                                                                                }}
+                                                                            >
+                                                                                Request Team or Date Change
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="ems-btn-scout-decline"
+                                                                                disabled={offerSavingKey === teamItem.key}
+                                                                                onClick={() =>
+                                                                                    handleRespondToOffer(
+                                                                                        offer.cohort_id,
+                                                                                        offer.expedition_signup_id,
+                                                                                        offer.team_post_id,
+                                                                                        'decline'
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                Decline
+                                                                            </button>
+                                                                            {updatingOfferKey === teamItem.key && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="ems-btn-scout-link"
+                                                                                    onClick={() => {
+                                                                                        setUpdatingOfferKey(null);
+                                                                                        setQueryingOfferKey(null);
+                                                                                    }}
+                                                                                >
+                                                                                    Cancel
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     )}
 
-                                                                    <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #0073aa', borderRadius: '6px', background: '#fcfdff', textAlign: 'center' }}>
-                                                                        <p style={{ margin: 0, fontWeight: 'bold', color: '#0073aa' }}>
-                                                                            <FontAwesomeIcon icon={faFolder} /> Route Card & GPX Upload Area
-                                                                        </p>
-                                                                        <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#666' }}>Route card PDF/GPX submission tools will be wired here (Milestone 9).</p>
-                                                                    </div>
+                                                                    {queryingOfferKey === teamItem.key && (
+                                                                        <div className="ems-portal-query-box">
+                                                                            <div style={{ fontSize: '13px', color: '#1e293b', lineHeight: 1.5 }}>
+                                                                                <p style={{ margin: '0 0 6px 0' }}>
+                                                                                    If you cannot make the proposed dates, please provide as much information as possible about your availability.
+                                                                                </p>
+                                                                                <p style={{ margin: 0, fontSize: '12.5px', color: '#475569' }}>
+                                                                                    For general enquiries, please email{' '}
+                                                                                    <a href="mailto:expeditions@sesscouts.org.uk" style={{ color: 'var(--ems-scout-blue)', fontWeight: 600 }}>
+                                                                                        expeditions@sesscouts.org.uk
+                                                                                    </a>.
+                                                                                </p>
+                                                                            </div>
+                                                                            <textarea
+                                                                                rows={3}
+                                                                                placeholder="Describe the team or date changes needed and any alternative dates you are available..."
+                                                                                value={queryMessage}
+                                                                                onChange={(e) => setQueryMessage(e.target.value)}
+                                                                            />
+                                                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="ems-btn-scout-primary"
+                                                                                    disabled={
+                                                                                        offerSavingKey === teamItem.key ||
+                                                                                        !queryMessage.trim()
+                                                                                    }
+                                                                                    onClick={() =>
+                                                                                        handleRespondToOffer(
+                                                                                            offer.cohort_id,
+                                                                                            offer.expedition_signup_id,
+                                                                                            offer.team_post_id,
+                                                                                            'query',
+                                                                                            queryMessage
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    Submit Request
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="ems-btn-scout-secondary"
+                                                                                    disabled={offerSavingKey === teamItem.key}
+                                                                                    onClick={() => {
+                                                                                        setQueryingOfferKey(null);
+                                                                                        setQueryMessage('');
+                                                                                    }}
+                                                                                >
+                                                                                    Cancel
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                 </>
                                                             )}
+                                                        </>
+                                                    )}
+
+                                                    {/* Nested Practice & Qualifier Expedition Sub-Cards */}
+                                                    {teamItem.stages.length > 0 && (
+                                                        <div className="ems-portal-nested-expeditions">
+                                                            {teamItem.stages.map((st, sIdx) => {
+                                                                const ev = st.event;
+                                                                const modeLabel =
+                                                                    capitalizeLabel(ev?.transport_mode) ||
+                                                                    teamItem.transportLabel;
+                                                                const licName = ev?.leader_in_charge?.name
+                                                                    ? ev.leader_in_charge.name
+                                                                    : 'To be confirmed';
+                                                                const hasWhatsApp = Boolean(
+                                                                    ev?.whatsapp_explorers || ev?.whatsapp_parents
+                                                                );
+
+                                                                return (
+                                                                    <div
+                                                                        key={`${st.eventCode}-${sIdx}`}
+                                                                        className="ems-portal-nested-exp-card"
+                                                                    >
+                                                                        <div className="ems-portal-nested-exp-card__header">
+                                                                            <span className="ems-portal-stage-badge">
+                                                                                {st.stageLabel}
+                                                                            </span>
+                                                                            <span className="ems-portal-nested-exp-card__code">
+                                                                                {st.stageLabel} · {st.eventCode}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="ems-portal-nested-exp-card__dates">
+                                                                            {formatDateRange(st.startDate, st.endDate)}
+                                                                        </div>
+                                                                        <div className="ems-portal-nested-exp-card__meta">
+                                                                            Mode: {modeLabel} · Leader in Charge:{' '}
+                                                                            <strong>{licName}</strong>
+                                                                            {ev?.leader_in_charge?.email && (
+                                                                                <div>
+                                                                                    <a href={`mailto:${ev.leader_in_charge.email}`}>
+                                                                                        {ev.leader_in_charge.email}
+                                                                                    </a>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {hasWhatsApp && ev && (
+                                                                            <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                                                {ev.whatsapp_explorers && (
+                                                                                    <a
+                                                                                        href={ev.whatsapp_explorers}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="ems-btn-scout-secondary"
+                                                                                        style={{ padding: '5px 10px', fontSize: '12px' }}
+                                                                                    >
+                                                                                        Explorers WhatsApp
+                                                                                    </a>
+                                                                                )}
+                                                                                {ev.whatsapp_parents && (
+                                                                                    <a
+                                                                                        href={ev.whatsapp_parents}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="ems-btn-scout-secondary"
+                                                                                        style={{ padding: '5px 10px', fontSize: '12px' }}
+                                                                                    >
+                                                                                        Parents WhatsApp
+                                                                                    </a>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
-                                                        );
-                                                    })()}
-                                                    </ModuleErrorBoundary>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })}
                                     </div>
                                 );
                             })()}
-                        </div>
-                    </div>
-                    </ModuleErrorBoundary>
+                        </ModuleErrorBoundary>
+                    )}
+
+                    {/* TAB 2: Training */}
+                    {currentPage === 'training' && (
+                        <ModuleErrorBoundary moduleName="Portal Training">
+                            <div className="ems-portal-event-card">
+                                <h3 className="ems-portal-event-card__title">
+                                    Online Training &amp; First Aid — {explorerDetail.explorer.first_name}{' '}
+                                    {explorerDetail.explorer.last_name}
+                                </h3>
+                                <div
+                                    style={{
+                                        margin: '0 0 16px 0',
+                                        padding: '12px 14px',
+                                        background: '#f0f6fc',
+                                        borderRadius: '6px',
+                                        borderLeft: '4px solid var(--ems-scout-navy)',
+                                        fontSize: '13px',
+                                        color: 'var(--ems-scout-navy)',
+                                    }}
+                                >
+                                    <strong>Note:</strong> The explorer must log in to their own account to complete
+                                    online training. Progress completed under a parent account is not credited to the
+                                    explorer.
+                                </div>
+
+                                <p style={{ fontSize: '14px', marginBottom: '16px' }}>
+                                    <strong>First Aid Qualification:</strong>{' '}
+                                    <span style={{ textTransform: 'capitalize' }}>
+                                        {(explorerDetail.explorer.first_aid_level || 'none').replace(/[-_]/g, ' ')}
+                                    </span>
+                                </p>
+
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '15px' }}>Training Course Requirements</h4>
+                                {explorerDetail.training_checklist.length === 0 ? (
+                                    <p style={{ color: '#475569', fontStyle: 'italic' }}>
+                                        Training information has not been specified yet and will be added later.
+                                    </p>
+                                ) : (
+                                    <ul style={{ listStyle: 'none', paddingLeft: 0, margin: 0 }}>
+                                        {explorerDetail.training_checklist.map((tc, idx) => (
+                                            <li
+                                                key={idx}
+                                                style={{
+                                                    padding: '10px 0',
+                                                    borderBottom: '1px solid #e2e8f0',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    gap: '12px',
+                                                }}
+                                            >
+                                                <span>
+                                                    <strong style={{ color: tc.completed ? '#15803d' : '#64748b', marginRight: '8px' }}>
+                                                        {tc.completed ? 'Complete' : 'Incomplete'}
+                                                    </strong>
+                                                    {tc.course_name}
+                                                </span>
+                                                {!explorerDetail.training_readonly && tc.course_url && (
+                                                    <a
+                                                        href={tc.course_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="ems-btn-scout-secondary"
+                                                    >
+                                                        Go to Course
+                                                    </a>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </ModuleErrorBoundary>
+                    )}
+
+                    {/* TAB 3: Route Planner */}
+                    {currentPage === 'route' && (
+                        <ModuleErrorBoundary moduleName="Portal Route Planner">
+                            <div className="ems-portal-event-card">
+                                <h3 className="ems-portal-event-card__title">
+                                    Route Planning — {explorerDetail.explorer.first_name}{' '}
+                                    {explorerDetail.explorer.last_name}
+                                </h3>
+                                {expeditionEvents.length === 0 ? (
+                                    <p style={{ color: '#475569', margin: 0 }}>
+                                        Route details will appear here once you are allocated to an expedition.
+                                    </p>
+                                ) : (
+                                    expeditionEvents.map((ev) => {
+                                        const cleanRouteInfo = (ev.route_info || '').replace(/<[^>]*>/g, '').trim();
+                                        const hasStart = Boolean((ev.location || '').trim());
+                                        const hasEnd = Boolean((ev.end_location || '').trim());
+                                        const hasAnyRoute =
+                                            hasStart ||
+                                            hasEnd ||
+                                            Boolean(cleanRouteInfo) ||
+                                            Boolean((ev.route_deadline || '').trim());
+
+                                        return (
+                                            <div
+                                                key={ev.id}
+                                                style={{
+                                                    paddingTop: '12px',
+                                                    marginTop: '12px',
+                                                    borderTop: '1px solid #e2e8f0',
+                                                }}
+                                            >
+                                                <h4 style={{ margin: '0 0 8px 0', color: 'var(--ems-scout-navy)' }}>
+                                                    {formatEventCardTitle(ev)}
+                                                </h4>
+                                                {!hasAnyRoute ? (
+                                                    <p style={{ color: '#475569', fontStyle: 'italic' }}>
+                                                        Route information has not been specified yet and will be added later.
+                                                    </p>
+                                                ) : (
+                                                    <>
+                                                        {hasStart && (
+                                                            <p>
+                                                                <strong>Start Point:</strong> <ResolvedLocation value={ev.location} />
+                                                            </p>
+                                                        )}
+                                                        {hasEnd && (
+                                                            <p>
+                                                                <strong>End Point:</strong> <ResolvedLocation value={ev.end_location} />
+                                                            </p>
+                                                        )}
+                                                        <p>
+                                                            <strong>Route Status:</strong>{' '}
+                                                            <span style={{ textTransform: 'capitalize' }}>
+                                                                {explorerDetail.team?.route_status || 'pending'}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            <strong>Route Deadline:</strong>{' '}
+                                                            {ev.route_deadline ? formatOrdinalDate(ev.route_deadline) : 'To be added later'}
+                                                        </p>
+                                                        {(hasStart || hasEnd) && (
+                                                            <div style={{ margin: '14px 0' }}>
+                                                                <OSMReadOnlyMap startLocation={ev.location} endLocation={ev.end_location} />
+                                                            </div>
+                                                        )}
+                                                        {cleanRouteInfo && (
+                                                            <div
+                                                                style={{
+                                                                    marginTop: '12px',
+                                                                    padding: '12px 14px',
+                                                                    background: '#f8fafc',
+                                                                    borderRadius: '6px',
+                                                                    borderLeft: '4px solid var(--ems-scout-blue)',
+                                                                }}
+                                                                dangerouslySetInnerHTML={{ __html: ev.route_info || '' }}
+                                                            />
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </ModuleErrorBoundary>
+                    )}
+
+                    {/* TAB 4: My Sign-ups */}
+                    {currentPage === 'signups' && (
+                        <ModuleErrorBoundary moduleName="Portal Signups">
+                            <div className="ems-portal-event-card">
+                                <h3 className="ems-portal-event-card__title">
+                                    My Sign-ups — {explorerDetail.explorer.first_name} {explorerDetail.explorer.last_name}
+                                </h3>
+                                {explorerDetail.signups.length === 0 ? (
+                                    <p style={{ margin: 0, color: '#475569' }}>No active sign-ups found.</p>
+                                ) : (
+                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        <div style={{ flex: 1, minWidth: '300px', overflowX: 'auto' }}>
+                                            <table className="wp-list-table widefat fixed striped" style={{ width: '100%' }}>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Level</th>
+                                                        <th>Application Type</th>
+                                                        <th>Status</th>
+                                                        <th>Payment</th>
+                                                        <th>Submitted</th>
+                                                        <th style={{ width: '90px', textAlign: 'right' }}>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {explorerDetail.signups.map((s) => (
+                                                        <tr
+                                                            key={s.id}
+                                                            onClick={() => setSelectedSignupId(s.id === selectedSignupId ? null : s.id)}
+                                                            style={{
+                                                                cursor: 'pointer',
+                                                                background: selectedSignupId === s.id ? '#f0f6fc' : undefined,
+                                                            }}
+                                                        >
+                                                            <td style={{ textTransform: 'capitalize' }}>
+                                                                <strong>{s.dofe_level}</strong>
+                                                            </td>
+                                                            <td style={{ textTransform: 'capitalize' }}>{s.type}</td>
+                                                            <td style={{ textTransform: 'capitalize' }}>{s.signup_status}</td>
+                                                            <td style={{ textTransform: 'capitalize' }}>
+                                                                {s.payment_status || '—'}
+                                                            </td>
+                                                            <td>{formatOrdinalDate(s.created_at)}</td>
+                                                            <td style={{ textAlign: 'right' }}>
+                                                                <span style={{ color: 'var(--ems-scout-blue)', textDecoration: 'underline' }}>
+                                                                    {selectedSignupId === s.id ? 'Hide' : 'View'}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {selectedSignupId && (() => {
+                                            const s = explorerDetail.signups.find((item) => item.id === selectedSignupId);
+                                            if (!s) return null;
+                                            return (
+                                                <div className="ems-signups-inspector" style={{ alignSelf: 'flex-start' }}>
+                                                    <div className="ems-signups-inspector__header">
+                                                        <h4 className="ems-signups-inspector__title" style={{ margin: 0, fontSize: '15px' }}>
+                                                            Application Details
+                                                        </h4>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedSignupId(null)}
+                                                            style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 5px', color: '#64748b' }}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                    <div className="ems-signups-inspector__body">
+                                                        <div>
+                                                            <span className="ems-signups-inspector__label">DofE Level</span>
+                                                            <div className="ems-signups-inspector__value--large" style={{ textTransform: 'capitalize' }}>
+                                                                {s.dofe_level}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <span className="ems-signups-inspector__label">Application Type</span>
+                                                            <div className="ems-signups-inspector__value" style={{ textTransform: 'capitalize' }}>
+                                                                {s.type} signup
+                                                            </div>
+                                                        </div>
+                                                        {s.dofe_number && (
+                                                            <div>
+                                                                <span className="ems-signups-inspector__label">DofE Number</span>
+                                                                <div className="ems-signups-inspector__value ems-monospace">{s.dofe_number}</div>
+                                                            </div>
+                                                        )}
+                                                        {s.additional_support_needs && (
+                                                            <div>
+                                                                <span className="ems-signups-inspector__label">Additional Support Needs</span>
+                                                                <div className="ems-signups-inspector__value">{s.additional_support_needs}</div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+                        </ModuleErrorBoundary>
                     )}
                 </div>
             )}

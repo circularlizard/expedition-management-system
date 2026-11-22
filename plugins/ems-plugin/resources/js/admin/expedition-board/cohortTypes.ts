@@ -52,6 +52,16 @@ export interface CohortMember {
   offer_status?: string;
   offer_query_message?: string | null;
   offer_responded_at?: string | null;
+  practice_team_post_id_override?: number | null;
+  qualifier_team_post_id_override?: number | null;
+  practice_override_cohort_id?: number;
+  practice_override_cohort_name?: string;
+  qualifier_override_cohort_id?: number;
+  qualifier_override_cohort_name?: string;
+  is_stage_guest?: boolean;
+  guest_stage?: 'practice' | 'qualifier';
+  home_cohort_id?: number;
+  home_cohort_name?: string;
   notes: string | null;
   unit_id: number | null;
   unit_name: string | null;
@@ -81,6 +91,7 @@ export interface Cohort {
   practice_team_post_id: number | null;
   qualifier_team_post_id: number | null;
   cohort_status: string;
+  is_standalone_team?: boolean;
   notes: string | null;
   created_by: number;
   created_at: string;

@@ -789,10 +789,11 @@ class Portal_Controller {
 			'decline' => 'declined',
 		);
 
+		$has_signup_key = ( $expedition_signup_id > 0 );
 		$has_cohort_key = ( $cohort_id > 0 && $expedition_signup_id > 0 );
 		$has_team_key   = ( $team_post_id > 0 && $scout_id > 0 );
 
-		if ( ( ! $has_cohort_key && ! $has_team_key ) || ! isset( $status_map[ $action ] ) ) {
+		if ( ( ! $has_signup_key && ! $has_team_key ) || ! isset( $status_map[ $action ] ) ) {
 			return new \WP_Error(
 				'ems_invalid_offer_response',
 				'Missing or invalid offer identifier or action.',
@@ -846,11 +847,10 @@ class Portal_Controller {
 
 		global $wpdb;
 		$tm_table = $wpdb->prefix . 'ems_team_members';
-		if ( $has_cohort_key ) {
+		if ( $has_signup_key ) {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT id, notified_at, notification_status FROM {$tm_table} WHERE cohort_id = %d AND expedition_signup_id = %d",
-					$cohort_id,
+					"SELECT id, notified_at, notification_status FROM {$tm_table} WHERE expedition_signup_id = %d",
 					$expedition_signup_id
 				),
 				ARRAY_A
@@ -879,7 +879,7 @@ class Portal_Controller {
 		$new_status   = $status_map[ $action ];
 		$responded_at = current_time( 'mysql' );
 		$wpdb->query( 'START TRANSACTION' );
-		if ( $has_cohort_key ) {
+		if ( $has_signup_key ) {
 			$updated = $wpdb->query(
 				$wpdb->prepare(
 					"UPDATE {$tm_table}
@@ -887,12 +887,11 @@ class Portal_Controller {
 						offer_query_message = %s,
 						offer_responded_at = %s,
 						offer_responded_by = %d
-					WHERE cohort_id = %d AND expedition_signup_id = %d",
+					WHERE expedition_signup_id = %d",
 					$new_status,
 					$action === 'query' ? $message : null,
 					$responded_at,
 					$user_id,
-					$cohort_id,
 					$expedition_signup_id
 				)
 			);
@@ -984,7 +983,7 @@ class Portal_Controller {
 			$esid   = (int) ( $row['expedition_signup_id'] ?? 0 );
 			$tpid   = (int) ( $row['team_post_id'] ?? 0 );
 			$exp_id = (int) ( $row['expedition_id'] ?? 0 );
-			$key    = ( $cid > 0 && $esid > 0 ) ? "{$cid}:{$esid}" : "team:{$tpid}";
+			$key    = $esid > 0 ? "signup:{$esid}" : ( $cid > 0 ? "cohort:{$cid}" : "team:{$tpid}" );
 			if ( ! isset( $grouped[ $key ] ) ) {
 				$notified_at     = $row['notified_at'] ?? null;
 				$eval            = $deadline_svc->evaluate_cutoff( 'place_offer', $notified_at ? (string) $notified_at : null );

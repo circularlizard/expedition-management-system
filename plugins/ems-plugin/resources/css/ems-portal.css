@@ -1021,4 +1021,469 @@
     cursor: pointer;
 }
 
+/* ─── Scouts Scotland Brand Tokens & Elementor Overrides (.ems-portal-root) ─── */
+
+.ems-portal-root {
+    --ems-scout-blue: #006ddf;
+    --ems-scout-navy: #003982;
+    --ems-scout-yellow: #ffe627;
+    --ems-scout-border: #cbd5e1;
+    --ems-scout-surface: #ffffff;
+    --ems-scout-muted: #475569;
+
+    max-width: 1000px;
+    margin: 0 auto;
+    font-family: inherit;
+    color: #0f172a;
+}
+
+.ems-portal-root button,
+.ems-portal-root .button,
+.ems-portal-root a.button {
+    box-shadow: none;
+    text-shadow: none;
+    text-decoration: none;
+    background-image: none;
+    font-family: inherit;
+    line-height: 1.4;
+}
+
+.ems-portal-root button:focus-visible,
+.ems-portal-root .button:focus-visible,
+.ems-portal-root a:focus-visible,
+.ems-portal-root select:focus-visible,
+.ems-portal-root textarea:focus-visible {
+    outline: 2px solid var(--ems-scout-blue);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+.ems-portal-switcher {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid var(--ems-scout-border);
+    border-left: 4px solid var(--ems-scout-navy);
+    border-radius: 6px;
+}
+
+.ems-portal-switcher__label {
+    font-weight: 700;
+    font-size: 13.5px;
+    color: var(--ems-scout-navy);
+}
+
+.ems-portal-switcher__select {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--ems-scout-blue);
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 14px;
+    min-width: 220px;
+}
+
+.ems-portal-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 22px;
+}
+
+.ems-portal-root .ems-portal-tab {
+    padding: 10px 18px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    color: #475569;
+    font-weight: 600;
+    font-size: 14.5px;
+    cursor: pointer;
+    margin-bottom: -2px;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ems-portal-root .ems-portal-tab:hover {
+    background: #f1f5f9;
+    color: var(--ems-scout-navy);
+    border-color: transparent;
+}
+
+.ems-portal-root .ems-portal-tab.is-active {
+    background: transparent;
+    color: var(--ems-scout-navy);
+    border-bottom-color: var(--ems-scout-navy);
+    font-weight: 700;
+}
+
+.ems-portal-root .ems-btn-scout-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 16px;
+    background: var(--ems-scout-blue);
+    color: #ffffff;
+    border: 1px solid var(--ems-scout-blue);
+    border-radius: 5px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ems-portal-root .ems-btn-scout-primary:hover:not(:disabled) {
+    background: var(--ems-scout-navy);
+    border-color: var(--ems-scout-navy);
+    color: #ffffff;
+}
+
+.ems-portal-root .ems-btn-scout-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.ems-portal-root .ems-btn-scout-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 16px;
+    background: #ffffff;
+    color: var(--ems-scout-navy);
+    border: 1px solid var(--ems-scout-navy);
+    border-radius: 5px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ems-portal-root .ems-btn-scout-secondary:hover:not(:disabled) {
+    background: #f0f6fc;
+    color: var(--ems-scout-navy);
+    border-color: var(--ems-scout-navy);
+}
+
+.ems-portal-root .ems-btn-scout-decline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 14px;
+    background: transparent;
+    color: #b91c1c;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ems-portal-root .ems-btn-scout-decline:hover:not(:disabled) {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.ems-portal-root .ems-btn-scout-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--ems-scout-blue);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.ems-portal-root .ems-btn-scout-link:hover {
+    color: var(--ems-scout-navy);
+}
+
+.ems-portal-offer-card {
+    background: var(--ems-scout-surface);
+    border: 1px solid var(--ems-scout-border);
+    border-top: 4px solid var(--ems-scout-navy);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+}
+
+.ems-portal-offer-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 14px;
+}
+
+.ems-portal-offer-card__title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ems-scout-navy);
+}
+
+.ems-portal-deadline-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 11px;
+    border-radius: 9999px;
+    background: var(--ems-scout-yellow);
+    color: var(--ems-scout-navy);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ems-portal-offer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 720px) {
+    .ems-portal-offer-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ems-portal-offer-section-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ems-scout-muted);
+    margin-bottom: 6px;
+}
+
+.ems-portal-stage-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ems-portal-stage-item {
+    font-size: 13.5px;
+    color: #0f172a;
+    padding: 7px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+}
+
+.ems-portal-teammate-groups {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ems-portal-teammate-group {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ems-portal-unit-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    background: #eef4fb;
+    border: 1px solid #bfdbfe;
+    border-radius: 9999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--ems-scout-navy);
+    white-space: nowrap;
+}
+
+.ems-portal-teammate-names {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #0f172a;
+}
+
+.ems-portal-offer-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.ems-portal-offer-confirmation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    margin-top: 8px;
+}
+
+.ems-portal-offer-confirmation--accepted {
+    background: #edfaef;
+    border: 1px solid #86efac;
+    color: #166534;
+}
+
+.ems-portal-offer-confirmation--queried {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+}
+
+.ems-portal-offer-confirmation--declined {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+.ems-portal-query-box {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--ems-scout-border);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ems-portal-query-box textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #94a3b8;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13.5px;
+    box-sizing: border-box;
+}
+
+.ems-portal-event-card {
+    background: #ffffff;
+    border: 1px solid var(--ems-scout-border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+}
+
+.ems-portal-event-card__title {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ems-scout-navy);
+}
+
+.ems-portal-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+@media (max-width: 760px) {
+    .ems-portal-meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.ems-portal-meta-grid__label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ems-scout-muted);
+    margin-bottom: 3px;
+}
+
+.ems-portal-meta-grid__value {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.ems-portal-nested-expeditions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 720px) {
+    .ems-portal-nested-expeditions {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ems-portal-nested-exp-card {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+
+.ems-portal-nested-exp-card__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.ems-portal-stage-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--ems-scout-navy);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ems-portal-nested-exp-card__code {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ems-scout-navy);
+}
+
+.ems-portal-nested-exp-card__dates {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.ems-portal-nested-exp-card__meta {
+    font-size: 12.5px;
+    color: var(--ems-scout-muted);
+    line-height: 1.45;
+}
+
 

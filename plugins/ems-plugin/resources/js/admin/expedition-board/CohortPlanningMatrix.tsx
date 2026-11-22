@@ -214,14 +214,14 @@ export default function CohortPlanningMatrix({
                 className={`ems-scope-btn ${activeView === 'cohorts' ? 'ems-scope-btn--active' : ''}`}
                 onClick={() => setActiveView('cohorts')}
               >
-                <FontAwesomeIcon icon={faLayerGroup} className="ems-scope-btn-icon" /> 1. Teams &amp; Continuity
+                <FontAwesomeIcon icon={faLayerGroup} className="ems-scope-btn-icon" /> 1. Team Builder
               </button>
               <button
                 type="button"
                 className={`ems-scope-btn ${activeView === 'matrix' ? 'ems-scope-btn--active' : ''}`}
                 onClick={() => setActiveView('matrix')}
               >
-                <FontAwesomeIcon icon={faTableCells} className="ems-scope-btn-icon" /> 2. Stage Matrix
+                <FontAwesomeIcon icon={faTableCells} className="ems-scope-btn-icon" /> 2. Date Grid
               </button>
             </div>
           </div>
@@ -266,7 +266,7 @@ export default function CohortPlanningMatrix({
           <span className="ems-spinner" aria-label="Loading team planning board…" />
         </div>
       ) : activeView === 'cohorts' ? (
-        <ModuleErrorBoundary moduleName="Teams & Continuity">
+        <ModuleErrorBoundary moduleName="Team Builder">
           <CohortsContinuityView
             level={level}
             transport={transport}
@@ -285,7 +285,7 @@ export default function CohortPlanningMatrix({
           />
         </ModuleErrorBoundary>
       ) : (
-        <ModuleErrorBoundary moduleName="Stage Matrix">
+        <ModuleErrorBoundary moduleName="Date Grid">
           <StageMatrixView
             level={level}
             transport={transport}

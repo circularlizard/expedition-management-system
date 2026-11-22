@@ -139,6 +139,20 @@ class CohortController {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/cohorts/(?P<id>\d+)/members/(?P<expedition_signup_id>\d+)/stage-override',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'set_stage_override' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array(
+					'id'                   => $this->id_arg(),
+					'expedition_signup_id' => $this->id_arg(),
+				),
+			)
+		);
 	}
 
 	private function register_schedule_routes(): void {
@@ -231,6 +245,20 @@ class CohortController {
 		$all_members       = $this->members->listByCohorts( $cohort_ids );
 		$offer_map         = $this->fetch_member_offer_statuses( $cohort_ids );
 		$members_by_cohort = array();
+		$cohort_by_prac    = array();
+		$cohort_by_qual    = array();
+		$cohort_names      = array();
+
+		foreach ( $cohorts as $c ) {
+			$cid                  = (int) $c['id'];
+			$cohort_names[ $cid ] = (string) ( $c['name'] ?? "Team #{$cid}" );
+			if ( ! empty( $c['practice_team_post_id'] ) ) {
+				$cohort_by_prac[ (int) $c['practice_team_post_id'] ] = $cid;
+			}
+			if ( ! empty( $c['qualifier_team_post_id'] ) ) {
+				$cohort_by_qual[ (int) $c['qualifier_team_post_id'] ] = $cid;
+			}
+		}
 
 		foreach ( $all_members as $member ) {
 			$cid  = (int) $member['cohort_id'];
@@ -242,6 +270,36 @@ class CohortController {
 				$member['offer_query_message'] = $offer_map[ $key ]['offer_query_message'];
 				$member['offer_responded_at']  = $offer_map[ $key ]['offer_responded_at'];
 			}
+
+			$prac_ov = (int) ( $member['practice_team_post_id_override'] ?? 0 );
+			$qual_ov = (int) ( $member['qualifier_team_post_id_override'] ?? 0 );
+			if ( $prac_ov > 0 && isset( $cohort_by_prac[ $prac_ov ] ) ) {
+				$target_cid                               = $cohort_by_prac[ $prac_ov ];
+				$member['practice_override_cohort_id']    = $target_cid;
+				$member['practice_override_cohort_name']  = $cohort_names[ $target_cid ] ?? '';
+				if ( $target_cid !== $cid ) {
+					$guest                    = $member;
+					$guest['is_stage_guest']  = true;
+					$guest['guest_stage']     = 'practice';
+					$guest['home_cohort_id']  = $cid;
+					$guest['home_cohort_name'] = $cohort_names[ $cid ] ?? '';
+					$members_by_cohort[ $target_cid ][] = $guest;
+				}
+			}
+			if ( $qual_ov > 0 && isset( $cohort_by_qual[ $qual_ov ] ) ) {
+				$target_cid                                = $cohort_by_qual[ $qual_ov ];
+				$member['qualifier_override_cohort_id']    = $target_cid;
+				$member['qualifier_override_cohort_name']  = $cohort_names[ $target_cid ] ?? '';
+				if ( $target_cid !== $cid ) {
+					$guest                     = $member;
+					$guest['is_stage_guest']   = true;
+					$guest['guest_stage']      = 'qualifier';
+					$guest['home_cohort_id']   = $cid;
+					$guest['home_cohort_name'] = $cohort_names[ $cid ] ?? '';
+					$members_by_cohort[ $target_cid ][] = $guest;
+				}
+			}
+
 			$members_by_cohort[ $cid ][] = $member;
 		}
 
@@ -253,7 +311,10 @@ class CohortController {
 		}
 		unset( $cohort );
 
-		return new \WP_REST_Response( $cohorts, 200 );
+		$standalone = $this->fetch_standalone_event_teams( $cohorts, $filters );
+		$all_teams  = array_merge( $cohorts, $standalone );
+
+		return new \WP_REST_Response( $all_teams, 200 );
 	}
 
 	/**
@@ -974,6 +1035,156 @@ class CohortController {
 	}
 
 	/**
+	 * POST /wp-json/ems/v1/cohorts/{id}/members/{expedition_signup_id}/stage-override
+	 */
+	public function set_stage_override( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$cohort_id            = absint( $request->get_param( 'id' ) );
+		$expedition_signup_id = absint( $request->get_param( 'expedition_signup_id' ) );
+		$body                 = $this->get_request_body( $request );
+		$stage                = sanitize_key( (string) ( $body['stage'] ?? '' ) );
+		$target_cohort_id     = (int) ( $body['target_cohort_id'] ?? 0 );
+
+		if ( ! in_array( $stage, array( 'practice', 'qualifier' ), true ) ) {
+			return $this->error( 'ems_invalid_stage', 'stage must be "practice" or "qualifier".', 400 );
+		}
+
+		$home_cohort = $this->cohorts->find( $cohort_id );
+		if ( ! $home_cohort ) {
+			return $this->error( 'ems_cohort_not_found', 'Home team not found.', 404 );
+		}
+
+		$member = $this->members->findByCohortAndSignup( $cohort_id, $expedition_signup_id );
+		if ( ! $member ) {
+			return $this->error( 'ems_member_not_found', 'Member not found in this team.', 404 );
+		}
+
+		$col                 = $stage === 'practice' ? 'practice_team_post_id_override' : 'qualifier_team_post_id_override';
+		$home_stage_team_id  = (int) ( $stage === 'practice' ? ( $home_cohort['practice_team_post_id'] ?? 0 ) : ( $home_cohort['qualifier_team_post_id'] ?? 0 ) );
+		$target_team_post_id = 0;
+
+		if ( $target_cohort_id > 0 && $target_cohort_id !== $cohort_id ) {
+			$target_cohort = $this->cohorts->find( $target_cohort_id );
+			if ( ! $target_cohort ) {
+				return $this->error( 'ems_target_cohort_not_found', 'Target team not found.', 404 );
+			}
+			$target_team_post_id = (int) ( $stage === 'practice' ? ( $target_cohort['practice_team_post_id'] ?? 0 ) : ( $target_cohort['qualifier_team_post_id'] ?? 0 ) );
+			if ( $target_team_post_id <= 0 ) {
+				return $this->error(
+					'ems_target_stage_unscheduled',
+					sprintf( 'Target team "%s" does not have a scheduled %s event yet.', (string) ( $target_cohort['name'] ?? '' ), $stage ),
+					400
+				);
+			}
+		}
+
+		global $wpdb;
+		$cm_table = $wpdb->prefix . 'ems_cohort_members';
+		$tm_table = $wpdb->prefix . 'ems_team_members';
+
+		$other_override_col = $stage === 'practice' ? 'qualifier_team_post_id_override' : 'practice_team_post_id_override';
+		$other_override_val = (int) ( $member[ $other_override_col ] ?? 0 );
+		$new_member_status  = $target_team_post_id > 0
+			? ( $stage === 'practice' ? 'split_practice' : 'split_qualifier' )
+			: ( $other_override_val > 0 ? ( $stage === 'practice' ? 'split_qualifier' : 'split_practice' ) : 'active' );
+
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$cm_table} SET {$col} = %s, member_status = %s, updated_at = %s WHERE cohort_id = %d AND expedition_signup_id = %d",
+				$target_team_post_id > 0 ? $target_team_post_id : null,
+				$new_member_status,
+				current_time( 'mysql', true ),
+				$cohort_id,
+				$expedition_signup_id
+			)
+		);
+
+		$prev_override_id = (int) ( $member[ $col ] ?? 0 );
+		$dest_team_id     = $target_team_post_id > 0 ? $target_team_post_id : $home_stage_team_id;
+		$remove_team_ids  = array_values(
+			array_unique(
+				array_filter(
+					array( $prev_override_id, $home_stage_team_id ),
+					static fn( int $id ): bool => $id > 0 && $id !== $dest_team_id
+				)
+			)
+		);
+
+		$existing_notif = 'draft';
+		foreach ( $remove_team_ids as $old_tid ) {
+			$prev_status = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT notification_status FROM {$tm_table} WHERE team_post_id = %d AND expedition_signup_id = %d LIMIT 1",
+					$old_tid,
+					$expedition_signup_id
+				)
+			);
+			if ( is_string( $prev_status ) && $prev_status !== '' ) {
+				$existing_notif = $prev_status;
+			}
+			$wpdb->delete(
+				$tm_table,
+				array(
+					'team_post_id'         => $old_tid,
+					'expedition_signup_id' => $expedition_signup_id,
+				),
+				array( '%d', '%d' )
+			);
+		}
+
+		if ( $dest_team_id > 0 ) {
+			$already = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM {$tm_table} WHERE team_post_id = %d AND expedition_signup_id = %d LIMIT 1",
+					$dest_team_id,
+					$expedition_signup_id
+				)
+			);
+			$next_notif = ( $existing_notif === 'notified' || $existing_notif === 're_notify_needed' ) ? 're_notify_needed' : 'draft';
+			if ( $already ) {
+				$wpdb->update(
+					$tm_table,
+					array(
+						'cohort_id'             => $cohort_id,
+						'availability_override' => $target_team_post_id > 0 ? 'split_date' : null,
+						'notification_status'   => $next_notif,
+					),
+					array( 'id' => (int) $already ),
+					array( '%d', '%s', '%s' ),
+					array( '%d' )
+				);
+			} else {
+				$wpdb->insert(
+					$tm_table,
+					array(
+						'team_post_id'          => $dest_team_id,
+						'scout_id'              => (int) ( $member['scout_id'] ?? 0 ),
+						'user_id'               => (int) ( $member['wp_user_id'] ?? 0 ),
+						'expedition_signup_id'  => $expedition_signup_id,
+						'cohort_id'             => $cohort_id,
+						'availability_override' => $target_team_post_id > 0 ? 'split_date' : null,
+						'notification_status'   => $next_notif,
+						'added_by'              => (int) get_current_user_id(),
+						'added_at'              => current_time( 'mysql', true ),
+					),
+					array( '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%d', '%s' )
+				);
+			}
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'updated'              => true,
+				'cohort_id'            => $cohort_id,
+				'expedition_signup_id' => $expedition_signup_id,
+				'stage'                => $stage,
+				'target_team_post_id'  => $target_team_post_id > 0 ? $target_team_post_id : null,
+				'member_status'        => $new_member_status,
+			),
+			200
+		);
+	}
+
+	/**
 	 * POST /wp-json/ems/v1/cohorts/resolve-query
 	 */
 	public function resolve_member_query( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
@@ -1082,5 +1293,153 @@ class CohortController {
 			);
 		}
 		return $map;
+	}
+
+	/**
+	 * Fetches standalone event team CPT posts (not linked to any ems_cohorts row) matching filters.
+	 *
+	 * @param array<int, array<string, mixed>> $cohorts
+	 * @param array<string, mixed>             $filters
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function fetch_standalone_event_teams( array $cohorts, array $filters ): array {
+		global $wpdb;
+		if ( ! function_exists( 'get_posts' ) || ! function_exists( 'get_post_meta' ) ) {
+			return array();
+		}
+
+		$linked_team_ids = array();
+		foreach ( $cohorts as $c ) {
+			if ( ! empty( $c['practice_team_post_id'] ) ) {
+				$linked_team_ids[ (int) $c['practice_team_post_id'] ] = true;
+			}
+			if ( ! empty( $c['qualifier_team_post_id'] ) ) {
+				$linked_team_ids[ (int) $c['qualifier_team_post_id'] ] = true;
+			}
+		}
+
+		$team_posts = get_posts(
+			array(
+				'post_type'      => 'team',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			)
+		);
+		if ( ! is_array( $team_posts ) || empty( $team_posts ) ) {
+			return array();
+		}
+
+		$filter_level     = strtolower( (string) ( $filters['dofe_level'] ?? '' ) );
+		$filter_transport = strtolower( (string) ( $filters['transport_mode'] ?? '' ) );
+		$tm_table         = $wpdb->prefix . 'ems_team_members';
+		$signups_table    = $wpdb->prefix . 'ems_expedition_signups';
+		$explorers_table  = $wpdb->prefix . 'ems_osm_explorers';
+		$standalone       = array();
+
+		foreach ( $team_posts as $tp ) {
+			$tid = (int) $tp->ID;
+			if ( isset( $linked_team_ids[ $tid ] ) ) {
+				continue;
+			}
+			$team_code = trim( (string) get_post_meta( $tid, 'ems_team_code', true ) );
+			if ( strtoupper( $team_code ) === 'UNALLOCATED' || strtoupper( trim( (string) $tp->post_title ) ) === 'UNALLOCATED' ) {
+				continue;
+			}
+			$exp_id = (int) $tp->post_parent;
+			if ( $exp_id <= 0 ) {
+				continue;
+			}
+			$ev_level     = strtolower( trim( (string) get_post_meta( $exp_id, 'ems_level', true ) ) );
+			$ev_transport = strtolower( trim( (string) ( get_post_meta( $exp_id, 'ems_transport', true ) ?: 'foot' ) ) );
+			if ( $ev_transport === 'walking' ) {
+				$ev_transport = 'foot';
+			} elseif ( $ev_transport === 'canoe' || $ev_transport === 'paddle' ) {
+				$ev_transport = 'paddling';
+			} elseif ( $ev_transport === 'bike' || $ev_transport === 'cycling' ) {
+				$ev_transport = 'biking';
+			}
+			$ev_type = strtolower( trim( (string) get_post_meta( $exp_id, 'ems_type', true ) ) );
+
+			if ( $filter_level !== '' && $ev_level !== $filter_level ) {
+				continue;
+			}
+			if ( $filter_transport !== '' && $ev_transport !== $filter_transport ) {
+				continue;
+			}
+
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT tm.id, tm.team_post_id, tm.expedition_signup_id,
+						COALESCE(NULLIF(s.scout_id, 0), tm.scout_id) AS scout_id,
+						tm.availability_override, tm.notification_status, tm.offer_status, tm.offer_query_message, tm.offer_responded_at,
+						s.unit_id, s.unit_name, s.dofe_level, s.first_aid_status, s.first_aid_expiry,
+						COALESCE(NULLIF(e.first_name, ''), s.explorer_first_name, '') AS first_name,
+						COALESCE(NULLIF(e.last_name, ''), s.explorer_last_name, '') AS last_name,
+						e.first_aid_level, e.wp_user_id
+					FROM {$tm_table} tm
+					LEFT JOIN {$signups_table} s ON tm.expedition_signup_id = s.id
+					LEFT JOIN {$explorers_table} e ON (COALESCE(NULLIF(s.scout_id, 0), tm.scout_id) > 0 AND COALESCE(NULLIF(s.scout_id, 0), tm.scout_id) = e.scout_id)
+					WHERE tm.team_post_id = %d
+					ORDER BY tm.id ASC",
+					$tid
+				),
+				ARRAY_A
+			) ?: array();
+
+			$members = array();
+			foreach ( $rows as $r ) {
+				$members[] = array(
+					'id'                    => (int) $r['id'],
+					'cohort_id'             => -$tid,
+					'expedition_signup_id'  => (int) ( $r['expedition_signup_id'] ?? 0 ),
+					'scout_id'              => (int) ( $r['scout_id'] ?? 0 ),
+					'availability_override' => $r['availability_override'] ?? null,
+					'member_status'         => 'active',
+					'notification_status'   => (string) ( $r['notification_status'] ?? 'draft' ),
+					'offer_status'          => (string) ( $r['offer_status'] ?? 'pending' ),
+					'offer_query_message'   => $r['offer_query_message'] ?? null,
+					'offer_responded_at'    => $r['offer_responded_at'] ?? null,
+					'notes'                 => null,
+					'unit_id'               => isset( $r['unit_id'] ) ? (int) $r['unit_id'] : null,
+					'unit_name'             => $r['unit_name'] ?? null,
+					'first_name'            => (string) ( $r['first_name'] ?? '' ),
+					'last_name'             => (string) ( $r['last_name'] ?? '' ),
+					'explorer_first_name'   => (string) ( $r['first_name'] ?? '' ),
+					'explorer_last_name'    => (string) ( $r['last_name'] ?? '' ),
+					'explorer_email'        => '',
+					'parent_email'          => null,
+					'dofe_level'            => $ev_level,
+					'expedition_preferences' => null,
+					'additional_support_needs' => null,
+					'asn_validated'         => null,
+					'first_aid_status'      => (string) ( $r['first_aid_status'] ?? 'none' ),
+					'first_aid_expiry'      => $r['first_aid_expiry'] ?? null,
+					'first_aid_level'       => $r['first_aid_level'] ?? null,
+					'wp_user_id'            => isset( $r['wp_user_id'] ) ? (int) $r['wp_user_id'] : null,
+				);
+			}
+
+			$is_prac      = ( $ev_type === 'practice' );
+			$is_qual      = in_array( $ev_type, array( 'qualifying', 'qualifier' ), true );
+			$standalone[] = array(
+				'id'                      => -$tid,
+				'name'                    => $team_code !== '' ? $team_code : (string) $tp->post_title,
+				'dofe_level'              => $ev_level,
+				'transport_mode'          => $ev_transport,
+				'practice_expedition_id'  => $is_prac ? $exp_id : null,
+				'qualifier_expedition_id' => $is_qual ? $exp_id : null,
+				'practice_team_post_id'   => $is_prac ? $tid : null,
+				'qualifier_team_post_id'  => $is_qual ? $tid : null,
+				'cohort_status'           => 'scheduled',
+				'is_standalone_team'      => true,
+				'notes'                   => null,
+				'members'                 => $members,
+				'member_count'            => count( $members ),
+			);
+		}
+
+		return $standalone;
 	}
 }

@@ -435,6 +435,12 @@ class CohortSchedulerService {
 				continue;
 			}
 
+			$stage_override_col = $stage === 'practice' ? 'practice_team_post_id_override' : 'qualifier_team_post_id_override';
+			if ( ! empty( $member[ $stage_override_col ] ) && (int) $member[ $stage_override_col ] !== $team_post_id ) {
+				++$split_count;
+				continue;
+			}
+
 			$availability_override = $resolution === 'assign_pending' ? 'date_conflict_pending' : 'matched';
 			$re_notified_count    += $this->upsertTeamMember(
 				$team_post_id,

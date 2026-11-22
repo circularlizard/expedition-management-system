@@ -85,6 +85,16 @@ class Table_Installer {
 			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN offer_responded_by BIGINT UNSIGNED NULL AFTER offer_responded_at" );
 		}
 
+		$cohort_members_table = $wpdb->prefix . 'ems_cohort_members';
+		if ( ! $this->column_exists( $wpdb, $cohort_members_table, 'practice_team_post_id_override' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$cohort_members_table} ADD COLUMN practice_team_post_id_override BIGINT UNSIGNED NULL AFTER member_status" );
+		}
+		if ( ! $this->column_exists( $wpdb, $cohort_members_table, 'qualifier_team_post_id_override' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$cohort_members_table} ADD COLUMN qualifier_team_post_id_override BIGINT UNSIGNED NULL AFTER practice_team_post_id_override" );
+		}
+
 		$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
 		if ( ! $this->column_exists( $wpdb, $explorers_table, 'first_aid_level' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -769,6 +779,8 @@ class Table_Installer {
             scout_id              BIGINT UNSIGNED NOT NULL DEFAULT 0,
             availability_override VARCHAR(32)     NULL,
             member_status         VARCHAR(32)     NOT NULL DEFAULT 'active',
+            practice_team_post_id_override  BIGINT UNSIGNED NULL,
+            qualifier_team_post_id_override BIGINT UNSIGNED NULL,
             notes                 TEXT            NULL,
             added_by              BIGINT UNSIGNED NOT NULL,
             created_at            DATETIME        NOT NULL,

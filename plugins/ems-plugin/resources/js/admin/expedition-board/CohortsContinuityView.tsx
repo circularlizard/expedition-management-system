@@ -458,6 +458,44 @@ export default function CohortsContinuityView({
     }
   };
 
+  const handleStageOverride = async (
+    homeCohortId: number,
+    signupId: number,
+    stage: 'practice' | 'qualifier',
+    targetCohortId: number
+  ) => {
+    setBusyAction(true);
+    onFeedback(null);
+    try {
+      const resp = await fetch(`${rootUrl}/cohorts/${homeCohortId}/members/${signupId}/stage-override`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce,
+        },
+        body: JSON.stringify({
+          stage,
+          target_cohort_id: targetCohortId,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.message || `HTTP ${resp.status}`);
+      }
+      onFeedback({
+        ok: true,
+        msg: targetCohortId > 0
+          ? `Assigned ${stage} stage to alternate team.`
+          : `Cleared ${stage} stage override.`,
+      });
+      await onRefreshAll();
+    } catch (err) {
+      onFeedback({ ok: false, msg: err instanceof Error ? err.message : 'Failed to update stage override' });
+    } finally {
+      setBusyAction(false);
+    }
+  };
+
   const handleDeleteCohort = async (cohort: Cohort) => {
     if (!window.confirm(`Delete team "${cohort.name}"? Members will return to the unassigned pool.`)) {
       return;
@@ -1181,6 +1219,18 @@ export default function CohortsContinuityView({
                       <FontAwesomeIcon icon={faUsers} style={{ color: '#2563eb', marginRight: '6px' }} />
                       {cohort.name}
                     </h3>
+                    {cohort.is_standalone_team && (
+                      <span
+                        className="ems-badge"
+                        style={{
+                          background: '#e0f2fe',
+                          color: '#075985',
+                          border: '1px solid #7dd3fc',
+                        }}
+                      >
+                        Event Team Only
+                      </span>
+                    )}
                     <span
                       className="ems-badge"
                       style={{
@@ -1204,6 +1254,7 @@ export default function CohortsContinuityView({
                     </span>
                   </div>
 
+                  {!cohort.is_standalone_team && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     {selectedSignupIds.length > 0 && (
                       <button
@@ -1232,7 +1283,7 @@ export default function CohortsContinuityView({
                         <FontAwesomeIcon icon={faEnvelope} /> Send Allocation Emails
                       </button>
                     )}
-                    {cohorts.length > 1 && (
+                    {cohorts.filter(c => !c.is_standalone_team).length > 1 && (
                       <button
                         type="button"
                         className="button button-small"
@@ -1242,7 +1293,7 @@ export default function CohortsContinuityView({
                             setMergingCohortId(null);
                             setMergeTargetId('');
                           } else {
-                            const firstOther = cohorts.find(c => c.id !== cohort.id);
+                            const firstOther = cohorts.find(c => !c.is_standalone_team && c.id !== cohort.id);
                             setMergingCohortId(cohort.id);
                             setMergeTargetId(firstOther ? firstOther.id : '');
                           }
@@ -1262,6 +1313,7 @@ export default function CohortsContinuityView({
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </div>
+                  )}
                 </div>
 
                 {mergingCohortId === cohort.id && (
@@ -1566,7 +1618,11 @@ export default function CohortsContinuityView({
 
                         return (
                           <tr
-                            key={member.expedition_signup_id}
+                            key={
+                              member.is_stage_guest
+                                ? `guest_${member.guest_stage}_${member.expedition_signup_id}`
+                                : `home_${member.expedition_signup_id}`
+                            }
                             onMouseEnter={() =>
                               setHoveredExplorer({
                                 expedition_signup_id: member.expedition_signup_id,
@@ -1599,6 +1655,14 @@ export default function CohortsContinuityView({
                                 <strong>
                                   {member.first_name} {member.last_name}
                                 </strong>
+                                {member.is_stage_guest && (
+                                  <span
+                                    className="ems-matrix-tag"
+                                    style={{ background: '#e0f2fe', color: '#075985', border: '1px solid #7dd3fc' }}
+                                  >
+                                    {member.guest_stage === 'practice' ? 'Practice Only' : 'Qualifier Only'} &middot; Home: {member.home_cohort_name}
+                                  </span>
+                                )}
                                 {isFA && (
                                   <span className="ems-matrix-tag ems-matrix-tag--fa">FA</span>
                                 )}
@@ -1617,7 +1681,14 @@ export default function CohortsContinuityView({
                             </td>
                             <td>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                {isSplitPrac ? (
+                                {member.practice_override_cohort_name ? (
+                                  <span
+                                    className="ems-matrix-tag"
+                                    style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                                  >
+                                    Prac: {member.practice_override_cohort_name} (Override)
+                                  </span>
+                                ) : isSplitPrac ? (
                                   <span
                                     className="ems-matrix-tag"
                                     style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
@@ -1632,7 +1703,14 @@ export default function CohortsContinuityView({
                                   <span style={{ color: '#94a3b8' }}>Prac: —</span>
                                 )}
 
-                                {isSplitQual ? (
+                                {member.qualifier_override_cohort_name ? (
+                                  <span
+                                    className="ems-matrix-tag"
+                                    style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
+                                  >
+                                    Qual: {member.qualifier_override_cohort_name} (Override)
+                                  </span>
+                                ) : isSplitQual ? (
                                   <span
                                     className="ems-matrix-tag"
                                     style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}
@@ -1647,6 +1725,58 @@ export default function CohortsContinuityView({
                                   <span style={{ color: '#94a3b8' }}>Qual: —</span>
                                 )}
                               </div>
+                              {!cohort.is_standalone_team && !member.is_stage_guest && cohorts.filter(c => !c.is_standalone_team).length > 1 && (
+                                <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                  <select
+                                    aria-label={`Practice team override for ${member.first_name} ${member.last_name}`}
+                                    className="ems-select ems-select-sm"
+                                    style={{ fontSize: '11px', height: '24px', minHeight: '24px', padding: '0 4px' }}
+                                    disabled={busyAction}
+                                    value={String(member.practice_override_cohort_id || '')}
+                                    onChange={(e) =>
+                                      handleStageOverride(
+                                        cohort.id,
+                                        member.expedition_signup_id,
+                                        'practice',
+                                        e.target.value ? Number(e.target.value) : 0
+                                      )
+                                    }
+                                  >
+                                    <option value="">Prac: Same as team</option>
+                                    {cohorts
+                                      .filter((other) => !other.is_standalone_team && other.id !== cohort.id && other.practice_team_post_id)
+                                      .map((other) => (
+                                        <option key={other.id} value={String(other.id)}>
+                                          Prac → {other.name}
+                                        </option>
+                                      ))}
+                                  </select>
+                                  <select
+                                    aria-label={`Qualifier team override for ${member.first_name} ${member.last_name}`}
+                                    className="ems-select ems-select-sm"
+                                    style={{ fontSize: '11px', height: '24px', minHeight: '24px', padding: '0 4px' }}
+                                    disabled={busyAction}
+                                    value={String(member.qualifier_override_cohort_id || '')}
+                                    onChange={(e) =>
+                                      handleStageOverride(
+                                        cohort.id,
+                                        member.expedition_signup_id,
+                                        'qualifier',
+                                        e.target.value ? Number(e.target.value) : 0
+                                      )
+                                    }
+                                  >
+                                    <option value="">Qual: Same as team</option>
+                                    {cohorts
+                                      .filter((other) => !other.is_standalone_team && other.id !== cohort.id && other.qualifier_team_post_id)
+                                      .map((other) => (
+                                        <option key={other.id} value={String(other.id)}>
+                                          Qual → {other.name}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </div>
+                              )}
                             </td>
                             <td>
                               <span
@@ -1668,22 +1798,42 @@ export default function CohortsContinuityView({
                               )}
                             </td>
                             <td style={{ textAlign: 'right' }}>
-                              <button
-                                type="button"
-                                className="button button-small"
-                                disabled={busyAction}
-                                onClick={() =>
-                                  handleRemoveMember(
-                                    cohort.id,
-                                    member.expedition_signup_id,
-                                    `${member.first_name} ${member.last_name}`
-                                  )
-                                }
-                                title="Remove from team"
-                                aria-label={`Remove ${member.first_name} ${member.last_name} from team`}
-                              >
-                                <FontAwesomeIcon icon={faXmark} />
-                              </button>
+                              {cohort.is_standalone_team ? null : member.is_stage_guest && member.home_cohort_id && member.guest_stage ? (
+                                <button
+                                  type="button"
+                                  className="button button-small"
+                                  disabled={busyAction}
+                                  onClick={() =>
+                                    handleStageOverride(
+                                      member.home_cohort_id!,
+                                      member.expedition_signup_id,
+                                      member.guest_stage!,
+                                      0
+                                    )
+                                  }
+                                  title="Clear stage override"
+                                  aria-label={`Clear ${member.guest_stage} override for ${member.first_name} ${member.last_name}`}
+                                >
+                                  <FontAwesomeIcon icon={faXmark} />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="button button-small"
+                                  disabled={busyAction}
+                                  onClick={() =>
+                                    handleRemoveMember(
+                                      cohort.id,
+                                      member.expedition_signup_id,
+                                      `${member.first_name} ${member.last_name}`
+                                    )
+                                  }
+                                  title="Remove from team"
+                                  aria-label={`Remove ${member.first_name} ${member.last_name} from team`}
+                                >
+                                  <FontAwesomeIcon icon={faXmark} />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );

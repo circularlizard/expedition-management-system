@@ -112,7 +112,7 @@ const mockSingleEvent = {
 
 async function renderAndSwitchToStageMatrix() {
   render(<EventPlanningBoard />);
-  const stageMatrixBtn = await screen.findByRole('button', { name: /2\. Stage Matrix/i });
+  const stageMatrixBtn = await screen.findByRole('button', { name: /2\. Date Grid/i });
   fireEvent.click(stageMatrixBtn);
   await waitFor(() => {
     expect(screen.getByRole('group', { name: /Stage Matrix Mode/i })).toBeInTheDocument();
