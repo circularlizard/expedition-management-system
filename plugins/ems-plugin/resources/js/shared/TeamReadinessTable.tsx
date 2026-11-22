@@ -155,7 +155,7 @@ function formatOfferLabel(status: string, isLicScoped: boolean): { label: string
     case 'accepted':
       return { label: 'Accepted', toneClass: 'ems-readiness-status--ok' };
     case 'notified':
-      return { label: 'Notified', toneClass: 'ems-readiness-status--info' };
+      return { label: 'Offer Sent', toneClass: 'ems-readiness-status--info' };
     case 'queried':
       return { label: 'Queried', toneClass: 'ems-readiness-status--warn' };
     case 'declined':

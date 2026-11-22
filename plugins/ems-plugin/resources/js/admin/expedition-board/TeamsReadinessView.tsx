@@ -309,7 +309,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
         },
         body: JSON.stringify({
           scope: 'cohort',
-          cohort_id: record.cohort_id ?? null,
+          cohort_id: record.team_post_id ?? record.cohort_id ?? null,
           expedition_signup_ids: allMemberIds,
           dofe_level: record.dofe_level || undefined,
           transport_mode: record.transport_mode || undefined,
@@ -431,7 +431,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
         body: JSON.stringify({
           confirm_dispatch: true,
           expedition_signup_ids: selectedSignupIds,
-          cohort_id: reminderRecord.cohort_id ?? null,
+          cohort_id: reminderRecord.team_post_id ?? reminderRecord.cohort_id ?? null,
         }),
       });
       const body: DispatchResponse & { message?: string } = await res.json();

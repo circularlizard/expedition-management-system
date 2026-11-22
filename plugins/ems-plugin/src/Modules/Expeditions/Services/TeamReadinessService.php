@@ -89,7 +89,6 @@ class TeamReadinessService {
 		);
 
 		$expedition_cache = array();
-		$linked_cohort_ids = array();
 
 		foreach ( $team_posts as $team_post ) {
 			$team_id   = (int) $team_post->ID;
@@ -108,23 +107,10 @@ class TeamReadinessService {
 			}
 			$expedition = $expedition_id > 0 ? ( $expedition_cache[ $expedition_id ] ?? null ) : null;
 
-			$dofe_level     = strtolower( trim( (string) ( $expedition['ems_level'] ?? '' ) ) );
-			$transport_mode = $this->normalizeTransportMode( (string) ( $expedition['ems_transport'] ?? 'foot' ) );
-			$stage          = $this->normalizeStage( (string) ( $expedition['ems_type'] ?? '' ) );
+			$dofe_level      = strtolower( trim( (string) ( $expedition['ems_level'] ?? '' ) ) );
+			$transport_mode  = $this->normalizeTransportMode( (string) ( $expedition['ems_transport'] ?? 'foot' ) );
+			$stage           = $this->normalizeStage( (string) ( $expedition['ems_type'] ?? '' ) );
 			$expedition_date = (string) ( $expedition['ems_start_date'] ?? '' );
-
-			$cohort_id = (int) get_post_meta( $team_id, '_ems_cohort_id', true );
-			$cohort    = $cohort_id > 0 ? $this->cohorts->find( $cohort_id ) : $this->cohorts->findByTeamPostId( $team_id );
-			if ( $cohort !== null ) {
-				$cohort_id                        = (int) $cohort['id'];
-				$linked_cohort_ids[ $cohort_id ]  = true;
-				if ( $dofe_level === '' ) {
-					$dofe_level = strtolower( (string) $cohort['dofe_level'] );
-				}
-				if ( $transport_mode === '' ) {
-					$transport_mode = $this->normalizeTransportMode( (string) $cohort['transport_mode'] );
-				}
-			}
 
 			if ( $filter_level !== '' && $dofe_level !== $filter_level ) {
 				continue;
@@ -144,9 +130,9 @@ class TeamReadinessService {
 					'team_post_id'     => $team_id,
 					'team_code'        => $team_code !== '' ? $team_code : (string) $team_post->post_title,
 					'team_title'       => (string) $team_post->post_title,
-					'cohort_id'        => $cohort_id > 0 ? $cohort_id : null,
-					'cohort_name'      => $cohort !== null ? (string) $cohort['name'] : null,
-					'cohort_status'    => $cohort !== null ? (string) $cohort['cohort_status'] : null,
+					'cohort_id'        => null,
+					'cohort_name'      => null,
+					'cohort_status'    => null,
 					'dofe_level'       => $dofe_level,
 					'transport_mode'   => $transport_mode,
 					'stage'            => $stage,
@@ -154,61 +140,6 @@ class TeamReadinessService {
 					'expedition_code'  => $expedition !== null ? (string) ( $expedition['ems_event_code'] ?? $expedition['ems_expedition_code'] ?? '' ) : '',
 					'expedition_title' => $expedition !== null ? (string) ( $expedition['post_title'] ?? '' ) : '',
 					'expedition_date'  => $expedition_date,
-				),
-				$members,
-				$tutor_active
-			);
-		}
-
-		// 2. Unscheduled forming cohorts from ems_cohorts.
-		$cohort_filters = array();
-		if ( $filter_level !== '' ) {
-			$cohort_filters['dofe_level'] = $filter_level;
-		}
-		if ( $filter_exp_id > 0 ) {
-			$cohort_filters['expedition_id'] = $filter_exp_id;
-		}
-
-		$all_cohorts = $this->cohorts->listByFilters( $cohort_filters );
-		foreach ( $all_cohorts as $cohort ) {
-			$cohort_id = (int) $cohort['id'];
-			$has_p     = ! empty( $cohort['practice_team_post_id'] );
-			$has_q     = ! empty( $cohort['qualifier_team_post_id'] );
-
-			// Skip cohorts that already have team CPT posts represented above unless forming with no teams.
-			if ( $has_p && $has_q ) {
-				continue;
-			}
-			if ( isset( $linked_cohort_ids[ $cohort_id ] ) && $cohort['cohort_status'] !== 'forming' ) {
-				continue;
-			}
-			if ( $has_p || $has_q ) {
-				continue;
-			}
-
-			$cohort_transport = $this->normalizeTransportMode( (string) $cohort['transport_mode'] );
-			if ( $filter_transport !== '' && $cohort_transport !== $filter_transport ) {
-				continue;
-			}
-
-			$members = $this->getActiveCohortMembers( $cohort_id );
-
-			$results[] = $this->buildReadinessRecord(
-				array(
-					'record_type'      => 'forming_cohort',
-					'team_post_id'     => null,
-					'team_code'        => (string) $cohort['name'],
-					'team_title'       => (string) $cohort['name'],
-					'cohort_id'        => $cohort_id,
-					'cohort_name'      => (string) $cohort['name'],
-					'cohort_status'    => (string) $cohort['cohort_status'],
-					'dofe_level'       => strtolower( (string) $cohort['dofe_level'] ),
-					'transport_mode'   => $cohort_transport,
-					'stage'            => $filter_stage !== '' ? $filter_stage : 'unscheduled',
-					'expedition_id'    => null,
-					'expedition_code'  => '',
-					'expedition_title' => '',
-					'expedition_date'  => '',
 				),
 				$members,
 				$tutor_active

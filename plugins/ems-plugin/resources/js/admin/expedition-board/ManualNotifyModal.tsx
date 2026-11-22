@@ -43,6 +43,14 @@ export interface DispatchResponse extends DispatchModalResult {
   errors?: Array<{ expedition_signup_id?: number; reason?: string }>;
 }
 
+function normalizeTransportOption(raw: string): string {
+  const n = (raw || '').trim().toLowerCase();
+  if (n === 'foot' || n === 'walking' || n === 'hillwalking') return 'hillwalking';
+  if (n === 'canoe' || n === 'paddle' || n === 'paddling') return 'paddling';
+  if (n === 'bike' || n === 'cycling' || n === 'biking') return 'biking';
+  return n;
+}
+
 export const ManualNotifyModal: React.FC<ManualNotifyModalProps> = ({
   isOpen,
   onClose,
@@ -70,7 +78,9 @@ export const ManualNotifyModal: React.FC<ManualNotifyModalProps> = ({
 
   const [scope, setScope] = useState<'cohort' | 'all'>(resolvedInitialScope);
   const [selectedLevel, setSelectedLevel] = useState<string>(dofeLevel || '');
-  const [selectedTransport, setSelectedTransport] = useState<string>(transportMode || '');
+  const [selectedTransport, setSelectedTransport] = useState<string>(
+    normalizeTransportOption(transportMode || '')
+  );
 
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [loadingPreview, setLoadingPreview] = useState<boolean>(false);
@@ -85,7 +95,7 @@ export const ManualNotifyModal: React.FC<ManualNotifyModalProps> = ({
     if (!isOpen) return;
     setScope(resolvedInitialScope);
     setSelectedLevel(dofeLevel || '');
-    setSelectedTransport(transportMode || '');
+    setSelectedTransport(normalizeTransportOption(transportMode || ''));
     setDispatchError(null);
     setDispatchResult(null);
   }, [isOpen, resolvedInitialScope, dofeLevel, transportMode]);

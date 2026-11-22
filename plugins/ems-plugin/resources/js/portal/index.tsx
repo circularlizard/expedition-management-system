@@ -68,9 +68,32 @@ interface OfferStage {
     expedition_id: number;
     expedition_name: string;
     event_code?: string;
+    team_post_id?: number;
+    team_code?: string;
+    teammates?: Teammate[];
     type: string;
     start_date: string;
     end_date: string;
+}
+
+function renderTeammateGroups(teammates: Teammate[]) {
+    const groups = new Map<string, string[]>();
+    for (const tm of teammates) {
+        const unit = (tm.patrol || '').trim();
+        const displayName = `${tm.first_name} ${tm.last_initial}`.trim();
+        if (!groups.has(unit)) groups.set(unit, []);
+        groups.get(unit)!.push(displayName);
+    }
+    return (
+        <ul className="ems-portal-teammate-groups">
+            {Array.from(groups.entries()).map(([unit, names]) => (
+                <li key={unit || '__none'} className="ems-portal-teammate-group">
+                    {unit && <span className="ems-portal-unit-pill">{unit}</span>}
+                    <span className="ems-portal-teammate-names">{names.join(', ')}</span>
+                </li>
+            ))}
+        </ul>
+    );
 }
 
 interface OfferRecord {
@@ -80,6 +103,7 @@ interface OfferRecord {
     team_name: string;
     dofe_level: string;
     transport_mode: string;
+    notification_status?: string;
     offer_status: 'pending' | 'accepted' | 'queried' | 'declined';
     offer_query_message?: string | null;
     offer_responded_at?: string | null;
@@ -642,6 +666,8 @@ export function PortalApp() {
                                     stages: Array<{
                                         stageLabel: string;
                                         eventCode: string;
+                                        teamCode?: string;
+                                        teammates?: Teammate[];
                                         startDate: string;
                                         endDate: string;
                                         event?: EventData;
@@ -680,6 +706,8 @@ export function PortalApp() {
                                         return {
                                             stageLabel,
                                             eventCode: st.event_code || matchedEv?.event_code || st.expedition_name,
+                                            teamCode: st.team_code || '',
+                                            teammates: st.teammates,
                                             startDate: st.start_date || matchedEv?.start_date || '',
                                             endDate: st.end_date || matchedEv?.end_date || '',
                                             event: matchedEv,
@@ -706,6 +734,8 @@ export function PortalApp() {
                                                     ? 'Qualifier'
                                                     : capitalizeLabel(ev.type) || 'Expedition',
                                             eventCode: ev.event_code || ev.name,
+                                            teamCode: explorerDetail.team?.team_code || '',
+                                            teammates: undefined as Teammate[] | undefined,
                                             startDate: ev.start_date,
                                             endDate: ev.end_date,
                                             event: ev,
@@ -741,46 +771,33 @@ export function PortalApp() {
                                                 <div key={teamItem.key} className="ems-portal-offer-card">
                                                     <div className="ems-portal-offer-card__header">
                                                         <h3 className="ems-portal-offer-card__title">{teamItem.title}</h3>
-                                                        {showDeadlinePill && offer?.deadline?.communicated_date && (
-                                                            <span className="ems-portal-deadline-pill">
-                                                                Respond by {formatOrdinalDate(offer.deadline.communicated_date)}
-                                                            </span>
-                                                        )}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                            {offer && offer.offer_status === 'pending' && offer.notification_status === 'notified' && (
+                                                                <span className="ems-portal-status-pill ems-portal-status-pill--info">
+                                                                    Offer Sent
+                                                                </span>
+                                                            )}
+                                                            {showDeadlinePill && offer?.deadline?.communicated_date && (
+                                                                <span className="ems-portal-deadline-pill">
+                                                                    Respond by {formatOrdinalDate(offer.deadline.communicated_date)}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
 
-                                                    {/* Your Teammates */}
-                                                    <div style={{ marginBottom: '12px' }}>
-                                                        <div className="ems-portal-offer-section-label">Your Teammates</div>
-                                                        {explorerDetail.team && explorerDetail.team.teammates.length > 0 ? (
-                                                            (() => {
-                                                                const groups = new Map<string, string[]>();
-                                                                for (const tm of explorerDetail.team.teammates) {
-                                                                    const unit = (tm.patrol || '').trim();
-                                                                    const displayName = `${tm.first_name} ${tm.last_initial}`.trim();
-                                                                    if (!groups.has(unit)) groups.set(unit, []);
-                                                                    groups.get(unit)!.push(displayName);
-                                                                }
-                                                                return (
-                                                                    <ul className="ems-portal-teammate-groups">
-                                                                        {Array.from(groups.entries()).map(([unit, names]) => (
-                                                                            <li key={unit || '__none'} className="ems-portal-teammate-group">
-                                                                                {unit && (
-                                                                                    <span className="ems-portal-unit-pill">{unit}</span>
-                                                                                )}
-                                                                                <span className="ems-portal-teammate-names">
-                                                                                    {names.join(', ')}
-                                                                                </span>
-                                                                            </li>
-                                                                        ))}
-                                                                    </ul>
-                                                                );
-                                                            })()
-                                                        ) : (
-                                                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-                                                                Teammates will appear here once allocated.
-                                                            </p>
-                                                        )}
-                                                    </div>
+                                                    {/* Your Teammates (fallback when stages do not carry per-stage teammates) */}
+                                                    {!teamItem.stages.some((st) => Array.isArray(st.teammates)) && (
+                                                        <div style={{ marginBottom: '12px' }}>
+                                                            <div className="ems-portal-offer-section-label">Your Teammates</div>
+                                                            {explorerDetail.team && explorerDetail.team.teammates.length > 0 ? (
+                                                                renderTeammateGroups(explorerDetail.team.teammates)
+                                                            ) : (
+                                                                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                                                                    Teammates will appear here once allocated.
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
 
                                                     {/* Place Offer Status / Actions */}
                                                     {offer && (
@@ -971,6 +988,14 @@ export function PortalApp() {
                                                                             <span className="ems-portal-stage-badge">
                                                                                 {st.stageLabel}
                                                                             </span>
+                                                                            {st.teamCode && (
+                                                                                <span
+                                                                                    className="ems-portal-stage-badge"
+                                                                                    style={{ background: '#e0e7ff', color: '#3730a3' }}
+                                                                                >
+                                                                                    {st.teamCode}
+                                                                                </span>
+                                                                            )}
                                                                             <span className="ems-portal-nested-exp-card__code">
                                                                                 {st.stageLabel} · {st.eventCode}
                                                                             </span>
@@ -989,6 +1014,21 @@ export function PortalApp() {
                                                                                 </div>
                                                                             )}
                                                                         </div>
+
+                                                                        {Array.isArray(st.teammates) && (
+                                                                            <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+                                                                                <div className="ems-portal-offer-section-label" style={{ marginBottom: '4px' }}>
+                                                                                    Teammates{st.teamCode ? ` (${st.teamCode})` : ''}
+                                                                                </div>
+                                                                                {st.teammates.length > 0 ? (
+                                                                                    renderTeammateGroups(st.teammates)
+                                                                                ) : (
+                                                                                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                                                                                        Teammates will appear here once allocated.
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
 
                                                                         {hasWhatsApp && ev && (
                                                                             <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

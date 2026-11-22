@@ -383,16 +383,21 @@ class Admin_View_Controller {
 		// Teams & Training.
 		$teams = array();
 		if ( $scout_id > 0 ) {
-			$tm_table = $wpdb->prefix . 'ems_team_members';
-			$c_table  = $wpdb->prefix . 'ems_cohorts';
+			$tm_table  = $wpdb->prefix . 'ems_team_members';
 			$team_rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT tm.id, tm.team_post_id, tm.cohort_id, tm.notification_status, tm.availability_override,
-					        c.name AS cohort_name, c.dofe_level, c.transport_mode, c.cohort_status,
-					        t.post_title AS team_name
+					"SELECT tm.id, tm.team_post_id, 0 AS cohort_id, tm.notification_status, tm.availability_override,
+					        COALESCE(NULLIF(pm_code.meta_value, ''), t.post_title) AS cohort_name,
+					        pm_lvl.meta_value AS dofe_level,
+					        pm_tr.meta_value AS transport_mode,
+					        'active' AS cohort_status,
+					        COALESCE(NULLIF(pm_code.meta_value, ''), t.post_title) AS team_name
 					 FROM {$tm_table} tm
-					 LEFT JOIN {$c_table} c ON tm.cohort_id = c.id
 					 LEFT JOIN {$wpdb->posts} t ON tm.team_post_id = t.ID
+					 LEFT JOIN {$wpdb->posts} exp ON t.post_parent = exp.ID
+					 LEFT JOIN {$wpdb->postmeta} pm_code ON pm_code.post_id = t.ID AND pm_code.meta_key = 'ems_team_code'
+					 LEFT JOIN {$wpdb->postmeta} pm_lvl ON pm_lvl.post_id = exp.ID AND pm_lvl.meta_key = 'ems_level'
+					 LEFT JOIN {$wpdb->postmeta} pm_tr ON pm_tr.post_id = exp.ID AND pm_tr.meta_key = 'ems_transport'
 					 WHERE tm.scout_id = %d
 					 ORDER BY tm.id DESC",
 					$scout_id

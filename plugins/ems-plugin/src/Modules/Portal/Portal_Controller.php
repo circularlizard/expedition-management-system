@@ -923,13 +923,38 @@ class Portal_Controller {
 		if ( $action === 'query' ) {
 			$admin_email = (string) get_option( 'admin_email', '' );
 			if ( $admin_email !== '' && function_exists( 'wp_mail' ) ) {
-				$cohort_name = (string) ( $wpdb->get_var(
-					$wpdb->prepare( "SELECT name FROM {$wpdb->prefix}ems_cohorts WHERE id = %d", $cohort_id )
-				) ?: "Team #{$cohort_id}" );
-				$subject = sprintf( '[EMS] Place Offer Query — %s (Signup #%d)', $cohort_name, $expedition_signup_id );
+				$posts_table    = $wpdb->prefix . 'posts';
+				$postmeta_table = $wpdb->prefix . 'postmeta';
+				if ( $team_post_id > 0 ) {
+					$team_label = (string) ( $wpdb->get_var(
+						$wpdb->prepare(
+							"SELECT COALESCE(NULLIF(pm.meta_value, ''), p.post_title)
+							 FROM {$posts_table} p
+							 LEFT JOIN {$postmeta_table} pm ON pm.post_id = p.ID AND pm.meta_key = 'ems_team_code'
+							 WHERE p.ID = %d LIMIT 1",
+							$team_post_id
+						)
+					) ?: '' );
+				} else {
+					$team_label = (string) ( $wpdb->get_var(
+						$wpdb->prepare(
+							"SELECT COALESCE(NULLIF(pm.meta_value, ''), p.post_title)
+							 FROM {$wpdb->prefix}ems_team_members tm
+							 INNER JOIN {$posts_table} p ON p.ID = tm.team_post_id
+							 LEFT JOIN {$postmeta_table} pm ON pm.post_id = p.ID AND pm.meta_key = 'ems_team_code'
+							 WHERE tm.expedition_signup_id = %d
+							 ORDER BY tm.id ASC LIMIT 1",
+							$expedition_signup_id
+						)
+					) ?: '' );
+				}
+				if ( $team_label === '' ) {
+					$team_label = $team_post_id > 0 ? "Team #{$team_post_id}" : "Signup #{$expedition_signup_id}";
+				}
+				$subject = sprintf( '[EMS] Place Offer Query — %s (Signup #%d)', $team_label, $expedition_signup_id );
 				$body_tx = sprintf(
 					"A Place Offer query was submitted.\n\nTeam: %s\nExpedition Signup ID: %d\nScout ID: %d\nMessage:\n%s\n",
-					$cohort_name,
+					$team_label,
 					$expedition_signup_id,
 					$scout_id,
 					$message
@@ -959,14 +984,11 @@ class Portal_Controller {
 	 */
 	private function build_offers_for_scout( object $wpdb, int $scout_id ): array {
 		$tm_table = $wpdb->prefix . 'ems_team_members';
-		$c_table  = $wpdb->prefix . 'ems_cohorts';
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT tm.*, c.name AS cohort_name, c.dofe_level, c.transport_mode,
-						t.post_title AS team_name, exp.ID AS expedition_id, exp.post_title AS expedition_name
+				"SELECT tm.*, t.post_title AS team_name, exp.ID AS expedition_id, exp.post_title AS expedition_name
 				FROM {$tm_table} tm
-				LEFT JOIN {$c_table} c ON c.id = tm.cohort_id
 				LEFT JOIN {$wpdb->posts} t ON t.ID = tm.team_post_id
 				LEFT JOIN {$wpdb->posts} exp ON exp.ID = t.post_parent
 				WHERE tm.scout_id = %d
@@ -976,42 +998,105 @@ class Portal_Controller {
 			ARRAY_A
 		) ?: array();
 
-		$grouped      = array();
-		$deadline_svc = new \EMS\Services\DeadlinePolicyService();
+		$grouped            = array();
+		$deadline_svc       = new \EMS\Services\DeadlinePolicyService();
+		$teammates_by_team  = array();
+		$signups_table      = $wpdb->prefix . 'ems_expedition_signups';
 		foreach ( $rows as $row ) {
-			$cid    = (int) ( $row['cohort_id'] ?? 0 );
 			$esid   = (int) ( $row['expedition_signup_id'] ?? 0 );
 			$tpid   = (int) ( $row['team_post_id'] ?? 0 );
 			$exp_id = (int) ( $row['expedition_id'] ?? 0 );
-			$key    = $esid > 0 ? "signup:{$esid}" : ( $cid > 0 ? "cohort:{$cid}" : "team:{$tpid}" );
+			$t_code = $tpid > 0 ? trim( (string) get_post_meta( $tpid, 'ems_team_code', true ) ) : '';
+			if ( strtoupper( $t_code ) === 'UNALLOCATED' ) {
+				continue;
+			}
+			$resolved_team_code = $t_code ?: (string) ( $row['team_name'] ?? '' );
+
+			if ( $tpid > 0 && ! isset( $teammates_by_team[ $tpid ] ) ) {
+				$stage_teammates = array();
+				$tm_ids          = $wpdb->get_col(
+					$wpdb->prepare(
+						"SELECT DISTINCT scout_id FROM {$tm_table} WHERE team_post_id = %d AND scout_id != %d",
+						$tpid,
+						$scout_id
+					)
+				);
+				foreach ( ( $tm_ids ?: array() ) as $tm_id ) {
+					$tm_id       = (int) $tm_id;
+					$tm_explorer = $this->explorer_repo->find_by_scout_id( $tm_id );
+					if ( $tm_explorer ) {
+						$ln                = (string) ( $tm_explorer['last_name'] ?? '' );
+						$stage_teammates[] = array(
+							'first_name'   => (string) ( $tm_explorer['first_name'] ?? '' ),
+							'last_initial' => '' !== $ln ? mb_substr( $ln, 0, 1 ) . '.' : '',
+							'patrol'       => (string) ( $tm_explorer['patrol'] ?? '' ),
+						);
+						continue;
+					}
+					$signup_row = $wpdb->get_row(
+						$wpdb->prepare(
+							"SELECT first_name, last_name, unit_name FROM {$signups_table} WHERE scout_id = %d ORDER BY id DESC LIMIT 1",
+							$tm_id
+						),
+						ARRAY_A
+					);
+					if ( $signup_row ) {
+						$ln                = (string) ( $signup_row['last_name'] ?? '' );
+						$stage_teammates[] = array(
+							'first_name'   => (string) ( $signup_row['first_name'] ?? '' ),
+							'last_initial' => '' !== $ln ? mb_substr( $ln, 0, 1 ) . '.' : '',
+							'patrol'       => (string) ( $signup_row['unit_name'] ?? '' ),
+						);
+					}
+				}
+				$teammates_by_team[ $tpid ] = $stage_teammates;
+			}
+			$stage_teammates = $tpid > 0 ? ( $teammates_by_team[ $tpid ] ?? array() ) : array();
+
+			$key = $esid > 0 ? "signup:{$esid}" : "team:{$tpid}";
 			if ( ! isset( $grouped[ $key ] ) ) {
 				$notified_at     = $row['notified_at'] ?? null;
 				$eval            = $deadline_svc->evaluate_cutoff( 'place_offer', $notified_at ? (string) $notified_at : null );
-				$level           = $row['dofe_level'] ?: ( $exp_id > 0 ? ( get_post_meta( $exp_id, 'ems_level', true ) ?: '' ) : '' );
+				$level           = $exp_id > 0 ? (string) ( get_post_meta( $exp_id, 'ems_level', true ) ?: '' ) : '';
+				$transport       = $exp_id > 0 ? (string) ( get_post_meta( $exp_id, 'ems_transport', true ) ?: '' ) : '';
 				$grouped[ $key ] = array(
-					'cohort_id'            => $cid,
+					'cohort_id'            => 0,
 					'expedition_signup_id' => $esid,
 					'team_post_id'         => $tpid,
-					'team_name'            => $row['cohort_name'] ?: ( $row['team_name'] ?: ( $row['expedition_name'] ?: "Team #{$tpid}" ) ),
+					'team_name'            => $resolved_team_code ?: ( $row['expedition_name'] ?: "Team #{$tpid}" ),
 					'dofe_level'           => $level,
-					'transport_mode'       => $row['transport_mode'] ?? '',
-					'offer_status'         => $row['offer_status'] ?: 'pending',
+					'transport_mode'       => $transport,
+					'notification_status'  => (string) ( $row['notification_status'] ?? 'draft' ),
+					'offer_status'         => (string) ( $row['offer_status'] ?: 'pending' ),
 					'offer_query_message'  => $row['offer_query_message'] ?? null,
 					'offer_responded_at'   => $row['offer_responded_at'] ?? null,
 					'notified_at'          => $notified_at,
 					'deadline'             => $eval,
 					'stages'               => array(),
+					'_team_codes'          => array(),
 				);
+			}
+			if ( '' !== $resolved_team_code && ! in_array( $resolved_team_code, $grouped[ $key ]['_team_codes'], true ) ) {
+				$grouped[ $key ]['_team_codes'][] = $resolved_team_code;
+				$grouped[ $key ]['team_name']     = implode( ' / ', $grouped[ $key ]['_team_codes'] );
 			}
 			$grouped[ $key ]['stages'][] = array(
 				'expedition_id'   => $exp_id,
 				'expedition_name' => $row['expedition_name'] ?? '',
+				'team_post_id'    => $tpid,
+				'team_code'       => $resolved_team_code,
+				'teammates'       => $stage_teammates,
 				'type'            => $exp_id > 0 ? ( get_post_meta( $exp_id, 'ems_type', true ) ?: '' ) : '',
 				'start_date'      => $exp_id > 0 ? ( get_post_meta( $exp_id, 'ems_start_date', true ) ?: '' ) : '',
 				'end_date'        => $exp_id > 0 ? ( get_post_meta( $exp_id, 'ems_end_date', true ) ?: '' ) : '',
 			);
 		}
 
-		return array_values( $grouped );
+		$result = array();
+		foreach ( $grouped as $entry ) {
+			unset( $entry['_team_codes'] );
+			$result[] = $entry;
+		}
+		return $result;
 	}
 }

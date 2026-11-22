@@ -53,7 +53,7 @@ function getOfferStatusBadge(member: any): { label: string; bg: string; color: s
   if (offer === 'accepted') return { label: 'Accepted', bg: '#dcfce7', color: '#166534', border: '#86efac' };
   if (offer === 'queried') return { label: 'Queried', bg: '#fef3c7', color: '#92400e', border: '#f59e0b' };
   if (offer === 'declined') return { label: 'Declined', bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' };
-  if (notif === 'notified') return { label: 'Notified', bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' };
+  if (notif === 'notified') return { label: 'Offer Sent', bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' };
   if (notif === 're_notify_needed') return { label: 'Re-notify', bg: '#fef3c7', color: '#92400e', border: '#f59e0b' };
   return { label: 'Draft', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
 }
@@ -69,6 +69,8 @@ function extractWishlistFromPrefs(prefsJson: string | null): string {
 }
 
 export default function CohortsContinuityView({
+  level,
+  transport,
   rootUrl,
   nonce,
   units,
@@ -80,6 +82,7 @@ export default function CohortsContinuityView({
   onRefreshAll,
   onFeedback,
   onViewAsn,
+  onOpenNotifyModal,
 }: CohortsContinuityViewProps) {
   const unitDistrictMap = useMemo(() => getUnitDistrictMap(units), [units]);
 
@@ -814,6 +817,24 @@ export default function CohortsContinuityView({
                         onClick={() => handleAddSelected(team.team_post_id || team.id, team.name)}
                       >
                         <FontAwesomeIcon icon={faPlus} /> Add {selectedSignupIds.length} Selected
+                      </button>
+                    )}
+                    {onOpenNotifyModal && (
+                      <button
+                        type="button"
+                        className="button button-small"
+                        disabled={busy}
+                        onClick={() =>
+                          onOpenNotifyModal({
+                            scope: 'cohort',
+                            cohortId: team.team_post_id || team.id,
+                            cohortName: team.name,
+                            level,
+                            transport,
+                          })
+                        }
+                      >
+                        Send Offer Emails
                       </button>
                     )}
                     {isPractice && qualifierEvents.length > 0 && (

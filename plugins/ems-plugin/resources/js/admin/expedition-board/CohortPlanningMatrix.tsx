@@ -103,7 +103,7 @@ export default function CohortPlanningMatrix({
       ]);
 
       if (!cohortsResp.ok) {
-        throw new Error(`Failed to load cohorts (HTTP ${cohortsResp.status})`);
+        throw new Error(`Failed to load teams (HTTP ${cohortsResp.status})`);
       }
       if (!practiceResp.ok) {
         throw new Error(`Failed to load practice matrix (HTTP ${practiceResp.status})`);

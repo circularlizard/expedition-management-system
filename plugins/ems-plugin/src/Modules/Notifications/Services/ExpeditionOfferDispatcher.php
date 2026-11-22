@@ -313,14 +313,14 @@ class ExpeditionOfferDispatcher {
 	 * @return array<int, array<string, mixed>>
 	 */
 	private function fetch_target_explorers( array $params ): array {
-		$wpdb                 = $this->get_wpdb();
-		$signups_table        = $wpdb->prefix . 'ems_expedition_signups';
-		$explorers_table      = $wpdb->prefix . 'ems_osm_explorers';
-		$cohort_members_table = $wpdb->prefix . 'ems_cohort_members';
-		$cohorts_table        = $wpdb->prefix . 'ems_cohorts';
-		$team_members_table   = $wpdb->prefix . 'ems_team_members';
+		$wpdb               = $this->get_wpdb();
+		$signups_table      = $wpdb->prefix . 'ems_expedition_signups';
+		$explorers_table    = $wpdb->prefix . 'ems_osm_explorers';
+		$team_members_table = $wpdb->prefix . 'ems_team_members';
+		$posts_table        = $wpdb->posts;
+		$postmeta_table     = $wpdb->postmeta;
 
-		$where = array();
+		$where = array( "tm.team_post_id > 0", "t.post_type = 'team'", "t.post_status = 'publish'" );
 		$args  = array();
 
 		$signup_ids = $this->sanitize_id_list( $params['expedition_signup_ids'] ?? array() );
@@ -330,20 +330,15 @@ class ExpeditionOfferDispatcher {
 			$args         = array_merge( $args, $signup_ids );
 		}
 
-		$cohort_id = isset( $params['cohort_id'] ) ? (int) $params['cohort_id'] : 0;
-		if ( $cohort_id > 0 ) {
-			$where[] = 'c.id = %d';
-			$args[]  = $cohort_id;
+		$team_filter_id = isset( $params['team_post_id'] ) ? (int) $params['team_post_id'] : ( isset( $params['cohort_id'] ) ? (int) $params['cohort_id'] : 0 );
+		if ( $team_filter_id > 0 ) {
+			$where[] = 'tm.team_post_id = %d';
+			$args[]  = $team_filter_id;
 		}
 
 		if ( ! empty( $params['dofe_level'] ) ) {
 			$where[] = 's.dofe_level = %s';
 			$args[]  = strtolower( sanitize_text_field( (string) $params['dofe_level'] ) );
-		}
-
-		if ( ! empty( $params['transport_mode'] ) ) {
-			$where[] = 'c.transport_mode = %s';
-			$args[]  = strtolower( sanitize_text_field( (string) $params['transport_mode'] ) );
 		}
 
 		$sql = "SELECT
@@ -356,25 +351,23 @@ class ExpeditionOfferDispatcher {
 				COALESCE(NULLIF(e.first_aid_level, ''), NULLIF(s.first_aid_status, ''), 'none') AS resolved_first_aid_level,
 				s.first_aid_expiry,
 				s.dofe_level,
-				cm.member_status,
-				cm.availability_override AS cohort_availability_override,
-				c.id AS cohort_id,
-				c.name AS cohort_name,
-				c.transport_mode,
-				c.practice_expedition_id,
-				c.qualifier_expedition_id,
-				c.practice_team_post_id,
-				c.qualifier_team_post_id
-			FROM {$signups_table} s
+				tm.team_post_id,
+				t.post_title AS team_title,
+				exp.ID AS expedition_id,
+				pm_trans.meta_value AS expedition_transport,
+				pm_type.meta_value AS expedition_type,
+				pm_tcode.meta_value AS team_code
+			FROM {$team_members_table} tm
+			INNER JOIN {$posts_table} t ON t.ID = tm.team_post_id
+			INNER JOIN {$posts_table} exp ON exp.ID = t.post_parent
+			INNER JOIN {$signups_table} s ON (s.id = tm.expedition_signup_id OR (tm.expedition_signup_id IS NULL AND tm.scout_id > 0 AND s.scout_id = tm.scout_id))
 			LEFT JOIN {$explorers_table} e ON (s.scout_id > 0 AND s.scout_id = e.scout_id)
-			LEFT JOIN {$cohort_members_table} cm ON cm.expedition_signup_id = s.id
-			LEFT JOIN {$cohorts_table} c ON c.id = cm.cohort_id";
+			LEFT JOIN {$postmeta_table} pm_trans ON pm_trans.post_id = exp.ID AND pm_trans.meta_key = 'ems_transport'
+			LEFT JOIN {$postmeta_table} pm_type ON pm_type.post_id = exp.ID AND pm_type.meta_key = 'ems_type'
+			LEFT JOIN {$postmeta_table} pm_tcode ON pm_tcode.post_id = t.ID AND pm_tcode.meta_key = 'ems_team_code'";
 
-		if ( ! empty( $where ) ) {
-			$sql .= ' WHERE ' . implode( ' AND ', $where );
-		}
-
-		$sql .= ' ORDER BY s.id ASC';
+		$sql .= ' WHERE ' . implode( ' AND ', $where );
+		$sql .= ' ORDER BY s.id ASC, tm.id ASC';
 
 		if ( ! empty( $args ) ) {
 			$sql = $wpdb->prepare( $sql, ...$args );
@@ -385,13 +378,51 @@ class ExpeditionOfferDispatcher {
 			return array();
 		}
 
-		// Deduplicate by expedition_signup_id in case an explorer appears in multiple rows.
+		$normalize_tr = static function ( string $raw ): string {
+			$n = strtolower( trim( $raw ) );
+			if ( $n === 'hillwalking' || $n === 'walking' ) return 'foot';
+			if ( $n === 'canoe' || $n === 'paddle' ) return 'paddling';
+			if ( $n === 'bike' || $n === 'cycling' ) return 'biking';
+			return $n !== '' ? $n : 'foot';
+		};
+		$filter_transport = ! empty( $params['transport_mode'] )
+			? $normalize_tr( sanitize_text_field( (string) $params['transport_mode'] ) )
+			: '';
+
+		// Deduplicate by expedition_signup_id and aggregate practice/qualifier team & expedition IDs.
 		$by_signup = array();
 		foreach ( $rows as $row ) {
+			$tcode = strtoupper( trim( (string) ( $row['team_code'] ?? $row['team_title'] ?? '' ) ) );
+			if ( $tcode === 'UNALLOCATED' ) {
+				continue;
+			}
+			$tr = $normalize_tr( (string) ( $row['expedition_transport'] ?? '' ) );
+			if ( $filter_transport !== '' && $tr !== $filter_transport ) {
+				continue;
+			}
 			$sid = (int) $row['expedition_signup_id'];
 			if ( ! isset( $by_signup[ $sid ] ) ) {
-				$by_signup[ $sid ] = $row;
+				$row['transport_mode']          = $tr;
+				$row['practice_expedition_id']  = null;
+				$row['qualifier_expedition_id'] = null;
+				$row['practice_team_post_id']   = null;
+				$row['qualifier_team_post_id']  = null;
+				$row['cohort_id']               = (int) $row['team_post_id'];
+				$row['cohort_name']             = (string) ( $row['team_code'] ?: $row['team_title'] );
+				$by_signup[ $sid ]              = $row;
 			}
+			$ev_type = strtolower( trim( (string) ( $row['expedition_type'] ?? '' ) ) );
+			if ( $ev_type === 'practice' ) {
+				$by_signup[ $sid ]['practice_expedition_id'] = (int) $row['expedition_id'];
+				$by_signup[ $sid ]['practice_team_post_id']  = (int) $row['team_post_id'];
+			} else {
+				$by_signup[ $sid ]['qualifier_expedition_id'] = (int) $row['expedition_id'];
+				$by_signup[ $sid ]['qualifier_team_post_id']  = (int) $row['team_post_id'];
+			}
+		}
+
+		if ( empty( $by_signup ) ) {
+			return array();
 		}
 
 		$target_ids   = array_keys( $by_signup );
@@ -401,7 +432,7 @@ class ExpeditionOfferDispatcher {
 		foreach ( $by_signup as $sid => $row ) {
 			$tm_info = $team_status[ $sid ] ?? array(
 				'notification_status'   => 'draft',
-				'availability_override' => (string) ( $row['cohort_availability_override'] ?? 'matched' ),
+				'availability_override' => 'matched',
 				'team_post_ids'         => array(),
 			);
 
@@ -421,13 +452,13 @@ class ExpeditionOfferDispatcher {
 				'first_aid_expiry'         => isset( $row['first_aid_expiry'] ) ? (string) $row['first_aid_expiry'] : null,
 				'dofe_level'               => (string) ( $row['dofe_level'] ?? '' ),
 				'transport_mode'           => (string) ( $row['transport_mode'] ?? 'foot' ),
-				'member_status'            => (string) ( $row['member_status'] ?? 'active' ),
-				'cohort_id'                => isset( $row['cohort_id'] ) && $row['cohort_id'] !== null ? (int) $row['cohort_id'] : null,
-				'cohort_name'              => isset( $row['cohort_name'] ) ? (string) $row['cohort_name'] : null,
-				'practice_expedition_id'   => isset( $row['practice_expedition_id'] ) && $row['practice_expedition_id'] !== null ? (int) $row['practice_expedition_id'] : null,
-				'qualifier_expedition_id'  => isset( $row['qualifier_expedition_id'] ) && $row['qualifier_expedition_id'] !== null ? (int) $row['qualifier_expedition_id'] : null,
-				'practice_team_post_id'    => isset( $row['practice_team_post_id'] ) && $row['practice_team_post_id'] !== null ? (int) $row['practice_team_post_id'] : null,
-				'qualifier_team_post_id'   => isset( $row['qualifier_team_post_id'] ) && $row['qualifier_team_post_id'] !== null ? (int) $row['qualifier_team_post_id'] : null,
+				'member_status'            => 'active',
+				'cohort_id'                => (int) $row['cohort_id'],
+				'cohort_name'              => (string) $row['cohort_name'],
+				'practice_expedition_id'   => $row['practice_expedition_id'],
+				'qualifier_expedition_id'  => $row['qualifier_expedition_id'],
+				'practice_team_post_id'    => $row['practice_team_post_id'],
+				'qualifier_team_post_id'   => $row['qualifier_team_post_id'],
 				'notification_status'      => $tm_info['notification_status'],
 				'availability_override'    => $avail,
 				'team_post_ids'            => $tm_info['team_post_ids'],
@@ -503,24 +534,26 @@ class ExpeditionOfferDispatcher {
 		}
 
 		$wpdb                 = $this->get_wpdb();
-		$signups_table        = $wpdb->prefix . 'ems_expedition_signups';
-		$explorers_table      = $wpdb->prefix . 'ems_osm_explorers';
-		$cohort_members_table = $wpdb->prefix . 'ems_cohort_members';
+		$signups_table      = $wpdb->prefix . 'ems_expedition_signups';
+		$explorers_table    = $wpdb->prefix . 'ems_osm_explorers';
+		$team_members_table = $wpdb->prefix . 'ems_team_members';
 
 		$placeholders = implode( ', ', array_fill( 0, count( $cohort_ids ), '%d' ) );
 		$sql          = $wpdb->prepare(
 			"SELECT
-				cm.cohort_id,
-				cm.expedition_signup_id,
-				cm.member_status,
+				tm.team_post_id AS cohort_id,
+				tm.expedition_signup_id,
+				'active' AS member_status,
 				COALESCE(NULLIF(e.first_name, ''), s.explorer_first_name) AS first_name,
 				COALESCE(NULLIF(e.last_name, ''), s.explorer_last_name) AS last_name,
+				COALESCE(NULLIF(e.email, ''), NULLIF(s.explorer_email, ''), '') AS resolved_explorer_email,
+				COALESCE(NULLIF(e.parent_email, ''), NULLIF(s.parent_email, ''), '') AS resolved_parent_email,
 				COALESCE(NULLIF(e.first_aid_level, ''), NULLIF(s.first_aid_status, ''), 'none') AS resolved_first_aid_level,
 				s.first_aid_expiry
-			FROM {$signups_table} s
-			INNER JOIN {$cohort_members_table} cm ON cm.expedition_signup_id = s.id
+			FROM {$team_members_table} tm
+			INNER JOIN {$signups_table} s ON (s.id = tm.expedition_signup_id OR (tm.expedition_signup_id IS NULL AND tm.scout_id > 0 AND s.scout_id = tm.scout_id))
 			LEFT JOIN {$explorers_table} e ON (s.scout_id > 0 AND s.scout_id = e.scout_id)
-			WHERE cm.cohort_id IN ({$placeholders})
+			WHERE tm.team_post_id IN ({$placeholders})
 			ORDER BY first_name ASC, last_name ASC",
 			...$cohort_ids
 		);
@@ -774,12 +807,16 @@ class ExpeditionOfferDispatcher {
 			);
 		}
 
-		// Map earliest expedition date per cohort for First Aid expiry check.
+		// Map earliest expedition date and display label per team for readiness checks.
 		$cohort_exp_dates = array();
+		$team_labels      = array();
 		foreach ( $explorers as $exp ) {
 			$cid = (int) ( $exp['cohort_id'] ?? 0 );
 			if ( $cid <= 0 ) {
 				continue;
+			}
+			if ( empty( $team_labels[ $cid ] ) && ! empty( $exp['cohort_name'] ) ) {
+				$team_labels[ $cid ] = trim( (string) $exp['cohort_name'] );
 			}
 			foreach ( array( (int) ( $exp['practice_expedition_id'] ?? 0 ), (int) ( $exp['qualifier_expedition_id'] ?? 0 ) ) as $eid ) {
 				if ( $eid > 0 ) {
@@ -795,6 +832,7 @@ class ExpeditionOfferDispatcher {
 			$size            = count( $members );
 			$first_aid_count = 0;
 			$exp_date        = $cohort_exp_dates[ $cid ] ?? null;
+			$team_label      = ! empty( $team_labels[ $cid ] ) ? "Team {$team_labels[ $cid ]}" : sprintf( 'Team #%d', $cid );
 
 			foreach ( $members as $member ) {
 				$fa_level = strtolower( trim( (string) $member['resolved_first_aid_level'] ) );
@@ -812,7 +850,7 @@ class ExpeditionOfferDispatcher {
 				$warnings[] = array(
 					'code'      => 'team_size_out_of_range',
 					'severity'  => 'warning',
-					'message'   => sprintf( 'Cohort #%d has %d member(s), outside the DofE 4–7 range.', $cid, $size ),
+					'message'   => sprintf( '%s has %d member(s), outside the DofE 4–7 range.', $team_label, $size ),
 					'cohort_id' => $cid,
 					'count'     => $size,
 				);
@@ -822,7 +860,7 @@ class ExpeditionOfferDispatcher {
 				$warnings[] = array(
 					'code'      => 'insufficient_first_aid',
 					'severity'  => 'warning',
-					'message'   => sprintf( 'Cohort #%d has only %d valid First Aider(s) (minimum 2 required).', $cid, $first_aid_count ),
+					'message'   => sprintf( '%s has only %d valid First Aider(s) (minimum 2 required).', $team_label, $first_aid_count ),
 					'cohort_id' => $cid,
 					'count'     => $first_aid_count,
 				);
@@ -840,27 +878,6 @@ class ExpeditionOfferDispatcher {
 		string $notified_at,
 		int $notified_by
 	): void {
-		if ( $cohort_id !== null && $cohort_id > 0 ) {
-			$wpdb->query(
-				$wpdb->prepare(
-					"UPDATE {$team_table}
-					SET notification_status = 'notified',
-						notified_at = %s,
-						notified_by = %d,
-						offer_status = 'pending',
-						offer_query_message = NULL,
-						offer_responded_at = NULL,
-						offer_responded_by = NULL
-					WHERE expedition_signup_id = %d AND cohort_id = %d",
-					$notified_at,
-					$notified_by,
-					$expedition_signup_id,
-					$cohort_id
-				)
-			);
-			return;
-		}
-
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$team_table}

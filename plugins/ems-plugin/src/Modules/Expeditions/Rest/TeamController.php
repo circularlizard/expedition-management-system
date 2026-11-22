@@ -120,6 +120,16 @@ class TeamController {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/expeditions/teams-readiness',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_teams_readiness' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/notifications/expedition-offers/preview',
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -131,6 +141,26 @@ class TeamController {
 		register_rest_route(
 			self::NAMESPACE,
 			'/notifications/expedition-offers/dispatch',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'dispatch_notifications' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/expeditions/notifications/preview',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'preview_notifications' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/expeditions/notifications/dispatch',
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'dispatch_notifications' ),
