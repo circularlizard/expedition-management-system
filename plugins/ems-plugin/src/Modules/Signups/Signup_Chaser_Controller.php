@@ -346,8 +346,13 @@ class Signup_Chaser_Controller {
 			'missing_edofe_explorer_list' => $missing_edofe_explorers,
 		);
 
+		$resolved_unit_name = trim( (string) ( $unit_record['name'] ?? '' ) );
+		if ( $resolved_unit_name === '' ) {
+			$resolved_unit_name = $unit_name;
+		}
+
 		$replacements = array(
-			'{{unit_name}}'           => $unit_name,
+			'{{unit_name}}'           => $resolved_unit_name,
 			'{{site_name}}'           => $site_name,
 			'{{leader_email}}'        => $recipient,
 			'{{explorer_count}}'      => (string) count( $unsynced_explorers ),

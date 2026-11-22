@@ -444,4 +444,71 @@ class Signup_Chaser_ControllerTest extends EMSTestCase {
 		$this->assertStringContainsString( 'Amy Brown', $captured_mail['message'] );
 		$this->assertStringNotContainsString( '{{', $captured_mail['message'] );
 	}
+
+	public function test_send_chaser_renders_unit_name_instead_of_short_code_for_unit_name_token(): void {
+		Functions\when( 'get_option' )->alias(
+			static fn( string $key, $default = false ) => $key === 'ems_feature_flags' ? array() : $default
+		);
+		Functions\when( 'is_email' )->returnArg();
+		Functions\when( 'get_bloginfo' )->justReturn( 'SES' );
+		Functions\when( 'esc_html' )->returnArg();
+
+		$signup_repo = \Mockery::mock( Signup_Repository::class );
+		$unit_repo   = \Mockery::mock( Unit_Repository::class );
+
+		$unit_repo->shouldReceive( 'list_active_units' )->andReturn(
+			array(
+				array(
+					'unit_id'      => 10,
+					'name'         => 'Kelso ESU',
+					'short_code'   => 'BO-Kelso',
+					'leader_email' => 'leader@kelso.scouts.org.uk',
+				),
+			)
+		);
+
+		$signup_repo->shouldReceive( 'get_participant_signups' )->andReturn(
+			array(
+				array(
+					'id'                  => 1,
+					'scout_id'            => 0,
+					'is_synced_osm'       => false,
+					'unit_id'             => 10,
+					'unit_name'           => 'BO-Kelso',
+					'explorer_first_name' => 'Amy',
+					'explorer_last_name'  => 'Brown',
+					'dofe_level'          => 'bronze',
+					'signup_status'       => 'active',
+				),
+			)
+		);
+		$signup_repo->shouldReceive( 'get_expedition_signups' )->andReturn( array() );
+
+		$captured_mail = null;
+		Functions\when( 'wp_mail' )->alias(
+			static function ( $to, $subject, $message ) use ( &$captured_mail ): bool {
+				$captured_mail = array(
+					'to'      => $to,
+					'subject' => $subject,
+					'message' => $message,
+				);
+				return true;
+			}
+		);
+
+		$controller = new Signup_Chaser_Controller( $signup_repo, $unit_repo, new Email_Template_Service() );
+
+		$request = new \WP_REST_Request( 'POST', '/ems/v1/signups/send-chaser' );
+		$request->set_param( 'chaser_type', 'osm_share' );
+		$request->set_param( 'unit_name', 'BO-Kelso' );
+		$request->set_param( 'preview', false );
+		$request->set_param( 'subject_override', 'Action for {{unit_name}}' );
+		$request->set_param( 'body_override', '<p>Unit: {{unit_name}}</p>' );
+
+		$response = $controller->send_chaser( $request );
+		$this->assertInstanceOf( \WP_REST_Response::class, $response );
+		$this->assertNotNull( $captured_mail );
+		$this->assertSame( 'Action for Kelso ESU', $captured_mail['subject'] );
+		$this->assertSame( '<p>Unit: Kelso ESU</p>', $captured_mail['message'] );
+	}
 }
