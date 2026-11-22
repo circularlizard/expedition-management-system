@@ -84,6 +84,8 @@ export interface TeamReadinessTableProps {
   isLicScoped?: boolean;
   onSendReminder?: (record: TeamReadinessRecord) => void;
   onResolveQuery?: (member: TeamReadinessMember, record: TeamReadinessRecord) => void;
+  onOpenEvent?: (eventId: number) => void;
+  onOpenTeamBuilder?: (opts: { level?: string; transport?: string }) => void;
   loading?: boolean;
   emptyMessage?: string;
 }
@@ -221,6 +223,8 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
   isLicScoped = false,
   onSendReminder,
   onResolveQuery,
+  onOpenEvent,
+  onOpenTeamBuilder,
   loading = false,
   emptyMessage = 'No teams match the current filters.',
 }) => {
@@ -340,7 +344,25 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
                     <div className="ems-readiness-team-meta">
                       {record.team_code && (
                         <>
-                          <span>{record.team_code}</span>
+                          {onOpenTeamBuilder ? (
+                            <button
+                              type="button"
+                              className="button-link"
+                              style={{ padding: 0, fontSize: 'inherit' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenTeamBuilder({
+                                  level: record.dofe_level,
+                                  transport: record.transport_mode,
+                                });
+                              }}
+                              title="Open in Team Builder"
+                            >
+                              {record.team_code}
+                            </button>
+                          ) : (
+                            <span>{record.team_code}</span>
+                          )}
                           <span aria-hidden="true">·</span>
                         </>
                       )}
@@ -358,7 +380,20 @@ export const TeamReadinessTable: React.FC<TeamReadinessTableProps> = ({
                   <td>
                     {record.expedition_code || record.expedition_title ? (
                       <div className="ems-readiness-status" style={{ color: '#0f172a' }}>
-                        {record.expedition_code || record.expedition_title} · {stageLabel}
+                        {onOpenEvent && record.expedition_id ? (
+                          <button
+                            type="button"
+                            className="button-link"
+                            style={{ padding: 0, fontWeight: 600 }}
+                            onClick={() => onOpenEvent(record.expedition_id!)}
+                            title="Open event details"
+                          >
+                            {record.expedition_code || record.expedition_title}
+                          </button>
+                        ) : (
+                          record.expedition_code || record.expedition_title
+                        )}{' '}
+                        · {stageLabel}
                       </div>
                     ) : (
                       <div className="ems-readiness-status ems-readiness-status--muted">Unscheduled</div>

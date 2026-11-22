@@ -27,6 +27,7 @@ export interface StageMatrixViewProps {
   qualifierExplorers: MatrixExplorer[];
   onRefreshAll: () => Promise<void>;
   onFeedback: (fb: { ok: boolean; msg: string } | null) => void;
+  onOpenEvent?: (eventId: number) => void;
 }
 
 interface CombinedMatrixRow {
@@ -63,6 +64,7 @@ export default function StageMatrixView({
   qualifierExplorers,
   onRefreshAll,
   onFeedback,
+  onOpenEvent,
 }: StageMatrixViewProps) {
   const unitDistrictMap = useMemo(() => getUnitDistrictMap(units), [units]);
 
@@ -533,7 +535,21 @@ export default function StageMatrixView({
 
                 {visiblePracticeEvents.map(ev => (
                   <th key={`p-${ev.id}`} className="ems-matrix-th-event">
-                    <div>{ev.event_code}</div>
+                    <div>
+                      {onOpenEvent && ev.id ? (
+                        <button
+                          type="button"
+                          className="button-link"
+                          style={{ fontWeight: 700, padding: 0 }}
+                          onClick={() => onOpenEvent(ev.id)}
+                          title={`Open ${ev.event_code} details`}
+                        >
+                          {ev.event_code}
+                        </button>
+                      ) : (
+                        ev.event_code
+                      )}
+                    </div>
                     <span className="ems-matrix-th-date">{formatDateShort(ev.start_date)}</span>
                   </th>
                 ))}
@@ -544,7 +560,21 @@ export default function StageMatrixView({
                     className="ems-matrix-th-event"
                     style={stageMode === 'both' && idx === 0 ? { borderLeft: '3px solid #94a3b8' } : undefined}
                   >
-                    <div>{ev.event_code}</div>
+                    <div>
+                      {onOpenEvent && ev.id ? (
+                        <button
+                          type="button"
+                          className="button-link"
+                          style={{ fontWeight: 700, padding: 0 }}
+                          onClick={() => onOpenEvent(ev.id)}
+                          title={`Open ${ev.event_code} details`}
+                        >
+                          {ev.event_code}
+                        </button>
+                      ) : (
+                        ev.event_code
+                      )}
+                    </div>
                     <span className="ems-matrix-th-date">{formatDateShort(ev.start_date)}</span>
                   </th>
                 ))}

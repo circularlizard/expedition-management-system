@@ -1,29 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useBoard } from './useBoard';
 import { useOSMEvents } from './useOSMEvents';
 import { EventsDashboard } from './EventsDashboard';
 import { EventDetailPage } from './EventDetailPage';
 import { Expedition } from './types';
-import CohortPlanningMatrix from './CohortPlanningMatrix';
+import CohortsContinuityView from './CohortsContinuityView';
+import StageMatrixView from './StageMatrixView';
 import TeamsReadinessView from './TeamsReadinessView';
 import { EventForm } from './EventForm';
+import { ManualNotifyModal } from './ManualNotifyModal';
+import Explorer360Drawer from '../shared/Explorer360Drawer';
+import { TeamScopeBar } from './TeamScopeBar';
+import { useTeamPlanningData } from './useTeamPlanningData';
+import { NotifyModalOptions, toCohortTransportMode } from './cohortTypes';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 
-type BoardTab = 'dashboard' | 'detail' | 'planning' | 'readiness' | 'create';
+type BoardTab = 'dashboard' | 'team-builder' | 'date-grid' | 'readiness' | 'detail' | 'create';
+
+function normalizePlanningTransport(raw?: string): string {
+    const n = (raw || '').trim().toLowerCase();
+    if (n === 'foot' || n === 'walking' || n === 'hillwalking') return 'hillwalking';
+    if (n === 'bike' || n === 'cycling' || n === 'biking') return 'biking';
+    if (n === 'canoe' || n === 'paddle' || n === 'paddling') return 'paddling';
+    return 'hillwalking';
+}
+
+function normalizePlanningLevel(raw?: string): 'bronze' | 'silver' | 'gold' {
+    const n = (raw || '').trim().toLowerCase();
+    if (n === 'bronze' || n === 'silver' || n === 'gold') return n;
+    return 'silver';
+}
 
 const ExpeditionBoard: React.FC = () => {
+    const config = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '', units: [] };
     const { data, loading, error, refetch } = useBoard();
     const { events: osmEvents, loading: osmEventsLoading } = useOSMEvents();
+
     const [activeTab, setActiveTab] = useState<BoardTab>('dashboard');
     const [selectedEvent, setSelectedEvent] = useState<Expedition | null>(null);
     const [initialEdit, setInitialEdit] = useState(false);
 
+    const [planningLevel, setPlanningLevel] = useState<'bronze' | 'silver' | 'gold'>('silver');
+    const [planningTransport, setPlanningTransport] = useState<string>('hillwalking');
+    const [notifyModalOpts, setNotifyModalOpts] = useState<NotifyModalOptions | null>(null);
+    const [drawerTarget, setDrawerTarget] = useState<{ scoutId?: number; signupId?: number } | null>(null);
+
+    const isPlanningTab = activeTab === 'team-builder' || activeTab === 'date-grid';
+    const planningData = useTeamPlanningData(planningLevel, planningTransport, isPlanningTab);
+
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const tab = params.get('tab') as BoardTab | null;
-        if (tab && ['dashboard', 'planning', 'readiness', 'create'].includes(tab)) {
-            setActiveTab(tab);
+        const tab = params.get('tab');
+        if (tab === 'planning') {
+            setActiveTab('team-builder');
+        } else if (tab && ['dashboard', 'team-builder', 'date-grid', 'readiness', 'create'].includes(tab)) {
+            setActiveTab(tab as BoardTab);
         }
+        const lvl = params.get('level');
+        if (lvl) setPlanningLevel(normalizePlanningLevel(lvl));
+        const tr = params.get('transport');
+        if (tr) setPlanningTransport(normalizePlanningTransport(tr));
+
         const eventId = params.get('event_id');
         if (eventId && data?.seasons) {
             for (const season of data.seasons) {
@@ -38,18 +75,6 @@ const ExpeditionBoard: React.FC = () => {
         }
     }, [data]);
 
-    if (loading) return <p>Loading board…</p>;
-    if (error) return <div className="notice notice-error"><p>{error}</p></div>;
-    if (!data || !Array.isArray(data.seasons)) {
-        return (
-            <div className="notice notice-error">
-                <p>The expedition board could not be displayed: the server returned an unexpected response shape (no <code>seasons</code> data). Please reload, and if the problem persists check the REST endpoint <code>ems/v1/expedition-board</code>.</p>
-            </div>
-        );
-    }
-
-    const explorers = data.explorers ?? [];
-
     const handleSelectEvent = (event: Expedition) => {
         setSelectedEvent(event);
         setInitialEdit(false);
@@ -62,6 +87,43 @@ const ExpeditionBoard: React.FC = () => {
         setActiveTab('detail');
     };
 
+    const handleOpenEventById = useCallback(async (eventId: number) => {
+        if (!eventId || !data?.seasons) return;
+        for (const season of data.seasons) {
+            const found = season.events.find(e => e.ID === eventId);
+            if (found) {
+                setSelectedEvent(found);
+                setInitialEdit(false);
+                setActiveTab('detail');
+                return;
+            }
+        }
+        try {
+            const res = await fetch(`${config.root_url}/events/${eventId}`, {
+                headers: { 'X-WP-Nonce': config.nonce },
+            });
+            if (res.ok) {
+                const ev = await res.json();
+                if (ev?.ID) {
+                    setSelectedEvent(ev);
+                    setInitialEdit(false);
+                    setActiveTab('detail');
+                }
+            }
+        } catch {
+            // Ignore fetch failure on cross-link fallback
+        }
+    }, [data, config.root_url, config.nonce]);
+
+    const handleOpenTeamBuilder = useCallback(
+        (opts?: { level?: string; transport?: string; view?: 'team-builder' | 'date-grid' }) => {
+            if (opts?.level) setPlanningLevel(normalizePlanningLevel(opts.level));
+            if (opts?.transport) setPlanningTransport(normalizePlanningTransport(opts.transport));
+            setActiveTab(opts?.view ?? 'team-builder');
+        },
+        []
+    );
+
     const handleBack = () => {
         setSelectedEvent(null);
         setInitialEdit(false);
@@ -72,6 +134,18 @@ const ExpeditionBoard: React.FC = () => {
         setSelectedEvent(updated);
         refetch();
     };
+
+    if (loading) return <p>Loading board…</p>;
+    if (error) return <div className="notice notice-error"><p>{error}</p></div>;
+    if (!data || !Array.isArray(data.seasons)) {
+        return (
+            <div className="notice notice-error">
+                <p>The expedition board could not be displayed: the server returned an unexpected response shape (no <code>seasons</code> data). Please reload, and if the problem persists check the REST endpoint <code>ems/v1/expedition-board</code>.</p>
+            </div>
+        );
+    }
+
+    const units: any[] = config.units || [];
 
     return (
         <div className="ems-board">
@@ -90,10 +164,16 @@ const ExpeditionBoard: React.FC = () => {
                         Events Dashboard
                     </button>
                     <button
-                        className={`nav-tab ${activeTab === 'planning' ? 'nav-tab-active' : ''}`}
-                        onClick={() => setActiveTab('planning')}
+                        className={`nav-tab ${activeTab === 'team-builder' ? 'nav-tab-active' : ''}`}
+                        onClick={() => setActiveTab('team-builder')}
                     >
-                        Event Planning
+                        Team Builder
+                    </button>
+                    <button
+                        className={`nav-tab ${activeTab === 'date-grid' ? 'nav-tab-active' : ''}`}
+                        onClick={() => setActiveTab('date-grid')}
+                    >
+                        Availability &amp; Date Grid
                     </button>
                     <button
                         className={`nav-tab ${activeTab === 'readiness' ? 'nav-tab-active' : ''}`}
@@ -125,6 +205,7 @@ const ExpeditionBoard: React.FC = () => {
                             allEvents={data.seasons[0]?.events ?? []}
                             onEventUpdated={handleEventUpdated}
                             initialEdit={initialEdit}
+                            onOpenTeamBuilder={handleOpenTeamBuilder}
                         />
                     </ModuleErrorBoundary>
                 )}
@@ -144,7 +225,7 @@ const ExpeditionBoard: React.FC = () => {
                                     <EventForm
                                         seasonId={0}
                                         osmEvents={osmEvents}
-                                        onSaved={(savedEvent) => {
+                                        onSaved={() => {
                                             handleBack();
                                             refetch();
                                         }}
@@ -155,14 +236,125 @@ const ExpeditionBoard: React.FC = () => {
                         </div>
                     </ModuleErrorBoundary>
                 )}
-                {activeTab === 'planning' && (
-                    <ModuleErrorBoundary moduleName="Event Planning">
-                        <CohortPlanningMatrix />
-                    </ModuleErrorBoundary>
+                {isPlanningTab && (
+                    <div className="ems-planning-matrix">
+                        {planningData.feedback && (
+                            <div className={`notice ${planningData.feedback.ok ? 'notice-success' : 'notice-error'} is-dismissible ems-mb-16`}>
+                                <p>{planningData.feedback.msg}</p>
+                                <button type="button" className="notice-dismiss" onClick={() => planningData.setFeedback(null)}>
+                                    <span className="screen-reader-text">Dismiss</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {planningData.error && (
+                            <div className="notice notice-error ems-mb-16">
+                                <p>{planningData.error}</p>
+                            </div>
+                        )}
+
+                        <TeamScopeBar
+                            level={planningLevel}
+                            transport={planningTransport}
+                            pendingNotifyCount={planningData.pendingNotifyCount}
+                            onChangeLevel={setPlanningLevel}
+                            onChangeTransport={setPlanningTransport}
+                            onOpenNotify={() =>
+                                setNotifyModalOpts({
+                                    scope: 'all',
+                                    level: planningLevel,
+                                    transport: planningTransport,
+                                })
+                            }
+                        />
+
+                        {planningData.loading ? (
+                            <div className="ems-planning-spinner">
+                                <span className="ems-spinner" aria-label="Loading team planning board…" />
+                            </div>
+                        ) : activeTab === 'team-builder' ? (
+                            <ModuleErrorBoundary moduleName="Team Builder">
+                                <CohortsContinuityView
+                                    level={planningLevel}
+                                    transport={planningTransport}
+                                    rootUrl={config.root_url}
+                                    nonce={config.nonce}
+                                    units={units}
+                                    cohorts={planningData.cohorts}
+                                    practiceEvents={planningData.practiceEvents}
+                                    qualifierEvents={planningData.qualifierEvents}
+                                    practiceExplorers={planningData.practiceExplorers}
+                                    qualifierExplorers={planningData.qualifierExplorers}
+                                    onRefreshAll={planningData.fetchAllData}
+                                    onFeedback={planningData.setFeedback}
+                                    onOpenNotifyModal={(opts) => setNotifyModalOpts(opts)}
+                                    onOpenEvent={handleOpenEventById}
+                                />
+                            </ModuleErrorBoundary>
+                        ) : (
+                            <ModuleErrorBoundary moduleName="Availability & Date Grid">
+                                <StageMatrixView
+                                    level={planningLevel}
+                                    transport={planningTransport}
+                                    rootUrl={config.root_url}
+                                    nonce={config.nonce}
+                                    units={units}
+                                    cohorts={planningData.cohorts}
+                                    practiceEvents={planningData.practiceEvents}
+                                    qualifierEvents={planningData.qualifierEvents}
+                                    practiceExplorers={planningData.practiceExplorers}
+                                    qualifierExplorers={planningData.qualifierExplorers}
+                                    onRefreshAll={planningData.fetchAllData}
+                                    onFeedback={planningData.setFeedback}
+                                    onOpenEvent={handleOpenEventById}
+                                />
+                            </ModuleErrorBoundary>
+                        )}
+
+                        {notifyModalOpts && (
+                            <ModuleErrorBoundary moduleName="Place Offer Notifications">
+                                <ManualNotifyModal
+                                    isOpen={true}
+                                    onClose={() => setNotifyModalOpts(null)}
+                                    initialScope={notifyModalOpts.scope}
+                                    cohortId={notifyModalOpts.cohortId ?? null}
+                                    cohortName={notifyModalOpts.cohortName ?? null}
+                                    dofeLevel={notifyModalOpts.level ?? planningLevel}
+                                    transportMode={toCohortTransportMode(notifyModalOpts.transport ?? planningTransport)}
+                                    onInspectExplorer={(target) => setDrawerTarget(target)}
+                                    onDispatched={(res) => {
+                                        const count = typeof res?.dispatched_count === 'number' ? res.dispatched_count : undefined;
+                                        planningData.setFeedback({
+                                            ok: true,
+                                            msg: count !== undefined
+                                                ? `Dispatched ${count} Place Offer email${count === 1 ? '' : 's'}.`
+                                                : 'Place Offer emails dispatched.',
+                                        });
+                                        planningData.fetchAllData();
+                                    }}
+                                />
+                            </ModuleErrorBoundary>
+                        )}
+
+                        <Explorer360Drawer
+                            isOpen={drawerTarget !== null}
+                            scoutId={drawerTarget?.scoutId && drawerTarget.scoutId > 0 ? drawerTarget.scoutId : undefined}
+                            signupType={drawerTarget?.signupId ? 'expedition' : undefined}
+                            signupId={drawerTarget?.signupId}
+                            rootUrl={config.root_url}
+                            nonce={config.nonce}
+                            initialTab="teams"
+                            onClose={() => setDrawerTarget(null)}
+                            onUpdated={planningData.fetchAllData}
+                        />
+                    </div>
                 )}
                 {activeTab === 'readiness' && (
                     <ModuleErrorBoundary moduleName="Teams & Readiness">
-                        <TeamsReadinessView />
+                        <TeamsReadinessView
+                            onOpenEvent={handleOpenEventById}
+                            onOpenTeamBuilder={handleOpenTeamBuilder}
+                        />
                     </ModuleErrorBoundary>
                 )}
             </div>

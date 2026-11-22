@@ -11,7 +11,6 @@ import {
 import { Expedition, Team, Member, Explorer, FirstAidLevel, OSMEvent } from './types';
 import { EventForm } from './EventForm';
 import { OSMReadOnlyMap } from './OSMReadOnlyMap';
-import EventPlanningBoard from './EventPlanningBoard';
 import { EventRosterPanel } from '../volunteers/EventRosterPanel';
 import { RichTextEditor } from './RichTextEditor';
 import { OSMMapPicker } from './OSMMapPicker';
@@ -23,6 +22,7 @@ interface EventDetailPageProps {
     allEvents?: Expedition[];
     onEventUpdated?: (updated: Expedition) => void;
     initialEdit?: boolean;
+    onOpenTeamBuilder?: (opts: { level?: string; transport?: string; view?: 'team-builder' | 'date-grid' }) => void;
 }
 
 type DetailTab = 'overview' | 'teams' | 'training' | 'asn' | 'volunteers' | 'qrcodes' | 'route';
@@ -879,6 +879,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
     allEvents = [],
     onEventUpdated,
     initialEdit = false,
+    onOpenTeamBuilder,
 }) => {
     const config = window.emsExpeditionBoard;
     const [activeTab, setActiveTab] = useState<DetailTab>('overview');
@@ -992,18 +993,86 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
             <div className="ems-event-detail__content">
                 {activeTab === 'overview' && <OverviewTab event={event} osmEvents={osmEvents} onUpdated={handleUpdated} initialEdit={initialEdit} />}
                 {activeTab === 'teams' && (
-                    <EventPlanningBoard
-                        event={{
-                            id: event.ID,
-                            event_code: event.ems_event_code,
-                            title: event.post_title,
-                            available_count: 0,
-                            level: event.ems_level,
-                            first_aid_level: event.ems_first_aid_level,
-                        }}
-                        onTeamChanged={refreshTeams}
-                        onViewAsn={setActiveAsnScoutId}
-                    />
+                    <div className="ems-tab-section">
+                        <div className="ems-flex-between ems-wrap ems-gap-8 ems-mb-16">
+                            <div>
+                                <h3 className="ems-tab-section-title" style={{ marginBottom: '4px' }}>
+                                    Allocated Event Teams
+                                </h3>
+                                <p className="ems-meta-text" style={{ margin: 0 }}>
+                                    Team creation, explorer allocation, availability scoring, and Place Offer emails are managed in the unified Team Builder.
+                                </p>
+                            </div>
+                            {onOpenTeamBuilder && (
+                                <div className="ems-flex-center ems-gap-8">
+                                    <button
+                                        type="button"
+                                        className="button button-primary"
+                                        onClick={() =>
+                                            onOpenTeamBuilder({
+                                                level: event.ems_level,
+                                                transport: event.ems_transport,
+                                                view: 'team-builder',
+                                            })
+                                        }
+                                    >
+                                        Open in Team Builder →
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="button"
+                                        onClick={() =>
+                                            onOpenTeamBuilder({
+                                                level: event.ems_level,
+                                                transport: event.ems_transport,
+                                                view: 'date-grid',
+                                            })
+                                        }
+                                    >
+                                        Availability &amp; Date Grid →
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {visibleTeams.filter((t) => t.ems_team_code !== 'UNALLOCATED').length === 0 ? (
+                            <div className="notice notice-info">
+                                <p>No teams have been allocated to this event yet.</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                                {visibleTeams
+                                    .filter((t) => t.ems_team_code !== 'UNALLOCATED')
+                                    .map((team) => {
+                                        const members = team.members ?? [];
+                                        return (
+                                            <div key={team.ID} className="ems-panel ems-p-16">
+                                                <div className="ems-flex-between ems-mb-8">
+                                                    <strong>{team.ems_team_code || team.post_title}</strong>
+                                                    <span className="ems-badge">
+                                                        {members.length} member{members.length === 1 ? '' : 's'}
+                                                    </span>
+                                                </div>
+                                                {members.length === 0 ? (
+                                                    <p className="ems-meta-text" style={{ margin: 0 }}>No members yet.</p>
+                                                ) : (
+                                                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px' }}>
+                                                        {members.map((m, mIdx) => (
+                                                            <li key={m.id || m.scout_id || mIdx}>
+                                                                {`${m.first_name || ''} ${m.last_name || ''}`.trim() || `Scout #${m.scout_id ?? m.user_id}`}
+                                                                {m.first_aid_level && m.first_aid_level !== 'none' && (
+                                                                    <span className="ems-meta-text"> ({FA_LABELS[m.first_aid_level] || m.first_aid_level})</span>
+                                                                )}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        )}
+                    </div>
                 )}
                 {activeTab === 'route' && <RouteTab event={event} onUpdated={handleUpdated} />}
                 {activeTab === 'training' && <TrainingTab eventId={event.ID} />}

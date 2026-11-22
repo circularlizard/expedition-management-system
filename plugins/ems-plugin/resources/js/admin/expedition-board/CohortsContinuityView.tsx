@@ -36,6 +36,7 @@ export interface CohortsContinuityViewProps {
   onFeedback: (msg: { ok: boolean; msg: string } | null) => void;
   onViewAsn?: (scoutId: number) => void;
   onOpenNotifyModal?: (opts: NotifyModalOptions) => void;
+  onOpenEvent?: (eventId: number) => void;
 }
 
 interface HoveredExplorerInfo {
@@ -83,6 +84,7 @@ export default function CohortsContinuityView({
   onFeedback,
   onViewAsn,
   onOpenNotifyModal,
+  onOpenEvent,
 }: CohortsContinuityViewProps) {
   const unitDistrictMap = useMemo(() => getUnitDistrictMap(units), [units]);
 
@@ -760,7 +762,20 @@ export default function CohortsContinuityView({
                       {isPractice ? 'Practice' : 'Qualifier'}
                     </span>
                     <span className="ems-meta-text">
-                      {team.expedition_code} ({formatDateShort(team.start_date)})
+                      {onOpenEvent && team.expedition_id ? (
+                        <button
+                          type="button"
+                          className="button-link"
+                          style={{ fontWeight: 600, padding: 0 }}
+                          onClick={() => onOpenEvent(Number(team.expedition_id))}
+                          title="Open event details"
+                        >
+                          {team.expedition_code}
+                        </button>
+                      ) : (
+                        team.expedition_code
+                      )}{' '}
+                      ({formatDateShort(team.start_date)})
                     </span>
                     <span
                       className="ems-badge"

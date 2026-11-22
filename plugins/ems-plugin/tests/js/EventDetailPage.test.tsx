@@ -143,64 +143,48 @@ describe('EventDetailPage Tab Functions', () => {
             return Promise.resolve({ ok: true, json: async () => [] });
         });
 
-        render(<EventDetailPage event={mockEvent} onBack={() => {}} />);
+        const onOpenTeamBuilder = vi.fn();
+        render(
+            <EventDetailPage
+                event={{
+                    ...mockEvent,
+                    teams: [
+                        {
+                            ID: 55,
+                            post_title: 'H-SP1-1',
+                            ems_team_code: 'H-SP1-1',
+                            ems_team_number: 1,
+                            event_id: 101,
+                            members: [
+                                { id: 1, user_id: 1, scout_id: 30001, first_name: 'Alice', last_name: 'Brown', first_aid_level: 'first_response' },
+                            ],
+                        },
+                    ],
+                }}
+                onBack={() => {}}
+                onOpenTeamBuilder={onOpenTeamBuilder}
+            />
+        );
 
         // Switch to Teams tab
         fireEvent.click(screen.getByText('Teams'));
 
-        // Toggle roster open
-        await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'Show Availability Roster' })).toBeInTheDocument();
-        });
-        fireEvent.click(screen.getByRole('button', { name: 'Show Availability Roster' }));
+        expect(screen.getByText('Allocated Event Teams')).toBeInTheDocument();
+        expect(screen.getByText('H-SP1-1')).toBeInTheDocument();
+        expect(screen.getByText(/Alice Brown/)).toBeInTheDocument();
 
-        await waitFor(() => {
-            expect(screen.getByText('Alice Brown')).toBeInTheDocument();
-        });
-
-        // Bulk action bar should not be visible initially
-        expect(screen.queryByText(/With Selected/)).not.toBeInTheDocument();
-
-        // Check Alice checkbox
-        const aliceCheckbox = screen.getByLabelText('Select Alice Brown');
-        fireEvent.click(aliceCheckbox);
-
-        // Bulk action bar should now be visible
-        await waitFor(() => {
-            expect(screen.getByText(/With Selected/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Open in Team Builder →' }));
+        expect(onOpenTeamBuilder).toHaveBeenCalledWith({
+            level: 'silver',
+            transport: undefined,
+            view: 'team-builder',
         });
 
-        // Setup mock responses on the EXISTING mock
-        (global.fetch as any).mockReset();
-        (global.fetch as any).mockImplementation((url: string) => {
-            if (url.includes('/planning-board/allocate')) {
-                return Promise.resolve({ ok: true, json: async () => ({ success: true, allocated: 1 }) });
-            }
-            if (url.includes('/planning-board/availability/')) {
-                return Promise.resolve({ ok: true, json: async () => mockAvailability });
-            }
-            if (url.includes('/teams')) {
-                return Promise.resolve({ ok: true, json: async () => mockAvailability.teams });
-            }
-            return Promise.resolve({ ok: true, json: async () => [] });
-        });
-
-        // Select action
-        const select = screen.getByRole('combobox', { name: 'Allocation action' });
-        fireEvent.change(select, { target: { value: 'unallocated' } });
-
-        const applyBtn = screen.getByRole('button', { name: 'Apply Action' });
-        fireEvent.click(applyBtn);
-
-        await waitFor(() => {
-            const allocateCall = (global.fetch as any).mock.calls.find((c: any) => c[0].includes('/planning-board/allocate'));
-            expect(allocateCall).toBeDefined();
-            expect(allocateCall[1].method).toBe('POST');
-            expect(JSON.parse(allocateCall[1].body)).toEqual({
-                scout_ids: [30001],
-                event_code: 'H-SP1',
-                mode: 'unallocated'
-            });
+        fireEvent.click(screen.getByRole('button', { name: /Availability & Date Grid/ }));
+        expect(onOpenTeamBuilder).toHaveBeenCalledWith({
+            level: 'silver',
+            transport: undefined,
+            view: 'date-grid',
         });
     });
 

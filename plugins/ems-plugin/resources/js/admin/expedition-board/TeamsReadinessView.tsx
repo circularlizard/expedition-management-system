@@ -22,6 +22,8 @@ import Explorer360Drawer from '../shared/Explorer360Drawer';
 export interface TeamsReadinessViewProps {
   rootUrl?: string;
   nonce?: string;
+  onOpenEvent?: (eventId: number) => void;
+  onOpenTeamBuilder?: (opts: { level?: string; transport?: string }) => void;
 }
 
 interface PreviewRecipient {
@@ -165,6 +167,8 @@ function getMemberGaps(member: TeamReadinessMember, trainingAvailable: boolean):
 export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
   rootUrl: propRootUrl,
   nonce: propNonce,
+  onOpenEvent,
+  onOpenTeamBuilder,
 }) => {
   const config = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
   const rootUrl = (propRootUrl || config.root_url || '/wp-json/ems/v1').replace(/\/$/, '');
@@ -611,6 +615,8 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
           setQueryReplyTarget({ member, record });
           setQueryReplyText('');
         }}
+        onOpenEvent={onOpenEvent}
+        onOpenTeamBuilder={onOpenTeamBuilder}
       />
 
       {/* Unified Send Reminder Modal */}
