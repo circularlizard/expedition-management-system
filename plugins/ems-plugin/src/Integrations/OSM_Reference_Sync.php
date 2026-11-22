@@ -133,6 +133,7 @@ class OSM_Reference_Sync {
 		}
 
 		set_transient( 'ems_last_sync_result', $result->to_array(), DAY_IN_SECONDS );
+		update_option( 'ems_osm_last_sync', gmdate( 'c' ) );
 
 		return $result;
 	}

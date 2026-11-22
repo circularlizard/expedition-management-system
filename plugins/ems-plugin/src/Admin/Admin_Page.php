@@ -245,13 +245,10 @@ class Admin_Page {
 		$tab_labels = array(
 			'units'       => __( 'Units & Districts', 'ems-plugin' ),
 			'leaders'     => __( 'Leaders & Access', 'ems-plugin' ),
-			'patrols'     => __( 'OSM Patrol Mapping', 'ems-plugin' ),
 			'explorers'   => __( 'Explorers', 'ems-plugin' ),
-			'osm_patrols' => __( 'Patrols', 'ems-plugin' ),
 			'events'      => __( 'Events', 'ems-plugin' ),
 			'sections'    => __( 'Managed Sections', 'ems-plugin' ),
 			'pushback'    => __( 'Pushback Sync', 'ems-plugin' ),
-			'mapper'      => __( 'Flexi-Record Mapper', 'ems-plugin' ),
 			'diagnostics' => __( 'Diagnostics', 'ems-plugin' ),
 		);
 
@@ -271,7 +268,7 @@ class Admin_Page {
 
 		$is_blocked  = (bool) get_option( 'ems_api_blocked', false );
 		$last_result = get_transient( 'ems_last_sync_result' );
-		$last_sync   = $last_result['started_at'] ?? null;
+		$last_sync   = $last_result['started_at'] ?? ( get_option( 'ems_osm_last_sync' ) ?: null );
 
 		echo '<div class="ems-admin-header-row">';
 		if ( ! $is_blocked && ! $sync_running ) {
@@ -288,7 +285,7 @@ class Admin_Page {
 		}
 		echo '</div>';
 
-		echo '<nav class="nav-tab-wrapper ems-nav-tab-wrapper--no-margin">';
+		echo '<nav class="nav-tab-wrapper ems-nav-tab-wrapper--no-margin ems-nav-tab-wrapper--fit">';
 		foreach ( $tab_labels as $slug => $label ) {
 			$class = ( $slug === $active_tab ) ? 'nav-tab nav-tab-active' : 'nav-tab';
 			echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
@@ -476,7 +473,7 @@ class Admin_Page {
 
 		$is_blocked  = (bool) get_option( 'ems_api_blocked', false );
 		$last_result = get_transient( 'ems_last_sync_result' );
-		$last_sync   = $last_result['started_at'] ?? null;
+		$last_sync   = $last_result['started_at'] ?? ( get_option( 'ems_osm_last_sync' ) ?: null );
 
 		echo '<div class="ems-admin-header-row">';
 		if ( ! $is_blocked && ! $sync_running ) {
@@ -502,7 +499,7 @@ class Admin_Page {
 			'diagnostics' => __( 'Diagnostics', 'ems-plugin' ),
 		);
 
-		echo '<nav class="nav-tab-wrapper ems-nav-tab-wrapper--no-margin">';
+		echo '<nav class="nav-tab-wrapper ems-nav-tab-wrapper--no-margin ems-nav-tab-wrapper--fit">';
 		foreach ( $tab_labels as $slug => $label ) {
 			$class = ( $slug === $active_tab ) ? 'nav-tab nav-tab-active' : 'nav-tab';
 			echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
@@ -649,7 +646,7 @@ class Admin_Page {
 	private function render_sync_progress_banner(): void {
 		$status_url  = esc_js( rest_url( 'ems/v1/sync-status' ) );
 		$nonce       = wp_create_nonce( 'wp_rest' );
-		$reload_url  = esc_js( admin_url( 'admin.php?page=ems-reference' ) );
+		$reload_url  = esc_js( admin_url( 'admin.php?page=ems-units-sync' ) );
 		$handler     = new \EMS\Admin\OSM_Sync_Auth_Handler();
 		$has_token   = $handler->get_cached_token() !== '';
 		$token_label = $has_token

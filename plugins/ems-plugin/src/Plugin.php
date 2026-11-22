@@ -218,7 +218,7 @@ class Plugin {
 			'admin_post_ems_fetch_sections',
 			function () {
 				if ( ! current_user_can( 'manage_options' ) ) {
-					wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&tab=sections&error=forbidden' ) );
+					wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&tab=sections&error=forbidden' ) );
 					exit;
 				}
 				check_admin_referer( 'ems_fetch_sections' );
@@ -235,7 +235,7 @@ class Plugin {
 							$osm_client->set_access_token( $token );
 							$payload = $osm_client->get_data_payload();
 							set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
-							wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&tab=sections&fetched=1' ) );
+							wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&tab=sections&fetched=1' ) );
 						},
 						'fetch_sections'
 					);
@@ -244,7 +244,7 @@ class Plugin {
 					$osm_client = new OSM_API_Client( $driver, $parser, new Rate_Limiter( 10, 1.0 ) );
 					$payload    = $osm_client->get_data_payload();
 					set_transient( 'ems_available_sections', $parser->parse_section_names( $payload ), HOUR_IN_SECONDS );
-					wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&tab=sections&fetched=1' ) );
+					wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&tab=sections&fetched=1' ) );
 				}
 				exit;
 			}
@@ -255,7 +255,7 @@ class Plugin {
 			'admin_post_ems_pushback_auth',
 			function () {
 				if ( ! current_user_can( 'manage_options' ) ) {
-					wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&tab=pushback&error=forbidden' ) );
+					wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&tab=pushback&error=forbidden' ) );
 					exit;
 				}
 				check_admin_referer( 'ems_pushback_auth' );
@@ -269,7 +269,7 @@ class Plugin {
 			'admin_post_ems_sync_osm',
 			function () {
 				if ( ! current_user_can( 'manage_options' ) ) {
-					wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=forbidden' ) );
+					wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&error=forbidden' ) );
 					exit;
 				}
 				check_admin_referer( 'ems_sync_osm' );
@@ -311,7 +311,7 @@ class Plugin {
 							);
 							wp_schedule_single_event( time(), 'ems_run_osm_sync' );
 							spawn_cron();
-							wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=running' ) );
+							wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&sync=running' ) );
 						}
 					);
 				} else {
@@ -335,7 +335,7 @@ class Plugin {
 					( new \EMS\Integrations\OSM_Reference_Sync( $osm_client, $parser ) )
 					->sync( $all_ids, $payload, $api_mode, 0, $logger );
 
-					wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=success' ) );
+					wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&sync=success' ) );
 				}
 				exit;
 			}
@@ -374,11 +374,11 @@ class Plugin {
 								$payload = $osm_client->get_data_payload();
 						} catch ( \EMS\Integrations\Exceptions\Api_Response_Exception $e ) {
 							error_log( '[EMS] getDataPayload failed: ' . $e->getMessage() );
-							wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=payload_failed&error_msg=' . rawurlencode( substr( $e->getMessage(), 0, 100 ) ) ) );
+							wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&error=payload_failed&error_msg=' . rawurlencode( substr( $e->getMessage(), 0, 100 ) ) ) );
 							return;
 						} catch ( \EMS\Integrations\Exceptions\Api_Blocked_Exception $e ) {
 							update_option( 'ems_api_blocked', true );
-							wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&error=api_blocked' ) );
+							wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&error=api_blocked' ) );
 							return;
 						}
 
@@ -387,7 +387,7 @@ class Plugin {
 
 						if ( $api_mode === 'live-auth-only' ) {
 							( new \EMS\Integrations\OSM_Sync_Logger() )->persist();
-							wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=auth_only' ) );
+							wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&sync=auth_only' ) );
 							return;
 						}
 
@@ -428,7 +428,7 @@ class Plugin {
 						wp_schedule_single_event( time(), 'ems_run_osm_sync' );
 						spawn_cron();
 
-						wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&sync=running' ) );
+						wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&sync=running' ) );
 					}
 				);
 			}
@@ -484,7 +484,7 @@ class Plugin {
 				check_admin_referer( 'ems_cancel_sync' );
 				delete_transient( 'ems_sync_status' );
 				delete_transient( 'ems_pending_sync_job' );
-				wp_safe_redirect( admin_url( 'admin.php?page=ems-reference' ) );
+				wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync' ) );
 				exit;
 			}
 		);
@@ -498,7 +498,7 @@ class Plugin {
 				}
 				check_admin_referer( 'ems_clear_api_block' );
 				delete_option( 'ems_api_blocked' );
-				wp_safe_redirect( admin_url( 'admin.php?page=ems-reference&block_cleared=1' ) );
+				wp_safe_redirect( admin_url( 'admin.php?page=ems-units-sync&block_cleared=1' ) );
 				exit;
 			}
 		);

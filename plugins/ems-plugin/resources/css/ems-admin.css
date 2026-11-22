@@ -2919,6 +2919,23 @@ input.ems-form-input {
     margin-bottom: 0 !important;
 }
 
+.ems-nav-tab-wrapper--fit {
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    gap: 2px !important;
+}
+
+.ems-nav-tab-wrapper--fit .nav-tab {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    padding: 6px 8px !important;
+    font-size: 12.5px !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
 .ems-log-output-box {
     background: #f6f7f7;
     padding: 10px;

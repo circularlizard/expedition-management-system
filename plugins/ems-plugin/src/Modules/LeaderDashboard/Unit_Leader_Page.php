@@ -330,29 +330,26 @@ class Unit_Leader_Page {
 							<table class="wp-list-table widefat striped ems-district-units-table" style="margin-top: 10px;">
 								<thead>
 									<tr>
-										<th style="width: 20%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
-										<th style="width: 8%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
-										<th style="width: 12%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
-										<th style="width: 24%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
-										<th style="width: 16%;"><?php esc_html_e( 'OSM Patrols', 'ems-plugin' ); ?></th>
-										<th style="width: 14%;"><?php esc_html_e( 'Move District', 'ems-plugin' ); ?></th>
-										<th style="width: 6%; text-align: center;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
+										<th style="width: 22%;"><?php esc_html_e( 'Unit Name', 'ems-plugin' ); ?></th>
+										<th style="width: 10%;"><?php esc_html_e( 'Unit ID', 'ems-plugin' ); ?></th>
+										<th style="width: 14%;"><?php esc_html_e( 'Short Code', 'ems-plugin' ); ?></th>
+										<th style="width: 28%;"><?php esc_html_e( 'Leader Email', 'ems-plugin' ); ?></th>
+										<th style="width: 18%;"><?php esc_html_e( 'Move District', 'ems-plugin' ); ?></th>
+										<th style="width: 8%; text-align: center;"><?php esc_html_e( 'Actions', 'ems-plugin' ); ?></th>
 									</tr>
 								</thead>
 								<tbody>
 									<?php if ( empty( $group_units ) ) : ?>
 										<tr>
-											<td colspan="7" style="padding: 16px; text-align: center; color: #646970; font-style: italic;">
+											<td colspan="6" style="padding: 16px; text-align: center; color: #646970; font-style: italic;">
 												<?php echo sprintf( esc_html__( 'No units in %s yet. Click "Add Unit to %s" above or use "Move District" on existing units to assign them here.', 'ems-plugin' ), esc_html( $group_key ), esc_html( $group_key ) ); ?>
 											</td>
 										</tr>
 									<?php else : ?>
 										<?php foreach ( $group_units as $u ) :
-											$row_id        = (int) $u['id'];
-											$cur_dist      = $u['district'] ?? '';
-											$leader_email  = $u['leader_email'] ?? '';
-											$patrol_count  = ! empty( $u['matched_patrols'] ) ? count( $u['matched_patrols'] ) : 0;
-											$patrol_names  = ! empty( $u['matched_patrols'] ) ? implode( ', ', array_column( $u['matched_patrols'], 'name' ) ) : '';
+											$row_id       = (int) $u['id'];
+											$cur_dist     = $u['district'] ?? '';
+											$leader_email = $u['leader_email'] ?? '';
 											?>
 											<tr class="ems-unit-row" data-unit-row-id="<?php echo $row_id; ?>">
 												<input type="hidden" class="ems-unit-district-hidden" 
@@ -373,21 +370,6 @@ class Unit_Leader_Page {
 												<td>
 													<input type="email" name="unit_leaders[<?php echo $row_id; ?>][email]" 
 															value="<?php echo esc_attr( $leader_email ); ?>" />
-												</td>
-												<td>
-													<?php if ( $patrol_count > 0 ) : ?>
-														<a href="<?php echo esc_url( admin_url( 'admin.php?page=ems-units&tab=patrols&unit_id=' . (int) ( $u['unit_id'] ?? 0 ) ) ); ?>" 
-														   class="ems-status-badge ems-status-badge--active" 
-														   title="<?php echo esc_attr( $patrol_names ); ?>" 
-														   style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-															<span class="dashicons dashicons-groups" style="font-size: 14px; width: 14px; height: 14px; line-height: 14px;"></span>
-															<?php echo sprintf( esc_html( _n( '%d Patrol', '%d Patrols', $patrol_count, 'ems-plugin' ) ), $patrol_count ); ?>
-														</a>
-													<?php else : ?>
-														<span class="ems-status-badge ems-status-badge--archived" style="display: inline-flex; align-items: center; gap: 4px;">
-															<?php esc_html_e( 'No Patrols', 'ems-plugin' ); ?>
-														</span>
-													<?php endif; ?>
 												</td>
 												<td>
 													<select class="ems-move-district-select" style="width: 100%; height: 30px; font-size: 12px; line-height: 1; padding: 2px 4px;">
