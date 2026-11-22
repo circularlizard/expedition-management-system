@@ -13,7 +13,7 @@ The EMS is a focused operational layer sitting alongside Online Scout Manager (O
 | :--- | :--- | :--- |
 | **Youth PII, medicals, emergency contacts, risk assessments, payments** | **Online Scout Manager (OSM)** | **Read-only cache** (`ems_osm_explorers`) for operational matching & First Aid checks. Never edited in EMS. |
 | **Adult Scout membership, PVG/DBS & Scouts Association online training** | **Scouts Membership System** | **Reference only** (recorded on volunteer/leader onboarding; not mastered in EMS). |
-| **Sign-up intake (Place & Expedition preferences)** | **Fluent Forms (Forms 6 & 7)** | **Webhook ingestion** into `ems_participant_signups` and `ems_expedition_signups`, followed by OSM reconciliation. |
+| **Sign-up intake & confirmation emails (Forms 6 & 7)** | **Fluent Forms (Forms 6 & 7)** | **Webhook ingestion** into `ems_participant_signups` and `ems_expedition_signups`, followed by manual OSM reconciliation. Fluent Forms handles initial sign-up confirmation emails. |
 | **Team membership & Expedition allocation** | **EMS (`ems_teams` / `ems_team_members`)** | **Single Source of Truth.** One-way push of confirmed allocations to OSM events & `'2026 Expeditions'` flexi-record. |
 | **Online training delivery & completion** | **Tutor LMS** | **Read-only adapter** (`TutorLmsAdapter`) queried via `ems_scout_ids` for readiness & cron reminders. |
 | **Route planning, GPX enrichment & LiC approval** | **EMS (`RouteEngineModule`)** | **Single Source of Truth.** Shared team editing, configurable cutoff enforcement, LiC annotation, and A4 PDF generation. |
@@ -61,7 +61,7 @@ All front-end shortcodes render isolated React SPAs wrapped in `<ModuleErrorBoun
 | **`[ems-portal]`** | Explorers, Networkers & Parents (with multi-child switcher) | 1. **My Sign-ups:** Form 6/7 status & OSM account link indicator.<br>2. **My Expeditions:** Assigned Practice & Qualifier dates, teammate roster, communicated acceptance deadline, and **All-or-Nothing Place Offer Bar** (`Accept`, `Query` with message box, `Decline` — locked after configured hard cutoff).<br>3. **Training:** Award-level Tutor LMS module checklist & First Aid expiry (read-only when viewing a child's profile).<br>4. **Route Planner:** Embedded shared team Route Card editor (DEM profile, Naismith pacing, GPX import/export), `Submit for Review` (enforcing configured hard cutoff), version history, and LiC feedback thread. |
 | **`[ems-leader-dashboard]`** | Unit Leaders (`ems_leader`) | 1. **Unit Sign-ups:** Reconciliation & eDofE status for Explorers in the leader's Unit (medical/contact PII redacted).<br>2. **Unit Teams & Expeditions:** Read-only `<TeamReadinessTable />` filtered to teams containing Explorers from the leader's Unit. |
 | **`[ems-lic-dashboard]`** | Leaders in Charge (`LiC` assigned to >= 1 event) | 1. **My Expeditions:** Assigned Practice/Qualifier events, joining details & volunteer roster.<br>2. **Team Readiness Audit:** `<TeamReadinessTable />` scoped to the LiC's assigned events.<br>3. **Route Card Review:** Interactive map & Naismith inspection, inline feedback comments, and `Approve` / `Request Revisions` actions. |
-| **`[ems-signup-banner]`** | Form Visitors (above Form 6 & 7 in Elementor) | Prompts OIDC login to auto-populate child & unit fields (alias `[ems_signup_banner]` retained for backward compatibility). |
+| **`[ems_signup_banner]`** | Form Visitors (above Form 6 & 7 in Elementor) | Prompts OIDC login to auto-populate child & unit fields (underscores only). |
 | **`[ems-volunteer-signup]`** | Expedition Volunteers & Prospective LiCs | Availability, overnight preference, and Scout membership/PVG registration wizard + assigned events summary. |
 
 ---
@@ -85,7 +85,7 @@ All front-end shortcodes render isolated React SPAs wrapped in `<ModuleErrorBoun
    * LiC `Request Revisions` appends a timestamped feedback entry to `feedback_history`, transitions status back to editable `draft`, increments `version` on resubmission, and notifies the Team + Parents.
 5. **Notification Dispatch Policy (3-Tier Rule):**
    * **Manual Batch Only:** Place Offer notifications (`expedition_place_offer`) are **never** sent automatically; admins must preview recipients/warnings and confirm dispatch.
-   * **Event-Driven:** Sign-up confirmations, Place Offer responses (`Accept`/`Query`/`Decline`), team transfers, expedition detail updates, and Route Card `submitted` / `approved` / `revisions_requested` events fire immediately via `Event_Bus`.
+   * **Event-Driven:** Place Offer responses (`Accept`/`Query`/`Decline`), team transfers, expedition detail updates, and Route Card `submitted` / `approved` / `revisions_requested` events fire immediately via `Event_Bus`. (Initial Form 6/7 sign-up confirmation emails are handled by Fluent Forms, not EMS.)
    * **WP-Cron Scheduled (Daily):** Evaluates configured communicated deadlines to send missing eDofE / unlinked account chasers, incomplete Tutor LMS / expiring First Aid reminders, and approaching Route Card submission warnings.
 
 ---
@@ -94,5 +94,5 @@ All front-end shortcodes render isolated React SPAs wrapped in `<ModuleErrorBoun
 
 To eliminate the current tech-stack fragmentation across the plugin:
 * **Unified UI Stack:** Every admin hub and front-end shortcode is built in **React 18 + TypeScript** using shared components (`<TeamReadinessTable />`, `<StatusBadge />`, `<ModuleErrorBoundary />`) and **FontAwesome SVGs** (zero Dashicons, zero Unicode icon entities, zero raw PHP admin forms).
-* **Clean Asset & CSS Boundaries:** Remove phantom `wp-components`, `wp-element`, and `wp-i18n` dependencies from PHP enqueues; split monolithic CSS into scoped design tokens (`ems-tokens.css`), admin layout (`ems-admin.css`), route card engine (`ems-route-card.css`), and isolated front-end portal styles (`ems-portal.css`) so admin styles never leak onto Elementor pages.
+* **Clean Asset & CSS Boundaries:** Remove phantom `wp-components`, `wp-element`, and `wp-i18n` dependencies from PHP enqueues; extract public shortcode styles into a dedicated front-end stylesheet (`ems-portal.css`) as an isolated, reversible step before dequeuing `ems-admin.css` from public Elementor pages, and split monolithic CSS into scoped design tokens (`ems-tokens.css`), admin layout (`ems-admin.css`), and route card engine (`ems-route-card.css`).
 * **Anti-Corruption Boundaries:** Third-party plugins (OSM API, Fluent Forms, Tutor LMS) are accessed exclusively through typed adapters in `src/Integrations/`. Domain modules communicate exclusively via `Event_Bus` and repository interfaces.

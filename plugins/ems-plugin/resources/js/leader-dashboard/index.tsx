@@ -1,4 +1,4 @@
-import '../../css/ems-admin.css';
+import '../../css/ems-portal.css';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LeaderDashboard } from './LeaderDashboard';

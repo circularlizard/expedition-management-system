@@ -781,7 +781,7 @@ class Unit_Leader_PageTest extends EMSTestCase {
 		$page->render();
 		ob_end_clean();
 
-		$this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-email-templates', $redirected_to );
+		$this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-emails', $redirected_to );
 	}
 
 	public function test_handle_save_leader_invite_sanitizes_and_persists_email_options(): void {

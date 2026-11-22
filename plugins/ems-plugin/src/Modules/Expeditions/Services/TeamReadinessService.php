@@ -537,18 +537,7 @@ class TeamReadinessService {
 	}
 
 	private function hasLinkedWordPressUser( int $scout_id ): bool {
-		if ( $scout_id <= 0 ) {
-			return false;
-		}
-		$users = get_users(
-			array(
-				'meta_key'   => 'ems_scout_id',
-				'meta_value' => (string) $scout_id,
-				'number'     => 1,
-				'fields'     => 'ID',
-			)
-		);
-		return ! empty( $users );
+		return \EMS\Core\ExplorerUserResolver::findWpUserIdByScoutId( $scout_id ) !== null;
 	}
 
 	/**

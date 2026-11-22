@@ -39,7 +39,7 @@ class Admin_Studio_Controller {
             wp_enqueue_script(
                 'ems-route-card-studio',
                 $base_url . 'assets/js/route-card-studio.js',
-                [ 'wp-element' ],
+                [],
                 $ver,
                 true
             );

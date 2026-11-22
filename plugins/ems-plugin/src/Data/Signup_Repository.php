@@ -200,7 +200,7 @@ class Signup_Repository {
 		if ( $status === 'all' ) {
 			$sql = "SELECT p.*, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
                     FROM {$this->wpdb->prefix}ems_participant_signups p
-                    LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON p.scout_id = o.scout_id
+                    LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON (p.scout_id > 0 AND p.scout_id = o.scout_id)
                     ORDER BY p.created_at DESC";
 			return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
 		}
@@ -212,7 +212,7 @@ class Signup_Repository {
 
 		$sql = "SELECT p.*, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
                 FROM {$this->wpdb->prefix}ems_participant_signups p
-                LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON p.scout_id = o.scout_id
+                LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON (p.scout_id > 0 AND p.scout_id = o.scout_id)
                 WHERE p.signup_status = %s 
                 ORDER BY p.created_at DESC";
 		return $this->wpdb->get_results( $this->wpdb->prepare( $sql, $db_status ), ARRAY_A ) ?: array();
@@ -232,7 +232,7 @@ class Signup_Repository {
                 GROUP BY scout_id
             ) p2 ON p1.id = p2.max_id
         ) p ON e.scout_id = p.scout_id
-        LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON e.scout_id = o.scout_id";
+        LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON (e.scout_id > 0 AND e.scout_id = o.scout_id)";
 
 		if ( $status === 'all' ) {
 			$sql = "SELECT e.*, COALESCE(NULLIF(e.dofe_number, ''), p.dofe_number) AS dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
@@ -313,6 +313,41 @@ class Signup_Repository {
 			array( '%s', '%s' ),
 			array( '%d' )
 		);
+		return $result !== false;
+	}
+
+	/**
+	 * Update additive Kanban stage & processing notes without altering signup_status.
+	 */
+	public function update_kanban_stage( int $id, string $signup_type, string $kanban_stage, ?string $processing_notes = null ): bool {
+		$valid_stages = array( 'to_process', 'on_hold', 'returned', 'processed', 'cancelled' );
+		if ( ! in_array( $kanban_stage, $valid_stages, true ) ) {
+			return false;
+		}
+
+		$table = $signup_type === 'participant'
+			? "{$this->wpdb->prefix}ems_participant_signups"
+			: "{$this->wpdb->prefix}ems_expedition_signups";
+
+		$data   = array(
+			'kanban_stage' => $kanban_stage,
+			'updated_at'   => current_time( 'mysql' ),
+		);
+		$format = array( '%s', '%s' );
+
+		if ( $processing_notes !== null ) {
+			$data['processing_notes'] = sanitize_textarea_field( $processing_notes );
+			$format[]                 = '%s';
+		}
+
+		$result = $this->wpdb->update(
+			$table,
+			$data,
+			array( 'id' => $id ),
+			$format,
+			array( '%d' )
+		);
+
 		return $result !== false;
 	}
 

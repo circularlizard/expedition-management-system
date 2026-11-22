@@ -649,31 +649,35 @@ class Plugin {
 		$css_path            = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
 		$css_file            = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
 		$css_ver             = EMS_VERSION . ( file_exists( $css_file ) ? '.' . filemtime( $css_file ) : '' );
+		$portal_css_path     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.css';
+		$portal_css_file     = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.css';
+		$portal_css_ver      = EMS_VERSION . ( file_exists( $portal_css_file ) ? '.' . filemtime( $portal_css_file ) : '' );
 		$volunteer_js        = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/volunteer-signup.js';
 		$portal_js           = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.js';
 		$leader_dashboard_js = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/leader-dashboard.js';
 		$leader_js_file      = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/leader-dashboard.js';
 		$leader_js_ver       = EMS_VERSION . ( file_exists( $leader_js_file ) ? '.' . filemtime( $leader_js_file ) : '' );
 
-		wp_register_style( 'ems-admin', $css_path, array( 'wp-components' ), $css_ver );
+		wp_register_style( 'ems-admin', $css_path, array(), $css_ver );
+		wp_register_style( 'ems-portal', $portal_css_path, array(), $portal_css_ver );
 		wp_register_script(
 			'ems-volunteer-signup',
 			$volunteer_js,
-			array( 'wp-element', 'wp-i18n' ),
+			array(),
 			EMS_VERSION,
 			true
 		);
 		wp_register_script(
 			'ems-portal',
 			$portal_js,
-			array( 'wp-element', 'wp-i18n' ),
+			array(),
 			EMS_VERSION,
 			true
 		);
 		wp_register_script(
 			'ems-leader-dashboard',
 			$leader_dashboard_js,
-			array( 'wp-element', 'wp-i18n' ),
+			array(),
 			$leader_js_ver,
 			true
 		);
@@ -690,17 +694,15 @@ class Plugin {
 		global $post;
 		if ( is_a( $post, 'WP_Post' ) ) {
 			if ( has_shortcode( $post->post_content, 'ems-volunteer-signup' ) ) {
-				wp_enqueue_style( 'wp-components' );
-				wp_enqueue_style( 'ems-admin' );
+				wp_enqueue_style( 'ems-portal' );
 				wp_enqueue_script( 'ems-volunteer-signup' );
 			}
 			if ( has_shortcode( $post->post_content, 'ems-portal' ) ) {
-				wp_enqueue_style( 'wp-components' );
-				wp_enqueue_style( 'ems-admin' );
+				wp_enqueue_style( 'ems-portal' );
 				wp_enqueue_script( 'ems-portal' );
 			}
 			if ( has_shortcode( $post->post_content, 'ems-leader-dashboard' ) ) {
-				wp_enqueue_style( 'ems-admin' );
+				wp_enqueue_style( 'ems-portal' );
 				wp_enqueue_script( 'ems-leader-dashboard' );
 			}
 		}
@@ -712,7 +714,7 @@ class Plugin {
 				return '<div class="ems-error-boundary ems-shortcode-disabled"><p>The leader dashboard is currently disabled or undergoing maintenance.</p></div>';
 			}
 
-			wp_enqueue_style( 'ems-admin' );
+			wp_enqueue_style( 'ems-portal' );
 			wp_enqueue_script( 'ems-leader-dashboard' );
 
 			$current_user = wp_get_current_user();
@@ -756,8 +758,7 @@ class Plugin {
 				return '<div class="ems-error-boundary ems-shortcode-disabled"><p>Volunteer signup is currently disabled or undergoing maintenance.</p></div>';
 			}
 
-			wp_enqueue_style( 'wp-components' );
-			wp_enqueue_style( 'ems-admin' );
+			wp_enqueue_style( 'ems-portal' );
 			wp_enqueue_script( 'ems-volunteer-signup' );
 
 			$current_user = wp_get_current_user();
@@ -793,8 +794,7 @@ class Plugin {
 				return '<div class="ems-error-boundary ems-shortcode-disabled"><p>The portal is currently disabled or undergoing maintenance.</p></div>';
 			}
 
-			wp_enqueue_style( 'wp-components' );
-			wp_enqueue_style( 'ems-admin' );
+			wp_enqueue_style( 'ems-portal' );
 			wp_enqueue_script( 'ems-portal' );
 
 			$current_user = wp_get_current_user();
@@ -858,7 +858,7 @@ class Plugin {
 				$first_name_field  = $existing_mappings['first_name_field'] ?? 'signup_child_name';
 			}
 
-			wp_enqueue_style( 'ems-admin' );
+			wp_enqueue_style( 'ems-portal' );
 
 			$otp_css = '<style>' .
 				'.ems-otp-wrap button { background-color: #5c2d8b !important; color: #ffffff !important; border: none !important; padding: 6px 14px !important; border-radius: 4px !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: background-color 0.2s ease-in-out !important; display: inline-block !important; }' .

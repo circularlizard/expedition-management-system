@@ -322,58 +322,6 @@ class Settings_PageTest extends EMSTestCase {
         $this->assertStringContainsString( 'archived', strtolower( $output ) );
     }
 
-    public function test_save_leader_invite_stores_subject_and_body(): void {
-        $stored = [];
-        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
-
-        $page = new Settings_Page();
-        ob_start();
-        $page->save_leader_invite( [
-            'ems_leader_invite_email_subject'  => 'Custom Subject for {{unit_name}}',
-            'ems_leader_invite_email_reply_to' => 'dofe-support@borders-scouts.org.uk',
-            'ems_leader_invite_email_body'     => 'Custom Body for {{dashboard_url}}',
-        ] );
-        $output = (string) ob_get_clean();
-
-        $this->assertStringContainsString( 'Leader invitation email settings saved.', $output );
-        $this->assertSame( 'Custom Subject for {{unit_name}}', $stored['ems_leader_invite_email_subject'] );
-        $this->assertSame( 'dofe-support@borders-scouts.org.uk', $stored['ems_leader_invite_email_reply_to'] );
-        $this->assertSame( 'Custom Body for {{dashboard_url}}', $stored['ems_leader_invite_email_body'] );
-    }
-
-    public function test_save_leader_invite_strips_newlines_from_reply_to(): void {
-        $stored = [];
-        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
-
-        $page = new Settings_Page();
-        ob_start();
-        $page->save_leader_invite( [
-            'ems_leader_invite_email_reply_to' => "injected@example.com\r\nBcc: evil@example.com",
-        ] );
-        ob_get_clean();
-
-        $this->assertSame( 'injected@example.comBcc: evil@example.com', $stored['ems_leader_invite_email_reply_to'] );
-    }
-
-    public function test_save_settings_routes_save_leader_invite(): void {
-        $stored = [];
-        Functions\when( 'update_option' )->alias( static function ( $k, $v ) use ( &$stored ) { $stored[$k] = $v; return true; } );
-
-        $page = new Settings_Page();
-        ob_start();
-        $page->save_settings( [
-            'ems_save_leader_invite'           => '1',
-            'ems_leader_invite_email_subject'  => 'Routed Subject',
-            'ems_leader_invite_email_reply_to' => 'routed-reply-to@example.com',
-            'ems_leader_invite_email_body'     => 'Routed Body',
-        ] );
-        ob_get_clean();
-
-        $this->assertSame( 'Routed Subject', $stored['ems_leader_invite_email_subject'] );
-        $this->assertSame( 'routed-reply-to@example.com', $stored['ems_leader_invite_email_reply_to'] );
-        $this->assertSame( 'Routed Body', $stored['ems_leader_invite_email_body'] );
-    }
-
     public function test_render_settings_excludes_leader_invite_tab(): void {
         Functions\when( 'wp_nonce_field' )->justReturn( '' );
         Functions\when( 'selected' )->justReturn( '' );
@@ -402,7 +350,7 @@ class Settings_PageTest extends EMSTestCase {
         $page = new Settings_Page();
         $page->render();
 
-        $this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-email-templates', $redirected );
+        $this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-emails', $redirected );
         unset( $_GET['tab'] );
     }
 

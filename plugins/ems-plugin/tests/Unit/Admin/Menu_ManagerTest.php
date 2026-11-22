@@ -38,16 +38,12 @@ class Menu_ManagerTest extends EMSTestCase {
 		$settings_page     = Mockery::mock( Settings_Page::class );
 		$report_page       = Mockery::mock( Training_Report_Page::class );
 
-		// Strict sequence expectation
+		// Strict sequence expectation for 7 consolidated hubs
 		$admin_page->shouldReceive( 'register' )->once()->ordered();
-		$admin_page->shouldReceive( 'register_explorers_menu' )->once()->ordered();
-		$unit_leader_page->shouldReceive( 'register' )->once()->ordered();
 		$admin_page->shouldReceive( 'register_volunteers_menu' )->once()->ordered();
-		$admin_page->shouldReceive( 'register_reference_menu' )->once()->ordered();
+		$admin_page->shouldReceive( 'register_units_sync_menu' )->with( $unit_leader_page )->once()->ordered();
 		$admin_page->shouldReceive( 'register_email_templates_menu' )->once()->ordered();
 		$settings_page->shouldReceive( 'register' )->once()->ordered();
-		$report_page->shouldReceive( 'register' )->once()->ordered();
-		$admin_page->shouldReceive( 'register_mapper_menu' )->once()->ordered();
 
 		Functions\when( 'add_submenu_page' )->justReturn( 'hook' );
 
@@ -105,26 +101,15 @@ class Menu_ManagerTest extends EMSTestCase {
 		$visible_slugs = array_column( $visible_submenus, 'slug' );
 
 		$expected_order = array(
-			'ems',                  // 1. Signups
-			'ems-expeditions',      // 2. Expeditions
-			'ems-explorers',        // 3. Explorers
-			'ems-units',            // 4. Units & Leaders
-			'ems-volunteers',       // 5. Volunteers
-			'ems-route-studio',     // 6. Route Studio
-			'ems-reference',        // 7. OSM Sync
-			'ems-email-templates',  // 8. Email Templates
-			'ems-settings',         // 9. Settings
-			'ems-training-report',  // 10. Training Report (at the end)
+			'ems',              // 1. Sign-ups
+			'ems-expeditions',  // 2. Expeditions & Teams
+			'ems-volunteers',   // 3. Volunteers
+			'ems-units-sync',   // 4. Units & OSM Sync
+			'ems-route-studio', // 5. Route Studio
+			'ems-emails',       // 6. Emails & Notifications
+			'ems-settings',     // 7. Settings & System
 		);
 
 		$this->assertSame( $expected_order, $visible_slugs );
-
-		// Verify Column Mapper is registered with null parent (hidden utility page)
-		$hidden_submenus = array_filter(
-			$registered_submenus,
-			fn( $item ) => $item['parent'] === null
-		);
-		$hidden_slugs = array_column( $hidden_submenus, 'slug' );
-		$this->assertContains( 'ems-column-mapper', $hidden_slugs );
 	}
 }

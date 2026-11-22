@@ -5,6 +5,7 @@ namespace EMS\Integrations\TutorLms;
 
 use EMS\Contracts\DTOs\TrainingStatusDTO;
 use EMS\Contracts\TrainingComplianceInterface;
+use EMS\Core\ExplorerUserResolver;
 
 class TutorLmsAdapter implements TrainingComplianceInterface {
 	/**
@@ -54,19 +55,8 @@ class TutorLmsAdapter implements TrainingComplianceInterface {
 	 * Internal query logic for Tutor LMS progress.
 	 */
 	protected function queryCourseProgress( int $scoutId ): TrainingStatusDTO {
-		// 1. Resolve user ID for scoutId
-		$userId = 0;
-		$users  = get_users( [
-			'meta_key'   => 'ems_scout_id',
-			'meta_value' => (string) $scoutId,
-			'number'     => 1,
-			'fields'     => 'ID',
-		] );
-
-		if ( ! empty( $users ) ) {
-			$first = reset( $users );
-			$userId = is_numeric( $first ) ? (int) $first : ( ( $first instanceof \WP_User ) ? (int) $first->ID : 0 );
-		}
+		// 1. Resolve user ID for scoutId using canonical ems_scout_ids (with legacy fallback)
+		$userId = ExplorerUserResolver::findWpUserIdByScoutId( $scoutId ) ?? 0;
 
 		// 2. Identify target training course
 		$courseId = (int) get_option( 'ems_tutor_training_course_id', 0 );

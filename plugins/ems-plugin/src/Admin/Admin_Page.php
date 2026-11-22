@@ -23,8 +23,8 @@ class Admin_Page {
 
 		$signups_hook = add_submenu_page(
 			'ems',
-			__( 'Signups', 'ems-plugin' ),
-			__( 'Signups', 'ems-plugin' ),
+			__( 'Sign-ups', 'ems-plugin' ),
+			__( 'Sign-ups', 'ems-plugin' ),
 			'manage_options',
 			'ems',
 			array( $this, 'render_signups_page' )
@@ -32,8 +32,8 @@ class Admin_Page {
 
 		$dashboard_hook = add_submenu_page(
 			'ems',
-			__( 'Expeditions', 'ems-plugin' ),
-			__( 'Expeditions', 'ems-plugin' ),
+			__( 'Expeditions & Teams', 'ems-plugin' ),
+			__( 'Expeditions & Teams', 'ems-plugin' ),
 			'manage_options',
 			'ems-expeditions',
 			array( $this, 'render_dashboard' )
@@ -76,15 +76,15 @@ class Admin_Page {
 	}
 
 	/**
-	 * Registers the Email Templates submenu.
+	 * Registers the Emails & Notifications submenu.
 	 */
 	public function register_email_templates_menu(): void {
 		$emails_hook = add_submenu_page(
 			'ems',
-			__( 'Email Templates', 'ems-plugin' ),
-			__( 'Email Templates', 'ems-plugin' ),
+			__( 'Emails & Notifications', 'ems-plugin' ),
+			__( 'Emails & Notifications', 'ems-plugin' ),
 			'manage_options',
-			'ems-email-templates',
+			'ems-emails',
 			array( $this, 'render_email_templates_page' )
 		);
 
@@ -190,6 +190,135 @@ class Admin_Page {
 	}
 
 	/**
+	 * Registers the consolidated Units & OSM Sync hub.
+	 */
+	public function register_units_sync_menu( \EMS\Modules\LeaderDashboard\Unit_Leader_Page $unit_leader_page ): void {
+		$units_sync_hook = add_submenu_page(
+			'ems',
+			__( 'Units & OSM Sync', 'ems-plugin' ),
+			__( 'Units & OSM Sync', 'ems-plugin' ),
+			'manage_options',
+			'ems-units-sync',
+			function () use ( $unit_leader_page ): void {
+				$this->render_units_sync_page( $unit_leader_page );
+			}
+		);
+
+		add_action(
+			'admin_enqueue_scripts',
+			function ( $hook ) use ( $units_sync_hook ) {
+				if ( $hook === $units_sync_hook ) {
+					$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'units';
+					if ( $tab === 'mapper' ) {
+						$this->enqueue_mapper_assets();
+					} else {
+						$this->enqueue_dashboard_assets();
+					}
+				}
+			}
+		);
+	}
+
+	/**
+	 * Renders the consolidated Units & OSM Sync hub.
+	 */
+	public function render_units_sync_page( \EMS\Modules\LeaderDashboard\Unit_Leader_Page $unit_leader_page ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		global $wpdb;
+
+		$unit_leader_page->handle_post_actions();
+
+		if ( isset( $_POST['ems_save_sections'] ) && check_admin_referer( 'ems_settings_sections' ) ) {
+			$this->save_sections( $_POST );
+		}
+
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'units';
+		$valid_tabs = array( 'units', 'leaders', 'patrols', 'explorers', 'osm_patrols', 'events', 'sections', 'pushback', 'mapper', 'diagnostics' );
+		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
+			$active_tab = 'units';
+		}
+
+		$base_url   = admin_url( 'admin.php?page=ems-units-sync' );
+		$tab_labels = array(
+			'units'       => __( 'Units & Districts', 'ems-plugin' ),
+			'leaders'     => __( 'Leaders & Access', 'ems-plugin' ),
+			'patrols'     => __( 'OSM Patrol Mapping', 'ems-plugin' ),
+			'explorers'   => __( 'Explorers', 'ems-plugin' ),
+			'osm_patrols' => __( 'Patrols', 'ems-plugin' ),
+			'events'      => __( 'Events', 'ems-plugin' ),
+			'sections'    => __( 'Managed Sections', 'ems-plugin' ),
+			'pushback'    => __( 'Pushback Sync', 'ems-plugin' ),
+			'mapper'      => __( 'Flexi-Record Mapper', 'ems-plugin' ),
+			'diagnostics' => __( 'Diagnostics', 'ems-plugin' ),
+		);
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Units & OSM Sync', 'ems-plugin' ) . '</h1>';
+
+		$this->render_error_notices();
+
+		$sync_status  = get_transient( 'ems_sync_status' );
+		$sync_state   = $sync_status['state'] ?? '';
+		$sync_running = in_array( $sync_state, array( 'queued', 'running' ), true );
+		if ( $sync_running ) {
+			$this->render_sync_progress_banner();
+		} else {
+			$this->render_sync_result_panel();
+		}
+
+		$is_blocked  = (bool) get_option( 'ems_api_blocked', false );
+		$last_result = get_transient( 'ems_last_sync_result' );
+		$last_sync   = $last_result['started_at'] ?? null;
+
+		echo '<div class="ems-admin-header-row">';
+		if ( ! $is_blocked && ! $sync_running ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			echo '<input type="hidden" name="action" value="ems_sync_osm" />';
+			wp_nonce_field( 'ems_sync_osm' );
+			echo '<button type="submit" class="button button-primary">' . esc_html__( 'Sync from OSM', 'ems-plugin' ) . '</button>';
+			echo '</form>';
+		}
+		if ( $last_sync ) {
+			echo '<span class="ems-text-muted">' . esc_html__( 'Last synced:', 'ems-plugin' ) . ' ' . esc_html( $last_sync ) . '</span>';
+		} else {
+			echo '<span class="ems-text-muted">' . esc_html__( 'Never synced', 'ems-plugin' ) . '</span>';
+		}
+		echo '</div>';
+
+		echo '<nav class="nav-tab-wrapper ems-nav-tab-wrapper--no-margin">';
+		foreach ( $tab_labels as $slug => $label ) {
+			$class = ( $slug === $active_tab ) ? 'nav-tab nav-tab-active' : 'nav-tab';
+			echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
+		}
+		echo '</nav>';
+		echo '<div class="ems-admin-tab-content-panel">';
+
+		if ( in_array( $active_tab, array( 'units', 'leaders', 'patrols' ), true ) ) {
+			$unit_leader_page->render_tab_content( $active_tab );
+		} elseif ( $active_tab === 'explorers' ) {
+			$this->render_explorers_tab( $wpdb );
+		} elseif ( $active_tab === 'osm_patrols' ) {
+			$this->render_patrols_tab( $wpdb );
+		} elseif ( $active_tab === 'events' ) {
+			$this->render_events_tab( $wpdb );
+		} elseif ( $active_tab === 'sections' ) {
+			$this->render_sections_tab();
+		} elseif ( $active_tab === 'pushback' ) {
+			$this->render_pushback_tab();
+		} elseif ( $active_tab === 'mapper' ) {
+			echo '<div id="ems-column-mapper-root"></div>';
+		} elseif ( $active_tab === 'diagnostics' ) {
+			$this->render_diagnostics_tab();
+		}
+
+		echo '</div>';
+		echo '</div>';
+	}
+
+	/**
 	 * Registers the OSM Reference Data submenu.
 	 */
 	public function register_reference_menu(): void {
@@ -278,12 +407,10 @@ class Admin_Page {
 	 * Safe to call multiple times — wp_enqueue_style is idempotent.
 	 */
 	private function enqueue_admin_styles(): void {
-		wp_enqueue_style( 'wp-components' );
-
 		$css_path    = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
 		$css_url     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
 		$css_version = EMS_VERSION . ( file_exists( $css_path ) ? '.' . filemtime( $css_path ) : '' );
-		wp_enqueue_style( 'ems-admin', $css_url, array( 'wp-components' ), $css_version );
+		wp_enqueue_style( 'ems-admin', $css_url, array(), $css_version );
 	}
 
 	public function render_dashboard(): void {
@@ -765,7 +892,7 @@ class Admin_Page {
 		wp_enqueue_script(
 			$handle,
 			$script_url,
-			array( 'wp-components', 'wp-element', 'wp-i18n' ),
+			array(),
 			EMS_VERSION,
 			true
 		);

@@ -59,7 +59,7 @@ class Plugin {
             wp_enqueue_script(
                 'ems-route-card-studio',
                 EMS_ROUTE_CARD_URL . 'assets/js/route-card-studio.js',
-                [ 'wp-element' ],
+                [],
                 $ver,
                 true
             );

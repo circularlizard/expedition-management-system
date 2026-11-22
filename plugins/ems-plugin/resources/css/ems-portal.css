@@ -1,0 +1,1024 @@
+/* EMS Frontend & Public Shortcode Stylesheet (extracted from ems-admin.css) */
+@import "@fortawesome/fontawesome-svg-core/styles.css";
+/**
+ * EMS Admin Shared Stylesheet
+ *
+ * Utility classes and base element normalization for all EMS admin pages.
+ * These supplement the WordPress admin stylesheet (wp-admin.css) which is
+ * always loaded in the WP admin context.
+ *
+ * Usage convention:
+ *   - .ems-*      layout / structural utilities
+ *   - .wpx-*      overrides / extensions of WP admin base styles
+ *   - Dynamic/state-driven values (colours, visibility) remain inline in JSX.
+ */
+
+/* ─── Variables ───────────────────────────────────────────────────────────── */
+:root {
+    --ems-theme-color: var(--wp-admin-theme-color, #2271b1);
+    --ems-theme-color-darker: var(--wp-admin-theme-color-darker, #135e96);
+    --ems-theme-color-lighter: var(--wp-admin-theme-color-lighter, #f0f6fc);
+
+    /* Bespoke Expedition B2B SaaS Theme Variables */
+    --ems-bg-main: #FAFAF9;         /* Stone 50 */
+    --ems-card-bg: #FFFFFF;
+    --ems-border: #E7E5E4;          /* Stone 200 */
+    --ems-primary: #15803D;         /* Green 700 */
+    --ems-primary-hover: #166534;
+    --ems-primary-light: #DCFCE7;
+    --ems-accent: #C2410C;          /* Orange 700 */
+    --ems-accent-hover: #9A3412;
+    --ems-radius: 8px;
+    --ems-radius-badge: 9999px;
+    --ems-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --ems-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+
+/* ─── Table ───────────────────────────────────────────────────────────────── */
+
+.ems-table-wrap {
+    flex: 1 1 0;
+    overflow-y: auto;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    min-height: 0;
+}
+
+.ems-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ems-table thead tr {
+    background: #f6f7f7;
+    border-bottom: 1px solid #ccd0d4;
+    text-align: left;
+}
+
+.ems-table thead th {
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #50575e;
+    white-space: nowrap;
+}
+
+.ems-table thead th--center {
+    text-align: center;
+}
+
+.ems-table tbody tr {
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.ems-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.ems-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.ems-table tbody td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    color: #1d2327;
+}
+
+.ems-table tbody td--center {
+    text-align: center;
+}
+
+.ems-table__name {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ems-table__meta {
+    font-size: 11px;
+    color: #646970;
+    margin-top: 2px;
+}
+
+
+/* ─── Status badges ───────────────────────────────────────────────────────── */
+
+.ems-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: var(--ems-radius-badge);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.ems-badge--allocated {
+    background: #FEF3C7; /* Amber 100 */
+    color: #92400E;       /* Amber 800 */
+}
+
+.ems-badge--unallocated {
+    background: #F3F4F6; /* Gray 100 */
+    color: #374151;       /* Gray 700 */
+}
+
+.ems-badge--warning {
+    background: #FEE2E2; /* Red 100 */
+    color: #991B1B;       /* Red 800 */
+}
+
+/* ─── Error notice ────────────────────────────────────────────────────────── */
+
+.ems-error-notice {
+    padding: 10px 16px;
+    background: #fcf0f1;
+    border-left: 4px solid #d63638;
+    color: #d63638;
+    margin-bottom: 16px;
+    border-radius: 2px;
+    font-size: 13px;
+}
+
+
+/* ─── Spacing Utilities ─────────────────────────────────────────────────────── */
+
+/* Margin bottom scale */
+.ems-mb-4  { margin-bottom: 4px; }
+.ems-mb-6  { margin-bottom: 6px; }
+.ems-mb-8  { margin-bottom: 8px; }
+.ems-mb-10 { margin-bottom: 10px; }
+.ems-mb-12 { margin-bottom: 12px; }
+.ems-mb-16 { margin-bottom: 16px; }
+.ems-mb-20 { margin-bottom: 20px; }
+.ems-mb-24 { margin-bottom: 24px; }
+
+/* Margin top scale */
+.ems-mt-0  { margin-top: 0; }
+.ems-mt-4  { margin-top: 4px; }
+.ems-mt-8  { margin-top: 8px; }
+.ems-mt-10 { margin-top: 10px; }
+.ems-mt-12 { margin-top: 12px; }
+.ems-mt-16 { margin-top: 16px; }
+.ems-mt-20 { margin-top: 20px; }
+
+/* Margin left */
+.ems-ml-4  { margin-left: 4px; }
+.ems-ml-6  { margin-left: 6px; }
+.ems-ml-8  { margin-left: 8px; }
+.ems-ml-10 { margin-left: 10px; }
+
+/* Margin right */
+.ems-mr-4  { margin-right: 4px; }
+.ems-mr-6  { margin-right: 6px; }
+.ems-mr-8  { margin-right: 8px; }
+.ems-mr-12 { margin-right: 12px; }
+.ems-mr-16 { margin-right: 16px; }
+.ems-mr-20 { margin-right: 20px; }
+
+/* Padding */
+.ems-p-12  { padding: 12px; }
+.ems-p-16  { padding: 16px; }
+.ems-p-20  { padding: 20px; }
+.ems-px-16 { padding-left: 16px; padding-right: 16px; }
+.ems-py-8  { padding-top: 8px; padding-bottom: 8px; }
+
+/* ─── Flex Utilities ────────────────────────────────────────────────────────── */
+
+.ems-flex-center {
+    display: flex;
+    align-items: center;
+}
+
+.ems-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ems-flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Gap scale */
+.ems-gap-2  { gap: 2px; }
+.ems-gap-4  { gap: 4px; }
+.ems-gap-6  { gap: 6px; }
+.ems-gap-8  { gap: 8px; }
+.ems-gap-10 { gap: 10px; }
+.ems-gap-12 { gap: 12px; }
+.ems-gap-16 { gap: 16px; }
+.ems-gap-20 { gap: 20px; }
+.ems-gap-24 { gap: 24px; }
+
+/* ─── Typography ────────────────────────────────────────────────────────────── */
+
+.ems-label-uppercase {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #50575e;
+}
+
+.ems-meta-text {
+    font-size: 12px;
+    color: #646970;
+}
+
+.ems-small-text {
+    font-size: 11px;
+}
+
+.ems-monospace {
+    font-family: monospace;
+}
+
+/* ─── Forms ─────────────────────────────────────────────────────────────────── */
+
+.ems-form-group {
+    margin-bottom: 16px;
+}
+
+.ems-form-label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.ems-field-error {
+    color: #d63638;
+    font-size: 13px;
+}
+
+.ems-form-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ems-block-input {
+    display: block;
+    width: 100%;
+}
+
+/* ─── Cards & Panels ────────────────────────────────────────────────────────── */
+
+.ems-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 16px;
+}
+
+.ems-card--flat {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.ems-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+/* ─── Callouts & Notices ────────────────────────────────────────────────────── */
+
+.ems-warning-callout {
+    background: #fffbeb;
+    border-left: 3px solid #d97706;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #b45309;
+}
+
+.ems-error-callout {
+    background: #fef2f2;
+    border-left: 3px solid #dc2626;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #b91c1c;
+}
+
+/* ─── Status & Badge Elements ───────────────────────────────────────────────── */
+
+.ems-status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.ems-avatar-circle {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.ems-avatar-circle--red {
+    background: #d63638;
+}
+
+.ems-avatar-circle--blue {
+    background: var(--ems-theme-color);
+}
+
+.ems-avatar-circle--gold {
+    background: #dba617;
+}
+
+.ems-avatar-circle--green {
+    background: #00a32a;
+}
+
+/* Skill badge (smaller variant) */
+.ems-skill-badge {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: bold;
+    font-size: 11px;
+    margin-right: 4px;
+}
+
+/* ─── Filter Pills ──────────────────────────────────────────────────────────── */
+
+.ems-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 6px 12px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 20px;
+    color: #646970;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.ems-filter-pill--active {
+    background: #e5f3ff;
+    border-color: var(--ems-theme-color);
+    color: #1d2327;
+}
+
+.ems-filter-pill input[type="radio"],
+.ems-filter-pill input[type="checkbox"] {
+    display: none;
+}
+
+/* ─── Meta Field Pairs ──────────────────────────────────────────────────────── */
+
+.ems-meta-field {
+    margin-bottom: 12px;
+}
+
+.ems-meta-field__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ems-meta-field__value {
+    font-size: 14px;
+    color: #1d2327;
+}
+
+.ems-meta-field__value--empty {
+    color: #bbb;
+}
+
+/* ─── Table Row Modifiers ───────────────────────────────────────────────────── */
+
+.ems-table-row--selected {
+    background: var(--ems-theme-color-lighter);
+}
+
+.ems-table-row--archived {
+    opacity: 0.6;
+}
+
+.ems-table-cell--center {
+    text-align: center;
+}
+
+.ems-table-cell--right {
+    text-align: right;
+}
+
+/* ─── Event Header Level Modifiers ──────────────────────────────────────────── */
+
+.ems-event-header--bronze {
+    background: #f8f4e8;
+}
+
+.ems-event-header--silver {
+    background: #f0f4f8;
+}
+
+.ems-event-header--gold {
+    background: #fef9e6;
+}
+
+.ems-event-header--multiple {
+    background: #eef2ff;
+}
+
+/* ─── Section Header ────────────────────────────────────────────────────────── */
+
+.ems-section-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+    margin-bottom: 12px;
+}
+
+
+/* ─── First Aid Icons ───────────────────────────────────────────────────────── */
+
+.ems-fa-full {
+    color: #1b5e20;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+.ems-fa-response {
+    color: #2e7d32;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+
+/* Tab navigation - WordPress Nav Tab Pattern (works in admin and frontend shortcodes) */
+.nav-tab-wrapper,
+.ems-nav-tab-wrapper,
+.ems-tab-nav {
+    border-bottom: 1px solid #c3c4c7 !important;
+    padding-top: 9px !important;
+    padding-bottom: 0 !important;
+    line-height: inherit !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    margin-bottom: 20px !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+}
+
+.nav-tab,
+.ems-nav-tab-wrapper button.nav-tab,
+.ems-leader-dashboard .nav-tab,
+.ems-leader-dashboard button.nav-tab,
+.ems-tab-nav__button {
+    border: 1px solid #c3c4c7 !important;
+    border-bottom: none !important;
+    background: #dcdcde !important;
+    color: #50575e !important;
+    padding: 7px 16px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    border-radius: 4px 4px 0 0 !important;
+    cursor: pointer !important;
+    margin-bottom: -1px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+.nav-tab:hover,
+.ems-nav-tab-wrapper button.nav-tab:hover,
+.ems-leader-dashboard .nav-tab:hover,
+.ems-leader-dashboard button.nav-tab:hover,
+.ems-tab-nav__button:hover {
+    background: #f0f0f1 !important;
+    color: #1d2327 !important;
+}
+
+.nav-tab-active,
+.nav-tab.nav-tab-active,
+.ems-nav-tab-wrapper button.nav-tab-active,
+.ems-leader-dashboard .nav-tab-active,
+.ems-leader-dashboard button.nav-tab.nav-tab-active,
+.ems-tab-nav__button--active {
+    background: #ffffff !important;
+    color: #1d2327 !important;
+    border-color: #c3c4c7 !important;
+    border-bottom: 1px solid #ffffff !important;
+    margin-bottom: -1px !important;
+    font-weight: 600 !important;
+}
+
+.ems-tab-nav__checkbox-label {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #50575e;
+    cursor: pointer;
+}
+
+/* Loading state */
+.ems-loading-state {
+    text-align: center;
+    padding: 40px;
+    color: #50575e;
+}
+
+.ems-loading-state p {
+    margin-top: 8px;
+}
+
+/* Table link */
+.ems-table__link {
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--ems-theme-color);
+}
+
+/* Code badge */
+.ems-code-badge {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* Small text helper for table cells */
+.ems-table-cell--small {
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* OSM events loading text */
+.ems-osm-loading {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #aaa;
+}
+
+/* Status badge modifiers */
+.ems-status-badge--active,
+.ems-status-badge--open,
+.ems-status-badge--allocated,
+.ems-status-badge--processed,
+.ems-status-badge--paid {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.ems-status-badge--archived,
+.ems-status-badge--completed {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.ems-status-badge--draft,
+.ems-status-badge--pending,
+.ems-status-badge--received {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.ems-status-badge--failed,
+.ems-status-badge--rejected {
+    background: #fdf2f2;
+    color: #b91c1c;
+}
+
+.ems-status-badge--planning {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.ems-status-badge--confirmed {
+    background: #c7d2fe;
+    color: #3730a3;
+}
+
+
+/* Participant Portal Responsive Enhancements */
+.ems-portal-overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.ems-portal-event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eaeaea;
+    padding-bottom: 10px;
+    gap: 12px;
+}
+
+@media screen and (max-width: 768px) {
+    .ems-portal-container {
+        padding: 12px;
+    }
+    
+    .ems-portal-overview-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ems-portal-event-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .ems-portal-event-header button {
+        align-self: flex-start;
+    }
+
+    .portal-nav-tabs,
+    .category-tabs,
+    .sub-tabs,
+    .child-selector {
+        flex-wrap: wrap !important;
+    }
+}
+
+/* Clickable table row hover transitions */
+.ems-clickable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.ems-clickable-row:hover {
+    background-color: #f4f8fa !important;
+}
+
+/* ─── Frontend Portal Theme Reset Rules ───────────────────────────────────── */
+.ems-portal-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    color: #3c434a;
+    line-height: 1.4;
+}
+
+.ems-portal-container *,
+.ems-portal-container *::before,
+.ems-portal-container *::after {
+    box-sizing: border-box;
+}
+
+.ems-portal-container button,
+.ems-portal-container .button,
+.ems-portal-container input[type="submit"] {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 2.15384615;
+    min-height: 30px;
+    margin: 0;
+    padding: 0 10px;
+    cursor: pointer;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.ems-portal-container select,
+.ems-portal-container input[type="text"],
+.ems-portal-container input[type="email"],
+.ems-portal-container input[type="number"],
+.ems-portal-container textarea {
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 6px 10px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #2c3338;
+    max-width: 100%;
+}
+
+
+/* ─── Level Awards Branded Headers ─────────────────────────────────────────── */
+.ems-event-detail__header--gold {
+    border-left: 4px solid #B4975A !important;
+    background-color: #F6F3EC !important;
+}
+
+.ems-event-detail__header--silver {
+    border-left: 4px solid #A7A9AC !important;
+    background-color: #F0F1F2 !important;
+}
+
+.ems-event-detail__header--bronze {
+    border-left: 4px solid #BA8748 !important;
+    background-color: #F8F3EC !important;
+}
+
+.ems-event-detail__header--multiple {
+    border-left: 4px solid #4F46E5 !important;
+    background-color: #EEF2FF !important;
+}
+
+.ems-event-detail__header-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.ems-event-detail__logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+}
+
+.ems-event-detail__stats-pills {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ems-event-detail__stat-pill {
+    background: #f0f0f1;
+    border: 1px solid #ccd0d4;
+    border-radius: var(--ems-radius-badge, 9999px);
+    padding: 4px 12px;
+    font-weight: 500;
+    font-size: 12px;
+    color: #1d2327;
+}
+
+/* ─── Overview Tab Card System ─────────────────────────────────────────────── */
+.ems-overview-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+    .ems-overview-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ems-overview-card {
+    background: var(--ems-card-bg, #ffffff);
+    border: 1px solid var(--ems-border, #E7E5E4);
+    border-radius: var(--ems-radius, 8px);
+    padding: 24px;
+    box-shadow: var(--ems-shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    transition: box-shadow 0.2s ease;
+}
+
+.ems-overview-card:hover {
+    box-shadow: var(--ems-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+}
+
+.ems-overview-card__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #44403c;
+    margin: 0 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ems-border, #E7E5E4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ems-overview-card__title svg {
+    color: var(--ems-primary);
+}
+
+
+/* ─── Coloured DofE Level Pills & OSM Sync Icon ─────────────────────────── */
+
+.ems-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-transform: capitalize;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    white-space: nowrap;
+}
+
+.ems-pill--bronze {
+    background: #fdf4eb;
+    color: #8a4b16;
+    border-color: #e2b887;
+}
+
+.ems-pill--silver {
+    background: #f1f5f9;
+    color: #334155;
+    border-color: #94a3b8;
+}
+
+.ems-pill--gold {
+    background: #fef9e7;
+    color: #856404;
+    border-color: #e6c656;
+}
+
+.ems-pill--asn-pending {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fcd34d;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 8px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.ems-pill--asn-rejected,
+.ems-pill--asn-action {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 8px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.ems-pill--asn-validated,
+.ems-pill--asn-no-action {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #86efac;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 8px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.ems-signups-asn-cell {
+    white-space: nowrap;
+}
+
+.ems-osm-sync-icon {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    object-fit: contain;
+    display: inline-block;
+}
+
+.ems-osm-sync-error {
+    color: #d63638;
+    font-weight: 700;
+    font-size: 15px;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+/* ─── Front-End Leader Dashboard Theme-Compatible Refinements ──────────── */
+
+.ems-leader-dashboard label,
+.ems-leader-dashboard__nowrap {
+    white-space: nowrap;
+    margin-bottom: 0;
+}
+
+.ems-leader-dashboard select {
+    width: auto;
+    max-width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding: 6px 32px 6px 12px;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23333333' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 12px;
+}
+
+.ems-leader-dashboard button {
+    white-space: nowrap;
+}
+
+.ems-leader-dashboard button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+
+/* ==========================================================================
+   Participant Portal Admin Preview Bar
+   ========================================================================== */
+
+.ems-portal-admin-bar {
+    background: #f0f6fc;
+    border: 1px solid #c8d8e8;
+    border-left: 4px solid #2271b1;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.ems-portal-admin-bar__title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1e3a5f;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ems-portal-admin-bar__badge {
+    background: #2271b1;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.ems-portal-admin-bar__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ems-portal-admin-bar__search {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #8c8f94;
+    background: #fff;
+    font-size: 13px;
+    width: 200px;
+}
+
+.ems-portal-admin-bar__select {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid #8c8f94;
+    background: #fff;
+    font-size: 13px;
+    min-width: 280px;
+    max-width: 420px;
+}
+
+.ems-portal-admin-bar__btn-reset {
+    padding: 4px 12px !important;
+    font-size: 12px !important;
+    border-radius: 3px !important;
+    cursor: pointer;
+}
+
+

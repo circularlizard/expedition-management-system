@@ -177,24 +177,46 @@ class Team_Member_Repository {
 
 		$explorers = get_users(
 			array(
-				'meta_key'     => 'ems_scout_id',
-				'meta_compare' => 'EXISTS',
+				'meta_query' => array(
+					'relation' => 'OR',
+					array(
+						'key'     => 'ems_scout_ids',
+						'compare' => 'EXISTS',
+					),
+					array(
+						'key'     => 'ems_scout_id',
+						'compare' => 'EXISTS',
+					),
+				),
 			)
 		);
 
 		$unassigned = array();
 		foreach ( $explorers as $user ) {
-			$user_id = $user->ID;
+			$user_id   = (int) $user->ID;
+			$scout_ids = \EMS\Core\ExplorerUserResolver::getScoutIdsForUser( $user_id );
 
 			$assigned = false;
 			foreach ( $team_ids as $team_id ) {
-				$row = $wpdb->get_row(
-					$wpdb->prepare(
-						"SELECT id FROM {$table} WHERE team_post_id = %d AND user_id = %d",
-						$team_id,
-						$user_id
-					)
-				);
+				if ( ! empty( $scout_ids ) ) {
+					$placeholders = implode( ',', array_fill( 0, count( $scout_ids ), '%d' ) );
+					$params       = array_merge( array( $team_id ), $scout_ids, array( $user_id ) );
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$row = $wpdb->get_row(
+						$wpdb->prepare(
+							"SELECT id FROM {$table} WHERE team_post_id = %d AND (scout_id IN ({$placeholders}) OR user_id = %d) LIMIT 1",
+							...$params
+						)
+					);
+				} else {
+					$row = $wpdb->get_row(
+						$wpdb->prepare(
+							"SELECT id FROM {$table} WHERE team_post_id = %d AND user_id = %d LIMIT 1",
+							$team_id,
+							$user_id
+						)
+					);
+				}
 				if ( $row ) {
 					$assigned = true;
 					break;
@@ -204,7 +226,8 @@ class Team_Member_Repository {
 			if ( ! $assigned ) {
 				$unassigned[] = array(
 					'ID'                 => $user_id,
-					'ems_scout_id'       => get_user_meta( $user_id, 'ems_scout_id', true ),
+					'ems_scout_ids'      => $scout_ids,
+					'ems_scout_id'       => ! empty( $scout_ids ) ? (string) $scout_ids[0] : get_user_meta( $user_id, 'ems_scout_id', true ),
 					'ems_first_name'     => get_user_meta( $user_id, 'ems_first_name', true ),
 					'ems_last_name'      => get_user_meta( $user_id, 'ems_last_name', true ),
 					'ems_explorer_email' => get_user_meta( $user_id, 'ems_explorer_email', true ),

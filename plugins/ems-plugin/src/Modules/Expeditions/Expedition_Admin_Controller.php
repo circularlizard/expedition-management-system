@@ -1065,6 +1065,26 @@ class Expedition_Admin_Controller {
 			)
 		);
 
+		register_rest_route(
+			'ems/v1',
+			'/signups/anomalies',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_signup_anomalies' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			'ems/v1',
+			'/signups/(?P<type>participant|expedition)/(?P<id>\d+)/kanban',
+			array(
+				'methods'             => 'PATCH,POST',
+				'callback'            => array( $this, 'update_signup_kanban' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
 		// Participant Places Endpoints
 		register_rest_route(
 			'ems/v1',
@@ -1205,6 +1225,8 @@ class Expedition_Admin_Controller {
 				'bronze_completion'   => $bronze,
 				'silver_completion'   => $silver,
 				'signup_status'       => $row['signup_status'],
+				'kanban_stage'        => $row['kanban_stage'] ?? 'to_process',
+				'processing_notes'    => $row['processing_notes'] ?? '',
 				'payment_status'      => $row['payment_status'],
 				'form_submission_id'  => (int) $row['form_submission_id'],
 				'is_synced_osm'       => isset( $row['is_synced_osm'] ) && (int) $row['is_synced_osm'] === 1,
@@ -1278,6 +1300,8 @@ class Expedition_Admin_Controller {
 				'first_aid_status'         => $row['first_aid_status'],
 				'first_aid_expiry'         => $row['first_aid_expiry'],
 				'signup_status'            => $row['signup_status'],
+				'kanban_stage'             => $row['kanban_stage'] ?? 'to_process',
+				'processing_notes'         => $row['processing_notes'] ?? '',
 				'form_submission_id'       => (int) $row['form_submission_id'],
 				'is_synced_osm'            => isset( $row['is_synced_osm'] ) && (int) $row['is_synced_osm'] === 1,
 				'created_at'               => $row['created_at'],
@@ -1448,14 +1472,20 @@ class Expedition_Admin_Controller {
 		$participants = $participant_response->get_data();
 		$expeditions  = $expedition_response->get_data();
 
+		$anomaly_service = new \EMS\Modules\Signups\Services\SignupAnomalyService();
+		$anomaly_result  = $anomaly_service->computeAnomalies( $participants, $expeditions );
+		$by_key          = $anomaly_result['by_key'];
+
 		$merged = array();
 		foreach ( $participants as $p ) {
-			$p['type'] = 'participant';
-			$merged[]  = $p;
+			$p['type']      = 'participant';
+			$p['anomalies'] = $by_key[ 'participant_' . $p['id'] ] ?? array();
+			$merged[]       = $p;
 		}
 		foreach ( $expeditions as $e ) {
-			$e['type'] = 'expedition';
-			$merged[]  = $e;
+			$e['type']      = 'expedition';
+			$e['anomalies'] = $by_key[ 'expedition_' . $e['id'] ] ?? array();
+			$merged[]       = $e;
 		}
 
 		// Sort by created_at DESC
@@ -1467,6 +1497,45 @@ class Expedition_Admin_Controller {
 		);
 
 		return new \WP_REST_Response( $merged );
+	}
+
+	public function get_signup_anomalies( \WP_REST_Request $request ): \WP_REST_Response {
+		$participants = $this->signups->get_participant_signups( 'submitted' );
+		$expeditions  = $this->signups->get_expedition_signups( 'submitted' );
+
+		$anomaly_service = new \EMS\Modules\Signups\Services\SignupAnomalyService();
+		$result          = $anomaly_service->computeAnomalies( $participants, $expeditions );
+
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	public function update_signup_kanban( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$type  = (string) $request->get_param( 'type' );
+		$id    = (int) $request->get_param( 'id' );
+		$body  = $request->get_json_params() ?: array();
+		$stage = sanitize_key( (string) ( $body['kanban_stage'] ?? '' ) );
+		$notes = array_key_exists( 'processing_notes', $body ) ? (string) $body['processing_notes'] : null;
+
+		$valid_stages = array( 'to_process', 'on_hold', 'returned', 'processed', 'cancelled' );
+		if ( ! in_array( $stage, $valid_stages, true ) ) {
+			return $this->error( 'ems_invalid_kanban_stage', 'Invalid kanban_stage.', 400 );
+		}
+
+		$ok = $this->signups->update_kanban_stage( $id, $type, $stage, $notes );
+		if ( ! $ok ) {
+			return $this->error( 'ems_kanban_update_failed', 'Failed to update Kanban stage.', 500 );
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'updated'          => true,
+				'id'               => $id,
+				'type'             => $type,
+				'kanban_stage'     => $stage,
+				'processing_notes' => $notes,
+			),
+			200
+		);
 	}
 
 	public function list_event_teams( \WP_REST_Request $request ): \WP_REST_Response {

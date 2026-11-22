@@ -14,6 +14,7 @@ import {
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
 import { normalizeExpeditionType } from './dashboardMetrics';
 import UnitChaserView from './UnitChaserView';
+import SignupsKanbanView from './SignupsKanbanView';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 import { computeSignupsDashboardMetrics, getMatchSuggestions as findMatchSuggestions, getSignupRecordKey, groupSignupsByExplorerIdentity, isSignupSyncedWithOsm } from './dashboardMetrics';
 import {
@@ -46,7 +47,7 @@ export default function SignupsBoard() {
     const osmIconUrl = `${pluginUrl}assets/images/osm_icon.png`;
     const osmIconInverseUrl = `${pluginUrl}assets/images/osm_icon_inverse.png`;
 
-    const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'table' | 'unmatched_osm' | 'unpaired_signups'>('dashboard');
+    const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'kanban' | 'table' | 'unmatched_osm' | 'unpaired_signups'>('dashboard');
     const [signups, setSignups] = useState<any[]>([]);
     const [explorers, setExplorers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -60,7 +61,7 @@ export default function SignupsBoard() {
     const [unitFilter, setUnitFilter] = useState<string>('all');
     const [districtFilter, setDistrictFilter] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [anomalyFilter, setAnomalyFilter] = useState<'all' | 'no_expedition' | 'no_participant' | 'duplicate' | 'unmatched_osm'>('all');
+    const [anomalyFilter, setAnomalyFilter] = useState<'all' | 'no_expedition' | 'no_participant' | 'level_mismatch' | 'duplicate' | 'unmatched_osm' | 'pending_osm_sync' | 'missing_edofe' | 'unvalidated_asn'>('all');
 
     // Grouping & Sorting
     const [grouping, setGrouping] = useState<'none' | 'level' | 'expedition' | 'unit' | 'explorer' | 'parent'>('none');
@@ -484,10 +485,15 @@ export default function SignupsBoard() {
         }
         if (anomalyFilter !== 'all') {
             const key = getSignupRecordKey(s);
-            if (anomalyFilter === 'no_expedition' && !dashboardMetrics.participantWithoutExpedition.signupKeys.has(key)) return false;
-            if (anomalyFilter === 'no_participant' && !dashboardMetrics.expeditionWithoutParticipant.signupKeys.has(key)) return false;
-            if (anomalyFilter === 'duplicate' && !dashboardMetrics.duplicates.signupKeys.has(key)) return false;
-            if (anomalyFilter === 'unmatched_osm' && !dashboardMetrics.unmatchedOsm.signupKeys.has(key)) return false;
+            const serverAnomalies: string[] = Array.isArray(s.anomalies) ? s.anomalies : [];
+            if (anomalyFilter === 'no_expedition' && !dashboardMetrics.participantWithoutExpedition.signupKeys.has(key) && !serverAnomalies.includes('place_without_expedition')) return false;
+            if (anomalyFilter === 'no_participant' && !dashboardMetrics.expeditionWithoutParticipant.signupKeys.has(key) && !serverAnomalies.includes('expedition_without_place')) return false;
+            if (anomalyFilter === 'duplicate' && !dashboardMetrics.duplicates.signupKeys.has(key) && !serverAnomalies.includes('duplicate_signup')) return false;
+            if (anomalyFilter === 'unmatched_osm' && !dashboardMetrics.unmatchedOsm.signupKeys.has(key) && !serverAnomalies.includes('unmatched_osm')) return false;
+            if (anomalyFilter === 'level_mismatch' && !serverAnomalies.includes('level_mismatch')) return false;
+            if (anomalyFilter === 'pending_osm_sync' && !serverAnomalies.includes('pending_osm_sync')) return false;
+            if (anomalyFilter === 'missing_edofe' && !serverAnomalies.includes('missing_edofe')) return false;
+            if (anomalyFilter === 'unvalidated_asn' && !serverAnomalies.includes('unvalidated_asn')) return false;
         }
         return true;
     });
@@ -729,6 +735,13 @@ export default function SignupsBoard() {
                     </button>
                     <button
                         type="button"
+                        className={`nav-tab ${activeViewTab === 'kanban' ? 'nav-tab-active' : ''}`}
+                        onClick={() => setActiveViewTab('kanban')}
+                    >
+                        Kanban Board
+                    </button>
+                    <button
+                        type="button"
                         className={`nav-tab ${activeViewTab === 'table' ? 'nav-tab-active' : ''}`}
                         onClick={() => setActiveViewTab('table')}
                     >
@@ -767,6 +780,16 @@ export default function SignupsBoard() {
                                 setSelectedSignup(null);
                                 setActiveViewTab(tab);
                             }}
+                        />
+                    </ModuleErrorBoundary>
+                ) : activeViewTab === 'kanban' ? (
+                    <ModuleErrorBoundary moduleName="Signups Kanban Board">
+                        <SignupsKanbanView
+                            signups={signups}
+                            rootUrl={config.root_url}
+                            nonce={config.nonce}
+                            onSelectSignup={(s) => setSelectedSignup(s)}
+                            onUpdated={fetchData}
                         />
                     </ModuleErrorBoundary>
                 ) : activeViewTab === 'unmatched_osm' ? (
@@ -939,10 +962,14 @@ export default function SignupsBoard() {
                                         className="ems-select"
                                     >
                                         <option value="all">All Records</option>
-                                        <option value="no_expedition">Participant Only (No Expedition)</option>
-                                        <option value="no_participant">Expedition Only (No Participant Place)</option>
+                                        <option value="no_expedition">Participant Only (No Form 7)</option>
+                                        <option value="no_participant">Expedition Only (No Form 6)</option>
+                                        <option value="level_mismatch">Award Level Mismatch</option>
                                         <option value="duplicate">Duplicate Signups</option>
-                                        <option value="unmatched_osm">No Synced OSM Record</option>
+                                        <option value="unmatched_osm">Unmatched OSM (scout_id=0)</option>
+                                        <option value="pending_osm_sync">Pending OSM Sync</option>
+                                        <option value="missing_edofe">Missing eDofE Number</option>
+                                        <option value="unvalidated_asn">Unvalidated ASN</option>
                                     </select>
                                 </div>
 

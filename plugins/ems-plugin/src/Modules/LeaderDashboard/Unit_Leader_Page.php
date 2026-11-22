@@ -38,12 +38,10 @@ class Unit_Leader_Page {
 	 * @return void
 	 */
 	public function enqueue_assets(): void {
-		wp_enqueue_style( 'wp-components' );
-
 		$css_path    = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
 		$css_url     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
 		$css_version = EMS_VERSION . ( file_exists( $css_path ) ? '.' . filemtime( $css_path ) : '' );
-		wp_enqueue_style( 'ems-admin', $css_url, array( 'wp-components' ), $css_version );
+		wp_enqueue_style( 'ems-admin', $css_url, array(), $css_version );
 	}
 
 	/**
@@ -67,18 +65,9 @@ class Unit_Leader_Page {
 	}
 
 	/**
-	 * Renders the page and dispatches tab requests.
-	 *
-	 * @return void
+	 * Dispatches POST form actions for Units & Leaders tabs.
 	 */
-	public function render(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
-		}
-
-		global $wpdb;
-
-		// Handle Form Submissions
+	public function handle_post_actions(): void {
 		if ( isset( $_POST['ems_save_unit_leaders'] ) && check_admin_referer( 'ems_settings_unit_leaders' ) ) {
 			$this->save_unit_leaders( $_POST );
 		} elseif ( isset( $_POST['ems_import_units'] ) && check_admin_referer( 'ems_settings_unit_portability' ) ) {
@@ -105,13 +94,37 @@ class Unit_Leader_Page {
 			$this->handle_unlink_patrol();
 		} elseif ( isset( $_POST['ems_action'] ) && $_POST['ems_action'] === 'create_unit_from_patrol' && check_admin_referer( 'ems_create_unit_from_patrol' ) ) {
 			$this->handle_create_unit_from_patrol();
-		} elseif ( isset( $_POST['ems_save_leader_invite'] ) && check_admin_referer( 'ems_settings_leader_invite' ) ) {
-			$this->save_leader_invite( $_POST );
 		}
+	}
+
+	/**
+	 * Renders a specific Units & Leaders tab inside the consolidated Units & OSM Sync hub.
+	 */
+	public function render_tab_content( string $tab ): void {
+		if ( $tab === 'leaders' ) {
+			$this->render_leaders_tab();
+		} elseif ( $tab === 'patrols' ) {
+			$this->render_patrols_tab();
+		} else {
+			$this->render_units_tab();
+		}
+	}
+
+	/**
+	 * Renders the page and dispatches tab requests.
+	 *
+	 * @return void
+	 */
+	public function render(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'ems-plugin' ) );
+		}
+
+		$this->handle_post_actions();
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'units';
 		if ( $active_tab === 'email' ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=ems-email-templates' ) );
+			wp_safe_redirect( admin_url( 'admin.php?page=ems-emails' ) );
 			return;
 		}
 		$valid_tabs = array( 'units', 'leaders', 'patrols' );
@@ -119,7 +132,7 @@ class Unit_Leader_Page {
 			$active_tab = 'units';
 		}
 
-		$page_url = admin_url( 'admin.php?page=ems-units' );
+		$page_url = admin_url( 'admin.php?page=ems-units-sync' );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Units & Leaders Management', 'ems-plugin' ); ?></h1>
@@ -897,83 +910,6 @@ class Unit_Leader_Page {
 
 	// -------------------------------------------------------------
 	// TAB 4: Invitation Email
-	// -------------------------------------------------------------
-
-	/**
-	 * Renders the Invitation Email settings tab.
-	 *
-	 * @return void
-	 */
-	public function render_email_tab(): void {
-		$invite_subject  = (string) get_option( 'ems_leader_invite_email_subject', Unit_Repository::DEFAULT_INVITE_SUBJECT );
-		$invite_reply_to = (string) get_option( 'ems_leader_invite_email_reply_to', '' );
-		$invite_body     = (string) get_option( 'ems_leader_invite_email_body', Unit_Repository::DEFAULT_INVITE_BODY );
-		?>
-		<form method="post">
-			<?php wp_nonce_field( 'ems_settings_leader_invite' ); ?>
-			<table class="form-table">
-				<tr>
-					<th scope="row"><label for="ems_leader_invite_email_subject"><?php esc_html_e( 'Leader Invitation Email Subject', 'ems-plugin' ); ?></label></th>
-					<td>
-						<input
-							type="text"
-							id="ems_leader_invite_email_subject"
-							name="ems_leader_invite_email_subject"
-							value="<?php echo esc_attr( $invite_subject ); ?>"
-							class="large-text"
-							style="max-width: 650px;"
-						/>
-						<p class="description">
-							<?php esc_html_e( 'Subject line for the invitation email sent to unit leaders. Supports placeholders below.', 'ems-plugin' ); ?>
-						</p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="ems_leader_invite_email_reply_to"><?php esc_html_e( 'Leader Invitation Reply-To Address', 'ems-plugin' ); ?></label></th>
-					<td>
-						<input
-							type="text"
-							id="ems_leader_invite_email_reply_to"
-							name="ems_leader_invite_email_reply_to"
-							value="<?php echo esc_attr( $invite_reply_to ); ?>"
-							class="large-text"
-							style="max-width: 650px;"
-							placeholder="e.g. leader-support@example.com or Support Team &lt;leader-support@example.com&gt;"
-						/>
-						<p class="description">
-							<?php esc_html_e( 'Optional reply-to address for leader invitation emails (e.g. support@example.com or Expedition Team <support@example.com>).', 'ems-plugin' ); ?>
-						</p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="ems_leader_invite_email_body"><?php esc_html_e( 'Leader Invitation Email Body', 'ems-plugin' ); ?></label></th>
-					<td>
-						<textarea
-							id="ems_leader_invite_email_body"
-							name="ems_leader_invite_email_body"
-							rows="10"
-							class="large-text code"
-							style="max-width: 650px;"
-						><?php echo esc_textarea( $invite_body ); ?></textarea>
-						<p class="description" style="margin-top: 6px;">
-							<?php esc_html_e( 'Body of the invitation email. Available placeholder tokens:', 'ems-plugin' ); ?><br />
-							<code>{leader_name}</code> — <?php esc_html_e( "Recipient's name or username", 'ems-plugin' ); ?><br />
-							<code>{unit_name}</code> — <?php esc_html_e( 'Name of the first assigned unit', 'ems-plugin' ); ?><br />
-							<code>{unit_names}</code> — <?php esc_html_e( 'Comma-separated list of all assigned units', 'ems-plugin' ); ?><br />
-							<code>{unit_code}</code> — <?php esc_html_e( 'Short code of the primary unit', 'ems-plugin' ); ?><br />
-							<code>{invite_url}</code> — <?php esc_html_e( 'Single-use password setup / login URL', 'ems-plugin' ); ?><br />
-							<code>{site_name}</code> — <?php esc_html_e( 'Site title from WordPress settings', 'ems-plugin' ); ?>
-						</p>
-					</td>
-				</tr>
-			</table>
-			<p class="submit">
-				<input type="submit" name="ems_save_leader_invite" class="button button-primary" value="<?php esc_attr_e( 'Save Leader Invitation Email Settings', 'ems-plugin' ); ?>" />
-			</p>
-		</form>
-		<?php
-	}
-
 	// -------------------------------------------------------------
 	// ACTION HANDLERS
 	// -------------------------------------------------------------

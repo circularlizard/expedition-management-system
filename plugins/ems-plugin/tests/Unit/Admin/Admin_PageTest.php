@@ -42,12 +42,11 @@ class Admin_PageTest extends EMSTestCase {
         $admin_page = new Admin_Page( $diagnostic );
         
         $admin_page->register();
-        $admin_page->register_explorers_menu();
         $admin_page->register_volunteers_menu();
-        $admin_page->register_reference_menu();
-        $admin_page->register_mapper_menu();
+        $admin_page->register_units_sync_menu( new \EMS\Modules\LeaderDashboard\Unit_Leader_Page() );
+        $admin_page->register_email_templates_menu();
 
-        // Verify ESM parent menu is registered
+        // Verify EMS parent menu is registered
         $this->assertCount( 1, $menu_pages );
         $this->assertEquals( 'EMS', $menu_pages[0]['menu_title'] );
         $this->assertEquals( 'ems', $menu_pages[0]['menu_slug'] );
@@ -58,16 +57,16 @@ class Admin_PageTest extends EMSTestCase {
         $submenu_titles = array_map( fn( $s ) => $s['menu_title'], $ems_submenus );
 
         $this->assertContains( 'ems', $submenu_slugs );
-        $this->assertContains( 'ems-explorers', $submenu_slugs );
         $this->assertContains( 'ems-expeditions', $submenu_slugs );
         $this->assertContains( 'ems-volunteers', $submenu_slugs );
-        $this->assertContains( 'ems-reference', $submenu_slugs );
+        $this->assertContains( 'ems-units-sync', $submenu_slugs );
+        $this->assertContains( 'ems-emails', $submenu_slugs );
 
-        $this->assertContains( 'Expeditions', $submenu_titles );
-        $this->assertContains( 'Explorers', $submenu_titles );
-        $this->assertContains( 'Signups', $submenu_titles );
+        $this->assertContains( 'Expeditions & Teams', $submenu_titles );
+        $this->assertContains( 'Sign-ups', $submenu_titles );
         $this->assertContains( 'Volunteers', $submenu_titles );
-        $this->assertContains( 'OSM Sync', $submenu_titles );
+        $this->assertContains( 'Units & OSM Sync', $submenu_titles );
+        $this->assertContains( 'Emails & Notifications', $submenu_titles );
     }
 
 	public function test_save_sections_stores_checked_ids_from_available_transient(): void {

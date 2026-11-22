@@ -24,11 +24,25 @@ class Signup_Chaser_Controller {
 	public const OPTION_UNPAIRED_REPLY_TO = 'ems_unpaired_chase_email_reply_to';
 	public const OPTION_UNPAIRED_BODY     = 'ems_unpaired_chase_email_body';
 
+	public const OPTION_MISSING_FORM7_SUBJECT  = 'ems_missing_form7_chase_email_subject';
+	public const OPTION_MISSING_FORM7_REPLY_TO = 'ems_missing_form7_chase_email_reply_to';
+	public const OPTION_MISSING_FORM7_BODY     = 'ems_missing_form7_chase_email_body';
+
+	public const OPTION_MISSING_EDOFE_SUBJECT  = 'ems_missing_edofe_chase_email_subject';
+	public const OPTION_MISSING_EDOFE_REPLY_TO = 'ems_missing_edofe_chase_email_reply_to';
+	public const OPTION_MISSING_EDOFE_BODY     = 'ems_missing_edofe_chase_email_body';
+
 	public const DEFAULT_OSM_SHARE_SUBJECT = '[{{site_name}}] Action Required: Please share Explorer(s) in OSM for {{unit_name}}';
 	public const DEFAULT_OSM_SHARE_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> have signed up for DofE but do not yet have a synced Online Scout Manager (OSM) record in our system:</p>\n{{explorer_list_osm}}\n<p>Please could you share these Explorer(s) with the Regional DofE section in OSM so we can link their signups?</p>\n<p>Thank you,<br>{{site_name}}</p>";
 
 	public const DEFAULT_UNPAIRED_SUBJECT = '[{{site_name}}] Incomplete DofE Signups for {{unit_name}}';
 	public const DEFAULT_UNPAIRED_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> currently have an incomplete DofE signup (missing either a Participant Place form or an Expedition Preference form):</p>\n<p><strong>Signed up for a Participant Place only (missing Expedition form):</strong></p>\n{{place_only_explorer_list}}\n<p><strong>Signed up for an Expedition only (missing Participant Place form):</strong></p>\n{{exped_only_explorer_list}}\n<p>Please could you follow up with these Explorer(s) / parents so both forms are completed?</p>\n<p>Thank you,<br>{{site_name}}</p>";
+
+	public const DEFAULT_MISSING_FORM7_SUBJECT = '[{{site_name}}] Missing Expedition Form (Form 7) for {{unit_name}}';
+	public const DEFAULT_MISSING_FORM7_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> have completed a Participant Place signup (Form 6) but have not yet submitted their Expedition Preferences (Form 7):</p>\n{{place_only_explorer_list}}\n<p>Please could you remind them/their parents to complete Form 7?</p>\n<p>Thank you,<br>{{site_name}}</p>";
+
+	public const DEFAULT_MISSING_EDOFE_SUBJECT = '[{{site_name}}] Missing eDofE Number(s) for {{unit_name}}';
+	public const DEFAULT_MISSING_EDOFE_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> do not yet have an eDofE ID recorded on their signups:</p>\n{{missing_edofe_explorer_list}}\n<p>Please could you confirm or register their eDofE numbers so we can verify their award status?</p>\n<p>Thank you,<br>{{site_name}}</p>";
 
 	private Signup_Repository $signup_repo;
 	private Unit_Repository $unit_repo;
@@ -74,14 +88,36 @@ class Signup_Chaser_Controller {
 	 */
 	public function get_chaser_history( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$type = sanitize_key( (string) $request->get_param( 'type' ) );
-		if ( ! in_array( $type, array( 'osm_share', 'unpaired_signups' ), true ) ) {
+		if ( ! in_array( $type, array( 'osm_share', 'unpaired_signups', 'missing_form7', 'missing_edofe' ), true ) ) {
 			$type = 'osm_share';
 		}
 
-		$all_history = get_option( self::OPTION_HISTORY, array() );
-		$history     = ( is_array( $all_history ) && isset( $all_history[ $type ] ) && is_array( $all_history[ $type ] ) )
-			? $all_history[ $type ]
-			: array();
+		$history = array();
+
+		// Prefer ems_notification_logs when available.
+		global $wpdb;
+		if ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'get_results' ) && method_exists( $wpdb, 'prepare' ) ) {
+			$logs_table = $wpdb->prefix . 'ems_notification_logs';
+			$rows       = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT recipient_email, subject, sent_at FROM {$logs_table} WHERE template_slug = %s ORDER BY sent_at DESC LIMIT 200",
+					$type
+				),
+				ARRAY_A
+			);
+			if ( is_array( $rows ) && ! empty( $rows ) ) {
+				foreach ( $rows as $row ) {
+					$history[] = $row;
+				}
+			}
+		}
+
+		if ( empty( $history ) ) {
+			$all_history = get_option( self::OPTION_HISTORY, array() );
+			$history     = ( is_array( $all_history ) && isset( $all_history[ $type ] ) && is_array( $all_history[ $type ] ) )
+				? $all_history[ $type ]
+				: array();
+		}
 
 		return new \WP_REST_Response(
 			array(
@@ -105,10 +141,10 @@ class Signup_Chaser_Controller {
 		}
 
 		$chaser_type = sanitize_key( (string) $request->get_param( 'chaser_type' ) );
-		if ( ! in_array( $chaser_type, array( 'osm_share', 'unpaired_signups' ), true ) ) {
+		if ( ! in_array( $chaser_type, array( 'osm_share', 'unpaired_signups', 'missing_form7', 'missing_edofe' ), true ) ) {
 			return new \WP_Error(
 				'ems_invalid_chaser_type',
-				'Invalid chaser_type. Expected osm_share or unpaired_signups.',
+				'Invalid chaser_type. Expected osm_share, unpaired_signups, missing_form7, or missing_edofe.',
 				array( 'status' => 400 )
 			);
 		}
@@ -145,10 +181,11 @@ class Signup_Chaser_Controller {
 		$unit_signups = $this->get_unit_active_signups( $unit_name, $unit_record );
 		$buckets      = $this->group_by_explorer_identity( $unit_signups );
 
-		$all_explorers        = array();
-		$unsynced_explorers   = array();
-		$place_only_explorers = array();
-		$exped_only_explorers = array();
+		$all_explorers           = array();
+		$unsynced_explorers      = array();
+		$place_only_explorers    = array();
+		$exped_only_explorers    = array();
+		$missing_edofe_explorers = array();
 
 		foreach ( $buckets as $bucket ) {
 			$primary = $bucket['items'][0];
@@ -160,15 +197,25 @@ class Signup_Chaser_Controller {
 				'dofe_level' => $level,
 			);
 
-			$has_unsynced = false;
+			$has_unsynced      = false;
+			$has_missing_edofe = true;
 			foreach ( $bucket['items'] as $item ) {
 				if ( (int) ( $item['scout_id'] ?? 0 ) === 0 || empty( $item['is_synced_osm'] ) ) {
 					$has_unsynced = true;
-					break;
+				}
+				if ( trim( (string) ( $item['dofe_number'] ?? '' ) ) !== '' ) {
+					$has_missing_edofe = false;
 				}
 			}
 			if ( $has_unsynced ) {
 				$unsynced_explorers[] = array(
+					'first_name' => $primary['explorer_first_name'] ?? '',
+					'last_name'  => $primary['explorer_last_name'] ?? '',
+					'dofe_level' => $level,
+				);
+			}
+			if ( $has_missing_edofe ) {
+				$missing_edofe_explorers[] = array(
 					'first_name' => $primary['explorer_first_name'] ?? '',
 					'last_name'  => $primary['explorer_last_name'] ?? '',
 					'dofe_level' => $level,
@@ -206,10 +253,11 @@ class Signup_Chaser_Controller {
 
 		if ( ! empty( $level_filter ) ) {
 			$filter_fn = static fn( array $exp ): bool => in_array( strtolower( (string) ( $exp['dofe_level'] ?? '' ) ), $level_filter, true );
-			$all_explorers        = array_values( array_filter( $all_explorers, $filter_fn ) );
-			$unsynced_explorers   = array_values( array_filter( $unsynced_explorers, $filter_fn ) );
-			$place_only_explorers = array_values( array_filter( $place_only_explorers, $filter_fn ) );
-			$exped_only_explorers = array_values( array_filter( $exped_only_explorers, $filter_fn ) );
+			$all_explorers           = array_values( array_filter( $all_explorers, $filter_fn ) );
+			$unsynced_explorers      = array_values( array_filter( $unsynced_explorers, $filter_fn ) );
+			$place_only_explorers    = array_values( array_filter( $place_only_explorers, $filter_fn ) );
+			$exped_only_explorers    = array_values( array_filter( $exped_only_explorers, $filter_fn ) );
+			$missing_edofe_explorers = array_values( array_filter( $missing_edofe_explorers, $filter_fn ) );
 		}
 
 		$site_name = function_exists( 'get_bloginfo' ) ? (string) get_bloginfo( 'name' ) : 'EMS';
@@ -218,19 +266,21 @@ class Signup_Chaser_Controller {
 		}
 
 		$token_datasets = array(
-			'explorer_list'            => $all_explorers,
-			'explorer_list_osm'        => $unsynced_explorers,
-			'place_only_explorer_list' => $place_only_explorers,
-			'exped_only_explorer_list' => $exped_only_explorers,
+			'explorer_list'               => $all_explorers,
+			'explorer_list_osm'           => $unsynced_explorers,
+			'place_only_explorer_list'    => $place_only_explorers,
+			'exped_only_explorer_list'    => $exped_only_explorers,
+			'missing_edofe_explorer_list' => $missing_edofe_explorers,
 		);
 
 		$replacements = array(
-			'{{unit_name}}'        => $unit_name,
-			'{{site_name}}'        => $site_name,
-			'{{leader_email}}'     => $recipient,
-			'{{explorer_count}}'   => (string) count( $unsynced_explorers ),
-			'{{place_only_count}}' => (string) count( $place_only_explorers ),
-			'{{exped_only_count}}' => (string) count( $exped_only_explorers ),
+			'{{unit_name}}'           => $unit_name,
+			'{{site_name}}'           => $site_name,
+			'{{leader_email}}'        => $recipient,
+			'{{explorer_count}}'      => (string) count( $unsynced_explorers ),
+			'{{place_only_count}}'    => (string) count( $place_only_explorers ),
+			'{{exped_only_count}}'    => (string) count( $exped_only_explorers ),
+			'{{missing_edofe_count}}' => (string) count( $missing_edofe_explorers ),
 		);
 
 		if ( $chaser_type === 'osm_share' ) {
@@ -240,6 +290,20 @@ class Signup_Chaser_Controller {
 			$default_body = self::DEFAULT_OSM_SHARE_BODY;
 			$reply_opt    = self::OPTION_OSM_SHARE_REPLY_TO;
 			$count        = count( $unsynced_explorers );
+		} elseif ( $chaser_type === 'missing_form7' ) {
+			$subj_opt     = self::OPTION_MISSING_FORM7_SUBJECT;
+			$default_subj = self::DEFAULT_MISSING_FORM7_SUBJECT;
+			$body_opt     = self::OPTION_MISSING_FORM7_BODY;
+			$default_body = self::DEFAULT_MISSING_FORM7_BODY;
+			$reply_opt    = self::OPTION_MISSING_FORM7_REPLY_TO;
+			$count        = count( $place_only_explorers );
+		} elseif ( $chaser_type === 'missing_edofe' ) {
+			$subj_opt     = self::OPTION_MISSING_EDOFE_SUBJECT;
+			$default_subj = self::DEFAULT_MISSING_EDOFE_SUBJECT;
+			$body_opt     = self::OPTION_MISSING_EDOFE_BODY;
+			$default_body = self::DEFAULT_MISSING_EDOFE_BODY;
+			$reply_opt    = self::OPTION_MISSING_EDOFE_REPLY_TO;
+			$count        = count( $missing_edofe_explorers );
 		} else {
 			$subj_opt     = self::OPTION_UNPAIRED_SUBJECT;
 			$default_subj = self::DEFAULT_UNPAIRED_SUBJECT;
@@ -331,6 +395,24 @@ class Signup_Chaser_Controller {
 		}
 		$all_history[ $chaser_type ][ $unit_name ] = $now;
 		update_option( self::OPTION_HISTORY, $all_history );
+
+		// Log dispatch to canonical ems_notification_logs table.
+		global $wpdb;
+		if ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'insert' ) ) {
+			$wpdb->insert(
+				$wpdb->prefix . 'ems_notification_logs',
+				array(
+					'template_slug'   => $chaser_type,
+					'trigger_type'    => 'manual',
+					'recipient_email' => $recipient,
+					'subject'         => $subject_override !== '' ? $subject_override : $rendered['subject'],
+					'status'          => 'sent',
+					'triggered_by'    => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
+					'sent_at'         => $now,
+				),
+				array( '%s', '%s', '%s', '%s', '%s', '%d', '%s' )
+			);
+		}
 
 		if ( class_exists( Audit_Logger::class ) && method_exists( Audit_Logger::class, 'log' ) ) {
 			Audit_Logger::log(

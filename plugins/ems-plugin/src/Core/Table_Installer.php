@@ -96,8 +96,28 @@ class Table_Installer {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN leader_email VARCHAR(100) DEFAULT NULL AFTER parent_email" );
 		}
+		if ( ! $this->column_exists( $wpdb, $participant_table, 'kanban_stage' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN kanban_stage VARCHAR(24) NOT NULL DEFAULT 'to_process' AFTER signup_status" );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$participant_table} ADD KEY idx_kanban_stage (kanban_stage)" );
+		}
+		if ( ! $this->column_exists( $wpdb, $participant_table, 'processing_notes' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$participant_table} ADD COLUMN processing_notes TEXT NULL AFTER kanban_stage" );
+		}
 
 		$expedition_signups_table = $wpdb->prefix . 'ems_expedition_signups';
+		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'kanban_stage' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN kanban_stage VARCHAR(24) NOT NULL DEFAULT 'to_process' AFTER signup_status" );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD KEY idx_kanban_stage (kanban_stage)" );
+		}
+		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'processing_notes' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN processing_notes TEXT NULL AFTER kanban_stage" );
+		}
 		if ( ! $this->column_exists( $wpdb, $expedition_signups_table, 'dob' ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$expedition_signups_table} ADD COLUMN dob DATE DEFAULT NULL AFTER dofe_level" );
@@ -602,6 +622,8 @@ class Table_Installer {
             bronze_completion      TEXT                     DEFAULT NULL,
             silver_completion      TEXT                     DEFAULT NULL,
             signup_status          VARCHAR(30)     NOT NULL DEFAULT 'submitted',
+            kanban_stage           VARCHAR(24)     NOT NULL DEFAULT 'to_process',
+            processing_notes       TEXT                     DEFAULT NULL,
             payment_status         VARCHAR(30)     NOT NULL DEFAULT 'pending',
             processed_by           BIGINT UNSIGNED          DEFAULT NULL,
             processed_at           DATETIME                 DEFAULT NULL,
@@ -611,7 +633,8 @@ class Table_Installer {
             PRIMARY KEY (id),
             KEY idx_scout_id (scout_id),
             KEY idx_parent_user_id (parent_user_id),
-            KEY idx_unit_id (unit_id)
+            KEY idx_unit_id (unit_id),
+            KEY idx_kanban_stage (kanban_stage)
         ) {$charset};";
 
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_expedition_signups (
@@ -635,13 +658,16 @@ class Table_Installer {
             first_aid_status       VARCHAR(30)     NOT NULL DEFAULT 'none',
             first_aid_expiry       DATE                     DEFAULT NULL,
             signup_status          VARCHAR(30)     NOT NULL DEFAULT 'submitted',
+            kanban_stage           VARCHAR(24)     NOT NULL DEFAULT 'to_process',
+            processing_notes       TEXT                     DEFAULT NULL,
             form_submission_id     BIGINT UNSIGNED NOT NULL,
             created_at             DATETIME        NOT NULL,
             updated_at             DATETIME        NOT NULL,
             PRIMARY KEY (id),
             KEY idx_scout_id (scout_id),
             KEY idx_parent_user_id (parent_user_id),
-            KEY idx_unit_id (unit_id)
+            KEY idx_unit_id (unit_id),
+            KEY idx_kanban_stage (kanban_stage)
         ) {$charset};";
 
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}dofe_route_cards (
@@ -700,6 +726,28 @@ class Table_Installer {
             KEY idx_scout (scout_id)
         ) {$charset};";
 
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_notification_logs (
+            id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            template_slug          VARCHAR(64)     NOT NULL,
+            trigger_type           VARCHAR(24)     NOT NULL,
+            recipient_email        VARCHAR(190)    NOT NULL,
+            cc_emails              TEXT                     DEFAULT NULL,
+            subject                VARCHAR(255)    NOT NULL,
+            target_scout_id        BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            target_team_id         BIGINT UNSIGNED          DEFAULT NULL,
+            target_expedition_id   BIGINT UNSIGNED          DEFAULT NULL,
+            dedupe_key             VARCHAR(128)             DEFAULT NULL,
+            status                 VARCHAR(24)     NOT NULL DEFAULT 'sent',
+            error_message          TEXT                     DEFAULT NULL,
+            triggered_by           BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            sent_at                DATETIME        NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_sent_at (sent_at),
+            KEY idx_dedupe_key (dedupe_key),
+            KEY idx_target_scout (target_scout_id),
+            KEY idx_template (template_slug)
+        ) {$charset};";
+
 		return $sql;
 	}
 
@@ -721,6 +769,7 @@ class Table_Installer {
 			'audit_logs'             => $wpdb->prefix . 'ems_audit_logs',
 			'cohorts'                => $wpdb->prefix . 'ems_cohorts',
 			'cohort_members'         => $wpdb->prefix . 'ems_cohort_members',
+			'notification_logs'      => $wpdb->prefix . 'ems_notification_logs',
 		);
 	}
 }
