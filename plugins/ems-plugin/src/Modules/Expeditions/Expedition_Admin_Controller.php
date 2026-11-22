@@ -1107,6 +1107,16 @@ class Expedition_Admin_Controller {
 
 		register_rest_route(
 			'ems/v1',
+			'/explorers/(?P<scout_id>\d+)/sync-contacts-from-osm',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'sync_explorer_contacts_from_osm' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			'ems/v1',
 			'/signups/(?P<type>participant|expedition)/(?P<id>\d+)/kanban',
 			array(
 				'methods'             => 'PATCH,POST',
@@ -1578,13 +1588,21 @@ class Expedition_Admin_Controller {
 			return $this->error( 'ems_kanban_update_failed', 'Failed to update processing status.', 500 );
 		}
 
+		$synced_expedition_ids = array();
+		if ( $type === 'participant' ) {
+			$synced_expedition_ids = $this->signups->sync_participant_place_allocation_to_expeditions(
+				$id,
+				$stage === 'place_allocated'
+			);
+		}
+
 		if ( class_exists( \EMS\Core\Event_Bus::class ) ) {
 			$event_name = in_array( $stage, array( 'place_allocated', 'team_allocated' ), true )
 				? 'ems.signup.processed'
 				: 'ems.signup.status_changed';
 			\EMS\Core\Event_Bus::dispatch(
 				$event_name,
-				array(
+				(object) array(
 					'signup_id'      => $id,
 					'signup_type'    => $type,
 					'previous_stage' => $previous_stage,
@@ -1597,11 +1615,12 @@ class Expedition_Admin_Controller {
 
 		return new \WP_REST_Response(
 			array(
-				'updated'          => true,
-				'id'               => $id,
-				'type'             => $type,
-				'kanban_stage'     => $stage,
-				'processing_notes' => $notes,
+				'updated'               => true,
+				'id'                    => $id,
+				'type'                  => $type,
+				'kanban_stage'          => $stage,
+				'processing_notes'      => $notes,
+				'synced_expedition_ids' => $synced_expedition_ids,
 			),
 			200
 		);
@@ -1626,6 +1645,9 @@ class Expedition_Admin_Controller {
 				continue;
 			}
 			if ( $this->signups->update_kanban_stage( $id, $type, $stage ) ) {
+				if ( $type === 'participant' ) {
+					$this->signups->sync_participant_place_allocation_to_expeditions( $id, $stage === 'place_allocated' );
+				}
 				$updated++;
 			} else {
 				$skipped++;
@@ -1664,6 +1686,42 @@ class Expedition_Admin_Controller {
 				'id'                          => $id,
 				'participant_place_allocated' => $allocated,
 				'participant_signup_id'       => $participant_signup_id,
+			),
+			200
+		);
+	}
+
+	public function sync_explorer_contacts_from_osm( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$scout_id = (int) $request->get_param( 'scout_id' );
+		if ( $scout_id <= 0 ) {
+			return $this->error( 'ems_invalid_scout_id', 'A valid scout_id > 0 is required.', 400 );
+		}
+
+		$explorer = $this->explorers->find_by_scout_id( $scout_id );
+		if ( ! $explorer ) {
+			return $this->error( 'ems_explorer_not_found', 'Synced OSM Explorer not found.', 404 );
+		}
+
+		$explorer_email = trim( (string) ( $explorer['email1'] ?? $explorer['email'] ?? '' ) );
+		$parent_email   = trim( (string) ( $explorer['p1_email1'] ?? $explorer['parent_email'] ?? '' ) );
+
+		if ( $explorer_email === '' && $parent_email === '' ) {
+			return $this->error( 'ems_no_osm_emails', 'No email addresses are recorded in OSM for this Explorer.', 400 );
+		}
+
+		$updated_rows = $this->signups->sync_contacts_from_osm( $scout_id, $explorer_email, $parent_email );
+
+		if ( class_exists( \EMS\Core\Audit_Logger::class ) && method_exists( \EMS\Core\Audit_Logger::class, 'log' ) ) {
+			\EMS\Core\Audit_Logger::log( 'sync_contacts_from_osm', $scout_id );
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'synced'         => true,
+				'scout_id'       => $scout_id,
+				'updated_rows'   => $updated_rows,
+				'explorer_email' => $explorer_email,
+				'parent_email'   => $parent_email,
 			),
 			200
 		);

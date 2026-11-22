@@ -385,6 +385,131 @@ class Signup_Repository {
 	}
 
 	/**
+	 * Sync a Participant Place allocation (or de-allocation) to matching Expedition signups at the same DofE level.
+	 *
+	 * @return int[] IDs of updated expedition signups.
+	 */
+	public function sync_participant_place_allocation_to_expeditions( int $participant_signup_id, bool $allocated ): array {
+		$participant = $this->get_participant_signup( $participant_signup_id );
+		if ( ! $participant ) {
+			return array();
+		}
+
+		$exp_table  = "{$this->wpdb->prefix}ems_expedition_signups";
+		$now        = current_time( 'mysql' );
+		$dofe_level = strtolower( trim( (string) ( $participant['dofe_level'] ?? '' ) ) );
+		$scout_id   = (int) ( $participant['scout_id'] ?? 0 );
+
+		if ( ! $allocated ) {
+			// Clear only rows explicitly linked to this participant signup.
+			$linked_ids = $this->wpdb->get_col(
+				$this->wpdb->prepare(
+					"SELECT id FROM {$exp_table} WHERE participant_signup_id = %d",
+					$participant_signup_id
+				)
+			) ?: array();
+
+			if ( ! empty( $linked_ids ) ) {
+				$this->wpdb->query(
+					$this->wpdb->prepare(
+						"UPDATE {$exp_table} SET participant_place_allocated = 0, participant_signup_id = NULL, updated_at = %s WHERE participant_signup_id = %d",
+						$now,
+						$participant_signup_id
+					)
+				);
+			}
+
+			return array_map( 'intval', $linked_ids );
+		}
+
+		if ( $scout_id > 0 ) {
+			$matched_ids = $this->wpdb->get_col(
+				$this->wpdb->prepare(
+					"SELECT id FROM {$exp_table} WHERE scout_id = %d AND LOWER(dofe_level) = %s",
+					$scout_id,
+					$dofe_level
+				)
+			) ?: array();
+		} else {
+			$first_name   = strtolower( trim( (string) ( $participant['explorer_first_name'] ?? '' ) ) );
+			$last_name    = strtolower( trim( (string) ( $participant['explorer_last_name'] ?? '' ) ) );
+			$parent_email = strtolower( trim( (string) ( $participant['parent_email'] ?? '' ) ) );
+
+			$matched_ids = $this->wpdb->get_col(
+				$this->wpdb->prepare(
+					"SELECT id FROM {$exp_table}
+					 WHERE scout_id = 0
+					   AND LOWER(dofe_level) = %s
+					   AND LOWER(TRIM(explorer_first_name)) = %s
+					   AND LOWER(TRIM(explorer_last_name)) = %s
+					   AND LOWER(TRIM(COALESCE(parent_email, ''))) = %s",
+					$dofe_level,
+					$first_name,
+					$last_name,
+					$parent_email
+				)
+			) ?: array();
+		}
+
+		$matched_ids = array_map( 'intval', $matched_ids );
+		foreach ( $matched_ids as $exp_id ) {
+			$this->set_participant_place_allocated( $exp_id, true, $participant_signup_id );
+		}
+
+		return $matched_ids;
+	}
+
+	/**
+	 * Copy canonical OSM explorer/parent emails onto all active sign-up rows for a scout_id.
+	 */
+	public function sync_contacts_from_osm( int $scout_id, string $explorer_email, string $parent_email ): int {
+		if ( $scout_id <= 0 ) {
+			return 0;
+		}
+
+		$now           = current_time( 'mysql' );
+		$clean_exp     = sanitize_email( $explorer_email );
+		$clean_parent  = sanitize_email( $parent_email );
+		$updated_total = 0;
+
+		foreach ( array( 'ems_participant_signups', 'ems_expedition_signups' ) as $suffix ) {
+			$table = $this->wpdb->prefix . $suffix;
+			$data  = array( 'updated_at' => $now );
+			$fmt   = array( '%s' );
+
+			if ( $clean_exp !== '' ) {
+				$data['explorer_email'] = $clean_exp;
+				$fmt[]                  = '%s';
+			}
+			if ( $clean_parent !== '' ) {
+				$data['parent_email'] = $clean_parent;
+				$fmt[]                = '%s';
+			}
+
+			if ( count( $data ) === 1 ) {
+				continue;
+			}
+
+			$res = $this->wpdb->update(
+				$table,
+				$data,
+				array(
+					'scout_id'      => $scout_id,
+					'signup_status' => 'submitted',
+				),
+				$fmt,
+				array( '%d', '%s' )
+			);
+
+			if ( is_int( $res ) ) {
+				$updated_total += $res;
+			}
+		}
+
+		return $updated_total;
+	}
+
+	/**
 	 * Reconcile / match unmatched signups (scout_id = 0) to a synced OSM explorer.
 	 */
 	public function reconcile_signup( int $signup_id, string $signup_type, int $scout_id ): bool {

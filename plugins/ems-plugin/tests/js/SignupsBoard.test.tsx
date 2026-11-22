@@ -238,9 +238,10 @@ describe('SignupsBoard', () => {
 
         // Open Inspector for Alice Smith (unmatched, parent_email 'parent@example.com', first name 'Alice')
         fireEvent.click(screen.getByText('Alice Smith'));
+        fireEvent.click(screen.getByRole('button', { name: /Overview \(/i }));
 
         await waitFor(() => {
-            expect(screen.getByText(/Details/i)).toBeInTheDocument();
+            expect(screen.getByRole('dialog', { name: /Explorer 360 Drawer/i })).toBeInTheDocument();
             // Should suggest Alice Smith (scout_id 30001) as match due to same parent email and name similarity
             expect(screen.getAllByText(/Alice Smith/i).length).toBeGreaterThan(0);
             expect(screen.getByRole('button', { name: /Confirm Match/i })).toBeInTheDocument();
@@ -248,6 +249,7 @@ describe('SignupsBoard', () => {
 
         // Open Inspector for Charlie Smith (parent_email 'parent@example.com', different name)
         fireEvent.click(screen.getByText('Charlie Smith'));
+        fireEvent.click(screen.getByRole('button', { name: /Overview \(/i }));
 
         await waitFor(() => {
             // Sibling Collision Guard: Should NOT suggest Alice Smith or Bob Smith because Charlie does not share first name similarity.
@@ -259,6 +261,7 @@ describe('SignupsBoard', () => {
         (global.fetch as any)
             .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
             .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers })
+            .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
             .mockResolvedValueOnce({ ok: true, json: async () => ({ reconciled: true }) });
 
         render(<SignupsBoard />);
@@ -273,6 +276,7 @@ describe('SignupsBoard', () => {
         });
 
         fireEvent.click(screen.getByText('Alice Smith'));
+        fireEvent.click(screen.getByRole('button', { name: /Overview \(/i }));
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /Confirm Match/i })).toBeInTheDocument();
@@ -295,6 +299,7 @@ describe('SignupsBoard', () => {
         (global.fetch as any)
             .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
             .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers })
+            .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
             .mockResolvedValueOnce({
                 ok: false,
                 status: 409,
@@ -314,6 +319,7 @@ describe('SignupsBoard', () => {
 
         // Open matched signup Mary Jones
         fireEvent.click(screen.getAllByText('Mary Jones')[0]);
+        fireEvent.click(screen.getByRole('button', { name: /Overview \(/i }));
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /Unlink OSM Profile/i })).toBeInTheDocument();
@@ -345,15 +351,15 @@ describe('SignupsBoard', () => {
         fireEvent.click(screen.getAllByText('Mary Jones')[0]);
 
         await waitFor(() => {
-            expect(screen.getByText(/Details/i)).toBeInTheDocument();
+            expect(screen.getByRole('dialog', { name: /Explorer 360 Drawer/i })).toBeInTheDocument();
         });
 
-        // Find the close button (the '×' text button)
-        const closeBtn = screen.getByRole('button', { name: '×' });
+        // Find the close button
+        const closeBtn = screen.getByRole('button', { name: /Close Explorer 360/i });
         fireEvent.click(closeBtn);
 
         await waitFor(() => {
-            expect(screen.queryByText(/Details/i)).not.toBeInTheDocument();
+            expect(screen.queryByRole('dialog', { name: /Explorer 360 Drawer/i })).not.toBeInTheDocument();
         });
     });
 
@@ -404,14 +410,14 @@ describe('SignupsBoard', () => {
         // Ensure "First Aid" table header is not in the document
         expect(screen.queryByRole('columnheader', { name: /First Aid/i })).not.toBeInTheDocument();
 
-        // Open Inspector for Mary Jones and switch to her Expedition entry
+        // Open Inspector for Mary Jones and switch to Teams & Training tab
         fireEvent.click(screen.getAllByText('Mary Jones')[0]);
-        const expedBtn = await screen.findByTestId('inspector-entry-expedition_20');
-        fireEvent.click(expedBtn);
+        expect(await screen.findByTestId('inspector-entry-expedition_20')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /Teams & Training/i }));
 
         await waitFor(() => {
-            // First Aid Status should be in the inspector
-            expect(screen.getByText('First Aid Status')).toBeInTheDocument();
+            // First Aid Level should be in the drawer
+            expect(screen.getByText(/First Aid Level:/i)).toBeInTheDocument();
             expect(screen.getByText('first_response')).toBeInTheDocument();
         });
     });
@@ -603,6 +609,7 @@ describe('SignupsBoard', () => {
         (global.fetch as any)
             .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
             .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers })
+            .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
             .mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
@@ -630,10 +637,11 @@ describe('SignupsBoard', () => {
         fireEvent.click(screen.getAllByText('Mary Jones')[0]);
 
         await waitFor(() => {
-            expect(screen.getByLabelText(/Change Unit/i)).toBeInTheDocument();
+            expect(screen.getAllByLabelText(/Change Unit/i).length).toBeGreaterThan(0);
         });
 
-        fireEvent.change(screen.getByLabelText(/Change Unit/i), { target: { value: '20' } });
+        fireEvent.change(screen.getAllByLabelText(/Change Unit/i)[0], { target: { value: '20' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith(
@@ -710,30 +718,25 @@ describe('SignupsBoard', () => {
         // Silver row has participant place and no expedition signup
         expect(silverRow.textContent).toContain('—');
 
-        // Click Mary Jones's Bronze row to open the inspector on her first entry
+        // Click Mary Jones's Bronze row to open the drawer showing her entries
         fireEvent.click(bronzeRow);
 
         await waitFor(() => {
             expect(screen.getByTestId('inspector-entry-participant_10')).toBeInTheDocument();
             expect(screen.getByTestId('inspector-entry-expedition_20')).toBeInTheDocument();
-            expect(screen.getByText('Participant Place Details')).toBeInTheDocument();
         });
 
-        // Switch to her Expedition Signup entry using the inspector entry list
-        fireEvent.click(screen.getByTestId('inspector-entry-expedition_20'));
+        fireEvent.click(screen.getByRole('button', { name: /Teams & Training/i }));
 
         await waitFor(() => {
-            expect(screen.getByText('Expedition Signup Details')).toBeInTheDocument();
-            expect(screen.getByText('First Aid Status')).toBeInTheDocument();
+            expect(screen.getByText(/First Aid Level:/i)).toBeInTheDocument();
             expect(screen.getByText('first_response')).toBeInTheDocument();
         });
 
-        // Switch back from Expedition Signup to Participant Place entry
-        fireEvent.click(screen.getByTestId('inspector-entry-participant_10'));
+        fireEvent.click(screen.getByRole('button', { name: /Sign-ups \(/i }));
 
         await waitFor(() => {
-            expect(screen.getByText('Participant Place Details')).toBeInTheDocument();
-            expect(screen.getByText('DofE Registration Status')).toBeInTheDocument();
+            expect(screen.getByTestId('inspector-entry-participant_10')).toBeInTheDocument();
         });
 
         // Also test switching Form Type filter from expedition to participant
@@ -852,6 +855,7 @@ describe('SignupsBoard', () => {
         (global.fetch as any)
             .mockResolvedValueOnce({ ok: true, json: async () => signupsWithPartialMatch })
             .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers })
+            .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
             .mockResolvedValueOnce({ ok: true, json: async () => ({ reconciled: true }) });
 
         render(<SignupsBoard />);
@@ -865,17 +869,15 @@ describe('SignupsBoard', () => {
         // Click row to open Inspector
         fireEvent.click(screen.getByText('Emma Watson'));
 
-        // Select the unlinked Expedition entry in the entry list
-        const expedBtn = await screen.findByTestId('inspector-entry-expedition_51');
-        fireEvent.click(expedBtn);
+        const expedCard = await screen.findByTestId('inspector-entry-expedition_51');
 
         await waitFor(() => {
-            expect(screen.getByText(/Paired registration is already linked to OSM/i)).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /Sync with Paired OSM Record/i })).toBeInTheDocument();
+            expect(within(expedCard).getByText(/Paired registration is already linked to OSM/i)).toBeInTheDocument();
+            expect(within(expedCard).getByRole('button', { name: /Sync with Paired OSM Record/i })).toBeInTheDocument();
         });
 
         // Click 1-click sync
-        fireEvent.click(screen.getByRole('button', { name: /Sync with Paired OSM Record/i }));
+        fireEvent.click(within(expedCard).getByRole('button', { name: /Sync with Paired OSM Record/i }));
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith(
@@ -903,7 +905,8 @@ describe('SignupsBoard', () => {
 
         (global.fetch as any)
             .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
-            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers })
+            .mockResolvedValueOnce({ ok: false, json: async () => ({}) });
 
         render(<SignupsBoard />);
 
@@ -917,7 +920,8 @@ describe('SignupsBoard', () => {
         fireEvent.click(row);
 
         // Level dropdown should exist in inspector
-        const levelSelect = await screen.findByRole('combobox', { name: /Change Level/i });
+        const levelSelects = await screen.findAllByRole('combobox', { name: /Change Level/i });
+        const levelSelect = levelSelects[0];
         expect(levelSelect).toBeInTheDocument();
 
         // Mock level update response
@@ -927,8 +931,9 @@ describe('SignupsBoard', () => {
         }).mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
           .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
 
-        // Change level to silver
+        // Change level to silver and save
         fireEvent.change(levelSelect, { target: { value: 'silver' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith(
@@ -939,7 +944,7 @@ describe('SignupsBoard', () => {
                 })
             );
             // Inline success checkmark
-            expect(screen.getByTestId('level-save-success')).toBeInTheDocument();
+            expect(screen.getAllByTestId('level-save-success').length).toBeGreaterThan(0);
         });
     });
 
@@ -954,7 +959,8 @@ describe('SignupsBoard', () => {
 
         (global.fetch as any)
             .mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
-            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers })
+            .mockResolvedValueOnce({ ok: false, json: async () => ({}) });
 
         render(<SignupsBoard />);
 
@@ -968,7 +974,8 @@ describe('SignupsBoard', () => {
         fireEvent.click(row);
 
         // Unit dropdown should exist in inspector
-        const unitSelect = await screen.findByRole('combobox', { name: /Change Unit/i });
+        const unitSelects = await screen.findAllByRole('combobox', { name: /Change Unit/i });
+        const unitSelect = unitSelects[0];
         expect(unitSelect).toBeInTheDocument();
 
         // Update Unit button should NOT exist
@@ -981,8 +988,9 @@ describe('SignupsBoard', () => {
         }).mockResolvedValueOnce({ ok: true, json: async () => mockCombinedSignups })
           .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
 
-        // Change unit to Peebles (20)
+        // Change unit to Peebles (20) and save
         fireEvent.change(unitSelect, { target: { value: '20' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith(
@@ -993,7 +1001,7 @@ describe('SignupsBoard', () => {
                 })
             );
             // Inline success checkmark
-            expect(screen.getByTestId('unit-save-success')).toBeInTheDocument();
+            expect(screen.getAllByTestId('unit-save-success').length).toBeGreaterThan(0);
         });
     });
 
@@ -1014,10 +1022,10 @@ describe('SignupsBoard', () => {
         const row = screen.getAllByText('Mary Jones')[0].closest('tr')!;
         fireEvent.click(row);
 
-        // eDofE Number input should exist and have readonly attribute
-        const dofeInput = await screen.findByLabelText(/eDofE Number/i);
-        expect(dofeInput).toBeInTheDocument();
-        expect(dofeInput).toHaveAttribute('readonly');
+        // eDofE Number should be rendered as a clean read-only key-value display (not an editable input)
+        const dofeDisplays = await screen.findAllByTestId(/drawer-dofe-num-/);
+        expect(dofeDisplays[0]).toBeInTheDocument();
+        expect(dofeDisplays[0].querySelector('input')).toBeNull();
     });
 
     it('displays dedicated ASN column with status pills for unreviewed, validated, rejected, and none', async () => {
@@ -1219,7 +1227,8 @@ describe('SignupsBoard', () => {
 
         (global.fetch as any)
             .mockResolvedValueOnce({ ok: true, json: async () => asnSignup })
-            .mockResolvedValueOnce({ ok: true, json: async () => [] });
+            .mockResolvedValueOnce({ ok: true, json: async () => [] })
+            .mockResolvedValueOnce({ ok: false, json: async () => ({}) });
 
         render(<SignupsBoard />);
 

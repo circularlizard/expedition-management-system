@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BoardData, Expedition, Explorer, FirstAidLevel } from './types';
+import Explorer360Drawer from '../shared/Explorer360Drawer';
 
 interface OSMReferenceProps {
     data: BoardData;
@@ -176,6 +177,7 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
 
     // Selected explorer ID for the right-hand Profile Inspector
     const [selectedScoutId, setSelectedScoutId] = useState<number | null>(null);
+    const [drawerScoutId, setDrawerScoutId] = useState<number | null>(null);
     const inspectorRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -509,8 +511,17 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                                 {/* Name */}
                                 <div>
                                     <span className="ems-signups-inspector__label">Name</span>
-                                    <div className="ems-signups-inspector__value--large">
-                                        {profileData.first_name} {profileData.last_name}
+                                    <div className="ems-flex-between ems-align-center">
+                                        <div className="ems-signups-inspector__value--large">
+                                            {profileData.first_name} {profileData.last_name}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => setDrawerScoutId(Number(profileData.scout_id))}
+                                        >
+                                            Open 360° Drawer
+                                        </button>
                                     </div>
                                 </div>
 
@@ -757,6 +768,16 @@ export const OSMReference: React.FC<OSMReferenceProps> = ({ data, onChanged }) =
                     </div>
                 </div>
             )}
+
+            <Explorer360Drawer
+                isOpen={drawerScoutId !== null}
+                scoutId={drawerScoutId || undefined}
+                rootUrl={window.emsExpeditionBoard?.root_url || '/wp-json/ems/v1'}
+                nonce={window.emsExpeditionBoard?.nonce || ''}
+                initialTab="overview"
+                onClose={() => setDrawerScoutId(null)}
+                onUpdated={onChanged}
+            />
         </div>
     );
 };

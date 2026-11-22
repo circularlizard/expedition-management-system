@@ -14,6 +14,7 @@ import {
 import SignupsDashboard, { TableDrilldownFilters } from './SignupsDashboard';
 import { normalizeExpeditionType } from './dashboardMetrics';
 import UnitChaserView from './UnitChaserView';
+import Explorer360Drawer from '../shared/Explorer360Drawer';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
 import { computeSignupsDashboardMetrics, getMatchSuggestions as findMatchSuggestions, getSignupRecordKey, groupSignupsByExplorerIdentity, isSignupSyncedWithOsm } from './dashboardMetrics';
 import {
@@ -75,10 +76,12 @@ export default function SignupsBoard() {
     const [selectedSignup, setSelectedSignup] = useState<any | null>(null);
     const [asnModalRow, setAsnModalRow] = useState<any | null>(null);
     const [editedUnitId, setEditedUnitId] = useState<string>('');
-    const [savingField, setSavingField] = useState<'level' | 'unit' | 'asn' | null>(null);
+    const [savingField, setSavingField] = useState<'level' | 'unit' | 'asn' | 'stage' | 'place_allocated' | null>(null);
     const [levelSaveSuccess, setLevelSaveSuccess] = useState<boolean>(false);
     const [unitSaveSuccess, setUnitSaveSuccess] = useState<boolean>(false);
     const [asnSaveSuccess, setAsnSaveSuccess] = useState<boolean>(false);
+    const [stageSaveSuccess, setStageSaveSuccess] = useState<boolean>(false);
+    const [placeAllocatedSaveSuccess, setPlaceAllocatedSaveSuccess] = useState<boolean>(false);
     const [reconcileSearch, setReconcileSearch] = useState<string>('');
     const [unlinkError, setUnlinkError] = useState<string | null>(null);
     const inspectorRef = useRef<HTMLDivElement>(null);
@@ -147,6 +150,19 @@ export default function SignupsBoard() {
     };
 
     const handleUpdateProcessingStatus = async (id: number, type: string, kanbanStage: string) => {
+        const previousStage = signups.find((s) => s.id === id && s.type === type)?.kanban_stage || 'new';
+        setSavingField('stage');
+        setStageSaveSuccess(false);
+        setError(null);
+
+        // Optimistic update so controlled <select> reflects selection immediately.
+        setSignups((prev) =>
+            prev.map((s) => (s.id === id && s.type === type ? { ...s, kanban_stage: kanbanStage } : s))
+        );
+        if (selectedSignup && selectedSignup.id === id && selectedSignup.type === type) {
+            setSelectedSignup((prev: any) => (prev ? { ...prev, kanban_stage: kanbanStage } : prev));
+        }
+
         try {
             const res = await fetch(`${config.root_url}/signups/${id}/status`, {
                 method: 'PATCH',
@@ -156,15 +172,45 @@ export default function SignupsBoard() {
                 },
                 body: JSON.stringify({ type, kanban_stage: kanbanStage }),
             });
-            if (res.ok) {
-                setSignups((prev) =>
-                    prev.map((s) => (s.id === id && s.type === type ? { ...s, kanban_stage: kanbanStage } : s))
-                );
-                if (selectedSignup && selectedSignup.id === id && selectedSignup.type === type) {
-                    setSelectedSignup({ ...selectedSignup, kanban_stage: kanbanStage });
-                }
+            if (!res.ok) {
+                throw new Error('Failed to update processing status.');
             }
-        } catch {}
+            const resData = await res.json().catch(() => ({}));
+            const syncedIds: number[] = Array.isArray(resData?.synced_expedition_ids)
+                ? resData.synced_expedition_ids.map(Number)
+                : [];
+            if (type === 'participant' && syncedIds.length > 0) {
+                const allocated = kanbanStage === 'place_allocated';
+                setSignups((prev) =>
+                    prev.map((s) => {
+                        if (s.type !== 'expedition' || !syncedIds.includes(Number(s.id))) return s;
+                        const curAnomalies: string[] = Array.isArray(s.anomalies) ? s.anomalies : [];
+                        const nextAnomalies = allocated
+                            ? curAnomalies.filter((a) => a !== 'expedition_without_place')
+                            : curAnomalies;
+                        return {
+                            ...s,
+                            participant_place_allocated: allocated,
+                            participant_signup_id: allocated ? id : null,
+                            anomalies: nextAnomalies,
+                        };
+                    })
+                );
+            }
+            setStageSaveSuccess(true);
+            setTimeout(() => setStageSaveSuccess(false), 3000);
+        } catch (err: any) {
+            // Revert on failure
+            setSignups((prev) =>
+                prev.map((s) => (s.id === id && s.type === type ? { ...s, kanban_stage: previousStage } : s))
+            );
+            if (selectedSignup && selectedSignup.id === id && selectedSignup.type === type) {
+                setSelectedSignup((prev: any) => (prev ? { ...prev, kanban_stage: previousStage } : prev));
+            }
+            setError(err?.message || 'Failed to update processing status.');
+        } finally {
+            setSavingField(null);
+        }
     };
 
     const handleBulkUpdateStatus = async () => {
@@ -191,26 +237,51 @@ export default function SignupsBoard() {
     };
 
     const handleTogglePlaceAllocated = async (expeditionSignupId: number, nextAllocated: boolean) => {
-        const res = await fetch(`${config.root_url}/signups/expeditions/${expeditionSignupId}/place-allocated`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-WP-Nonce': config.nonce,
-            },
-            body: JSON.stringify({ participant_place_allocated: nextAllocated }),
-        });
-        if (res.ok) {
+        const prevRow = signups.find((s) => s.id === expeditionSignupId && s.type === 'expedition');
+        const prevAllocated = Boolean(prevRow?.participant_place_allocated);
+        setSavingField('place_allocated');
+        setPlaceAllocatedSaveSuccess(false);
+        setError(null);
+
+        const applyLocal = (allocated: boolean) => {
             setSignups((prev) =>
-                prev.map((s) =>
-                    s.id === expeditionSignupId && s.type === 'expedition'
-                        ? { ...s, participant_place_allocated: nextAllocated }
-                        : s
-                )
+                prev.map((s) => {
+                    if (s.id !== expeditionSignupId || s.type !== 'expedition') return s;
+                    const curAnomalies: string[] = Array.isArray(s.anomalies) ? s.anomalies : [];
+                    const nextAnomalies = allocated
+                        ? curAnomalies.filter((a) => a !== 'expedition_without_place')
+                        : curAnomalies;
+                    return { ...s, participant_place_allocated: allocated, anomalies: nextAnomalies };
+                })
             );
             if (selectedSignup && selectedSignup.id === expeditionSignupId && selectedSignup.type === 'expedition') {
-                setSelectedSignup({ ...selectedSignup, participant_place_allocated: nextAllocated });
+                setSelectedSignup((prev: any) =>
+                    prev ? { ...prev, participant_place_allocated: allocated } : prev
+                );
             }
-            fetchData();
+        };
+
+        applyLocal(nextAllocated);
+
+        try {
+            const res = await fetch(`${config.root_url}/signups/expeditions/${expeditionSignupId}/place-allocated`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce,
+                },
+                body: JSON.stringify({ participant_place_allocated: nextAllocated }),
+            });
+            if (!res.ok) {
+                throw new Error('Failed to update Participant Place Allocated.');
+            }
+            setPlaceAllocatedSaveSuccess(true);
+            setTimeout(() => setPlaceAllocatedSaveSuccess(false), 3000);
+        } catch (err: any) {
+            applyLocal(prevAllocated);
+            setError(err?.message || 'Failed to update Participant Place Allocated.');
+        } finally {
+            setSavingField(null);
         }
     };
 
@@ -1469,629 +1540,68 @@ export default function SignupsBoard() {
                 )}
             </div>
 
-            {/* Inspector Panel - Slide-Out/Docked Layout */}
-            {selectedSignup && (
-                <div
-                    key={`inspector_${selectedSignup.type}_${selectedSignup.id}`}
-                    ref={inspectorRef}
-                    className={`ems-signups-inspector ems-signups-inspector--${selectedSignup.type}`}
-                >
-                    {/* Top Header Zone with Explorer identity and Signup Selector */}
-                    <div className="ems-signups-inspector__top-zone">
-                        <div className="ems-signups-inspector__header">
-                            <div className="ems-flex-center ems-gap-8">
-                                <h3 className="ems-m-0 ems-font-semibold" style={{ fontSize: '15px', color: '#1d2327' }}>
-                                    {selectedSignup.explorer_first_name} {selectedSignup.explorer_last_name}
-                                </h3>
-                                {selectedSignup.scout_id !== 0 && (
-                                    <span className="ems-meta-text">(Scout ID: {selectedSignup.scout_id})</span>
-                                )}
-                            </div>
-                            <div className="ems-flex-center ems-gap-4">
-                                {currentUnprocessedIndex >= 0 && (
-                                    <>
-                                        <button 
-                                            onClick={handlePrevSignup} 
-                                            disabled={currentUnprocessedIndex === 0}
-                                            className="button button-secondary button-small"
-                                            title="Previous Signup"
-                                        >
-                                            &lt;
-                                        </button>
-                                        <button 
-                                            onClick={handleNextSignup} 
-                                            disabled={currentUnprocessedIndex === activeUnprocessedSignups.length - 1}
-                                            className="button button-secondary button-small"
-                                            title="Next Signup"
-                                        >
-                                            &gt;
-                                        </button>
-                                    </>
-                                )}
-                                <button 
-                                    onClick={() => setSelectedSignup(null)}
-                                    className="button-link"
-                                    style={{ fontSize: '20px', marginLeft: '8px', color: '#1d2327', textDecoration: 'none', cursor: 'pointer' }}
-                                >
-                                    &times;
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Available Signup Entries in Header */}
-                        <div className="ems-signups-inspector__selector-header">
-                            <div className="ems-signups-inspector__label">
-                                Available Signup Entries ({selectedExplorerEntries.length})
-                            </div>
-                            <div className="ems-inspector-entries-list ems-mt-8" role="list" aria-label="Available Signup Entries">
-                                {selectedExplorerEntries.map((entry: any) => {
-                                    const isSelected = selectedSignup.id === entry.id && selectedSignup.type === entry.type;
-                                    const isParticipant = entry.type === 'participant';
-                                    return (
-                                        <button
-                                            type="button"
-                                            key={`${entry.type}_${entry.id}`}
-                                            data-testid={`inspector-entry-${entry.type}_${entry.id}`}
-                                            aria-label={`Select ${isParticipant ? 'Participant Place' : 'Expedition Signup'} #${entry.id}`}
-                                            aria-pressed={isSelected}
-                                            onClick={() => setSelectedSignup(entry)}
-                                            className={`ems-inspector-entry-card ${isSelected ? 'ems-inspector-entry-card--active' : ''}`}
-                                        >
-                                            <div className="ems-flex-between ems-align-center">
-                                                <div className="ems-flex-center ems-gap-6">
-                                                    <span className={`ems-pill ems-pill--${isParticipant ? 'participant' : 'expedition'}`}>
-                                                        {isParticipant ? 'Participant Place' : 'Expedition Signup'}
-                                                    </span>
-                                                    {entry.dofe_level && (
-                                                        <span className={`ems-pill ems-pill--${entry.dofe_level.toLowerCase()}`}>
-                                                            {entry.dofe_level.toLowerCase()}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <span className="ems-small-text ems-text-muted">
-                                                    #{entry.id}
-                                                </span>
-                                            </div>
-                                            <div className="ems-flex-between ems-align-center ems-mt-6 ems-small-text">
-                                                <span className="ems-meta-text">
-                                                    {entry.created_at ? entry.created_at.substring(0, 10) : 'Date unrecorded'}
-                                                    {entry.expedition_preferences?.exped_type ? ` • ${entry.expedition_preferences.exped_type}` : ''}
-                                                </span>
-                                                {isSelected && (
-                                                    <span className="ems-inspector-entry-card__selected-indicator">
-                                                        Active View ✓
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Details Body */}
-                    <div className="ems-signups-inspector__body">
-                        {/* Active Entry Title Banner */}
-                        <div className={`ems-inspector-entry-banner ems-inspector-entry-banner--${selectedSignup.type} ems-mb-16`}>
-                            <div className="ems-flex-center ems-gap-6">
-                                <span style={{ fontSize: '16px' }}>
-                                    {selectedSignup.type === 'participant' ? (
-                                        <FontAwesomeIcon icon={faClipboardList} />
-                                    ) : (
-                                        <FontAwesomeIcon icon={faCampground} />
-                                    )}
-                                </span>
-                                <h4 className="ems-m-0 ems-font-semibold" style={{ fontSize: '14px', color: '#1d2327' }}>
-                                    {selectedSignup.type === 'participant' ? 'Participant Place Details' : 'Expedition Signup Details'}
-                                </h4>
-                            </div>
-                            <span className="ems-small-text ems-text-muted">
-                                #{selectedSignup.id}
-                            </span>
-                        </div>
-
-                        {/* Matching Widget */}
-                        <div className="ems-signups-matching-panel ems-mb-16">
-                            <div className="ems-signups-inspector__section-title ems-mt-0">OSM Profile Linkage</div>
-                            {selectedSignup.scout_id !== 0 ? (
-                                <div className="ems-mt-8">
-                                    <div className="ems-flex-between ems-align-center">
-                                        <div className="ems-small-text">
-                                            Linked to Scout ID: <strong>{selectedSignup.scout_id}</strong>
-                                        </div>
-                                        <button 
-                                            type="button"
-                                            className="button button-secondary button-small"
-                                            onClick={() => handleUnlink(selectedSignup.id, selectedSignup.type)}
-                                        >
-                                            Unlink OSM Profile
-                                        </button>
-                                    </div>
-                                    {!isSignupSyncedWithOsm(selectedSignup) && (
-                                        <div className="ems-warning-notice ems-mt-8 ems-small-text">
-                                            Scout ID is set, but this explorer is not yet in the synced OSM Explorers list (their unit may not have shared their OSM record yet).
-                                        </div>
-                                    )}
-                                    {isSignupSyncedWithOsm(selectedSignup) && selectedExplorerEntries.some((e: any) => !isSignupSyncedWithOsm(e)) && (
-                                        <div className="ems-warning-notice ems-mt-8 ems-small-text">
-                                            Another signup entry for this explorer is not yet linked/synced with OSM.
-                                        </div>
-                                    )}
-                                    {unlinkError && (
-                                        <div className="ems-error-notice ems-mt-8 ems-small-text">
-                                            {unlinkError}
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="ems-mt-8">
-                                    {(() => {
-                                        const pairedScoutId = selectedExplorerEntries?.find((e: any) => Number(e.scout_id || 0) !== 0)?.scout_id;
-                                        if (pairedScoutId) {
-                                            return (
-                                                <div className="ems-signups-paired-sync">
-                                                    <div className="ems-small-text ems-mb-8">
-                                                        Paired registration is already linked to OSM (Scout ID: <strong>{pairedScoutId}</strong>).
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        className="button button-small button-primary"
-                                                        onClick={() => handleReconcile(selectedSignup.id, selectedSignup.type, Number(pairedScoutId))}
-                                                    >
-                                                        Sync with Paired OSM Record
-                                                    </button>
-                                                </div>
-                                            );
-                                        }
-                                        return (
-                                            <div className="ems-signups-unmatched-alert">
-                                                <FontAwesomeIcon icon={faTriangleExclamation} /> Unmatched guest registration.
-                                            </div>
-                                        );
-                                    })()}
-                                    
-                                    {/* Recommendations */}
-                                    {currentSuggestions.length > 0 && (
-                                        <div className="ems-mt-8">
-                                            <strong className="ems-small-text">Suggested matches:</strong>
-                                            <div className="ems-signups-suggestions-list ems-mt-4">
-                                                {currentSuggestions.map(sugg => (
-                                                    <div key={sugg.scout_id} className="ems-flex-between ems-align-center ems-py-4">
-                                                        <div className="ems-small-text">
-                                                            {sugg.first_name} {sugg.last_name} ({sugg.patrol || 'No Patrol'}) - ID: {sugg.scout_id}
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            className="button button-small button-primary"
-                                                            onClick={() => handleReconcile(selectedSignup.id, selectedSignup.type, sugg.scout_id)}
-                                                        >
-                                                            Confirm Match
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Search Dropdown for manual reconciliation */}
-                                    <div className="ems-mt-8">
-                                        <label htmlFor="reconcile-search" className="ems-small-text ems-font-semibold">Search Synced OSM Explorers:</label>
-                                        <input 
-                                            id="reconcile-search"
-                                            type="text" 
-                                            placeholder="Type name or Scout ID..."
-                                            value={reconcileSearch}
-                                            onChange={(e) => setReconcileSearch(e.target.value)}
-                                            className="ems-signups-inspector__input ems-mt-4"
-                                        />
-                                        {reconcileSearch && (
-                                            <div className="ems-signups-search-dropdown ems-mt-4">
-                                                {manualExplorerOptions.length === 0 ? (
-                                                    <div className="ems-p-8 ems-meta-text ems-small-text">No matching explorers.</div>
-                                                ) : (
-                                                    manualExplorerOptions.slice(0, 5).map(e => (
-                                                        <div 
-                                                            key={e.scout_id} 
-                                                            onClick={() => handleReconcile(selectedSignup.id, selectedSignup.type, e.scout_id)}
-                                                            className="ems-search-dropdown-option ems-flex-between ems-align-center ems-p-8 ems-cursor-pointer"
-                                                        >
-                                                            <div className="ems-small-text">
-                                                                {e.first_name} {e.last_name} ({e.patrol || 'No Patrol'})
-                                                            </div>
-                                                            <div className="ems-monospace ems-small-text">ID: {e.scout_id}</div>
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Explorer Profile Details */}
-                        <div className="ems-signups-inspector__section-title">Explorer Profile</div>
-                        <div className="ems-signups-detail-grid">
-                            <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                <span className="ems-signups-inspector__label">Name</span>
-                                <div className="ems-signups-inspector__value--large">
-                                    {selectedSignup.explorer_first_name} {selectedSignup.explorer_last_name}
-                                </div>
-                            </div>
-                            
-                            <div className="ems-signups-detail-item">
-                                <span className="ems-signups-inspector__label">Scout ID</span>
-                                <div className="ems-signups-inspector__value ems-monospace ems-font-semibold">
-                                    {selectedSignup.scout_id || 'Unmatched'}
-                                </div>
-                            </div>
-
-                            <div className="ems-signups-detail-item">
-                                <span className="ems-signups-inspector__label">Status</span>
-                                <div className="ems-mt-4">
-                                    <span className={`ems-status-badge ems-status-badge--${selectedSignup.signup_status}`}>
-                                        {selectedSignup.signup_status}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="ems-signups-detail-item">
-                                <span className="ems-signups-inspector__label">Processing Status</span>
-                                <div className="ems-mt-4">
-                                    <select
-                                        aria-label="Inspector Processing Status"
-                                        value={(selectedSignup.kanban_stage || 'new') === 'to_process' ? 'new' : (selectedSignup.kanban_stage || 'new')}
-                                        onChange={(e) => handleUpdateProcessingStatus(selectedSignup.id, selectedSignup.type, e.target.value)}
-                                        className="ems-select ems-select-sm"
-                                    >
-                                        <option value="new">New</option>
-                                        {selectedSignup.type === 'participant' ? (
-                                            <>
-                                                <option value="on_hold">On Hold</option>
-                                                <option value="place_allocated">Place Allocated</option>
-                                                <option value="cancelled">Cancelled</option>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <option value="team_allocated">Team Allocated</option>
-                                                <option value="expedition_completed">Expedition Completed</option>
-                                                <option value="withdrawn">Withdrawn</option>
-                                                <option value="cancelled">Cancelled</option>
-                                            </>
-                                        )}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {selectedSignup.type === 'expedition' && (
-                                <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                    <label className="ems-flex-center ems-gap-8">
-                                        <input
-                                            type="checkbox"
-                                            checked={Boolean(selectedSignup.participant_place_allocated)}
-                                            onChange={(e) => handleTogglePlaceAllocated(selectedSignup.id, e.target.checked)}
-                                        />
-                                        <span>
-                                            <strong>Participant Place Allocated</strong>
-                                            {selectedSignup.participant_signup_id ? ` (Linked #${selectedSignup.participant_signup_id})` : ' (Manual / Prior Year)'}
-                                        </span>
-                                    </label>
-                                </div>
-                            )}
-
-                            <div className="ems-signups-detail-item">
-                                <span className="ems-signups-inspector__label">Level</span>
-                                <div className="ems-flex-center ems-gap-8 ems-mt-4">
-                                    <select
-                                        aria-label="Change Level"
-                                        value={selectedSignup.dofe_level || 'bronze'}
-                                        onChange={(e) => handleUpdateLevel(selectedSignup.id, selectedSignup.type, e.target.value)}
-                                        disabled={savingField === 'level'}
-                                        className="ems-select ems-select-sm"
-                                    >
-                                        <option value="bronze">Bronze</option>
-                                        <option value="silver">Silver</option>
-                                        <option value="gold">Gold</option>
-                                    </select>
-                                    {savingField === 'level' && (
-                                        <span className="ems-field-status ems-field-status--saving" aria-label="Saving level…">
-                                            <span className="ems-spinner ems-spinner-sm" /> Saving…
-                                        </span>
-                                    )}
-                                    {levelSaveSuccess && (
-                                        <span className="ems-field-status ems-field-status--success" data-testid="level-save-success">
-                                            <FontAwesomeIcon icon={faCheck} /> Saved
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                <span className="ems-signups-inspector__label">Unit</span>
-                                <div className="ems-flex-center ems-gap-8 ems-mt-4">
-                                    <select
-                                        aria-label="Change Unit"
-                                        value={editedUnitId}
-                                        onChange={(e) => {
-                                            const newUnitId = e.target.value;
-                                            setEditedUnitId(newUnitId);
-                                            if (newUnitId) {
-                                                handleUpdateUnit(selectedSignup.id, selectedSignup.type, Number(newUnitId));
-                                            }
-                                        }}
-                                        disabled={savingField === 'unit'}
-                                        className="ems-select"
-                                    >
-                                        <option value="">Select unit...</option>
-                                        {availableUnits.map((u: any, idx: number) => (
-                                            <option key={u.unit_id ?? u.id ?? u.name ?? idx} value={String(u.unit_id ?? u.id ?? u.name)}>
-                                                {u.short_code || u.name}
-                                                {u.name && u.short_code && u.name !== u.short_code ? ` (${u.name})` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {savingField === 'unit' && (
-                                        <span className="ems-field-status ems-field-status--saving" aria-label="Saving unit…">
-                                            <span className="ems-spinner ems-spinner-sm" /> Saving…
-                                        </span>
-                                    )}
-                                    {unitSaveSuccess && (
-                                        <span className="ems-field-status ems-field-status--success" data-testid="unit-save-success">
-                                            <FontAwesomeIcon icon={faCheck} /> Saved
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Form Specific Details */}
-                        <div className="ems-signups-inspector__section-title">Form Submissions</div>
-                        <div className="ems-signups-detail-grid">
-                            {selectedSignup.type === 'participant' ? (
-                                <>
-                                    <div className="ems-signups-detail-item">
-                                        <span className="ems-signups-inspector__label">DofE Registration Status</span>
-                                        <div className="ems-signups-inspector__value">
-                                            {selectedSignup.dofe_registered === 'y' ? 'Registered' : (selectedSignup.dofe_registered === 'y-other' ? 'Registered (Other)' : 'Needs Registration')}
-                                        </div>
-                                    </div>
-
-                                    <div className="ems-signups-detail-item">
-                                        <span className="ems-signups-inspector__label">DOB</span>
-                                        <div className="ems-signups-inspector__value">{selectedSignup.dob || '—'}</div>
-                                    </div>
-
-                                    {selectedSignup.dofe_registered === 'y-other' && (
-                                        <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                            <div className="ems-signups-inspector__transfer-alert">
-                                                <div className="ems-flex-center ems-gap-4">
-                                                    <FontAwesomeIcon icon={faTriangleExclamation} /> <strong>Transfer Required</strong>
-                                                </div>
-                                                <div className="ems-font-normal ems-meta-text ems-small-text ems-mt-4">
-                                                    From: <strong className="ems-font-semibold">{selectedSignup.dofe_org || 'Unknown Organisation'}</strong>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                        <label htmlFor="inspector-dofe-num" className="ems-signups-inspector__label">eDofE Number</label>
-                                        <input 
-                                            id="inspector-dofe-num"
-                                            type="text" 
-                                            value={selectedSignup.dofe_number || ''} 
-                                            readOnly
-                                            placeholder="—"
-                                            className="ems-signups-inspector__input ems-monospace"
-                                        />
-                                    </div>
-
-                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                        <span className="ems-signups-inspector__label">Prior Level Completions</span>
-                                        <div className="ems-mt-4">
-                                            {renderPriorCompletions(selectedSignup)}
-                                        </div>
-                                    </div>
-
-                                    <div className="ems-signups-detail-item">
-                                        <span className="ems-signups-inspector__label">Payment Status</span>
-                                        <div className="ems-mt-4">
-                                            <span className={`ems-status-badge ems-status-badge--${selectedSignup.payment_status}`}>
-                                                {selectedSignup.payment_status === 'paid' ? 'Paid' : selectedSignup.payment_status === 'failed' ? 'Failed' : 'Pending'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="ems-signups-detail-item">
-                                        <span className="ems-signups-inspector__label">Expedition Mode</span>
-                                        <div className="ems-signups-inspector__value ems-font-semibold ems-flex-center ems-gap-4">
-                                            {selectedSignup.expedition_preferences?.exped_type === 'Hillwalking' ? (
-                                                <FontAwesomeIcon icon={faPersonHiking} className="ems-pill-icon" />
-                                            ) : selectedSignup.expedition_preferences?.exped_type === 'Biking' ? (
-                                                <FontAwesomeIcon icon={faBicycle} className="ems-pill-icon" />
-                                            ) : (
-                                                <FontAwesomeIcon icon={faWater} className="ems-pill-icon" />
-                                            )}{' '}
-                                            {selectedSignup.expedition_preferences?.exped_type || '—'}
-                                        </div>
-                                    </div>
-
-                                    <div className="ems-signups-detail-item">
-                                        <span className="ems-signups-inspector__label">eDofE Number</span>
-                                        <div className="ems-signups-inspector__value ems-font-semibold ems-monospace">{selectedSignup.dofe_number || '—'}</div>
-                                    </div>
-
-                                    <div className="ems-signups-detail-item">
-                                        <span className="ems-signups-inspector__label">First Aid Status</span>
-                                        <div className="ems-signups-inspector__value ems-font-semibold">{selectedSignup.first_aid_status}</div>
-                                    </div>
-
-                                    <div className="ems-signups-detail-item">
-                                        <span className="ems-signups-inspector__label">First Aid Expiry</span>
-                                        <div className="ems-signups-inspector__value">{selectedSignup.first_aid_expiry || '—'}</div>
-                                    </div>
-
-                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                        <span className="ems-signups-inspector__label">Additional Support Needs</span>
-                                        <div className="ems-signups-inspector__support-box">
-                                            {selectedSignup.additional_support_needs || 'None declared.'}
-                                        </div>
-                                    </div>
-
-                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                        <label htmlFor="inspector-asn-validation" className="ems-signups-inspector__label">Accommodation Status</label>
-                                        <div className="ems-flex-center ems-gap-8 ems-mt-4">
-                                            <select
-                                                id="inspector-asn-validation"
-                                                aria-label="Accommodation Status"
-                                                value={selectedSignup.asn_validated === 1 ? '1' : selectedSignup.asn_validated === 0 ? '0' : ''}
-                                                onChange={(e) => {
-                                                    const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
-                                                    handleUpdateAsnValidation(selectedSignup.id, val);
-                                                }}
-                                                disabled={savingField === 'asn'}
-                                                className="ems-select ems-select-sm"
-                                            >
-                                                <option value="">Unreviewed</option>
-                                                <option value="1">Action Needed</option>
-                                                <option value="0">No Action Needed</option>
-                                            </select>
-                                            {savingField === 'asn' && (
-                                                <span className="ems-field-status ems-field-status--saving" aria-label="Saving validation…">
-                                                    <span className="ems-spinner ems-spinner-sm" /> Saving…
-                                                </span>
-                                            )}
-                                            {asnSaveSuccess && (
-                                                <span className="ems-field-status ems-field-status--success" data-testid="asn-save-success">
-                                                    <FontAwesomeIcon icon={faCheck} /> Saved
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                        <span className="ems-signups-inspector__label">Expedition Preferences</span>
-                                        <div className="ems-signups-inspector__support-box" style={{ fontStyle: 'normal' }}>
-                                            {selectedSignup.expedition_preferences ? (
-                                                <div className="ems-flex-col ems-gap-8 ems-small-text">
-                                                    <div>
-                                                        <strong>Practice:</strong>{' '}
-                                                        {Array.isArray(selectedSignup.expedition_preferences.exped_practice_dates)
-                                                            ? selectedSignup.expedition_preferences.exped_practice_dates.join(', ')
-                                                            : (selectedSignup.expedition_preferences.exped_practice_dates || '—')}
-                                                    </div>
-                                                    <div>
-                                                        <strong>Qualifier:</strong>{' '}
-                                                        {Array.isArray(selectedSignup.expedition_preferences.exped_qualifier_dates)
-                                                            ? selectedSignup.expedition_preferences.exped_qualifier_dates.join(', ')
-                                                            : (selectedSignup.expedition_preferences.exped_qualifier_dates || '—')}
-                                                    </div>
-                                                    <div>
-                                                        <strong>Teammates:</strong>{' '}
-                                                        {selectedSignup.expedition_preferences.exped_team_names || '—'}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="ems-meta-text ems-italic">No preferences specified.</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Contacts Block */}
-                        <div className="ems-signups-inspector__section-title">Contacts</div>
-                        <div className="ems-signups-detail-grid">
-                            <div className="ems-signups-detail-item">
-                                <span className="ems-signups-inspector__label">Explorer Email</span>
-                                <div className="ems-signups-inspector__value">{selectedSignup.explorer_email || '—'}</div>
-                            </div>
-
-                            <div className="ems-signups-detail-item">
-                                <span className="ems-signups-inspector__label">Parent Email</span>
-                                <div className="ems-signups-inspector__value">{selectedSignup.parent_email || '—'}</div>
-                            </div>
-
-                            <div className="ems-signups-detail-item ems-signups-detail-item--full">
-                                <span className="ems-signups-inspector__label">Leader Email</span>
-                                <div className="ems-signups-inspector__value">{selectedSignup.leader_email || '—'}</div>
-                            </div>
-                        </div>
-
-                        {/* Submission Metadata */}
-                        <div className="ems-signups-inspector__section-title">Submission Info</div>
-                        <div className="ems-signups-detail-grid" style={{ marginBottom: '16px' }}>
-                            <div className="ems-signups-detail-item">
-                                <span className="ems-signups-inspector__label">Submission ID</span>
-                                <div className="ems-signups-inspector__value">#{selectedSignup.form_submission_id || '—'}</div>
-                            </div>
-                            <div className="ems-signups-detail-item">
-                                <span className="ems-signups-inspector__label">Submitted At</span>
-                                <div className="ems-signups-inspector__value">{selectedSignup.created_at || '—'}</div>
-                            </div>
-                        </div>
-
-                        {/* Chase History */}
-                        <div className="ems-signups-inspector__section-title">Chase History</div>
-                        <div style={{ marginBottom: '16px' }}>
-                            {!chaseHistoryLoaded ? (
-                                <button
-                                    type="button"
-                                    className="button button-small"
-                                    disabled={chaseHistoryLoading}
-                                    onClick={handleLoadChaseHistory}
-                                >
-                                    {chaseHistoryLoading ? 'Loading…' : 'Load Chase History'}
-                                </button>
-                            ) : chaseHistory.length === 0 ? (
-                                <div className="ems-meta-text ems-italic ems-small-text">No chaser emails logged for this Explorer yet.</div>
-                            ) : (
-                                <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px' }}>
-                                    {chaseHistory.map((h: any) => (
-                                        <li key={h.id} style={{ marginBottom: '4px' }}>
-                                            <strong>{h.sent_at}</strong> &middot; {h.metadata?.audience === 'individual' ? 'Individual/Parent' : 'Unit Leader'} ({h.recipient_email})
-                                            {Array.isArray(h.metadata?.anomalies) && h.metadata.anomalies.length > 0 && (
-                                                <span className="ems-meta-text"> — {h.metadata.anomalies.join(', ')}</span>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Actions Footer */}
-                    <div className="ems-signups-inspector__footer">
-                        <div>
-                            {selectedSignup.signup_status !== 'archived' && (
-                                <button 
-                                    onClick={() => handleArchive(selectedSignup.id, selectedSignup.type)}
-                                    className="button button-link-delete"
-                                >
-                                    Archive
-                                </button>
-                            )}
-                        </div>
-                        <div className="ems-flex-center ems-gap-6">
-                            <button onClick={() => setSelectedSignup(null)} className="button">Close</button>
-                            {selectedSignup.type === 'participant' && !selectedSignup.dofe_number && (
-                                <button 
-                                    onClick={() => handleProcessParticipant(selectedSignup.id, selectedSignup.dofe_number || '')}
-                                    className="button button-primary"
-                                    disabled={!selectedSignup.scout_id} // Disable slot allocation for unmatched guest signups
-                                    title={!selectedSignup.scout_id ? 'You must match this guest to an OSM profile before allocating a place.' : ''}
-                                >
-                                    Allocate Slot
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <Explorer360Drawer
+                isOpen={Boolean(selectedSignup)}
+                scoutId={selectedSignup && Number(selectedSignup.scout_id || 0) > 0 ? Number(selectedSignup.scout_id) : undefined}
+                signupType={selectedSignup?.type}
+                signupId={selectedSignup?.id}
+                rootUrl={config.root_url}
+                nonce={config.nonce}
+                units={availableUnits}
+                explorers={explorers}
+                initialTab="signups"
+                fallbackSignups={selectedExplorerEntries}
+                unlinkError={unlinkError}
+                levelSaveSuccess={levelSaveSuccess}
+                unitSaveSuccess={unitSaveSuccess}
+                asnSaveSuccess={asnSaveSuccess}
+                onClose={() => setSelectedSignup(null)}
+                onUpdated={fetchData}
+                onReconcile={handleReconcile}
+                onUnlink={handleUnlink}
+                onArchive={handleArchive}
+                onOpenAsnModal={(s) => setAsnModalRow(s)}
+                onAsnChanged={handleUpdateAsnValidation}
+                onOpenChaser={() => {
+                    setSelectedSignup(null);
+                    setActiveViewTab('anomalies');
+                }}
+                onLevelChanged={handleUpdateLevel}
+                onUnitChanged={handleUpdateUnit}
+                onStatusChanged={(sid, stype, stage, syncedIds = []) => {
+                    setSignups((prev) =>
+                        prev.map((s) => {
+                            if (s.id === sid && s.type === stype) {
+                                return { ...s, kanban_stage: stage };
+                            }
+                            if (stype === "participant" && s.type === "expedition" && syncedIds.includes(Number(s.id))) {
+                                const allocated = stage === "place_allocated";
+                                const curAnomalies = Array.isArray(s.anomalies) ? s.anomalies : [];
+                                return {
+                                    ...s,
+                                    participant_place_allocated: allocated,
+                                    participant_signup_id: allocated ? sid : null,
+                                    anomalies: allocated ? curAnomalies.filter((a: string) => a !== "expedition_without_place") : curAnomalies,
+                                };
+                            }
+                            return s;
+                        })
+                    );
+                }}
+                onPlaceAllocatedChanged={(expId, allocated) => {
+                    setSignups((prev) =>
+                        prev.map((s) => {
+                            if (s.id !== expId || s.type !== "expedition") return s;
+                            const curAnomalies = Array.isArray(s.anomalies) ? s.anomalies : [];
+                            return {
+                                ...s,
+                                participant_place_allocated: allocated,
+                                anomalies: allocated ? curAnomalies.filter((a: string) => a !== "expedition_without_place") : curAnomalies,
+                            };
+                        })
+                    );
+                }}
+            />
 
             {/* ASN Leader Validation Dialog */}
             {asnModalRow && (

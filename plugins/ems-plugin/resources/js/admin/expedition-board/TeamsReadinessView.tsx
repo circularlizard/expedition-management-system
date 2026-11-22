@@ -18,6 +18,7 @@ import TeamReadinessTable, {
   TeamReadinessMember,
   TeamReadinessRecord,
 } from '../../shared/TeamReadinessTable';
+import Explorer360Drawer from '../shared/Explorer360Drawer';
 
 export interface TeamsReadinessViewProps {
   rootUrl?: string;
@@ -178,6 +179,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
 
   // Send Reminder modal state
   const [reminderRecord, setReminderRecord] = useState<TeamReadinessRecord | null>(null);
+  const [drawerTarget, setDrawerTarget] = useState<{ scoutId?: number; signupId?: number } | null>(null);
   const [selectedSignupIds, setSelectedSignupIds] = useState<number[]>([]);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
@@ -602,7 +604,18 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
                             />
                           </td>
                           <td>
-                            <strong>{member.name || 'Unnamed Explorer'}</strong>
+                            <button
+                              type="button"
+                              className="button-link"
+                              onClick={() =>
+                                setDrawerTarget({
+                                  scoutId: member.scout_id,
+                                  signupId: member.expedition_signup_id,
+                                })
+                              }
+                            >
+                              <strong>{member.name || 'Unnamed Explorer'}</strong>
+                            </button>
                             {!canSelect && (
                               <div className="ems-table__meta">No linked expedition signup</div>
                             )}
@@ -700,6 +713,18 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
           </div>
         </div>
       )}
+
+      <Explorer360Drawer
+        isOpen={drawerTarget !== null}
+        scoutId={drawerTarget?.scoutId && drawerTarget.scoutId > 0 ? drawerTarget.scoutId : undefined}
+        signupType={drawerTarget?.signupId ? 'expedition' : undefined}
+        signupId={drawerTarget?.signupId}
+        rootUrl={rootUrl}
+        nonce={nonce}
+        initialTab="teams"
+        onClose={() => setDrawerTarget(null)}
+        onUpdated={fetchReadiness}
+      />
     </div>
   );
 };
