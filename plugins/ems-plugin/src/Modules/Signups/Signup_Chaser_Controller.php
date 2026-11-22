@@ -589,8 +589,18 @@ class Signup_Chaser_Controller {
 		}
 
 		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
-		if ( $cc !== '' && is_email( $cc ) && strcasecmp( $cc, $to ) !== 0 ) {
-			$headers[] = 'Cc: ' . (string) preg_replace( '/[\r\n\t]+/', '', $cc );
+		if ( $cc !== '' ) {
+			$valid_ccs = array();
+			foreach ( preg_split( '/[,;]+/', $cc ) ?: array() as $candidate ) {
+				$candidate = trim( (string) $candidate );
+				$lower = strtolower( $candidate );
+				if ( $candidate !== '' && is_email( $candidate ) && strcasecmp( $candidate, $to ) !== 0 && ! isset( $valid_ccs[ $lower ] ) ) {
+					$valid_ccs[ $lower ] = (string) preg_replace( '/[\r\n\t]+/', '', $candidate );
+				}
+			}
+			if ( ! empty( $valid_ccs ) ) {
+				$headers[] = 'Cc: ' . implode( ', ', array_values( $valid_ccs ) );
+			}
 		}
 
 		$sent = (bool) wp_mail( $to, $subject, $body, $headers );

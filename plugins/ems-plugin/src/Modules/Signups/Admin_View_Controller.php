@@ -346,6 +346,16 @@ class Admin_View_Controller {
 		$osm_exp_email    = trim( (string) ( $osm_row['email1'] ?? $osm_row['email'] ?? '' ) );
 		$osm_parent_email = trim( (string) ( $osm_row['p1_email1'] ?? $osm_row['parent_email'] ?? '' ) );
 
+		$all_osm_emails = array();
+		if ( $osm_row ) {
+			foreach ( array( 'email1', 'email2', 'email', 'p1_email1', 'p1_email2', 'parent_email', 'p2_email1', 'p2_email2' ) as $col ) {
+				$val = trim( (string) ( $osm_row[ $col ] ?? '' ) );
+				if ( $val !== '' ) {
+					$all_osm_emails[ strtolower( $val ) ] = $val;
+				}
+			}
+		}
+
 		$discrepancies = array();
 		foreach ( $all_signups as $s ) {
 			if ( ( $s['signup_status'] ?? 'submitted' ) === 'archived' ) {
@@ -354,22 +364,22 @@ class Admin_View_Controller {
 			$form_exp    = trim( (string) ( $s['explorer_email'] ?? '' ) );
 			$form_parent = trim( (string) ( $s['parent_email'] ?? '' ) );
 
-			if ( $osm_row ) {
-				if ( $osm_exp_email !== '' && $form_exp !== '' && strcasecmp( $osm_exp_email, $form_exp ) !== 0 ) {
+			if ( $osm_row && ! empty( $all_osm_emails ) ) {
+				if ( $form_exp !== '' && ! isset( $all_osm_emails[ strtolower( $form_exp ) ] ) ) {
 					$discrepancies[] = array(
 						'signup_id'   => $s['id'],
 						'signup_type' => $s['type'],
 						'field'       => 'explorer_email',
-						'osm_value'   => $osm_exp_email,
+						'osm_value'   => $osm_exp_email !== '' ? $osm_exp_email : reset( $all_osm_emails ),
 						'form_value'  => $form_exp,
 					);
 				}
-				if ( $osm_parent_email !== '' && $form_parent !== '' && strcasecmp( $osm_parent_email, $form_parent ) !== 0 ) {
+				if ( $form_parent !== '' && ! isset( $all_osm_emails[ strtolower( $form_parent ) ] ) ) {
 					$discrepancies[] = array(
 						'signup_id'   => $s['id'],
 						'signup_type' => $s['type'],
 						'field'       => 'parent_email',
-						'osm_value'   => $osm_parent_email,
+						'osm_value'   => $osm_parent_email !== '' ? $osm_parent_email : reset( $all_osm_emails ),
 						'form_value'  => $form_parent,
 					);
 				}

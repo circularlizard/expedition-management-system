@@ -201,8 +201,10 @@ class Signup_Repository {
 	}
 
 	public function get_participant_signups( string $status = 'all' ): array {
+		$osm_cols = 'o.email1 AS osm_email1, o.email2 AS osm_email2, o.p1_email1 AS osm_p1_email1, o.p1_email2 AS osm_p1_email2, o.p2_email1 AS osm_p2_email1, o.p2_email2 AS osm_p2_email2';
+
 		if ( $status === 'all' ) {
-			$sql = "SELECT p.*, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
+			$sql = "SELECT p.*, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm, {$osm_cols} 
                     FROM {$this->wpdb->prefix}ems_participant_signups p
                     LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON (p.scout_id > 0 AND p.scout_id = o.scout_id)
                     ORDER BY p.created_at DESC";
@@ -214,7 +216,7 @@ class Signup_Repository {
 			$db_status = 'archived';
 		}
 
-		$sql = "SELECT p.*, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
+		$sql = "SELECT p.*, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm, {$osm_cols} 
                 FROM {$this->wpdb->prefix}ems_participant_signups p
                 LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON (p.scout_id > 0 AND p.scout_id = o.scout_id)
                 WHERE p.signup_status = %s 
@@ -238,8 +240,10 @@ class Signup_Repository {
         ) p ON e.scout_id = p.scout_id
         LEFT JOIN {$this->wpdb->prefix}ems_osm_explorers o ON (e.scout_id > 0 AND e.scout_id = o.scout_id)";
 
+		$osm_cols = 'o.email1 AS osm_email1, o.email2 AS osm_email2, o.p1_email1 AS osm_p1_email1, o.p1_email2 AS osm_p1_email2, o.p2_email1 AS osm_p2_email1, o.p2_email2 AS osm_p2_email2';
+
 		if ( $status === 'all' ) {
-			$sql = "SELECT e.*, COALESCE(NULLIF(e.dofe_number, ''), p.dofe_number) AS dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
+			$sql = "SELECT e.*, COALESCE(NULLIF(e.dofe_number, ''), p.dofe_number) AS dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm, {$osm_cols} 
                     FROM {$this->wpdb->prefix}ems_expedition_signups e 
                     {$join_sql}
                     ORDER BY e.created_at DESC";
@@ -251,7 +255,7 @@ class Signup_Repository {
 			$db_status = 'archived';
 		}
 
-		$sql = "SELECT e.*, COALESCE(NULLIF(e.dofe_number, ''), p.dofe_number) AS dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm 
+		$sql = "SELECT e.*, COALESCE(NULLIF(e.dofe_number, ''), p.dofe_number) AS dofe_number, CASE WHEN o.scout_id IS NOT NULL THEN 1 ELSE 0 END AS is_synced_osm, {$osm_cols} 
                 FROM {$this->wpdb->prefix}ems_expedition_signups e 
                 {$join_sql}
                 WHERE e.signup_status = %s 

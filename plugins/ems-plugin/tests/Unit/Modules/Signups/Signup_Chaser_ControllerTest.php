@@ -511,4 +511,44 @@ class Signup_Chaser_ControllerTest extends EMSTestCase {
 		$this->assertSame( 'Action for Kelso ESU', $captured_mail['subject'] );
 		$this->assertSame( '<p>Unit: Kelso ESU</p>', $captured_mail['message'] );
 	}
+
+	public function test_send_individual_chaser_supports_multiple_cc_emails(): void {
+		Functions\when( 'get_option' )->alias(
+			static fn( string $key, $default = false ) => $key === 'ems_feature_flags' ? array() : $default
+		);
+		Functions\when( 'is_email' )->returnArg();
+		Functions\when( 'esc_html' )->returnArg();
+
+		$signup_repo = \Mockery::mock( Signup_Repository::class );
+		$unit_repo   = \Mockery::mock( Unit_Repository::class );
+
+		$captured_mail = null;
+		Functions\when( 'wp_mail' )->alias(
+			static function ( $to, $subject, $message, $headers = array() ) use ( &$captured_mail ): bool {
+				$captured_mail = array(
+					'to'      => $to,
+					'subject' => $subject,
+					'message' => $message,
+					'headers' => $headers,
+				);
+				return true;
+			}
+		);
+
+		$controller = new Signup_Chaser_Controller( $signup_repo, $unit_repo, new Email_Template_Service() );
+
+		$request = new \WP_REST_Request( 'POST', '/ems/v1/signups/send-chaser' );
+		$request->set_param( 'target_audience', 'individual' );
+		$request->set_param( 'chaser_type', 'unpaired_signups' );
+		$request->set_param( 'to_override', 'explorer@example.com' );
+		$request->set_param( 'cc_email', 'parent1@example.com, parent2@example.com, PARENT1@example.com, explorer@example.com' );
+		$request->set_param( 'subject_override', 'Update needed' );
+		$request->set_param( 'body_override', '<p>Hello</p>' );
+
+		$response = $controller->send_chaser( $request );
+		$this->assertInstanceOf( \WP_REST_Response::class, $response );
+		$this->assertNotNull( $captured_mail );
+		$this->assertSame( 'explorer@example.com', $captured_mail['to'] );
+		$this->assertContains( 'Cc: parent1@example.com, parent2@example.com', $captured_mail['headers'] );
+	}
 }

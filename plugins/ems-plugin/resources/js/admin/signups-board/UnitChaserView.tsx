@@ -44,6 +44,7 @@ interface ChaserExplorerItem {
     scoutId: number;
     email: string;
     parentEmail: string;
+    ccEmails: string[];
     primarySignup: any;
 }
 
@@ -183,8 +184,34 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
             }
 
             const fullName = `${primary.explorer_first_name || ''} ${primary.explorer_last_name || ''}`.trim() || 'Unknown';
-            const explorerEmail = (bucket.items.find((i: any) => i.explorer_email)?.explorer_email || '').trim();
-            const parentEmail = (bucket.items.find((i: any) => i.parent_email)?.parent_email || '').trim();
+            const osmEmail1 = (bucket.items.find((i: any) => i.osm_email1)?.osm_email1 || '').trim();
+            const formEmail = (bucket.items.find((i: any) => i.explorer_email)?.explorer_email || '').trim();
+            const explorerEmail = osmEmail1 || formEmail;
+
+            const osmP1Email1 = (bucket.items.find((i: any) => i.osm_p1_email1)?.osm_p1_email1 || '').trim();
+            const formParentEmail = (bucket.items.find((i: any) => i.parent_email)?.parent_email || '').trim();
+            const parentEmail = osmP1Email1 || formParentEmail;
+
+            const ccCandidates = [
+                bucket.items.find((i: any) => i.osm_email2)?.osm_email2,
+                osmP1Email1,
+                bucket.items.find((i: any) => i.osm_p1_email2)?.osm_p1_email2,
+                bucket.items.find((i: any) => i.osm_p2_email1)?.osm_p2_email1,
+                bucket.items.find((i: any) => i.osm_p2_email2)?.osm_p2_email2,
+                formParentEmail,
+            ]
+                .map((e: any) => String(e || '').trim())
+                .filter(Boolean);
+
+            const seenCc = new Set<string>();
+            const ccEmails: string[] = [];
+            for (const c of ccCandidates) {
+                const lower = c.toLowerCase();
+                if (!seenCc.has(lower)) {
+                    seenCc.add(lower);
+                    ccEmails.push(c);
+                }
+            }
 
             byUnit[rawUnit].explorers.push({
                 key: `${rawUnit}_${idx}`,
@@ -195,6 +222,7 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 scoutId: bucket.scoutId,
                 email: explorerEmail,
                 parentEmail,
+                ccEmails,
                 primarySignup: primary,
             });
         });
@@ -264,10 +292,9 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
         const anomalyList = exp.anomalies
             .map((a) => ANOMALY_META.find((m) => m.key === a)?.label || a)
             .join(', ');
-        const to = exp.email || exp.parentEmail;
-        const cc = exp.email && exp.parentEmail && exp.email.toLowerCase() !== exp.parentEmail.toLowerCase()
-            ? exp.parentEmail
-            : '';
+        const to = exp.email || exp.parentEmail || exp.ccEmails[0] || '';
+        const ccList = (exp.ccEmails || []).filter((c) => c.toLowerCase() !== to.toLowerCase());
+        const cc = ccList.join(', ');
 
         setDraft({
             audience: 'individual',

@@ -505,20 +505,47 @@ class TeamController {
 		if ( $reply_message !== '' && $expedition_signup_id > 0 && function_exists( 'wp_mail' ) ) {
 			$signup = $wpdb->get_row(
 				$wpdb->prepare(
-					"SELECT explorer_email, parent_email, explorer_first_name, explorer_last_name FROM {$wpdb->prefix}ems_expedition_signups WHERE id = %d",
+					"SELECT scout_id, explorer_email, parent_email, explorer_first_name, explorer_last_name FROM {$wpdb->prefix}ems_expedition_signups WHERE id = %d",
 					$expedition_signup_id
 				),
 				ARRAY_A
 			);
 			if ( $signup ) {
-				$to = array_filter(
-					array_unique(
-						array(
-							sanitize_email( (string) ( $signup['explorer_email'] ?? '' ) ),
-							sanitize_email( (string) ( $signup['parent_email'] ?? '' ) ),
-						)
-					)
+				$candidates = array(
+					(string) ( $signup['explorer_email'] ?? '' ),
+					(string) ( $signup['parent_email'] ?? '' ),
 				);
+				$s_scout_id = (int) ( $signup['scout_id'] ?? 0 );
+				if ( $s_scout_id > 0 ) {
+					$osm_row = $wpdb->get_row(
+						$wpdb->prepare(
+							"SELECT email1, email2, p1_email1, p1_email2, p2_email1, p2_email2 FROM {$wpdb->prefix}ems_osm_explorers WHERE scout_id = %d LIMIT 1",
+							$s_scout_id
+						),
+						ARRAY_A
+					);
+					if ( is_array( $osm_row ) ) {
+						$candidates = array_merge(
+							array(
+								(string) ( $osm_row['email1'] ?? '' ),
+								(string) ( $osm_row['email2'] ?? '' ),
+								(string) ( $osm_row['p1_email1'] ?? '' ),
+								(string) ( $osm_row['p1_email2'] ?? '' ),
+								(string) ( $osm_row['p2_email1'] ?? '' ),
+								(string) ( $osm_row['p2_email2'] ?? '' ),
+							),
+							$candidates
+						);
+					}
+				}
+				$to = array();
+				foreach ( $candidates as $cand ) {
+					$clean = sanitize_email( $cand );
+					if ( $clean !== '' && ! isset( $to[ strtolower( $clean ) ] ) ) {
+						$to[ strtolower( $clean ) ] = $clean;
+					}
+				}
+				$to = array_values( $to );
 				if ( ! empty( $to ) ) {
 					$name    = trim( ( $signup['explorer_first_name'] ?? '' ) . ' ' . ( $signup['explorer_last_name'] ?? '' ) );
 					$subject = 'Re: Your DofE Expedition Place Offer Query';

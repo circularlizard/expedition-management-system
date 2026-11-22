@@ -254,7 +254,18 @@ class ExpeditionOfferDispatcher {
 				true
 			);
 
-			if ( $parent_email !== '' && is_email( $parent_email ) && strcasecmp( $parent_email, $to ) !== 0 ) {
+			if ( ! empty( $explorer['cc_emails'] ) && is_array( $explorer['cc_emails'] ) ) {
+				$clean_ccs = array();
+				foreach ( $explorer['cc_emails'] as $cc_addr ) {
+					$cc_addr = trim( (string) $cc_addr );
+					if ( $cc_addr !== '' && is_email( $cc_addr ) && strcasecmp( $cc_addr, $to ) !== 0 ) {
+						$clean_ccs[ strtolower( $cc_addr ) ] = (string) preg_replace( '/[\r\n\t]+/', '', $cc_addr );
+					}
+				}
+				if ( ! empty( $clean_ccs ) ) {
+					$headers[] = 'Cc: ' . implode( ', ', array_values( $clean_ccs ) );
+				}
+			} elseif ( $parent_email !== '' && is_email( $parent_email ) && strcasecmp( $parent_email, $to ) !== 0 ) {
 				$clean_cc  = (string) preg_replace( '/[\r\n\t]+/', '', $parent_email );
 				$headers[] = 'Cc: ' . $clean_cc;
 			}
@@ -348,6 +359,13 @@ class ExpeditionOfferDispatcher {
 				COALESCE(NULLIF(e.last_name, ''), s.explorer_last_name) AS last_name,
 				COALESCE(NULLIF(e.email, ''), NULLIF(s.explorer_email, ''), '') AS resolved_explorer_email,
 				COALESCE(NULLIF(e.parent_email, ''), NULLIF(s.parent_email, ''), '') AS resolved_parent_email,
+				e.email1 AS osm_email1,
+				e.email2 AS osm_email2,
+				e.p1_email1 AS osm_p1_email1,
+				e.p1_email2 AS osm_p1_email2,
+				e.p2_email1 AS osm_p2_email1,
+				e.p2_email2 AS osm_p2_email2,
+				s.parent_email AS signup_parent_email,
 				COALESCE(NULLIF(e.first_aid_level, ''), NULLIF(s.first_aid_status, ''), 'none') AS resolved_first_aid_level,
 				s.first_aid_expiry,
 				s.dofe_level,
@@ -441,6 +459,21 @@ class ExpeditionOfferDispatcher {
 				$avail = 'matched';
 			}
 
+			$cc_emails = array_values(
+				array_filter(
+					array(
+						trim( (string) ( $row['osm_email2'] ?? '' ) ),
+						trim( (string) ( $row['osm_p1_email1'] ?? '' ) ),
+						trim( (string) ( $row['osm_p1_email2'] ?? '' ) ),
+						trim( (string) ( $row['osm_p2_email1'] ?? '' ) ),
+						trim( (string) ( $row['osm_p2_email2'] ?? '' ) ),
+						trim( (string) ( $row['resolved_parent_email'] ?? '' ) ),
+						trim( (string) ( $row['signup_parent_email'] ?? '' ) ),
+					),
+					static fn( string $addr ): bool => $addr !== ''
+				)
+			);
+
 			$result[] = array(
 				'expedition_signup_id'     => $sid,
 				'scout_id'                 => (int) ( $row['scout_id'] ?? 0 ),
@@ -448,6 +481,7 @@ class ExpeditionOfferDispatcher {
 				'last_name'                => (string) ( $row['last_name'] ?? '' ),
 				'resolved_explorer_email'  => (string) ( $row['resolved_explorer_email'] ?? '' ),
 				'resolved_parent_email'    => (string) ( $row['resolved_parent_email'] ?? '' ),
+				'cc_emails'                => $cc_emails,
 				'resolved_first_aid_level' => (string) ( $row['resolved_first_aid_level'] ?? 'none' ),
 				'first_aid_expiry'         => isset( $row['first_aid_expiry'] ) ? (string) $row['first_aid_expiry'] : null,
 				'dofe_level'               => (string) ( $row['dofe_level'] ?? '' ),
@@ -548,6 +582,13 @@ class ExpeditionOfferDispatcher {
 				COALESCE(NULLIF(e.last_name, ''), s.explorer_last_name) AS last_name,
 				COALESCE(NULLIF(e.email, ''), NULLIF(s.explorer_email, ''), '') AS resolved_explorer_email,
 				COALESCE(NULLIF(e.parent_email, ''), NULLIF(s.parent_email, ''), '') AS resolved_parent_email,
+				e.email1 AS osm_email1,
+				e.email2 AS osm_email2,
+				e.p1_email1 AS osm_p1_email1,
+				e.p1_email2 AS osm_p1_email2,
+				e.p2_email1 AS osm_p2_email1,
+				e.p2_email2 AS osm_p2_email2,
+				s.parent_email AS signup_parent_email,
 				COALESCE(NULLIF(e.first_aid_level, ''), NULLIF(s.first_aid_status, ''), 'none') AS resolved_first_aid_level,
 				s.first_aid_expiry
 			FROM {$team_members_table} tm
