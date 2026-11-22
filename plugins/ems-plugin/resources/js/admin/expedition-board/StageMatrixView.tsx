@@ -479,8 +479,8 @@ export default function StageMatrixView({
             <thead>
               {/* Super-header row when Both Stages or stage groups exist */}
               <tr>
-                <th colSpan={4} style={{ ...stickyHeaderBase, left: 0, textAlign: 'left' }}>
-                  Explorer Identity &amp; Team
+                <th colSpan={3} style={{ ...stickyHeaderBase, left: 0, textAlign: 'left' }}>
+                  Explorer Identity &amp; Preferences
                 </th>
                 {visiblePracticeEvents.length > 0 && (
                   <th
@@ -519,11 +519,10 @@ export default function StageMatrixView({
               <tr>
                 <th style={{ ...stickyHeaderBase, left: 0, minWidth: '170px', maxWidth: '170px' }}>Explorer</th>
                 <th style={{ ...stickyHeaderBase, left: '170px', minWidth: '120px', maxWidth: '120px' }}>Unit</th>
-                <th style={{ ...stickyHeaderBase, left: '290px', minWidth: '120px', maxWidth: '120px' }}>Team</th>
                 <th
                   style={{
                     ...stickyHeaderBase,
-                    left: '410px',
+                    left: '290px',
                     minWidth: '170px',
                     maxWidth: '170px',
                     borderRight: '2px solid #cbd5e1',
@@ -599,16 +598,10 @@ export default function StageMatrixView({
                     <span className="ems-matrix-unit-badge">{row.unit_name}</span>
                   </td>
 
-                  <td style={{ ...stickyCellBase, left: '290px', minWidth: '120px', maxWidth: '120px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: row.cohortName !== '—' ? 600 : 400 }}>
-                      {row.cohortName}
-                    </span>
-                  </td>
-
                   <td
                     style={{
                       ...stickyCellBase,
-                      left: '410px',
+                      left: '290px',
                       minWidth: '170px',
                       maxWidth: '170px',
                       borderRight: '2px solid #cbd5e1',

@@ -91,7 +91,7 @@ export default function CohortPlanningMatrix({
 
     try {
       const [cohortsResp, practiceResp, qualifyingResp] = await Promise.all([
-        fetch(`${rootUrl}/cohorts?${cohortParams.toString()}`, {
+        fetch(`${rootUrl}/teams-builder?${cohortParams.toString()}`, {
           headers: { 'X-WP-Nonce': nonce },
         }),
         fetch(`${rootUrl}/planning-board/matrix?${practiceParams.toString()}`, {

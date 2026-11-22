@@ -2459,14 +2459,6 @@ class Expedition_Admin_Controller {
 					)
 				);
 			}
-			if ( $preserved_cohort_id <= 0 && $preserved_signup_id > 0 ) {
-				$preserved_cohort_id = (int) $wpdb->get_var(
-					$wpdb->prepare(
-						"SELECT cohort_id FROM {$wpdb->prefix}ems_cohort_members WHERE expedition_signup_id = %d ORDER BY id DESC LIMIT 1",
-						$preserved_signup_id
-					)
-				);
-			}
 
 			if ( $dest_team_id > 0 ) {
 				try {
@@ -2478,47 +2470,15 @@ class Expedition_Admin_Controller {
 				$wpdb->query(
 					$wpdb->prepare(
 						"UPDATE {$table}
-						SET cohort_id = %s,
-							expedition_signup_id = %s,
-							notification_status = %s,
-							availability_override = %s
+						SET expedition_signup_id = %s,
+							notification_status = %s
 						WHERE team_post_id = %d AND scout_id = %d",
-						$preserved_cohort_id > 0 ? $preserved_cohort_id : null,
 						$preserved_signup_id > 0 ? $preserved_signup_id : null,
 						$preserved_notif,
-						$preserved_cohort_id > 0 ? 'split_date' : null,
 						$dest_team_id,
 						$scout_id
 					)
 				);
-			}
-
-			// Sync stage override back to ems_cohort_members so Team Builder reflects Date Grid moves.
-			if ( $preserved_cohort_id > 0 && $preserved_signup_id > 0 ) {
-				$ev_type_norm = strtolower( (string) ( $event['ems_type'] ?? '' ) );
-				$stage_col    = $ev_type_norm === 'practice'
-					? 'practice_team_post_id_override'
-					: ( in_array( $ev_type_norm, array( 'qualifying', 'qualifier' ), true ) ? 'qualifier_team_post_id_override' : '' );
-				if ( $stage_col !== '' ) {
-					$home_team_col  = $ev_type_norm === 'practice' ? 'practice_team_post_id' : 'qualifier_team_post_id';
-					$home_team_id   = (int) $wpdb->get_var(
-						$wpdb->prepare( "SELECT {$home_team_col} FROM {$wpdb->prefix}ems_cohorts WHERE id = %d", $preserved_cohort_id )
-					);
-					$override_val   = ( $dest_team_id > 0 && $dest_team_id !== $home_team_id ) ? $dest_team_id : null;
-					$member_status  = $override_val !== null
-						? ( $ev_type_norm === 'practice' ? 'split_practice' : 'split_qualifier' )
-						: 'active';
-					$wpdb->query(
-						$wpdb->prepare(
-							"UPDATE {$wpdb->prefix}ems_cohort_members SET {$stage_col} = %s, member_status = %s, updated_at = %s WHERE cohort_id = %d AND expedition_signup_id = %d",
-							$override_val,
-							$member_status,
-							current_time( 'mysql', true ),
-							$preserved_cohort_id,
-							$preserved_signup_id
-						)
-					);
-				}
 			}
 		}
 

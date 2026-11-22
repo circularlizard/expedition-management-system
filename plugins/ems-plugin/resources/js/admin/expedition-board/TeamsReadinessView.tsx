@@ -693,7 +693,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
                   onClick={async () => {
                     setQueryReplyBusy(true);
                     try {
-                      const res = await fetch(`${rootUrl}/cohorts/resolve-query`, {
+                      const res = await fetch(`${rootUrl}/teams/resolve-query`, {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',

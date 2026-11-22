@@ -33,21 +33,15 @@ class ExpeditionsModule implements ModuleInterface, BackupContributorInterface {
 		);
 		$controller->register_routes();
 
-		$cohort_controller = new Rest\CohortController(
-			new Repositories\CohortRepository(),
-			new Repositories\CohortMemberRepository()
-		);
-		$cohort_controller->register_routes();
+		$team_controller = new Rest\TeamController();
+		$team_controller->register_routes();
 	}
 
 	/**
 	 * @return array<string>
 	 */
 	public function getBackupTables(): array {
-		return array(
-			'ems_cohorts',
-			'ems_cohort_members',
-		);
+		return array();
 	}
 
 	/**
