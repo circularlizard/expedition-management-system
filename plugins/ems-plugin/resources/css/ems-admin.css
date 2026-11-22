@@ -4627,12 +4627,12 @@ tr.ems-table-group-header:hover td,
 
 .ems-modal,
 .ems-chaser-modal {
-    width: min(1040px, 92vw);
-    max-height: 92vh;
+    width: min(960px, 94vw);
+    max-height: 90vh;
     background: #ffffff;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
-    padding: 20px 24px;
+    padding: 18px 22px;
     box-shadow: 0 20px 30px -8px rgba(15, 23, 42, 0.25);
     display: flex;
     flex-direction: column;
@@ -4648,21 +4648,67 @@ tr.ems-table-group-header:hover td,
 }
 
 .ems-chaser-modal__body {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 480px;
+    display: block;
+    min-height: 220px;
 }
 
 .ems-chaser-modal__body textarea,
 .ems-chaser-modal__body .ems-textarea-fallback,
 .ems-chaser-modal__body [contenteditable="true"] {
-    min-height: 480px !important;
+    min-height: 240px !important;
 }
 
 .ems-chaser-modal__body .mce-edit-area iframe {
-    min-height: 460px !important;
-    height: 460px !important;
+    min-height: 220px !important;
+    height: 240px !important;
+}
+
+.ems-chaser-modal__footer {
+    position: sticky;
+    bottom: -18px;
+    background: #ffffff;
+    z-index: 5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0 6px;
+    margin-top: 8px;
+    border-top: 1px solid #e2e8f0;
+}
+
+@media (max-height: 760px) {
+    .ems-chaser-modal__body textarea,
+    .ems-chaser-modal__body .ems-textarea-fallback,
+    .ems-chaser-modal__body [contenteditable="true"] {
+        min-height: 160px !important;
+    }
+
+    .ems-chaser-modal__body .mce-edit-area iframe {
+        min-height: 160px !important;
+        height: 170px !important;
+    }
+}
+
+@media (max-width: 720px) {
+    .ems-modal-backdrop {
+        padding: 10px;
+    }
+
+    .ems-modal,
+    .ems-chaser-modal {
+        width: 96vw;
+        max-height: 94vh;
+        padding: 14px 16px;
+    }
+
+    .ems-chaser-modal__footer {
+        bottom: -14px;
+    }
+
+    .ems-chaser-modal__recipients {
+        grid-template-columns: 1fr;
+    }
 }
 
 .ems-email-preview-box {

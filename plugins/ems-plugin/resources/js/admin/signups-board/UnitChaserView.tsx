@@ -519,11 +519,11 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                                 value={draft.message}
                                 onChange={(html) => setDraft({ ...draft, message: html })}
                                 shortcodes={draft.shortcodes}
-                                minHeight="480px"
+                                minHeight="240px"
                             />
                         </div>
 
-                        <div className="ems-flex-between">
+                        <div className="ems-chaser-modal__footer">
                             <button
                                 type="button"
                                 className="button button-secondary"
