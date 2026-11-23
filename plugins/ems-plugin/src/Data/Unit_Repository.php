@@ -593,20 +593,6 @@ class Unit_Repository {
 			}
 		}
 
-		if ( function_exists( 'get_pages' ) && function_exists( 'get_permalink' ) ) {
-			$pages = get_pages( array( 'post_status' => 'publish' ) );
-			if ( is_array( $pages ) ) {
-				foreach ( $pages as $page ) {
-					if ( is_object( $page ) && property_exists( $page, 'post_content' ) && str_contains( (string) $page->post_content, '[ems-leader-dashboard' ) ) {
-						$url = (string) get_permalink( (int) $page->ID );
-						if ( $url !== '' ) {
-							return $url;
-						}
-					}
-				}
-			}
-		}
-
 		return function_exists( 'home_url' ) ? (string) home_url( '/' ) : '';
 	}
 

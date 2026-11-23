@@ -21,10 +21,12 @@ class Access_Control_Guard {
 
 		// 2. Check general protected pages
 		$current_page_id = 0;
-		if ( ! empty( $page_roles ) ) {
+		$queried_id      = function_exists( 'get_queried_object_id' ) ? (int) get_queried_object_id() : 0;
+		if ( ! empty( $page_roles ) && is_array( $page_roles ) ) {
 			foreach ( array_keys( $page_roles ) as $protected_id ) {
-				if ( is_page( $protected_id ) ) {
-					$current_page_id = $protected_id;
+				$pid = (int) $protected_id;
+				if ( $pid > 0 && ( is_page( $pid ) || $queried_id === $pid ) ) {
+					$current_page_id = $pid;
 					break;
 				}
 			}
@@ -34,6 +36,10 @@ class Access_Control_Guard {
 
 		if ( ! $is_protected ) {
 			return;
+		}
+
+		if ( function_exists( 'nocache_headers' ) ) {
+			nocache_headers();
 		}
 
 		if ( ! is_user_logged_in() ) {

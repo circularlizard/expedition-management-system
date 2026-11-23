@@ -1067,22 +1067,6 @@ class Settings_Page {
 						<p class="description"><?php esc_html_e( 'Automatically intercept and restrict access to all Tutor LMS dashboard and course pages (requires the "ems_explorer" role).', 'ems-plugin' ); ?></p>
 					</td>
 				</tr>
-				<tr>
-					<th scope="row"><label for="ems_leader_dashboard_page_id"><?php esc_html_e( 'Unit Leader Dashboard Page', 'ems-plugin' ); ?></label></th>
-					<td>
-						<select id="ems_leader_dashboard_page_id" name="ems_leader_dashboard_page_id" style="max-width: 400px;">
-							<option value="0"><?php esc_html_e( '— Auto-detect page with [ems-leader-dashboard] —', 'ems-plugin' ); ?></option>
-							<?php foreach ( $pages as $page ) : ?>
-								<option value="<?php echo esc_attr( (string) $page->ID ); ?>" <?php selected( $leader_page_id, (int) $page->ID ); ?>>
-									<?php echo esc_html( $page->post_title ); ?> (ID: <?php echo esc_html( (string) $page->ID ); ?>)
-								</option>
-							<?php endforeach; ?>
-						</select>
-						<p class="description">
-							<?php esc_html_e( 'Unit leaders (ems_leader role) are automatically signed in and redirected to this page after setting their password or logging in.', 'ems-plugin' ); ?>
-						</p>
-					</td>
-				</tr>
 			</table>
 			<p class="submit">
 				<input type="submit" name="ems_save_access_control" class="button button-primary" value="<?php esc_attr_e( 'Save Access Control Settings', 'ems-plugin' ); ?>" />
