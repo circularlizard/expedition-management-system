@@ -289,6 +289,7 @@ const ExpeditionBoard: React.FC = () => {
                                     onFeedback={planningData.setFeedback}
                                     onOpenNotifyModal={(opts) => setNotifyModalOpts(opts)}
                                     onOpenEvent={handleOpenEventById}
+                                    onInspectExplorer={(target) => setDrawerTarget(target)}
                                 />
                             </ModuleErrorBoundary>
                         ) : (

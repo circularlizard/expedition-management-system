@@ -76,6 +76,10 @@ class Settings_Page {
 
 		$log_guard = isset( $post_data['ems_debug_log_guard'] ) ? 1 : 0;
 		update_option( 'ems_debug_log_guard', $log_guard );
+
+		$query_email_raw = trim( (string) ( $post_data['ems_offer_query_email'] ?? '' ) );
+		$query_email     = $query_email_raw !== '' ? sanitize_email( $query_email_raw ) : '';
+		update_option( 'ems_offer_query_email', $query_email );
 	}
 
 	public function save_connection( array $post_data ): void {
@@ -273,6 +277,24 @@ class Settings_Page {
 							<input type="checkbox" name="ems_debug_log_guard" value="1" <?php checked( get_option( 'ems_debug_log_guard', 0 ), 1 ); ?> />
 							<?php esc_html_e( 'Guard metadata enrichment logs (redact child emails & DOBs in system logs).', 'ems-plugin' ); ?>
 						</label>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="ems_offer_query_email"><?php esc_html_e( 'Place Offer Query Email', 'ems-plugin' ); ?></label>
+					</th>
+					<td>
+						<input
+							type="email"
+							id="ems_offer_query_email"
+							name="ems_offer_query_email"
+							value="<?php echo esc_attr( (string) get_option( 'ems_offer_query_email', '' ) ); ?>"
+							placeholder="<?php echo esc_attr( (string) get_option( 'admin_email', '' ) ); ?>"
+							class="regular-text"
+						/>
+						<p class="description">
+							<?php esc_html_e( 'Destination email for Place Offer queries submitted from the Participant Portal. Defaults to the WordPress Admin Email if left blank.', 'ems-plugin' ); ?>
+						</p>
 					</td>
 				</tr>
 			</table>

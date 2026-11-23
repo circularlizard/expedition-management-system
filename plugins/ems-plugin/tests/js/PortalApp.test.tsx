@@ -441,10 +441,10 @@ describe('PortalApp', () => {
             ...mockConfig,
             user_data: {
                 logged_in: true,
-                first_name: 'David',
+                first_name: 'Jane',
                 last_name: 'Strachan',
-                email: 'david@example.com',
-                access_type: 'member',
+                email: 'jane@example.com',
+                access_type: 'parent',
                 is_admin: false,
             },
         };
@@ -456,9 +456,9 @@ describe('PortalApp', () => {
                     json: async () => ({
                         logged_in: true,
                         is_admin: false,
-                        access_type: 'member',
-                        display_name: 'David Strachan',
-                        profiles: [{ scout_id: 30001, first_name: 'David', last_name: 'Strachan', patrol: 'Falcons' }],
+                        access_type: 'parent',
+                        display_name: 'Jane Strachan',
+                        profiles: [{ scout_id: 30001, first_name: 'David', last_name: 'Strachan', patrol: 'Falcons', relationship: 'child', label: 'David Strachan' }],
                     }),
                 });
             }
@@ -550,7 +550,223 @@ describe('PortalApp', () => {
         fireEvent.click(screen.getByRole('button', { name: /Request Team or Date Change/i }));
         expect(screen.getByText(/If you cannot make the proposed dates/i)).toBeDefined();
         expect(screen.getByText('expeditions@sesscouts.org.uk')).toBeDefined();
-        expect(screen.getByPlaceholderText(/Describe the team or date changes/i)).toBeDefined();
+        const textarea = screen.getByPlaceholderText(/Describe the team or date changes/i) as HTMLTextAreaElement;
+        expect(textarea).toBeDefined();
+        expect(textarea.maxLength).toBe(1000);
+        expect(screen.getByText('0 / 1000 characters')).toBeDefined();
+        fireEvent.change(textarea, { target: { value: 'Hello' } });
+        expect(screen.getByText('5 / 1000 characters')).toBeDefined();
         expect(screen.getByRole('button', { name: 'Submit Request' })).toBeDefined();
+    });
+
+    it('hides offer accept/decline buttons for explorers and shows read-only pending notice', async () => {
+        global.window.emsPortal = {
+            ...mockConfig,
+            user_data: {
+                logged_in: true,
+                first_name: 'David',
+                last_name: 'Strachan',
+                email: 'david@example.com',
+                access_type: 'member',
+                is_admin: false,
+            },
+        };
+
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/portal/me')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        logged_in: true,
+                        is_admin: false,
+                        access_type: 'member',
+                        display_name: 'David Strachan',
+                        profiles: [{ scout_id: 30001, first_name: 'David', last_name: 'Strachan', patrol: 'Falcons', relationship: 'self', label: 'Myself' }],
+                    }),
+                });
+            }
+            if (url.includes('/portal/explorer/30001')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        explorer: { scout_id: 30001, first_name: 'David', last_name: 'Strachan', first_aid_level: 'none' },
+                        signups: [],
+                        events: { training: [], practice: [], qualifying: [] },
+                        offers: [
+                            {
+                                cohort_id: 0,
+                                team_post_id: 501,
+                                expedition_signup_id: 99,
+                                cohort_name: 'Team 1',
+                                dofe_level: 'Silver',
+                                transport_mode: 'Hillwalking',
+                                notification_status: 'notified',
+                                offer_status: 'pending',
+                                deadline: { allowed: true, communicated_date: '2026-12-15' },
+                                stages: [],
+                            },
+                        ],
+                    }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(<PortalApp />);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Pending parent\/guardian response/i)).toBeDefined();
+        });
+        expect(screen.queryByRole('button', { name: 'Accept Offer' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Decline' })).toBeNull();
+    });
+
+    it('renders child selector as buttons with obvious active highlight and switches child on click', async () => {
+        global.window.emsPortal = {
+            ...mockConfig,
+            user_data: {
+                logged_in: true,
+                first_name: 'Jane',
+                last_name: 'Strachan',
+                email: 'jane@example.com',
+                access_type: 'parent',
+                is_admin: false,
+            },
+        };
+
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/portal/me')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        logged_in: true,
+                        is_admin: false,
+                        access_type: 'parent',
+                        display_name: 'Jane Strachan',
+                        profiles: [
+                            { scout_id: 1001, first_name: 'Alice', last_name: 'Strachan', patrol: 'Falcons', relationship: 'child', label: 'Alice Strachan' },
+                            { scout_id: 1002, first_name: 'Ben', last_name: 'Strachan', patrol: 'Eagles', relationship: 'child', label: 'Ben Strachan' },
+                        ],
+                    }),
+                });
+            }
+            if (url.includes('/portal/explorer/1001')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        explorer: { scout_id: 1001, first_name: 'Alice', last_name: 'Strachan', first_aid_level: 'none' },
+                        signups: [],
+                        events: { training: [], practice: [], qualifying: [] },
+                        offers: [],
+                    }),
+                });
+            }
+            if (url.includes('/portal/explorer/1002')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        explorer: { scout_id: 1002, first_name: 'Ben', last_name: 'Strachan', first_aid_level: 'none' },
+                        signups: [],
+                        events: { training: [], practice: [], qualifying: [] },
+                        offers: [],
+                    }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(<PortalApp />);
+
+        const aliceBtn = await screen.findByRole('button', { name: 'Alice Strachan' });
+        const benBtn = screen.getByRole('button', { name: 'Ben Strachan' });
+
+        expect(aliceBtn.getAttribute('aria-pressed')).toBe('true');
+        expect(aliceBtn.className).toContain('is-active');
+        expect(benBtn.getAttribute('aria-pressed')).toBe('false');
+        expect(benBtn.className).not.toContain('is-active');
+
+        fireEvent.click(benBtn);
+
+        await waitFor(() => {
+            expect(benBtn.getAttribute('aria-pressed')).toBe('true');
+            expect(benBtn.className).toContain('is-active');
+            expect(aliceBtn.getAttribute('aria-pressed')).toBe('false');
+        });
+    });
+
+    it('makes offer status notice dismissable after declining an offer', async () => {
+        global.window.emsPortal = {
+            ...mockConfig,
+            user_data: {
+                logged_in: true,
+                first_name: 'Jane',
+                last_name: 'Strachan',
+                email: 'jane@example.com',
+                access_type: 'parent',
+                is_admin: false,
+            },
+        };
+
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/portal/me')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        logged_in: true,
+                        is_admin: false,
+                        access_type: 'parent',
+                        display_name: 'Jane Strachan',
+                        profiles: [{ scout_id: 30001, first_name: 'David', last_name: 'Strachan', patrol: 'Falcons', relationship: 'child', label: 'David Strachan' }],
+                    }),
+                });
+            }
+            if (url.includes('/portal/explorer/30001')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        explorer: { scout_id: 30001, first_name: 'David', last_name: 'Strachan', first_aid_level: 'none' },
+                        signups: [],
+                        events: { training: [], practice: [], qualifying: [] },
+                        offers: [
+                            {
+                                cohort_id: 0,
+                                team_post_id: 501,
+                                expedition_signup_id: 99,
+                                cohort_name: 'Team 1',
+                                dofe_level: 'Silver',
+                                transport_mode: 'Hillwalking',
+                                notification_status: 'notified',
+                                offer_status: 'pending',
+                                deadline: { allowed: true },
+                                stages: [],
+                            },
+                        ],
+                    }),
+                });
+            }
+            if (url.includes('/portal/offers/respond')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        updated: true,
+                        offer_status: 'declined',
+                        offer_query_message: null,
+                        offer_responded_at: '2026-11-23 19:45:00',
+                    }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(<PortalApp />);
+
+        const declineBtn = await screen.findByRole('button', { name: 'Decline' });
+        fireEvent.click(declineBtn);
+
+        const notice = await screen.findByText('Offer marked as declined.');
+        expect(notice).toBeDefined();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Dismiss message' }));
+        expect(screen.queryByText('Offer marked as declined.')).toBeNull();
     });
 });

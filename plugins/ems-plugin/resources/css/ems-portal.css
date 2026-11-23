@@ -1077,14 +1077,36 @@
     color: var(--ems-scout-navy);
 }
 
-.ems-portal-switcher__select {
-    padding: 6px 12px;
-    border-radius: 4px;
-    border: 1px solid var(--ems-scout-blue);
+.ems-portal-switcher__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.ems-portal-root .ems-portal-switcher__btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1.5px solid #cbd5e1;
     background: #ffffff;
-    color: #0f172a;
-    font-size: 14px;
-    min-width: 220px;
+    color: #334155;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ems-portal-root .ems-portal-switcher__btn:hover {
+    border-color: var(--ems-scout-blue);
+    color: var(--ems-scout-navy);
+    background: #eff6ff;
+}
+
+.ems-portal-root .ems-portal-switcher__btn.is-active {
+    background: var(--ems-scout-navy);
+    border-color: var(--ems-scout-navy);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 57, 130, 0.25);
 }
 
 .ems-portal-tabs {

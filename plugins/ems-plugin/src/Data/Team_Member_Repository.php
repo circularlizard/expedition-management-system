@@ -88,6 +88,37 @@ class Team_Member_Repository {
 		return true;
 	}
 
+	/**
+	 * Remove a team member by expedition_signup_id (supports unmatched scout_id = 0)
+	 * and auto-delete the team if it is now empty and not UNALLOCATED.
+	 */
+	public function remove_by_signup( int $team_post_id, int $expedition_signup_id ): bool {
+		$wpdb  = $this->get_wpdb();
+		$table = $wpdb->prefix . 'ems_team_members';
+
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$table} WHERE team_post_id = %d AND expedition_signup_id = %d",
+				$team_post_id,
+				$expedition_signup_id
+			)
+		);
+
+		if ( $deleted === false || $deleted === 0 ) {
+			return false;
+		}
+
+		$remaining = $this->list_by_team( $team_post_id );
+		if ( empty( $remaining ) ) {
+			$team_code = get_post_meta( $team_post_id, 'ems_team_code', true );
+			if ( $team_code !== 'UNALLOCATED' ) {
+				$this->teams->delete( $team_post_id );
+			}
+		}
+
+		return true;
+	}
+
 	public function move( int $scout_id, int $source_team_id, int $target_team_id, int $added_by, int $user_id = 0 ): bool {
 		if ( $source_team_id === $target_team_id ) {
 			return true;

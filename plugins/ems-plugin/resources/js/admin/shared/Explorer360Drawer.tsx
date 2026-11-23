@@ -974,6 +974,9 @@ export const Explorer360Drawer: React.FC<Explorer360DrawerProps> = ({
                                             <li key={t.id} style={{ marginBottom: '6px' }}>
                                                 <strong>{t.cohort_name || t.team_name || `Team #${t.team_post_id}`}</strong> ({t.dofe_level} / {t.transport_mode}) —{' '}
                                                 Notification: <code>{t.notification_status || 'draft'}</code>
+                                                {t.offer_status && (
+                                                    <> &middot; Offer: <code>{t.offer_status}</code></>
+                                                )}
                                             </li>
                                         ))}
                                     </ul>
@@ -1010,7 +1013,7 @@ export const Explorer360Drawer: React.FC<Explorer360DrawerProps> = ({
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="ems-meta-text ems-m-0">No logged chaser interactions for this Explorer yet.</p>
+                                <p className="ems-meta-text ems-m-0">No logged interactions for this Explorer yet.</p>
                             )}
                         </div>
                     )}

@@ -221,19 +221,25 @@ export default function StageMatrixView({
 
   const executeAllocation = async (
     scoutId: number,
+    expeditionSignupId: number,
     eventCode: string,
     mode: 'unallocated' | 'new_team' | 'existing_team' | 'remove',
     teamId?: number
   ) => {
-    if (!scoutId || !eventCode) return;
+    if ((!scoutId && !expeditionSignupId) || !eventCode) return;
     setAllocating(true);
     onFeedback(null);
 
     const body: Record<string, unknown> = {
-      scout_ids: [scoutId],
       event_code: eventCode,
       mode,
     };
+    if (scoutId > 0) {
+      body.scout_ids = [scoutId];
+    }
+    if (expeditionSignupId > 0) {
+      body.expedition_signup_ids = [expeditionSignupId];
+    }
     if (mode === 'existing_team' && teamId) {
       body.team_id = teamId;
     }
@@ -672,20 +678,25 @@ export default function StageMatrixView({
               <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
                 Direct cell placement for split-date guest or individual team assignment.
               </div>
+              {activePopover.row.scout_id === 0 && (
+                <div style={{ fontSize: '11px', color: '#92400e', background: '#fef3c7', padding: '4px 6px', borderRadius: '4px', marginTop: '6px' }}>
+                  Unmatched in OSM (<code>scout_id = 0</code>) — provisional placement via sign-up ID.
+                </div>
+              )}
             </div>
 
-            {activePopover.row.scout_id === 0 ? (
-              <div className="notice notice-warning ems-mb-12">
-                <p>Unmatched OSM explorer (`scout_id = 0`) cannot be placed via legacy scout allocation until matched.</p>
-              </div>
-            ) : (
-              <div className="ems-assign-popover__list">
+            <div className="ems-assign-popover__list">
                 <button
                   type="button"
                   className="ems-assign-popover__btn"
                   disabled={allocating}
                   onClick={() =>
-                    executeAllocation(activePopover.row.scout_id, activePopover.event.event_code, 'new_team')
+                    executeAllocation(
+                      activePopover.row.scout_id,
+                      activePopover.row.expedition_signup_id,
+                      activePopover.event.event_code,
+                      'new_team'
+                    )
                   }
                 >
                   <FontAwesomeIcon icon={faPlus} className="ems-popover-icon" /> Create New Team
@@ -696,7 +707,12 @@ export default function StageMatrixView({
                   className="ems-assign-popover__btn"
                   disabled={allocating}
                   onClick={() =>
-                    executeAllocation(activePopover.row.scout_id, activePopover.event.event_code, 'unallocated')
+                    executeAllocation(
+                      activePopover.row.scout_id,
+                      activePopover.row.expedition_signup_id,
+                      activePopover.event.event_code,
+                      'unallocated'
+                    )
                   }
                 >
                   <FontAwesomeIcon icon={faClipboardList} className="ems-popover-icon" /> Event Pool (Unallocated)
@@ -713,6 +729,7 @@ export default function StageMatrixView({
                       onClick={() =>
                         executeAllocation(
                           activePopover.row.scout_id,
+                          activePopover.row.expedition_signup_id,
                           activePopover.event.event_code,
                           'existing_team',
                           t.id
@@ -733,14 +750,18 @@ export default function StageMatrixView({
                     className="button button-link-delete"
                     disabled={allocating}
                     onClick={() =>
-                      executeAllocation(activePopover.row.scout_id, activePopover.event.event_code, 'remove')
+                      executeAllocation(
+                        activePopover.row.scout_id,
+                        activePopover.row.expedition_signup_id,
+                        activePopover.event.event_code,
+                        'remove'
+                      )
                     }
                   >
                     <FontAwesomeIcon icon={faXmark} className="ems-popover-icon" /> Remove from this event
                   </button>
                 )}
               </div>
-            )}
 
             <button
               type="button"

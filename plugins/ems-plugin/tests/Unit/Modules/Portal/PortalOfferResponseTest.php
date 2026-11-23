@@ -140,4 +140,130 @@ class PortalOfferResponseTest extends TestCase {
 		$this->assertInstanceOf( \WP_Error::class, $res );
 		$this->assertSame( 'ems_offer_cutoff_passed', $res->get_error_code() );
 	}
+
+	public function test_respond_to_offer_blocks_explorer_member_with_403(): void {
+		Functions\when( 'sanitize_key' )->returnArg();
+		Functions\when( 'sanitize_textarea_field' )->returnArg();
+		Functions\when( 'get_current_user_id' )->justReturn( 22 );
+		Functions\when( 'current_user_can' )->justReturn( false );
+		Functions\when( 'get_user_meta' )->alias(
+			static function ( int $user_id, string $key, bool $single = false ) {
+				if ( $key === 'ems_access_type' ) {
+					return 'member';
+				}
+				return array();
+			}
+		);
+
+		$controller = new Portal_Controller(
+			Mockery::mock( OSM_Explorer_Repository::class ),
+			Mockery::mock( TutorLMS_Client::class ),
+			Mockery::mock( Signup_Repository::class )
+		);
+
+		$request = Mockery::mock( \WP_REST_Request::class );
+		$request->shouldReceive( 'get_json_params' )->andReturn(
+			array(
+				'scout_id'             => 30001,
+				'expedition_signup_id' => 88,
+				'action'               => 'accept',
+			)
+		);
+
+		$res = $controller->respond_to_offer( $request );
+		$this->assertInstanceOf( \WP_Error::class, $res );
+		$this->assertSame( 'ems_forbidden', $res->get_error_code() );
+	}
+
+	public function test_respond_to_offer_uses_configured_ems_offer_query_email(): void {
+		global $wpdb;
+		$wpdb         = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+		$wpdb->posts  = 'wp_posts';
+
+		Functions\when( 'sanitize_key' )->returnArg();
+		Functions\when( 'sanitize_textarea_field' )->returnArg();
+		Functions\when( 'get_current_user_id' )->justReturn( 10 );
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'current_time' )->justReturn( '2026-06-01 12:00:00' );
+		Functions\when( 'get_option' )->alias(
+			static function ( $key, $default = false ) {
+				if ( $key === 'ems_deadline_policies' ) {
+					return array();
+				}
+				if ( $key === 'ems_offer_query_email' ) {
+					return 'expeditions@sesscouts.org.uk';
+				}
+				if ( $key === 'admin_email' ) {
+					return 'admin@example.org';
+				}
+				return $default;
+			}
+		);
+
+		$wpdb->shouldReceive( 'prepare' )->andReturn( 'SQL' );
+		$wpdb->shouldReceive( 'get_results' )->once()->andReturn(
+			array(
+				array( 'id' => 1, 'notified_at' => '2026-05-30 10:00:00', 'notification_status' => 'notified' ),
+			)
+		);
+		$wpdb->shouldReceive( 'query' )->with( 'START TRANSACTION' )->once()->andReturn( true );
+		$wpdb->shouldReceive( 'query' )->with( 'SQL' )->once()->andReturn( 1 );
+		$wpdb->shouldReceive( 'query' )->with( 'COMMIT' )->once()->andReturn( true );
+		$wpdb->shouldReceive( 'get_var' )->once()->andReturn( 'S1-W-A' );
+
+		$mailed_to = null;
+		Functions\when( 'wp_mail' )->alias(
+			static function ( $to ) use ( &$mailed_to ) {
+				$mailed_to = $to;
+				return true;
+			}
+		);
+
+		$controller = new Portal_Controller(
+			Mockery::mock( OSM_Explorer_Repository::class ),
+			Mockery::mock( TutorLMS_Client::class ),
+			Mockery::mock( Signup_Repository::class )
+		);
+
+		$request = Mockery::mock( \WP_REST_Request::class );
+		$request->shouldReceive( 'get_json_params' )->andReturn(
+			array(
+				'scout_id'             => 30001,
+				'expedition_signup_id' => 88,
+				'action'               => 'query',
+				'message'              => 'Need different dates.',
+			)
+		);
+
+		$res = $controller->respond_to_offer( $request );
+		$this->assertInstanceOf( \WP_REST_Response::class, $res );
+		$this->assertSame( 200, $res->get_status() );
+		$this->assertSame( 'expeditions@sesscouts.org.uk', $mailed_to );
+	}
+
+	public function test_respond_to_offer_rejects_query_over_1000_chars(): void {
+		Functions\when( 'sanitize_key' )->returnArg();
+		Functions\when( 'sanitize_textarea_field' )->returnArg();
+
+		$controller = new Portal_Controller(
+			Mockery::mock( OSM_Explorer_Repository::class ),
+			Mockery::mock( TutorLMS_Client::class ),
+			Mockery::mock( Signup_Repository::class )
+		);
+
+		$request = Mockery::mock( \WP_REST_Request::class );
+		$request->shouldReceive( 'get_json_params' )->andReturn(
+			array(
+				'scout_id'             => 30001,
+				'expedition_signup_id' => 88,
+				'action'               => 'query',
+				'message'              => str_repeat( 'a', 1001 ),
+			)
+		);
+
+		$res = $controller->respond_to_offer( $request );
+		$this->assertInstanceOf( \WP_Error::class, $res );
+		$this->assertSame( 'ems_query_message_too_long', $res->get_error_code() );
+	}
 }

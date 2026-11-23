@@ -809,10 +809,28 @@ class Portal_Controller {
 			);
 		}
 
+		if ( $action === 'query' ) {
+			$msg_len = function_exists( 'mb_strlen' ) ? mb_strlen( $message, 'UTF-8' ) : strlen( $message );
+			if ( $msg_len > 1000 ) {
+				return new \WP_Error(
+					'ems_query_message_too_long',
+					'Query message must be 1000 characters or fewer.',
+					array( 'status' => 400 )
+				);
+			}
+		}
+
 		$user_id  = get_current_user_id();
 		$is_admin = current_user_can( 'manage_options' );
 		if ( ! $is_admin ) {
 			$access_type     = (string) get_user_meta( $user_id, 'ems_access_type', true );
+			if ( ! in_array( $access_type, array( 'parent', 'network_member' ), true ) ) {
+				return new \WP_Error(
+					'ems_forbidden',
+					'Only parents, guardians, or networkers can respond to place offers.',
+					array( 'status' => 403 )
+				);
+			}
 			$member_sids     = array_map( 'intval', (array) ( get_user_meta( $user_id, 'ems_scout_ids', true ) ?: array() ) );
 			$children        = (array) ( get_user_meta( $user_id, 'ems_children', true ) ?: array() );
 			$child_sids      = array_map( static fn( $c ) => (int) ( $c['scout_id'] ?? 0 ), $children );
@@ -921,7 +939,8 @@ class Portal_Controller {
 		$wpdb->query( 'COMMIT' );
 
 		if ( $action === 'query' ) {
-			$admin_email = (string) get_option( 'admin_email', '' );
+			$query_email = trim( (string) get_option( 'ems_offer_query_email', '' ) );
+			$admin_email = $query_email !== '' ? $query_email : (string) get_option( 'admin_email', '' );
 			if ( $admin_email !== '' && function_exists( 'wp_mail' ) ) {
 				$posts_table    = $wpdb->prefix . 'posts';
 				$postmeta_table = $wpdb->prefix . 'postmeta';

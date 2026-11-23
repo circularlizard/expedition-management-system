@@ -37,6 +37,7 @@ export interface CohortsContinuityViewProps {
   onViewAsn?: (scoutId: number) => void;
   onOpenNotifyModal?: (opts: NotifyModalOptions) => void;
   onOpenEvent?: (eventId: number) => void;
+  onInspectExplorer?: (target: { scoutId?: number; signupId?: number }) => void;
 }
 
 interface HoveredExplorerInfo {
@@ -85,6 +86,7 @@ export default function CohortsContinuityView({
   onViewAsn,
   onOpenNotifyModal,
   onOpenEvent,
+  onInspectExplorer,
 }: CohortsContinuityViewProps) {
   const unitDistrictMap = useMemo(() => getUnitDistrictMap(units), [units]);
 
@@ -602,7 +604,26 @@ export default function CohortsContinuityView({
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', fontSize: '13px' }}>
-                          <strong>{ex.first_name} {ex.last_name}</strong>
+                          {onInspectExplorer ? (
+                            <button
+                              type="button"
+                              className="button-link"
+                              style={{ fontWeight: 600, fontSize: '13px', padding: 0, textAlign: 'left' }}
+                              title="Open Explorer 360° drawer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onInspectExplorer({
+                                  scoutId: ex.scout_id > 0 ? ex.scout_id : undefined,
+                                  signupId: sid > 0 ? sid : undefined,
+                                });
+                              }}
+                            >
+                              {ex.first_name} {ex.last_name}
+                            </button>
+                          ) : (
+                            <strong>{ex.first_name} {ex.last_name}</strong>
+                          )}
                           {isFA && <span className="ems-matrix-tag ems-matrix-tag--fa">FA</span>}
                           {ex.has_asn && onViewAsn && (
                             <button
@@ -980,7 +1001,24 @@ export default function CohortsContinuityView({
                             }
                           >
                             <td>
-                              <strong>{m.first_name} {m.last_name}</strong>{' '}
+                              {onInspectExplorer ? (
+                                <button
+                                  type="button"
+                                  className="button-link"
+                                  style={{ fontWeight: 600, padding: 0, textAlign: 'left' }}
+                                  title="Open Explorer 360° drawer"
+                                  onClick={() =>
+                                    onInspectExplorer({
+                                      scoutId: m.scout_id > 0 ? m.scout_id : undefined,
+                                      signupId: m.expedition_signup_id > 0 ? m.expedition_signup_id : undefined,
+                                    })
+                                  }
+                                >
+                                  {m.first_name} {m.last_name}
+                                </button>
+                              ) : (
+                                <strong>{m.first_name} {m.last_name}</strong>
+                              )}{' '}
                               {isFA && <span className="ems-matrix-tag ems-matrix-tag--fa">FA</span>}
                               {(() => {
                                 const key = m.expedition_signup_id ? `s:${m.expedition_signup_id}` : m.scout_id ? `sc:${m.scout_id}` : '';

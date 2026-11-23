@@ -9,6 +9,7 @@ use EMS\Data\OSM_Explorer_Repository;
 use EMS\Data\OSM_Event_Repository;
 use EMS\Data\Signup_Repository;
 use EMS\Core\CPT_Registry;
+use EMS\Modules\Signups\Services\SignupStatusTransitionService;
 
 class Expedition_Admin_Controller {
 
@@ -18,6 +19,7 @@ class Expedition_Admin_Controller {
 	private OSM_Explorer_Repository $explorers;
 	private OSM_Event_Repository $osm_events;
 	private Signup_Repository $signups;
+	private ?SignupStatusTransitionService $transitions = null;
 
 	public function __construct(
 		Expedition_Repository $expeditions,
@@ -25,7 +27,8 @@ class Expedition_Admin_Controller {
 		Team_Member_Repository $team_members,
 		?OSM_Explorer_Repository $explorers = null,
 		?OSM_Event_Repository $osm_events = null,
-		?Signup_Repository $signups = null
+		?Signup_Repository $signups = null,
+		?SignupStatusTransitionService $transitions = null
 	) {
 		$this->expeditions  = $expeditions;
 		$this->teams        = $teams;
@@ -33,6 +36,14 @@ class Expedition_Admin_Controller {
 		$this->explorers    = $explorers ?: new OSM_Explorer_Repository();
 		$this->osm_events   = $osm_events ?: new OSM_Event_Repository();
 		$this->signups      = $signups ?: new Signup_Repository();
+		$this->transitions  = $transitions;
+	}
+
+	private function get_transitions(): SignupStatusTransitionService {
+		if ( $this->transitions === null ) {
+			$this->transitions = new SignupStatusTransitionService( $this->signups );
+		}
+		return $this->transitions;
 	}
 
 	public function register_routes(): void {
@@ -487,8 +498,25 @@ class Expedition_Admin_Controller {
 	}
 
 	public function add_member( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
-		$team_id  = (int) $request->get_param( 'team_id' );
-		$body     = $request->get_json_params() ?: array();
+		$team_id = (int) $request->get_param( 'team_id' );
+		$body    = $request->get_json_params() ?: array();
+
+		// Team Builder sends { expedition_signup_ids: [...] } to /teams/{id}/members.
+		// Because this route shares the same path pattern as Rest\TeamController, delegate cleanly.
+		if ( ! empty( $body['expedition_signup_ids'] ) || ! empty( $body['expedition_signup_id'] ) ) {
+			if ( empty( $body['expedition_signup_ids'] ) && ! empty( $body['expedition_signup_id'] ) ) {
+				$body['expedition_signup_ids'] = array( (int) $body['expedition_signup_id'] );
+			}
+			$request->set_param( 'id', $team_id );
+			$team_controller = new Rest\TeamController(
+				$this->expeditions,
+				$this->teams,
+				$this->team_members,
+				$this->get_transitions()
+			);
+			return $team_controller->add_team_members( $request );
+		}
+
 		$scout_id = (int) ( $body['scout_id'] ?? 0 );
 
 		if ( $scout_id === 0 ) {
@@ -510,6 +538,7 @@ class Expedition_Admin_Controller {
 		try {
 			$this->team_members->assign( $team_id, $scout_id, get_current_user_id(), $user_id );
 			$this->explorers->touch_last_local_update( $scout_id );
+			$this->get_transitions()->on_team_member_added( $team_id, 0, $scout_id );
 			\EMS\Core\Audit_Logger::log( 'team_member_add', $scout_id );
 			return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $team_id ) ), 201 );
 		} catch ( \InvalidArgumentException $e ) {
@@ -521,20 +550,53 @@ class Expedition_Admin_Controller {
 
 	public function remove_member( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$team_id  = (int) $request->get_param( 'team_id' );
-		$scout_id = (int) $request->get_param( 'scout_id' );
+		$id_param = (int) $request->get_param( 'scout_id' );
 
 		$team = $this->teams->get_by_id( $team_id );
 		if ( ! $team ) {
 			return $this->error( 'ems_team_not_found', 'Team not found.', 404 );
 		}
 
-		$this->team_members->remove( $team_id, $scout_id );
-		$this->explorers->touch_last_local_update( $scout_id );
-		\EMS\Core\Audit_Logger::log( 'team_member_remove', $scout_id );
+		global $wpdb;
+		$tm_table = $wpdb->prefix . 'ems_team_members';
+		$matched  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, scout_id, expedition_signup_id FROM {$tm_table} WHERE team_post_id = %d AND (expedition_signup_id = %d OR (%d > 0 AND scout_id = %d))",
+				$team_id,
+				$id_param,
+				$id_param,
+				$id_param
+			),
+			ARRAY_A
+		) ?: array();
+
+		$level = strtolower( trim( (string) get_post_meta( (int) ( $team['post_parent'] ?? 0 ), 'ems_level', true ) ) );
+
+		if ( empty( $matched ) ) {
+			$this->team_members->remove( $team_id, $id_param );
+			$this->explorers->touch_last_local_update( $id_param );
+			$this->get_transitions()->on_team_member_removed( 0, $id_param, $level !== '' ? $level : null );
+			\EMS\Core\Audit_Logger::log( 'team_member_remove', $id_param );
+		} else {
+			foreach ( $matched as $row ) {
+				$esid = (int) ( $row['expedition_signup_id'] ?? 0 );
+				$sid  = (int) ( $row['scout_id'] ?? 0 );
+				if ( $esid > 0 ) {
+					$this->team_members->remove_by_signup( $team_id, $esid );
+				} elseif ( $sid > 0 ) {
+					$this->team_members->remove( $team_id, $sid );
+				}
+				if ( $sid > 0 ) {
+					$this->explorers->touch_last_local_update( $sid );
+				}
+				$this->get_transitions()->on_team_member_removed( $esid, $sid, $level !== '' ? $level : null );
+				\EMS\Core\Audit_Logger::log( 'team_member_remove', $sid > 0 ? $sid : null );
+			}
+		}
 
 		// The team may have been auto-deleted if that was its last member.
 		if ( ! $this->teams->get_by_id( $team_id ) ) {
-			return new \WP_REST_Response( array( 'team_deleted' => true ) );
+			return new \WP_REST_Response( array( 'team_deleted' => true, 'removed' => true ) );
 		}
 
 		return new \WP_REST_Response( $this->hydrate_members( $this->team_members->list_by_team( $team_id ) ) );
@@ -1575,54 +1637,9 @@ class Expedition_Admin_Controller {
 		$stage = sanitize_key( (string) ( $body['kanban_stage'] ?? '' ) );
 		$notes = array_key_exists( 'processing_notes', $body ) ? (string) $body['processing_notes'] : null;
 
-		if ( ! in_array( $type, array( 'participant', 'expedition' ), true ) ) {
-			return $this->error( 'ems_invalid_signup_type', 'Invalid signup type. Expected participant or expedition.', 400 );
-		}
-
-		$valid_stages = $type === 'participant'
-			? array( 'new', 'on_hold', 'place_allocated', 'cancelled' )
-			: array( 'new', 'team_allocated', 'expedition_completed', 'cancelled', 'withdrawn' );
-
-		if ( ! in_array( $stage, $valid_stages, true ) ) {
-			return $this->error( 'ems_invalid_kanban_stage', 'Invalid processing status for ' . $type . ' sign-up.', 400 );
-		}
-
-		$signup = $type === 'participant'
-			? $this->signups->get_participant_signup( $id )
-			: $this->signups->get_expedition_signup( $id );
-		if ( ! $signup ) {
-			return $this->error( 'ems_signup_not_found', 'Signup not found.', 404 );
-		}
-
-		$previous_stage = (string) ( $signup['kanban_stage'] ?? 'new' );
-		$ok             = $this->signups->update_kanban_stage( $id, $type, $stage, $notes );
-		if ( ! $ok ) {
-			return $this->error( 'ems_kanban_update_failed', 'Failed to update processing status.', 500 );
-		}
-
-		$synced_expedition_ids = array();
-		if ( $type === 'participant' ) {
-			$synced_expedition_ids = $this->signups->sync_participant_place_allocation_to_expeditions(
-				$id,
-				$stage === 'place_allocated'
-			);
-		}
-
-		if ( class_exists( \EMS\Core\Event_Bus::class ) ) {
-			$event_name = in_array( $stage, array( 'place_allocated', 'team_allocated' ), true )
-				? 'ems.signup.processed'
-				: 'ems.signup.status_changed';
-			\EMS\Core\Event_Bus::dispatch(
-				$event_name,
-				(object) array(
-					'signup_id'      => $id,
-					'signup_type'    => $type,
-					'previous_stage' => $previous_stage,
-					'kanban_stage'   => $stage,
-					'scout_id'       => (int) ( $signup['scout_id'] ?? 0 ),
-					'updated_by'     => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
-				)
-			);
+		$result = $this->get_transitions()->transition_stage( $id, $type, $stage, $notes );
+		if ( is_wp_error( $result ) ) {
+			return $result;
 		}
 
 		return new \WP_REST_Response(
@@ -1632,7 +1649,7 @@ class Expedition_Admin_Controller {
 				'type'                  => $type,
 				'kanban_stage'          => $stage,
 				'processing_notes'      => $notes,
-				'synced_expedition_ids' => $synced_expedition_ids,
+				'synced_expedition_ids' => $result['synced_expedition_ids'] ?? array(),
 			),
 			200
 		);
@@ -1647,8 +1664,9 @@ class Expedition_Admin_Controller {
 			return $this->error( 'ems_invalid_bulk_request', 'items and kanban_stage are required.', 400 );
 		}
 
-		$updated = 0;
-		$skipped = 0;
+		$updated     = 0;
+		$skipped     = 0;
+		$transitions = $this->get_transitions();
 		foreach ( $items as $item ) {
 			$id   = (int) ( $item['id'] ?? 0 );
 			$type = sanitize_key( (string) ( $item['type'] ?? '' ) );
@@ -1656,10 +1674,8 @@ class Expedition_Admin_Controller {
 				$skipped++;
 				continue;
 			}
-			if ( $this->signups->update_kanban_stage( $id, $type, $stage ) ) {
-				if ( $type === 'participant' ) {
-					$this->signups->sync_participant_place_allocation_to_expeditions( $id, $stage === 'place_allocated' );
-				}
+			$res = $transitions->transition_stage( $id, $type, $stage );
+			if ( ! is_wp_error( $res ) ) {
 				$updated++;
 			} else {
 				$skipped++;
@@ -2369,18 +2385,25 @@ class Expedition_Admin_Controller {
 	}
 
 	public function allocate_planning_explorers( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
-		$scout_ids      = $request->get_param( 'scout_ids' ) ?? array();
-		$event_code     = (string) ( $request->get_param( 'event_code' ) ?? '' );
-		$mode           = (string) ( $request->get_param( 'mode' ) ?? 'unallocated' );
-		$target_team_id = (int) ( $request->get_param( 'team_id' ) ?? 0 );
+		$scout_ids             = $request->get_param( 'scout_ids' ) ?? array();
+		$expedition_signup_ids = $request->get_param( 'expedition_signup_ids' ) ?? array();
+		$event_code            = (string) ( $request->get_param( 'event_code' ) ?? '' );
+		$mode                  = (string) ( $request->get_param( 'mode' ) ?? 'unallocated' );
+		$target_team_id        = (int) ( $request->get_param( 'team_id' ) ?? 0 );
 
-		// scout_ids may arrive as a JSON array or a comma-separated string
+		// scout_ids / expedition_signup_ids may arrive as a JSON array or a comma-separated string
 		if ( is_string( $scout_ids ) ) {
 			$scout_ids = array_filter( array_map( 'intval', explode( ',', $scout_ids ) ) );
 		}
+		if ( is_string( $expedition_signup_ids ) ) {
+			$expedition_signup_ids = array_filter( array_map( 'intval', explode( ',', $expedition_signup_ids ) ) );
+		}
 
-		if ( empty( $scout_ids ) || empty( $event_code ) ) {
-			return $this->error( 'ems_invalid_parameters', 'scout_ids and event_code are required.', 400 );
+		$scout_ids             = array_values( array_filter( array_map( 'intval', (array) $scout_ids ), fn( $v ) => $v > 0 ) );
+		$expedition_signup_ids = array_values( array_filter( array_map( 'intval', (array) $expedition_signup_ids ), fn( $v ) => $v > 0 ) );
+
+		if ( ( empty( $scout_ids ) && empty( $expedition_signup_ids ) ) || empty( $event_code ) ) {
+			return $this->error( 'ems_invalid_parameters', 'scout_ids or expedition_signup_ids and event_code are required.', 400 );
 		}
 
 		global $wpdb;
@@ -2422,21 +2445,81 @@ class Expedition_Admin_Controller {
 
 		$table    = $wpdb->prefix . 'ems_team_members';
 		$added_by = get_current_user_id() ?: 1;
+		$level    = strtolower( (string) ( $event['ems_level'] ?? 'bronze' ) );
 
-		foreach ( $scout_ids as $scout_id ) {
-			$scout_id = (int) $scout_id;
+		// Build unified targets list supporting both expedition_signup_ids (including scout_id = 0) and legacy scout_ids.
+		$targets         = array();
+		$seen_signup_ids = array();
+		$seen_scout_ids  = array();
 
-			$allocations = $wpdb->get_results(
+		foreach ( $expedition_signup_ids as $esid ) {
+			$row = $wpdb->get_row(
 				$wpdb->prepare(
-					"SELECT team_post_id, cohort_id, expedition_signup_id, notification_status FROM {$table} WHERE scout_id = %d",
-					$scout_id
+					"SELECT id, scout_id FROM {$wpdb->prefix}ems_expedition_signups WHERE id = %d LIMIT 1",
+					$esid
 				),
 				ARRAY_A
-			) ?: array();
+			);
+			if ( ! $row ) {
+				continue;
+			}
+			$sid               = (int) ( $row['scout_id'] ?? 0 );
+			$seen_signup_ids[] = $esid;
+			if ( $sid > 0 ) {
+				$seen_scout_ids[] = $sid;
+			}
+			$targets[] = array(
+				'scout_id'             => $sid,
+				'expedition_signup_id' => $esid,
+			);
+		}
 
-			$preserved_cohort_id  = 0;
-			$preserved_signup_id  = 0;
-			$preserved_notif      = 'draft';
+		foreach ( $scout_ids as $sid ) {
+			if ( in_array( $sid, $seen_scout_ids, true ) ) {
+				continue;
+			}
+			$targets[] = array(
+				'scout_id'             => $sid,
+				'expedition_signup_id' => 0,
+			);
+		}
+
+		foreach ( $targets as $target ) {
+			$scout_id            = (int) $target['scout_id'];
+			$explicit_signup_id  = (int) $target['expedition_signup_id'];
+
+			if ( $scout_id > 0 && $explicit_signup_id > 0 ) {
+				$allocations = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT team_post_id, cohort_id, expedition_signup_id, notification_status FROM {$table} WHERE scout_id = %d OR expedition_signup_id = %d",
+						$scout_id,
+						$explicit_signup_id
+					),
+					ARRAY_A
+				) ?: array();
+			} elseif ( $scout_id > 0 ) {
+				$allocations = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT team_post_id, cohort_id, expedition_signup_id, notification_status FROM {$table} WHERE scout_id = %d",
+						$scout_id
+					),
+					ARRAY_A
+				) ?: array();
+			} elseif ( $explicit_signup_id > 0 ) {
+				$allocations = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT team_post_id, cohort_id, expedition_signup_id, notification_status FROM {$table} WHERE expedition_signup_id = %d",
+						$explicit_signup_id
+					),
+					ARRAY_A
+				) ?: array();
+			} else {
+				continue;
+			}
+
+			$preserved_cohort_id = 0;
+			$preserved_signup_id = $explicit_signup_id;
+			$preserved_notif     = 'draft';
 
 			foreach ( $allocations as $alloc ) {
 				if ( (int) ( $alloc['cohort_id'] ?? 0 ) > 0 && $preserved_cohort_id === 0 ) {
@@ -2452,12 +2535,16 @@ class Expedition_Admin_Controller {
 					$old_level    = get_post_meta( $old_event_id, 'ems_level', true );
 					$old_type     = get_post_meta( $old_event_id, 'ems_type', true );
 
-					if ( strtolower( $old_level ) === strtolower( $event['ems_level'] ?? '' ) && strtolower( $old_type ) === strtolower( $event['ems_type'] ?? '' ) ) {
+					if ( strtolower( $old_level ) === $level && strtolower( $old_type ) === strtolower( $event['ems_type'] ?? '' ) ) {
 						$notif = (string) ( $alloc['notification_status'] ?? 'draft' );
 						if ( $notif === 'notified' || $notif === 're_notify_needed' ) {
 							$preserved_notif = 're_notify_needed';
 						}
-						$this->team_members->remove( $old_team_id, $scout_id );
+						if ( $scout_id > 0 ) {
+							$this->team_members->remove( $old_team_id, $scout_id );
+						} elseif ( $preserved_signup_id > 0 ) {
+							$this->team_members->remove_by_signup( $old_team_id, $preserved_signup_id );
+						}
 					}
 				}
 			}
@@ -2467,30 +2554,63 @@ class Expedition_Admin_Controller {
 					$wpdb->prepare(
 						"SELECT id FROM {$wpdb->prefix}ems_expedition_signups WHERE scout_id = %d AND dofe_level = %s AND signup_status = 'submitted' ORDER BY id DESC LIMIT 1",
 						$scout_id,
-						strtolower( (string) ( $event['ems_level'] ?? 'bronze' ) )
+						$level
 					)
 				);
 			}
 
 			if ( $dest_team_id > 0 ) {
-				try {
-					$this->team_members->assign( $dest_team_id, $scout_id, $added_by, 0 );
-				} catch ( \InvalidArgumentException $e ) {
-					// Already assigned, ignore
+				if ( $scout_id > 0 ) {
+					try {
+						$this->team_members->assign( $dest_team_id, $scout_id, $added_by, 0 );
+					} catch ( \InvalidArgumentException $e ) {
+						// Already assigned, ignore
+					}
+
+					$wpdb->query(
+						$wpdb->prepare(
+							"UPDATE {$table}
+							SET expedition_signup_id = %s,
+								notification_status = %s
+							WHERE team_post_id = %d AND scout_id = %d",
+							$preserved_signup_id > 0 ? $preserved_signup_id : null,
+							$preserved_notif,
+							$dest_team_id,
+							$scout_id
+						)
+					);
+				} elseif ( $preserved_signup_id > 0 ) {
+					$exists = $wpdb->get_var(
+						$wpdb->prepare(
+							"SELECT id FROM {$table} WHERE team_post_id = %d AND expedition_signup_id = %d LIMIT 1",
+							$dest_team_id,
+							$preserved_signup_id
+						)
+					);
+					if ( ! $exists ) {
+						$wpdb->insert(
+							$table,
+							array(
+								'team_post_id'         => $dest_team_id,
+								'scout_id'             => 0,
+								'user_id'              => 0,
+								'expedition_signup_id' => $preserved_signup_id,
+								'notification_status'  => $preserved_notif,
+								'added_by'             => $added_by,
+								'added_at'             => current_time( 'mysql', true ),
+							),
+							array( '%d', '%d', '%d', '%d', '%s', '%d', '%s' )
+						);
+					}
 				}
 
-				$wpdb->query(
-					$wpdb->prepare(
-						"UPDATE {$table}
-						SET expedition_signup_id = %s,
-							notification_status = %s
-						WHERE team_post_id = %d AND scout_id = %d",
-						$preserved_signup_id > 0 ? $preserved_signup_id : null,
-						$preserved_notif,
-						$dest_team_id,
-						$scout_id
-					)
-				);
+				if ( $mode === 'unallocated' ) {
+					$this->get_transitions()->on_team_member_removed( $preserved_signup_id, $scout_id, $level );
+				} else {
+					$this->get_transitions()->on_team_member_added( $dest_team_id, $preserved_signup_id, $scout_id );
+				}
+			} else {
+				$this->get_transitions()->on_team_member_removed( $preserved_signup_id, $scout_id, $level );
 			}
 		}
 

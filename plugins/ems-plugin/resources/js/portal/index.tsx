@@ -569,27 +569,32 @@ export function PortalApp() {
 
             <div className="portal-header" style={{ marginBottom: '20px' }}>
                 {me?.profiles && me.profiles.length > 1 && (
-                    <div className="ems-portal-switcher">
-                        <label htmlFor="ems-child-select" className="ems-portal-switcher__label">
+                    <div className="ems-portal-switcher" role="group" aria-label="Explorer Selector">
+                        <span className="ems-portal-switcher__label">
                             Showing details for:
-                        </label>
-                        <select
-                            id="ems-child-select"
-                            className="ems-portal-switcher__select"
-                            value={activeScout || ''}
-                            onChange={(e) => {
-                                setActiveScoutId(Number(e.target.value));
-                                setSelectedSignupId(null);
-                            }}
-                        >
-                            {me.profiles.map((p) => (
-                                <option key={p.scout_id} value={p.scout_id}>
-                                    {p.label === 'Myself'
-                                        ? `Myself (${p.first_name} ${p.last_name})`
-                                        : `${p.first_name} ${p.last_name}`}
-                                </option>
-                            ))}
-                        </select>
+                        </span>
+                        <div className="ems-portal-switcher__buttons">
+                            {me.profiles.map((p) => {
+                                const isSelected = activeScout === p.scout_id;
+                                return (
+                                    <button
+                                        key={p.scout_id}
+                                        type="button"
+                                        aria-pressed={isSelected}
+                                        className={`ems-portal-switcher__btn ${isSelected ? 'is-active' : ''}`}
+                                        onClick={() => {
+                                            setActiveScoutId(p.scout_id);
+                                            setSelectedSignupId(null);
+                                            setOfferNotice(null);
+                                        }}
+                                    >
+                                        {p.label === 'Myself'
+                                            ? `Myself (${p.first_name} ${p.last_name})`
+                                            : `${p.first_name} ${p.last_name}`}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
@@ -627,9 +632,17 @@ export function PortalApp() {
                 <div
                     className="portal-error"
                     role="alert"
-                    style={{ background: '#fef2f2', color: '#991b1b', padding: '12px 16px', borderRadius: '6px', marginBottom: '16px', border: '1px solid #fecaca' }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: '#fef2f2', color: '#991b1b', padding: '12px 16px', borderRadius: '6px', marginBottom: '16px', border: '1px solid #fecaca' }}
                 >
-                    {error}
+                    <span>{error}</span>
+                    <button
+                        type="button"
+                        aria-label="Dismiss error"
+                        onClick={() => setError(null)}
+                        style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: '0 4px' }}
+                    >
+                        ×
+                    </button>
                 </div>
             )}
 
@@ -640,9 +653,18 @@ export function PortalApp() {
                     {offerNotice && (
                         <div
                             className="notice notice-success"
-                            style={{ padding: '10px 14px', marginBottom: '16px', background: '#edfaef', border: '1px solid #86efac', borderRadius: '6px', color: '#166534' }}
+                            role="status"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', marginBottom: '16px', background: '#edfaef', border: '1px solid #86efac', borderRadius: '6px', color: '#166534' }}
                         >
-                            {offerNotice}
+                            <span>{offerNotice}</span>
+                            <button
+                                type="button"
+                                aria-label="Dismiss message"
+                                onClick={() => setOfferNotice(null)}
+                                style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: '0 4px' }}
+                            >
+                                ×
+                            </button>
                         </div>
                     )}
 
@@ -758,7 +780,11 @@ export function PortalApp() {
                                     <div>
                                         {teamContainers.map((teamItem) => {
                                             const offer = teamItem.offer;
-                                            const canRespond = offer ? offer.deadline?.allowed !== false : false;
+                                            const canRoleRespond =
+                                                me?.access_type === 'parent' ||
+                                                me?.access_type === 'network_member' ||
+                                                Boolean(isAdmin && !me?.is_preview);
+                                            const canRespond = canRoleRespond && (offer ? offer.deadline?.allowed !== false : false);
                                             const isEditingResponse = offer
                                                 ? offer.offer_status === 'pending' || updatingOfferKey === teamItem.key
                                                 : false;
@@ -839,7 +865,11 @@ export function PortalApp() {
 
                                                             {isEditingResponse && (
                                                                 <>
-                                                                    {!canRespond ? (
+                                                                    {!canRoleRespond ? (
+                                                                        <div style={{ color: '#475569', fontSize: '13px', marginTop: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 12px' }}>
+                                                                            Pending parent/guardian response — only a parent, guardian, or networker can accept or decline this offer.
+                                                                        </div>
+                                                                    ) : !canRespond ? (
                                                                         <div style={{ color: '#991b1b', fontSize: '13px', marginTop: '8px' }}>
                                                                             {offer.deadline?.reason ||
                                                                                 'The response deadline has passed.'}
@@ -921,17 +951,29 @@ export function PortalApp() {
                                                                             </div>
                                                                             <textarea
                                                                                 rows={3}
+                                                                                maxLength={1000}
                                                                                 placeholder="Describe the team or date changes needed and any alternative dates you are available..."
                                                                                 value={queryMessage}
-                                                                                onChange={(e) => setQueryMessage(e.target.value)}
+                                                                                onChange={(e) => setQueryMessage(e.target.value.slice(0, 1000))}
                                                                             />
+                                                                            <div
+                                                                                style={{
+                                                                                    fontSize: '12px',
+                                                                                    color: queryMessage.length >= 900 ? '#b45309' : '#64748b',
+                                                                                    textAlign: 'right',
+                                                                                    marginTop: '-4px',
+                                                                                }}
+                                                                            >
+                                                                                {queryMessage.length} / 1000 characters
+                                                                            </div>
                                                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                                                 <button
                                                                                     type="button"
                                                                                     className="ems-btn-scout-primary"
                                                                                     disabled={
                                                                                         offerSavingKey === teamItem.key ||
-                                                                                        !queryMessage.trim()
+                                                                                        !queryMessage.trim() ||
+                                                                                        queryMessage.length > 1000
                                                                                     }
                                                                                     onClick={() =>
                                                                                         handleRespondToOffer(

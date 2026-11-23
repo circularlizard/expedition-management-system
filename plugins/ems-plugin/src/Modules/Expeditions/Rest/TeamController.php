@@ -8,6 +8,7 @@ use EMS\Data\Team_Member_Repository;
 use EMS\Data\Team_Repository;
 use EMS\Modules\Expeditions\Services\TeamReadinessService;
 use EMS\Modules\Notifications\Services\ExpeditionOfferDispatcher;
+use EMS\Modules\Signups\Services\SignupStatusTransitionService;
 
 /**
  * REST Controller for Event-Team Builder, Team Readiness, Offer Queries, and Notifications.
@@ -19,15 +20,25 @@ class TeamController {
 	private Expedition_Repository $expeditions;
 	private Team_Repository $teams;
 	private Team_Member_Repository $team_members;
+	private ?SignupStatusTransitionService $transitions;
 
 	public function __construct(
 		?Expedition_Repository $expeditions = null,
 		?Team_Repository $teams = null,
-		?Team_Member_Repository $team_members = null
+		?Team_Member_Repository $team_members = null,
+		?SignupStatusTransitionService $transitions = null
 	) {
 		$this->expeditions  = $expeditions ?? new Expedition_Repository();
 		$this->teams        = $teams ?? new Team_Repository();
 		$this->team_members = $team_members ?? new Team_Member_Repository();
+		$this->transitions  = $transitions;
+	}
+
+	private function get_transitions(): SignupStatusTransitionService {
+		if ( $this->transitions === null ) {
+			$this->transitions = new SignupStatusTransitionService();
+		}
+		return $this->transitions;
 	}
 
 	public function register_routes(): void {
@@ -326,8 +337,24 @@ class TeamController {
 		}
 
 		global $wpdb;
-		$wpdb->delete( $wpdb->prefix . 'ems_team_members', array( 'team_post_id' => $team_post_id ), array( '%d' ) );
+		$tm_table = $wpdb->prefix . 'ems_team_members';
+		$members  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT scout_id, expedition_signup_id FROM {$tm_table} WHERE team_post_id = %d",
+				$team_post_id
+			),
+			ARRAY_A
+		) ?: array();
+
+		$wpdb->delete( $tm_table, array( 'team_post_id' => $team_post_id ), array( '%d' ) );
 		wp_trash_post( $team_post_id );
+
+		foreach ( $members as $m ) {
+			$this->get_transitions()->on_team_member_removed(
+				(int) ( $m['expedition_signup_id'] ?? 0 ),
+				(int) ( $m['scout_id'] ?? 0 )
+			);
+		}
 
 		return new \WP_REST_Response( array( 'deleted' => true, 'id' => $team_post_id ), 200 );
 	}
@@ -387,6 +414,7 @@ class TeamController {
 				),
 				array( '%d', '%d', '%d', '%d', '%s', '%d', '%s' )
 			);
+			$this->get_transitions()->on_team_member_added( $team_post_id, $signup_id, $scout_id );
 			++$added;
 		}
 
@@ -398,14 +426,34 @@ class TeamController {
 		$expedition_signup_id = absint( $request->get_param( 'expedition_signup_id' ) );
 
 		global $wpdb;
+		$tm_table = $wpdb->prefix . 'ems_team_members';
+		$removed  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT scout_id, expedition_signup_id FROM {$tm_table} WHERE team_post_id = %d AND (expedition_signup_id = %d OR scout_id = %d)",
+				$team_post_id,
+				$expedition_signup_id,
+				$expedition_signup_id
+			),
+			ARRAY_A
+		) ?: array();
+
 		$deleted = $wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$wpdb->prefix}ems_team_members WHERE team_post_id = %d AND (expedition_signup_id = %d OR scout_id = %d)",
+				"DELETE FROM {$tm_table} WHERE team_post_id = %d AND (expedition_signup_id = %d OR scout_id = %d)",
 				$team_post_id,
 				$expedition_signup_id,
 				$expedition_signup_id
 			)
 		);
+
+		if ( (int) $deleted > 0 ) {
+			foreach ( $removed as $r ) {
+				$this->get_transitions()->on_team_member_removed(
+					(int) ( $r['expedition_signup_id'] ?? 0 ),
+					(int) ( $r['scout_id'] ?? 0 )
+				);
+			}
+		}
 
 		return new \WP_REST_Response( array( 'removed' => (int) $deleted > 0 ), 200 );
 	}
@@ -453,6 +501,11 @@ class TeamController {
 					'added_at'             => current_time( 'mysql', true ),
 				),
 				array( '%d', '%d', '%d', '%d', '%s', '%d', '%s' )
+			);
+			$this->get_transitions()->on_team_member_added(
+				$new_team_id,
+				(int) ( $m['expedition_signup_id'] ?? 0 ),
+				(int) ( $m['scout_id'] ?? 0 )
 			);
 			++$copied;
 		}

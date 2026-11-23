@@ -391,12 +391,36 @@ class Admin_View_Controller {
 		$resolved_parent  = $osm_parent_email !== '' ? $osm_parent_email : trim( (string) ( $first_signup['parent_email'] ?? '' ) );
 
 		// Teams & Training.
-		$teams = array();
-		if ( $scout_id > 0 ) {
-			$tm_table  = $wpdb->prefix . 'ems_team_members';
+		$teams          = array();
+		$exp_signup_ids = array_values(
+			array_filter(
+				array_map(
+					static fn( $s ) => ( $s['type'] ?? '' ) === 'expedition' ? (int) $s['id'] : 0,
+					$all_signups
+				)
+			)
+		);
+		if ( $scout_id > 0 || ! empty( $exp_signup_ids ) ) {
+			$tm_table = $wpdb->prefix . 'ems_team_members';
+			if ( $scout_id > 0 && ! empty( $exp_signup_ids ) ) {
+				$exp_ph = implode( ',', array_fill( 0, count( $exp_signup_ids ), '%d' ) );
+				$where  = "(tm.scout_id = %d OR tm.expedition_signup_id IN ({$exp_ph}))";
+				$params = array_merge( array( $scout_id ), $exp_signup_ids );
+			} elseif ( $scout_id > 0 ) {
+				$where  = 'tm.scout_id = %d';
+				$params = array( $scout_id );
+			} else {
+				$exp_ph = implode( ',', array_fill( 0, count( $exp_signup_ids ), '%d' ) );
+				$where  = "tm.expedition_signup_id IN ({$exp_ph})";
+				$params = $exp_signup_ids;
+			}
+
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$team_rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT tm.id, tm.team_post_id, 0 AS cohort_id, tm.notification_status, tm.availability_override,
+					"SELECT tm.id, tm.team_post_id, 0 AS cohort_id, tm.notification_status, tm.notified_at,
+					        tm.offer_status, tm.offer_query_message, tm.offer_responded_at, tm.offer_responded_by,
+					        tm.availability_override,
 					        COALESCE(NULLIF(pm_code.meta_value, ''), t.post_title) AS cohort_name,
 					        pm_lvl.meta_value AS dofe_level,
 					        pm_tr.meta_value AS transport_mode,
@@ -408,13 +432,13 @@ class Admin_View_Controller {
 					 LEFT JOIN {$wpdb->postmeta} pm_code ON pm_code.post_id = t.ID AND pm_code.meta_key = 'ems_team_code'
 					 LEFT JOIN {$wpdb->postmeta} pm_lvl ON pm_lvl.post_id = exp.ID AND pm_lvl.meta_key = 'ems_level'
 					 LEFT JOIN {$wpdb->postmeta} pm_tr ON pm_tr.post_id = exp.ID AND pm_tr.meta_key = 'ems_transport'
-					 WHERE tm.scout_id = %d
+					 WHERE {$where}
 					 ORDER BY tm.id DESC",
-					$scout_id
+					...$params
 				),
 				ARRAY_A
 			) ?: array();
-			$teams = $team_rows;
+			$teams     = $team_rows;
 		}
 
 		$training = array(
@@ -459,13 +483,61 @@ class Admin_View_Controller {
 
 		foreach ( $n_rows as $nr ) {
 			$meta      = ! empty( $nr['metadata'] ) ? json_decode( (string) $nr['metadata'], true ) : array();
+			$slug      = (string) ( $nr['template_slug'] ?? '' );
+			$is_offer  = $slug === 'expedition_place_offer';
+			$title     = $is_offer
+				? 'Place Offer Email Sent (' . ( $nr['recipient_email'] ?? '' ) . ')'
+				: ( ( ( $meta['audience'] ?? '' ) === 'individual' ? 'Chased Individual/Parent' : 'Chased Unit Leader' ) . ' (' . ( $nr['recipient_email'] ?? '' ) . ')' );
 			$history[] = array(
-				'kind'            => 'chaser',
-				'title'           => ( ( $meta['audience'] ?? '' ) === 'individual' ? 'Chased Individual/Parent' : 'Chased Unit Leader' ) . ' (' . ( $nr['recipient_email'] ?? '' ) . ')',
-				'detail'          => is_array( $meta['anomalies'] ?? null ) ? implode( ', ', $meta['anomalies'] ) : ( $nr['subject'] ?? '' ),
-				'timestamp'       => $nr['sent_at'] ?? '',
+				'kind'      => $is_offer ? 'offer_sent' : 'chaser',
+				'title'     => $title,
+				'detail'    => is_array( $meta['anomalies'] ?? null ) ? implode( ', ', $meta['anomalies'] ) : ( $nr['subject'] ?? '' ),
+				'timestamp' => $nr['sent_at'] ?? '',
 			);
 		}
+
+		foreach ( $teams as $t ) {
+			$team_label   = trim( (string) ( $t['team_name'] ?? $t['cohort_name'] ?? '' ) ) ?: ( 'Team #' . (int) ( $t['team_post_id'] ?? 0 ) );
+			$offer_status = strtolower( trim( (string) ( $t['offer_status'] ?? 'pending' ) ) );
+
+			if ( ! empty( $t['notified_at'] ) ) {
+				$history[] = array(
+					'kind'      => 'offer_sent',
+					'title'     => 'Place Offer Sent — ' . $team_label,
+					'detail'    => 'Notification status: ' . ( (string) ( $t['notification_status'] ?? 'notified' ) ),
+					'timestamp' => (string) $t['notified_at'],
+				);
+			}
+
+			if ( in_array( $offer_status, array( 'accepted', 'queried', 'declined' ), true ) ) {
+				$responder_id   = (int) ( $t['offer_responded_by'] ?? 0 );
+				$responder_name = '';
+				if ( $responder_id > 0 && function_exists( 'get_userdata' ) ) {
+					$u = get_userdata( $responder_id );
+					if ( $u && ! empty( $u->display_name ) ) {
+						$responder_name = (string) $u->display_name;
+					}
+				}
+				$detail_parts = array();
+				if ( $responder_name !== '' ) {
+					$detail_parts[] = 'By ' . $responder_name;
+				}
+				if ( $offer_status === 'queried' && ! empty( $t['offer_query_message'] ) ) {
+					$detail_parts[] = '“' . trim( (string) $t['offer_query_message'] ) . '”';
+				}
+				$history[] = array(
+					'kind'      => 'offer_' . $offer_status,
+					'title'     => 'Place Offer ' . ucfirst( $offer_status ) . ' — ' . $team_label,
+					'detail'    => implode( ' · ', $detail_parts ),
+					'timestamp' => (string) ( $t['offer_responded_at'] ?? '' ),
+				);
+			}
+		}
+
+		usort(
+			$history,
+			static fn( array $a, array $b ): int => strcmp( (string) ( $b['timestamp'] ?? '' ), (string) ( $a['timestamp'] ?? '' ) )
+		);
 
 		return new \WP_REST_Response(
 			array(
