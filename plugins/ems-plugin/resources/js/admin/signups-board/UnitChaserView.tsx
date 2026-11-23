@@ -267,14 +267,6 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 }),
             });
             const data = await res.json();
-            const listHtml = `<ul>${group.explorers
-                .map(
-                    (e) =>
-                        `<li><strong>${escapeHtml(e.name)}</strong> (${escapeHtml(e.level)}) — ${e.anomalies
-                            .map((a) => ANOMALY_META.find((m) => m.key === a)?.label || a)
-                            .join(', ')}</li>`
-                )
-                .join('')}</ul>`;
 
             setDraft({
                 audience: 'unit_leader',
@@ -283,9 +275,7 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 to: data?.to || group.leaderEmail || '',
                 cc: '',
                 subject: data?.subject || `DofE Sign-up Anomalies for ${group.unitName}`,
-                message:
-                    (data?.message ? data.message : '<p>Hello,</p><p>Please review the following Explorers:</p>') +
-                    `<p><strong>Selected Anomalies:</strong></p>${listHtml}`,
+                message: data?.message || '<p>Hello,</p><p>Please review the following Explorers:</p>',
                 anomalies: Array.from(new Set(group.explorers.flatMap((e) => e.anomalies))),
                 includedSignups: group.explorers.map((e) => ({
                     id: Number(e.primarySignup.id),
