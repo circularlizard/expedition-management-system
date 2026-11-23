@@ -254,6 +254,46 @@ class Signup_Chaser_Controller {
 		$unit_signups = $this->get_unit_active_signups( $unit_name, $unit_record );
 		$buckets      = $this->group_by_explorer_identity( $unit_signups );
 
+		$included_param = $request->get_param( 'included_signups' );
+		if ( is_array( $included_param ) && ! empty( $included_param ) ) {
+			$allowed_keys   = array();
+			$allowed_scouts = array();
+			foreach ( $included_param as $inc ) {
+				if ( ! is_array( $inc ) ) {
+					continue;
+				}
+				$inc_id    = (int) ( $inc['id'] ?? 0 );
+				$inc_type  = sanitize_key( (string) ( $inc['type'] ?? '' ) );
+				$inc_scout = (int) ( $inc['scout_id'] ?? 0 );
+				if ( $inc_id > 0 && $inc_type !== '' ) {
+					$allowed_keys[ $inc_type . '_' . $inc_id ] = true;
+				}
+				if ( $inc_scout > 0 ) {
+					$allowed_scouts[ $inc_scout ] = true;
+				}
+			}
+			if ( ! empty( $allowed_keys ) || ! empty( $allowed_scouts ) ) {
+				$buckets = array_values(
+					array_filter(
+						$buckets,
+						static function ( array $b ) use ( $allowed_keys, $allowed_scouts ): bool {
+							$b_scout = (int) ( $b['scout_id'] ?? 0 );
+							if ( $b_scout > 0 && isset( $allowed_scouts[ $b_scout ] ) ) {
+								return true;
+							}
+							foreach ( $b['items'] as $item ) {
+								$k = sanitize_key( (string) ( $item['type'] ?? '' ) ) . '_' . (int) ( $item['id'] ?? 0 );
+								if ( isset( $allowed_keys[ $k ] ) ) {
+									return true;
+								}
+							}
+							return false;
+						}
+					)
+				);
+			}
+		}
+
 		$all_explorers           = array();
 		$unsynced_explorers      = array();
 		$place_only_explorers    = array();

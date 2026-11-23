@@ -51,6 +51,7 @@ interface ChaserExplorerItem {
     parentEmail: string;
     recipientOptions: RecipientOption[];
     primarySignup: any;
+    allSignups: any[];
 }
 
 interface UnitChaserGroup {
@@ -97,6 +98,7 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
     const [selectedAnomalies, setSelectedAnomalies] = useState<string[]>(
         ANOMALY_META.map((a) => a.key)
     );
+    const [deselectedExplorerKeys, setDeselectedExplorerKeys] = useState<Set<string>>(() => new Set());
     const [history, setHistory] = useState<Record<string, string>>({});
     const [fluentSmtpUrl, setFluentSmtpUrl] = useState<string>('admin.php?page=fluent-mail#/logs');
     const [draft, setDraft] = useState<EmailDraft | null>(null);
@@ -161,14 +163,16 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 if (Array.isArray(item.anomalies) && item.anomalies.length > 0) {
                     item.anomalies.forEach((a: string) => explorerAnomalies.add(a));
                 } else {
-                    if (item.type === 'expedition' && !isSignupSyncedWithOsm(item)) {
-                        explorerAnomalies.add(Number(item.scout_id || 0) === 0 ? 'unmatched_osm' : 'pending_osm_sync');
-                    }
                     if (!item.dofe_number) {
                         explorerAnomalies.add('missing_edofe');
                     }
                 }
             });
+            if (bucket.scoutId === 0) {
+                explorerAnomalies.add('unmatched_osm');
+            } else if (bucket.items.some((item: any) => !isSignupSyncedWithOsm(item))) {
+                explorerAnomalies.add('pending_osm_sync');
+            }
 
             const matching = Array.from(explorerAnomalies).filter((a) => selectedAnomalies.includes(a));
             if (matching.length === 0) return;
@@ -227,8 +231,9 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 }
             }
 
+            const explorerKey = `${rawUnit}_${primary.type || 's'}_${primary.id || idx}`;
             byUnit[rawUnit].explorers.push({
-                key: `${rawUnit}_${idx}`,
+                key: explorerKey,
                 name: fullName,
                 firstName: primary.explorer_first_name || '',
                 level: (primary.dofe_level || '').toUpperCase(),
@@ -238,20 +243,72 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 parentEmail,
                 recipientOptions,
                 primarySignup: primary,
+                allSignups: bucket.items,
             });
         });
 
         return Object.values(byUnit).sort((a, b) => a.unitName.localeCompare(b.unitName));
     }, [signups, selectedAnomalies, unitLookup, unitDistrictMap]);
 
+    const isExplorerSelected = (key: string): boolean => !deselectedExplorerKeys.has(key);
+
+    const toggleExplorerSelection = (key: string) => {
+        setDeselectedExplorerKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+            return next;
+        });
+    };
+
+    const toggleUnitAllExplorers = (group: UnitChaserGroup, selectAll: boolean) => {
+        setDeselectedExplorerKeys((prev) => {
+            const next = new Set(prev);
+            group.explorers.forEach((e) => {
+                if (selectAll) {
+                    next.delete(e.key);
+                } else {
+                    next.add(e.key);
+                }
+            });
+            return next;
+        });
+    };
+
     const openUnitChaserModal = async (group: UnitChaserGroup) => {
+        const selectedExplorers = group.explorers.filter((e) => isExplorerSelected(e.key));
+        if (selectedExplorers.length === 0) return;
+
         setNotice(null);
         setLoadingPreview(group.unitName);
 
-        const hasOsm = group.explorers.some((e) =>
+        const hasOsm = selectedExplorers.some((e) =>
             e.anomalies.some((a) => a === 'unmatched_osm' || a === 'pending_osm_sync')
         );
-        const inferredType: ChaserType = hasOsm ? 'osm_share' : 'unpaired_signups';
+        const hasUnpaired = selectedExplorers.some((e) =>
+            e.anomalies.some((a) => a === 'place_without_expedition' || a === 'expedition_without_place')
+        );
+        const hasMissingEdofe = selectedExplorers.some((e) =>
+            e.anomalies.includes('missing_edofe')
+        );
+        const inferredType: ChaserType = hasOsm
+            ? 'osm_share'
+            : hasUnpaired
+              ? 'unpaired_signups'
+              : hasMissingEdofe
+                ? 'missing_edofe'
+                : 'unpaired_signups';
+
+        const includedSignups = selectedExplorers.flatMap((e) =>
+            (e.allSignups || [e.primarySignup]).map((s: any) => ({
+                id: Number(s.id),
+                type: String(s.type),
+                scout_id: Number(e.scoutId || s.scout_id || 0),
+            }))
+        );
 
         try {
             const res = await fetch(`${rootUrl}/signups/send-chaser`, {
@@ -263,6 +320,7 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 body: JSON.stringify({
                     chaser_type: inferredType,
                     unit_name: group.unitName,
+                    included_signups: includedSignups,
                     preview: true,
                 }),
             });
@@ -276,12 +334,8 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 cc: '',
                 subject: data?.subject || `DofE Sign-up Anomalies for ${group.unitName}`,
                 message: data?.message || '<p>Hello,</p><p>Please review the following Explorers:</p>',
-                anomalies: Array.from(new Set(group.explorers.flatMap((e) => e.anomalies))),
-                includedSignups: group.explorers.map((e) => ({
-                    id: Number(e.primarySignup.id),
-                    type: String(e.primarySignup.type),
-                    scout_id: Number(e.scoutId || 0),
-                })),
+                anomalies: Array.from(new Set(selectedExplorers.flatMap((e) => e.anomalies))),
+                includedSignups,
                 shortcodes: Array.isArray(data?.shortcodes) ? data.shortcodes : [],
             });
         } catch {
@@ -437,7 +491,10 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {unitGroups.map((group) => (
+                    {unitGroups.map((group) => {
+                        const selectedCount = group.explorers.filter((e) => isExplorerSelected(e.key)).length;
+                        const allSelected = selectedCount > 0 && selectedCount === group.explorers.length;
+                        return (
                         <div key={group.unitName} className="ems-panel ems-p-16">
                             <div className="ems-flex-between ems-wrap ems-gap-12 ems-mb-12">
                                 <div>
@@ -454,17 +511,27 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                                 <button
                                     type="button"
                                     className="button button-primary"
-                                    disabled={loadingPreview === group.unitName}
+                                    disabled={loadingPreview === group.unitName || selectedCount === 0}
                                     onClick={() => openUnitChaserModal(group)}
                                 >
                                     <FontAwesomeIcon icon={faEnvelope} />{' '}
-                                    {loadingPreview === group.unitName ? 'Loading…' : 'Email Unit Leader'}
+                                    {loadingPreview === group.unitName
+                                        ? 'Loading…'
+                                        : `Email Unit Leader (${selectedCount})`}
                                 </button>
                             </div>
 
                             <table className="ems-table">
                                 <thead>
                                     <tr>
+                                        <th style={{ width: '32px' }}>
+                                            <input
+                                                type="checkbox"
+                                                aria-label={`Select all explorers in ${group.unitName}`}
+                                                checked={allSelected}
+                                                onChange={(e) => toggleUnitAllExplorers(group, e.target.checked)}
+                                            />
+                                        </th>
                                         <th>Explorer</th>
                                         <th>Level</th>
                                         <th>Anomalies</th>
@@ -475,6 +542,14 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                                 <tbody>
                                     {group.explorers.map((exp) => (
                                         <tr key={exp.key}>
+                                            <td>
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`Select ${exp.name}`}
+                                                    checked={isExplorerSelected(exp.key)}
+                                                    onChange={() => toggleExplorerSelection(exp.key)}
+                                                />
+                                            </td>
                                             <td>
                                                 <button
                                                     type="button"
@@ -513,7 +588,8 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                                 </tbody>
                             </table>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 

@@ -554,4 +554,80 @@ class Signup_Chaser_ControllerTest extends EMSTestCase {
 		);
 		$this->assertContains( 'Cc: leader@example.com', $captured_mail['headers'] );
 	}
+
+	public function test_send_chaser_filters_by_included_signups_when_provided(): void {
+		Functions\when( 'get_option' )->alias(
+			static fn( string $key, $default = false ) => $key === 'ems_feature_flags' ? array() : $default
+		);
+		Functions\when( 'is_email' )->returnArg();
+		Functions\when( 'get_bloginfo' )->justReturn( 'SES' );
+		Functions\when( 'esc_html' )->returnArg();
+
+		$signup_repo = \Mockery::mock( Signup_Repository::class );
+		$unit_repo   = \Mockery::mock( Unit_Repository::class );
+
+		$unit_repo->shouldReceive( 'list_active_units' )->andReturn(
+			array(
+				array(
+					'unit_id'      => 10,
+					'name'         => 'Kelso ESU',
+					'short_code'   => 'BO-Kelso',
+					'leader_email' => 'leader@kelso.scouts.org.uk',
+				),
+			)
+		);
+
+		$signup_repo->shouldReceive( 'get_participant_signups' )->andReturn(
+			array(
+				array(
+					'id'                  => 1,
+					'scout_id'            => 0,
+					'is_synced_osm'       => false,
+					'unit_id'             => 10,
+					'unit_name'           => 'Kelso ESU',
+					'explorer_first_name' => 'Amy',
+					'explorer_last_name'  => 'Brown',
+					'dofe_level'          => 'bronze',
+					'signup_status'       => 'submitted',
+				),
+				array(
+					'id'                  => 2,
+					'scout_id'            => 0,
+					'is_synced_osm'       => false,
+					'unit_id'             => 10,
+					'unit_name'           => 'Kelso ESU',
+					'explorer_first_name' => 'Ben',
+					'explorer_last_name'  => 'Clark',
+					'dofe_level'          => 'bronze',
+					'signup_status'       => 'submitted',
+				),
+			)
+		);
+		$signup_repo->shouldReceive( 'get_expedition_signups' )->andReturn( array() );
+
+		$controller = new Signup_Chaser_Controller( $signup_repo, $unit_repo, new Email_Template_Service() );
+
+		$request = new \WP_REST_Request( 'POST', '/ems/v1/signups/send-chaser' );
+		$request->set_param( 'chaser_type', 'osm_share' );
+		$request->set_param( 'unit_name', 'Kelso ESU' );
+		$request->set_param( 'preview', true );
+		$request->set_param(
+			'included_signups',
+			array(
+				array(
+					'id'       => 1,
+					'type'     => 'participant',
+					'scout_id' => 0,
+				),
+			)
+		);
+
+		$response = $controller->send_chaser( $request );
+		$this->assertInstanceOf( \WP_REST_Response::class, $response );
+		$data = $response->get_data();
+
+		$this->assertSame( 1, $data['explorer_count'] );
+		$this->assertStringContainsString( 'Amy Brown', $data['message'] );
+		$this->assertStringNotContainsString( 'Ben Clark', $data['message'] );
+	}
 }
