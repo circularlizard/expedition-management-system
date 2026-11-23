@@ -540,15 +540,18 @@ class Signup_Chaser_ControllerTest extends EMSTestCase {
 		$request = new \WP_REST_Request( 'POST', '/ems/v1/signups/send-chaser' );
 		$request->set_param( 'target_audience', 'individual' );
 		$request->set_param( 'chaser_type', 'unpaired_signups' );
-		$request->set_param( 'to_override', 'explorer@example.com' );
-		$request->set_param( 'cc_email', 'parent1@example.com, parent2@example.com, PARENT1@example.com, explorer@example.com' );
+		$request->set_param( 'to_override', 'explorer@example.com, parent1@example.com, parent2@example.com' );
+		$request->set_param( 'cc_email', 'leader@example.com, parent1@example.com, LEADER@example.com' );
 		$request->set_param( 'subject_override', 'Update needed' );
 		$request->set_param( 'body_override', '<p>Hello</p>' );
 
 		$response = $controller->send_chaser( $request );
 		$this->assertInstanceOf( \WP_REST_Response::class, $response );
 		$this->assertNotNull( $captured_mail );
-		$this->assertSame( 'explorer@example.com', $captured_mail['to'] );
-		$this->assertContains( 'Cc: parent1@example.com, parent2@example.com', $captured_mail['headers'] );
+		$this->assertSame(
+			array( 'explorer@example.com', 'parent1@example.com', 'parent2@example.com' ),
+			$captured_mail['to']
+		);
+		$this->assertContains( 'Cc: leader@example.com', $captured_mail['headers'] );
 	}
 }

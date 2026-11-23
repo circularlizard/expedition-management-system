@@ -455,20 +455,58 @@ export const Explorer360Drawer: React.FC<Explorer360DrawerProps> = ({
                                 <div className="ems-signups-detail-grid">
                                     <div className="ems-signups-detail-item">
                                         <span className="ems-signups-inspector__label">
-                                            Explorer Email {osmContacts ? '(OSM Master)' : '(Latest Sign-up)'}
+                                            Explorer Email {osmContacts ? '(OSM Primary)' : '(Latest Sign-up)'}
                                         </span>
                                         <div className="ems-signups-inspector__value">
                                             {resolvedContacts.explorer_email || '—'}
                                         </div>
                                     </div>
+                                    {osmContacts && (
+                                        <div className="ems-signups-detail-item">
+                                            <span className="ems-signups-inspector__label">
+                                                Explorer Email 2 (OSM)
+                                            </span>
+                                            <div className="ems-signups-inspector__value">
+                                                {osmContacts.email2 || '—'}
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="ems-signups-detail-item">
                                         <span className="ems-signups-inspector__label">
-                                            Parent Email {osmContacts ? '(OSM Master)' : '(Latest Sign-up)'}
+                                            Parent 1 Email {osmContacts ? '(OSM Primary)' : '(Latest Sign-up)'}
                                         </span>
                                         <div className="ems-signups-inspector__value">
                                             {resolvedContacts.parent_email || '—'}
                                         </div>
                                     </div>
+                                    {osmContacts && (
+                                        <>
+                                            <div className="ems-signups-detail-item">
+                                                <span className="ems-signups-inspector__label">
+                                                    Parent 1 Email 2 (OSM)
+                                                </span>
+                                                <div className="ems-signups-inspector__value">
+                                                    {osmContacts.p1_email2 || '—'}
+                                                </div>
+                                            </div>
+                                            <div className="ems-signups-detail-item">
+                                                <span className="ems-signups-inspector__label">
+                                                    Parent 2 Email (OSM)
+                                                </span>
+                                                <div className="ems-signups-inspector__value">
+                                                    {osmContacts.p2_email1 || '—'}
+                                                </div>
+                                            </div>
+                                            <div className="ems-signups-detail-item">
+                                                <span className="ems-signups-inspector__label">
+                                                    Parent 2 Email 2 (OSM)
+                                                </span>
+                                                <div className="ems-signups-inspector__value">
+                                                    {osmContacts.p2_email2 || '—'}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
                                 {discrepancies.length > 0 && (

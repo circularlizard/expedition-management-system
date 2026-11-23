@@ -23,7 +23,11 @@ describe('Explorer360Drawer', () => {
             contacts: {
                 osm_canonical: {
                     explorer_email: 'osm.alex@example.com',
+                    email2: 'alt.alex@example.com',
                     parent_email: 'osm.parent@example.com',
+                    p1_email2: 'p1.alt@example.com',
+                    p2_email1: 'parent2@example.com',
+                    p2_email2: 'p2.alt@example.com',
                 },
                 resolved: {
                     explorer_email: 'osm.alex@example.com',
@@ -112,6 +116,10 @@ describe('Explorer360Drawer', () => {
         );
 
         await waitFor(() => expect(screen.getByText(/Contact Mismatch Detected/i)).toBeInTheDocument());
+        expect(screen.getByText('alt.alex@example.com')).toBeInTheDocument();
+        expect(screen.getByText('p1.alt@example.com')).toBeInTheDocument();
+        expect(screen.getByText('parent2@example.com')).toBeInTheDocument();
+        expect(screen.getByText('p2.alt@example.com')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Sync All Active Sign-ups from OSM/i }));
         await waitFor(() =>
             expect(fetchMock).toHaveBeenCalledWith(

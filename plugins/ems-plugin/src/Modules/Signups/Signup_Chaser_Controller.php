@@ -568,7 +568,7 @@ class Signup_Chaser_Controller {
 	 * @param string[] $anomalies
 	 */
 	private function send_individual_chaser( \WP_REST_Request $request, string $chaser_type, array $anomalies ): \WP_REST_Response|\WP_Error {
-		$to           = trim( (string) $request->get_param( 'to_override' ) );
+		$to_raw       = trim( (string) $request->get_param( 'to_override' ) );
 		$cc           = trim( (string) $request->get_param( 'cc_email' ) );
 		$subject      = trim( (string) $request->get_param( 'subject_override' ) );
 		$body         = (string) $request->get_param( 'body_override' );
@@ -577,9 +577,21 @@ class Signup_Chaser_Controller {
 		$scout_id     = (int) $request->get_param( 'target_scout_id' );
 		$explorer     = trim( (string) $request->get_param( 'explorer_name' ) ) ?: 'Explorer';
 
-		if ( $to === '' || ! is_email( $to ) ) {
+		$to_list = array();
+		foreach ( preg_split( '/[,;]+/', $to_raw ) ?: array() as $candidate ) {
+			$candidate = trim( (string) $candidate );
+			$lower     = strtolower( $candidate );
+			if ( $candidate !== '' && is_email( $candidate ) && ! isset( $to_list[ $lower ] ) ) {
+				$to_list[ $lower ] = (string) preg_replace( '/[\r\n\t]+/', '', $candidate );
+			}
+		}
+
+		if ( empty( $to_list ) ) {
 			return new \WP_Error( 'ems_invalid_recipient_email', 'A valid recipient email address is required.', array( 'status' => 400 ) );
 		}
+
+		$to_param = count( $to_list ) === 1 ? reset( $to_list ) : array_values( $to_list );
+		$to_log   = implode( ', ', array_values( $to_list ) );
 
 		if ( $subject === '' ) {
 			$subject = 'Action Required: DofE Expedition Sign-up for ' . $explorer;
@@ -593,8 +605,8 @@ class Signup_Chaser_Controller {
 			$valid_ccs = array();
 			foreach ( preg_split( '/[,;]+/', $cc ) ?: array() as $candidate ) {
 				$candidate = trim( (string) $candidate );
-				$lower = strtolower( $candidate );
-				if ( $candidate !== '' && is_email( $candidate ) && strcasecmp( $candidate, $to ) !== 0 && ! isset( $valid_ccs[ $lower ] ) ) {
+				$lower     = strtolower( $candidate );
+				if ( $candidate !== '' && is_email( $candidate ) && ! isset( $to_list[ $lower ] ) && ! isset( $valid_ccs[ $lower ] ) ) {
 					$valid_ccs[ $lower ] = (string) preg_replace( '/[\r\n\t]+/', '', $candidate );
 				}
 			}
@@ -603,7 +615,7 @@ class Signup_Chaser_Controller {
 			}
 		}
 
-		$sent = (bool) wp_mail( $to, $subject, $body, $headers );
+		$sent = (bool) wp_mail( $to_param, $subject, $body, $headers );
 		if ( ! $sent ) {
 			return new \WP_Error( 'ems_email_send_failed', 'Failed to send individual chaser email.', array( 'status' => 500 ) );
 		}
@@ -616,7 +628,7 @@ class Signup_Chaser_Controller {
 				array(
 					'template_slug'      => $chaser_type,
 					'trigger_type'       => 'manual',
-					'recipient_email'    => $to,
+					'recipient_email'    => $to_log,
 					'cc_emails'          => $cc !== '' ? $cc : null,
 					'subject'            => $subject,
 					'target_scout_id'    => $scout_id,
@@ -639,7 +651,7 @@ class Signup_Chaser_Controller {
 		return new \WP_REST_Response(
 			array(
 				'sent'    => true,
-				'to'      => $to,
+				'to'      => $to_log,
 				'cc'      => $cc,
 				'sent_at' => $now,
 			),

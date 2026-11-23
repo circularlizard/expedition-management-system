@@ -35,6 +35,11 @@ interface UnitChaserViewProps {
     onChaserSent?: () => void;
 }
 
+interface RecipientOption {
+    email: string;
+    label: string;
+}
+
 interface ChaserExplorerItem {
     key: string;
     name: string;
@@ -44,7 +49,7 @@ interface ChaserExplorerItem {
     scoutId: number;
     email: string;
     parentEmail: string;
-    ccEmails: string[];
+    recipientOptions: RecipientOption[];
     primarySignup: any;
 }
 
@@ -61,6 +66,9 @@ interface EmailDraft {
     unitName: string;
     to: string;
     cc: string;
+    recipientOptions?: RecipientOption[];
+    selectedEmails?: string[];
+    manualEmails?: string;
     subject: string;
     message: string;
     anomalies: string[];
@@ -185,31 +193,37 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
 
             const fullName = `${primary.explorer_first_name || ''} ${primary.explorer_last_name || ''}`.trim() || 'Unknown';
             const osmEmail1 = (bucket.items.find((i: any) => i.osm_email1)?.osm_email1 || '').trim();
+            const osmEmail2 = (bucket.items.find((i: any) => i.osm_email2)?.osm_email2 || '').trim();
             const formEmail = (bucket.items.find((i: any) => i.explorer_email)?.explorer_email || '').trim();
             const explorerEmail = osmEmail1 || formEmail;
 
             const osmP1Email1 = (bucket.items.find((i: any) => i.osm_p1_email1)?.osm_p1_email1 || '').trim();
+            const osmP1Email2 = (bucket.items.find((i: any) => i.osm_p1_email2)?.osm_p1_email2 || '').trim();
+            const osmP2Email1 = (bucket.items.find((i: any) => i.osm_p2_email1)?.osm_p2_email1 || '').trim();
+            const osmP2Email2 = (bucket.items.find((i: any) => i.osm_p2_email2)?.osm_p2_email2 || '').trim();
             const formParentEmail = (bucket.items.find((i: any) => i.parent_email)?.parent_email || '').trim();
             const parentEmail = osmP1Email1 || formParentEmail;
 
-            const ccCandidates = [
-                bucket.items.find((i: any) => i.osm_email2)?.osm_email2,
-                osmP1Email1,
-                bucket.items.find((i: any) => i.osm_p1_email2)?.osm_p1_email2,
-                bucket.items.find((i: any) => i.osm_p2_email1)?.osm_p2_email1,
-                bucket.items.find((i: any) => i.osm_p2_email2)?.osm_p2_email2,
-                formParentEmail,
-            ]
-                .map((e: any) => String(e || '').trim())
-                .filter(Boolean);
+            const rawOptions: RecipientOption[] = [
+                { email: osmEmail1, label: 'Explorer (OSM)' },
+                { email: osmEmail2, label: 'Explorer 2 (OSM)' },
+                { email: osmP1Email1, label: 'Parent 1 (OSM)' },
+                { email: osmP1Email2, label: 'Parent 1 (Alt, OSM)' },
+                { email: osmP2Email1, label: 'Parent 2 (OSM)' },
+                { email: osmP2Email2, label: 'Parent 2 (Alt, OSM)' },
+                { email: formEmail, label: 'Explorer (Form)' },
+                { email: formParentEmail, label: 'Parent (Form)' },
+            ];
 
-            const seenCc = new Set<string>();
-            const ccEmails: string[] = [];
-            for (const c of ccCandidates) {
-                const lower = c.toLowerCase();
-                if (!seenCc.has(lower)) {
-                    seenCc.add(lower);
-                    ccEmails.push(c);
+            const seenOpt = new Set<string>();
+            const recipientOptions: RecipientOption[] = [];
+            for (const opt of rawOptions) {
+                const clean = String(opt.email || '').trim();
+                if (!clean) continue;
+                const lower = clean.toLowerCase();
+                if (!seenOpt.has(lower)) {
+                    seenOpt.add(lower);
+                    recipientOptions.push({ email: clean, label: opt.label });
                 }
             }
 
@@ -222,7 +236,7 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 scoutId: bucket.scoutId,
                 email: explorerEmail,
                 parentEmail,
-                ccEmails,
+                recipientOptions,
                 primarySignup: primary,
             });
         });
@@ -292,16 +306,17 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
         const anomalyList = exp.anomalies
             .map((a) => ANOMALY_META.find((m) => m.key === a)?.label || a)
             .join(', ');
-        const to = exp.email || exp.parentEmail || exp.ccEmails[0] || '';
-        const ccList = (exp.ccEmails || []).filter((c) => c.toLowerCase() !== to.toLowerCase());
-        const cc = ccList.join(', ');
+        const allSelected = exp.recipientOptions.map((o) => o.email);
 
         setDraft({
             audience: 'individual',
             chaserType: 'unpaired_signups',
             unitName: group.unitName,
-            to,
-            cc,
+            to: allSelected.join(', '),
+            cc: group.leaderEmail || '',
+            recipientOptions: exp.recipientOptions,
+            selectedEmails: allSelected,
+            manualEmails: '',
             subject: `Action Required: DofE Sign-up for ${exp.name}`,
             message: `<p>Hello,</p><p>We are reviewing the DofE sign-up for <strong>${escapeHtml(exp.name)}</strong> (${escapeHtml(exp.level)}) and noticed the following item(s) to resolve:</p><p><strong>${escapeHtml(anomalyList)}</strong></p><p>Please reply to let us know or complete the missing details.</p><p>Thank you</p>`,
             anomalies: exp.anomalies,
@@ -323,6 +338,26 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
         if (!draft) return;
         setSending(true);
         setNotice(null);
+        let effectiveTo = draft.to;
+        if (draft.audience === 'individual') {
+            const combined = [
+                ...(draft.selectedEmails || []),
+                ...(draft.manualEmails || '')
+                    .split(/[,;]+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+            ];
+            const seen = new Set<string>();
+            const deduped: string[] = [];
+            for (const addr of combined) {
+                const lower = addr.toLowerCase();
+                if (!seen.has(lower)) {
+                    seen.add(lower);
+                    deduped.push(addr);
+                }
+            }
+            effectiveTo = deduped.join(', ');
+        }
         try {
             const res = await fetch(`${rootUrl}/signups/send-chaser`, {
                 method: 'POST',
@@ -334,7 +369,7 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                     target_audience: draft.audience,
                     chaser_type: draft.chaserType,
                     unit_name: draft.unitName,
-                    to_override: draft.to,
+                    to_override: effectiveTo,
                     cc_email: draft.cc,
                     subject_override: draft.subject,
                     body_override: draft.message,
@@ -353,7 +388,7 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
             if (data?.history && typeof data.history === 'object') {
                 setHistory(data.history);
             }
-            setNotice({ type: 'success', text: `Chaser email sent to ${draft.to}.` });
+            setNotice({ type: 'success', text: `Chaser email sent to ${effectiveTo}.` });
             setDraft(null);
             onChaserSent?.();
         } catch (err: any) {
@@ -506,8 +541,8 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                                 : `Email Individual / Parent — ${draft.explorerName}`}
                         </h3>
 
-                        <div className={draft.audience === 'individual' ? 'ems-chaser-modal__recipients' : 'ems-mb-12'}>
-                            <div>
+                        {draft.audience === 'unit_leader' ? (
+                            <div className="ems-mb-12">
                                 <label className="ems-toolbar__label">To</label>
                                 <input
                                     type="email"
@@ -516,19 +551,64 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                                     onChange={(e) => setDraft({ ...draft, to: e.target.value })}
                                 />
                             </div>
-
-                            {draft.audience === 'individual' && (
-                                <div>
-                                    <label className="ems-toolbar__label">CC (Parent Email)</label>
-                                    <input
-                                        type="email"
-                                        className="regular-text ems-w-full"
-                                        value={draft.cc}
-                                        onChange={(e) => setDraft({ ...draft, cc: e.target.value })}
-                                    />
+                        ) : (
+                            <div className="ems-mb-12">
+                                <div className="ems-mb-12">
+                                    <label className="ems-toolbar__label">Recipients</label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                                        {(draft.recipientOptions || []).map((opt) => {
+                                            const checked = (draft.selectedEmails || []).some(
+                                                (e) => e.toLowerCase() === opt.email.toLowerCase()
+                                            );
+                                            return (
+                                                <label
+                                                    key={opt.email}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        onChange={(e) => {
+                                                            const prev = draft.selectedEmails || [];
+                                                            const next = e.target.checked
+                                                                ? [...prev, opt.email]
+                                                                : prev.filter((x) => x.toLowerCase() !== opt.email.toLowerCase());
+                                                            setDraft({ ...draft, selectedEmails: next });
+                                                        }}
+                                                    />
+                                                    <span>
+                                                        <strong>{opt.email}</strong>{' '}
+                                                        <span className="ems-meta-text">({opt.label})</span>
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+
+                                <div className="ems-chaser-modal__recipients">
+                                    <div>
+                                        <label className="ems-toolbar__label">Additional Emails (comma-separated)</label>
+                                        <input
+                                            type="text"
+                                            className="regular-text ems-w-full"
+                                            placeholder="extra1@example.com, extra2@example.com"
+                                            value={draft.manualEmails || ''}
+                                            onChange={(e) => setDraft({ ...draft, manualEmails: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="ems-toolbar__label">CC (Unit Leader)</label>
+                                        <input
+                                            type="text"
+                                            className="regular-text ems-w-full"
+                                            value={draft.cc}
+                                            onChange={(e) => setDraft({ ...draft, cc: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="ems-mb-12">
                             <label className="ems-toolbar__label">Subject</label>
