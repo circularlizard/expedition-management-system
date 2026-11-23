@@ -111,6 +111,7 @@ interface OfferRecord {
         allowed: boolean;
         communicated_date: string | null;
         effective_hard_cutoff: string | null;
+        grace_applied?: boolean;
         reason?: string;
     };
     stages?: OfferStage[];
@@ -788,10 +789,12 @@ export function PortalApp() {
                                             const isEditingResponse = offer
                                                 ? offer.offer_status === 'pending' || updatingOfferKey === teamItem.key
                                                 : false;
-                                            const showDeadlinePill =
-                                                offer &&
-                                                offer.offer_status === 'pending' &&
-                                                Boolean(offer.deadline?.communicated_date);
+                                            const displayDeadlineDate = offer?.deadline
+                                                ? offer.deadline.grace_applied && offer.deadline.effective_hard_cutoff
+                                                    ? offer.deadline.effective_hard_cutoff
+                                                    : offer.deadline.communicated_date || offer.deadline.effective_hard_cutoff || null
+                                                : null;
+                                            const deadlineClosed = Boolean(offer && offer.deadline?.allowed === false);
 
                                             return (
                                                 <div key={teamItem.key} className="ems-portal-offer-card">
@@ -803,9 +806,20 @@ export function PortalApp() {
                                                                     Offer Sent
                                                                 </span>
                                                             )}
-                                                            {showDeadlinePill && offer?.deadline?.communicated_date && (
-                                                                <span className="ems-portal-deadline-pill">
-                                                                    Respond by {formatOrdinalDate(offer.deadline.communicated_date)}
+                                                            {offer && displayDeadlineDate && (
+                                                                <span
+                                                                    className="ems-portal-deadline-pill"
+                                                                    style={
+                                                                        deadlineClosed
+                                                                            ? { background: '#fee2e2', color: '#991b1b', borderColor: '#fecaca' }
+                                                                            : undefined
+                                                                    }
+                                                                >
+                                                                    {deadlineClosed
+                                                                        ? `Closed ${formatOrdinalDate(offer.deadline?.effective_hard_cutoff || displayDeadlineDate)}`
+                                                                        : offer.offer_status === 'pending'
+                                                                        ? `Respond by ${formatOrdinalDate(displayDeadlineDate)}`
+                                                                        : `Changes close ${formatOrdinalDate(displayDeadlineDate)}`}
                                                                 </span>
                                                             )}
                                                         </div>

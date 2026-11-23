@@ -769,4 +769,76 @@ describe('PortalApp', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Dismiss message' }));
         expect(screen.queryByText('Offer marked as declined.')).toBeNull();
     });
+
+    it('displays effective_hard_cutoff fallback on pending offers and keeps showing deadline on accepted offers while blocking after cutoff', async () => {
+        global.window.emsPortal = {
+            ...mockConfig,
+            user_data: {
+                logged_in: true,
+                first_name: 'Jane',
+                last_name: 'Strachan',
+                email: 'jane@example.com',
+                access_type: 'parent',
+                is_admin: false,
+            },
+        };
+
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/portal/me')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        logged_in: true,
+                        is_admin: false,
+                        access_type: 'parent',
+                        display_name: 'Jane Strachan',
+                        profiles: [{ scout_id: 30001, first_name: 'Lukas', last_name: 'Ranson', patrol: 'Falcons', relationship: 'child', label: 'Lukas Ranson' }],
+                    }),
+                });
+            }
+            if (url.includes('/portal/explorer/30001')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        explorer: { scout_id: 30001, first_name: 'Lukas', last_name: 'Ranson', first_aid_level: 'none' },
+                        signups: [],
+                        events: { training: [], practice: [], qualifying: [] },
+                        offers: [
+                            {
+                                cohort_id: 0,
+                                team_post_id: 501,
+                                expedition_signup_id: 99,
+                                cohort_name: 'Team 1',
+                                dofe_level: 'Silver',
+                                transport_mode: 'Hillwalking',
+                                notification_status: 'notified',
+                                offer_status: 'pending',
+                                deadline: { allowed: true, communicated_date: null, effective_hard_cutoff: '2026-12-20' },
+                                stages: [],
+                            },
+                            {
+                                cohort_id: 0,
+                                team_post_id: 502,
+                                expedition_signup_id: 100,
+                                cohort_name: 'Team 2',
+                                dofe_level: 'Gold',
+                                transport_mode: 'Hillwalking',
+                                notification_status: 'notified',
+                                offer_status: 'accepted',
+                                deadline: { allowed: false, communicated_date: '2026-11-01', effective_hard_cutoff: '2026-11-10' },
+                                stages: [],
+                            },
+                        ],
+                    }),
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+
+        render(<PortalApp />);
+
+        expect(await screen.findByText('Respond by 20th December 2026')).toBeDefined();
+        expect(screen.getByText('Closed 10th November 2026')).toBeDefined();
+        expect(screen.queryByRole('button', { name: 'Update Response' })).toBeNull();
+    });
 });

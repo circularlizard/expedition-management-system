@@ -167,6 +167,9 @@ class Settings_Page {
 			$this->handle_resync_fluent_forms();
 		} elseif ( isset( $_POST['ems_save_access_control'] ) && check_admin_referer( 'ems_settings_access_control' ) ) {
 			$this->save_access_control( $_POST );
+		} elseif ( isset( $_POST['ems_save_deadlines'] ) && check_admin_referer( 'ems_settings_deadlines' ) ) {
+			$this->save_deadlines( wp_unslash( $_POST ) );
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Deadlines & cutoffs saved.', 'ems-plugin' ) . '</p></div>';
 		} elseif ( isset( $_POST['ems_import_backup'] ) && check_admin_referer( 'ems_settings_backups' ) ) {
 			$this->handle_import();
 		}

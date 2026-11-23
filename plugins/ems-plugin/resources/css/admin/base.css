@@ -1,0 +1,1032 @@
+/* ─── Resets ──────────────────────────────────────────────────────────────── */
+
+
+/*
+ * WordPress admin sets box-sizing on very few elements. Normalise here so our
+ * layout components behave predictably.
+ */
+.ems-board *,
+.ems-board *::before,
+.ems-board *::after {
+    box-sizing: border-box;
+}
+
+/* ─── Full-height layout ──────────────────────────────────────────────────── */
+
+/*
+ * Used on page-level containers that should fill the remaining viewport below
+ * the WP admin bar + page title (~130 px). The parent .wrap uses overflow
+ * visible, so we drive height from the viewport.
+ */
+.ems-full-height {
+    height: calc(100vh - 130px);
+    min-height: 480px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ─── Panel ───────────────────────────────────────────────────────────────── */
+
+.ems-panel {
+    background: var(--ems-card-bg);
+    border: 1px solid var(--ems-border);
+    border-radius: var(--ems-radius);
+    padding: 20px;
+    box-shadow: var(--ems-shadow-md);
+}
+
+.ems-panel--full-height {
+    height: calc(100vh - 230px);
+    min-height: 480px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ─── Toolbar ─────────────────────────────────────────────────────────────── */
+
+.ems-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.ems-toolbar__group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ems-toolbar__label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #50575e;
+    white-space: nowrap;
+}
+
+/* ─── Two-column split ────────────────────────────────────────────────────── */
+
+.ems-split {
+    display: flex;
+    gap: 24px;
+    flex: 1 1 0;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.ems-split__left {
+    flex: 1;
+    overflow-y: auto;
+    border-right: 1px solid #f0f0f1;
+    padding-right: 20px;
+}
+
+.ems-split__right {
+    flex: 1.5;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ─── Section heading ─────────────────────────────────────────────────────── */
+
+.ems-section-heading {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+/* ─── Table ───────────────────────────────────────────────────────────────── */
+
+.ems-table-wrap {
+    flex: 1 1 0;
+    overflow-y: auto;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    min-height: 0;
+}
+
+.ems-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ems-table thead tr {
+    background: #f6f7f7;
+    border-bottom: 1px solid #ccd0d4;
+    text-align: left;
+}
+
+.ems-table thead th {
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #50575e;
+    white-space: nowrap;
+}
+
+.ems-table thead th--center {
+    text-align: center;
+}
+
+.ems-table tbody tr {
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.ems-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.ems-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.ems-table tbody td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    color: #1d2327;
+}
+
+.ems-table tbody td--center {
+    text-align: center;
+}
+
+.ems-table__name {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ems-table__meta {
+    font-size: 11px;
+    color: #646970;
+    margin-top: 2px;
+}
+
+/* ─── Event card (planning board left column) ─────────────────────────────── */
+
+.ems-event-card {
+    padding: 12px 16px;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    margin-bottom: 10px;
+}
+
+.ems-event-card:hover {
+    border-color: #a7aaad;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.ems-event-card--selected {
+    border-color: var(--ems-theme-color);
+    background: var(--ems-theme-color-lighter);
+    box-shadow: 0 1px 4px rgba(34, 113, 177, 0.12);
+}
+
+.ems-event-card__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ems-event-card--selected .ems-event-card__title {
+    color: var(--ems-theme-color);
+}
+
+.ems-event-card__dates {
+    font-size: 11px;
+    color: #646970;
+    margin-top: 6px;
+}
+
+.ems-event-card__stats {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #1d2327;
+    margin-top: 8px;
+}
+
+.ems-event-card__stat-value {
+    color: var(--ems-theme-color);
+}
+
+/* ─── Action bar ──────────────────────────────────────────────────────────── */
+
+.ems-action-bar {
+    padding: 14px 16px;
+    background: #f6f7f7;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.ems-action-bar__controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ems-action-bar__actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ─── Empty / placeholder states ──────────────────────────────────────────── */
+
+.ems-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #ccd0d4;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    color: #646970;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* ─── Status badges ───────────────────────────────────────────────────────── */
+
+.ems-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: var(--ems-radius-badge);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.ems-badge--allocated {
+    background: #FEF3C7; /* Amber 100 */
+    color: #92400E;       /* Amber 800 */
+}
+
+.ems-badge--unallocated {
+    background: #F3F4F6; /* Gray 100 */
+    color: #374151;       /* Gray 700 */
+}
+
+.ems-badge--warning {
+    background: #FEE2E2; /* Red 100 */
+    color: #991B1B;       /* Red 800 */
+}
+
+/* ─── Error notice ────────────────────────────────────────────────────────── */
+
+.ems-error-notice {
+    padding: 10px 16px;
+    background: #fcf0f1;
+    border-left: 4px solid #d63638;
+    color: #d63638;
+    margin-bottom: 16px;
+    border-radius: 2px;
+    font-size: 13px;
+}
+
+/* ─── Native form elements — WP-admin-consistent styling ─────────────────── */
+
+/*
+ * <select> — adds right-padding so the browser's native dropdown arrow
+ * never overlaps the label text. Appearance is kept as 'auto' so the
+ * native arrow still renders (browsers style it consistently in WP admin).
+ */
+.ems-select,
+.ems-select-sm {
+    display: inline-block;
+    border: 1px solid #8c8f94;
+    border-radius: 3px;
+    background: #fff;
+    color: #2c3338;
+    cursor: pointer;
+    font-family: inherit;
+    appearance: auto;
+    -webkit-appearance: auto;
+}
+
+.ems-select {
+    padding: 6px 28px 6px 8px;
+    height: 36px;
+    font-size: 13px;
+    line-height: 2;
+}
+
+.ems-select-sm {
+    padding: 2px 24px 2px 8px;
+    height: 28px;
+    font-size: 12px;
+    line-height: 2;
+}
+
+.ems-select:focus,
+.ems-select-sm:focus {
+    border-color: var(--ems-theme-color);
+    box-shadow: 0 0 0 1px var(--ems-theme-color);
+    outline: 2px solid transparent;
+}
+
+/*
+ * Checkbox — keep in step with WP admin input styles.
+ */
+.ems-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--ems-theme-color);
+}
+
+/*
+ * Inline loading spinner (reuse WP admin class .spinner but make it visible).
+ */
+.ems-spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #dcdcde;
+    border-top-color: var(--ems-theme-color);
+    border-radius: 50%;
+    animation: ems-spin 0.7s linear infinite;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.ems-spinner-sm {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+}
+
+.ems-field-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 3px 8px;
+    border-radius: 4px;
+    animation: ems-fade-in 0.2s ease-in-out;
+}
+
+.ems-field-status--success {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+}
+
+.ems-field-status--saving {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+@keyframes ems-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes ems-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ─── Spacing Utilities ─────────────────────────────────────────────────────── */
+
+/* Margin bottom scale */
+.ems-mb-4  { margin-bottom: 4px; }
+.ems-mb-6  { margin-bottom: 6px; }
+.ems-mb-8  { margin-bottom: 8px; }
+.ems-mb-10 { margin-bottom: 10px; }
+.ems-mb-12 { margin-bottom: 12px; }
+.ems-mb-16 { margin-bottom: 16px; }
+.ems-mb-20 { margin-bottom: 20px; }
+.ems-mb-24 { margin-bottom: 24px; }
+
+/* Margin top scale */
+.ems-mt-0  { margin-top: 0; }
+.ems-mt-4  { margin-top: 4px; }
+.ems-mt-8  { margin-top: 8px; }
+.ems-mt-10 { margin-top: 10px; }
+.ems-mt-12 { margin-top: 12px; }
+.ems-mt-16 { margin-top: 16px; }
+.ems-mt-20 { margin-top: 20px; }
+
+/* Margin left */
+.ems-ml-4  { margin-left: 4px; }
+.ems-ml-6  { margin-left: 6px; }
+.ems-ml-8  { margin-left: 8px; }
+.ems-ml-10 { margin-left: 10px; }
+
+/* Margin right */
+.ems-mr-4  { margin-right: 4px; }
+.ems-mr-6  { margin-right: 6px; }
+.ems-mr-8  { margin-right: 8px; }
+.ems-mr-12 { margin-right: 12px; }
+.ems-mr-16 { margin-right: 16px; }
+.ems-mr-20 { margin-right: 20px; }
+
+/* Padding */
+.ems-p-12  { padding: 12px; }
+.ems-p-16  { padding: 16px; }
+.ems-p-20  { padding: 20px; }
+.ems-px-16 { padding-left: 16px; padding-right: 16px; }
+.ems-py-8  { padding-top: 8px; padding-bottom: 8px; }
+
+/* ─── Flex Utilities ────────────────────────────────────────────────────────── */
+
+.ems-flex-center {
+    display: flex;
+    align-items: center;
+}
+
+.ems-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ems-flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Gap scale */
+.ems-gap-2  { gap: 2px; }
+.ems-gap-4  { gap: 4px; }
+.ems-gap-6  { gap: 6px; }
+.ems-gap-8  { gap: 8px; }
+.ems-gap-10 { gap: 10px; }
+.ems-gap-12 { gap: 12px; }
+.ems-gap-16 { gap: 16px; }
+.ems-gap-20 { gap: 20px; }
+.ems-gap-24 { gap: 24px; }
+
+/* ─── Typography ────────────────────────────────────────────────────────────── */
+
+.ems-label-uppercase {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #50575e;
+}
+
+.ems-meta-text {
+    font-size: 12px;
+    color: #646970;
+}
+
+.ems-small-text {
+    font-size: 11px;
+}
+
+.ems-monospace {
+    font-family: monospace;
+}
+
+/* ─── Forms ─────────────────────────────────────────────────────────────────── */
+
+.ems-form-group {
+    margin-bottom: 16px;
+}
+
+.ems-form-label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.ems-field-error {
+    color: #d63638;
+    font-size: 13px;
+}
+
+.ems-form-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ems-block-input {
+    display: block;
+    width: 100%;
+}
+
+/* ─── Cards & Panels ────────────────────────────────────────────────────────── */
+
+.ems-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 16px;
+}
+
+.ems-card--flat {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.ems-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+/* ─── Callouts & Notices ────────────────────────────────────────────────────── */
+
+.ems-warning-callout {
+    background: #fffbeb;
+    border-left: 3px solid #d97706;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #b45309;
+}
+
+.ems-error-callout {
+    background: #fef2f2;
+    border-left: 3px solid #dc2626;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #b91c1c;
+}
+
+/* ─── Status & Badge Elements ───────────────────────────────────────────────── */
+
+.ems-status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.ems-avatar-circle {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.ems-avatar-circle--red {
+    background: #d63638;
+}
+
+.ems-avatar-circle--blue {
+    background: var(--ems-theme-color);
+}
+
+.ems-avatar-circle--gold {
+    background: #dba617;
+}
+
+.ems-avatar-circle--green {
+    background: #00a32a;
+}
+
+/* Skill badge (smaller variant) */
+.ems-skill-badge {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: bold;
+    font-size: 11px;
+    margin-right: 4px;
+}
+
+/* ─── Filter Pills ──────────────────────────────────────────────────────────── */
+
+.ems-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 6px 12px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 20px;
+    color: #646970;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.ems-filter-pill--active {
+    background: #e5f3ff;
+    border-color: var(--ems-theme-color);
+    color: #1d2327;
+}
+
+.ems-filter-pill input[type="radio"],
+.ems-filter-pill input[type="checkbox"] {
+    display: none;
+}
+
+/* ─── Meta Field Pairs ──────────────────────────────────────────────────────── */
+
+.ems-meta-field {
+    margin-bottom: 12px;
+}
+
+.ems-meta-field__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ems-meta-field__value {
+    font-size: 14px;
+    color: #1d2327;
+}
+
+.ems-meta-field__value--empty {
+    color: #bbb;
+}
+
+/* ─── Table Row Modifiers ───────────────────────────────────────────────────── */
+
+.ems-table-row--selected {
+    background: var(--ems-theme-color-lighter);
+}
+
+.ems-table-row--archived {
+    opacity: 0.6;
+}
+
+.ems-table-cell--center {
+    text-align: center;
+}
+
+.ems-table-cell--right {
+    text-align: right;
+}
+
+/* ─── Event Header Level Modifiers ──────────────────────────────────────────── */
+
+.ems-event-header--bronze {
+    background: #f8f4e8;
+}
+
+.ems-event-header--silver {
+    background: #f0f4f8;
+}
+
+.ems-event-header--gold {
+    background: #fef9e6;
+}
+
+.ems-event-header--multiple {
+    background: #eef2ff;
+}
+
+/* ─── Section Header ────────────────────────────────────────────────────────── */
+
+.ems-section-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+    margin-bottom: 12px;
+}
+
+/* ─── Team Panel (EventDetailPage sidebar) ──────────────────────────────────── */
+
+.ems-team-panel {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 16px;
+    background: #fff;
+    min-width: 260px;
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ems-team-panel--warning {
+    border-color: #f0b849;
+}
+
+.ems-team-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 8px;
+}
+
+.ems-team-member {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 13px;
+}
+
+.ems-empty-member {
+    color: #aaa;
+    font-size: 13px;
+    padding: 8px 0;
+    text-align: center;
+}
+
+/* ─── First Aid Icons ───────────────────────────────────────────────────────── */
+
+.ems-fa-full {
+    color: #1b5e20;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+.ems-fa-response {
+    color: #2e7d32;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+/* ─── Phase 1: ColumnMapper / ImportReview ──────────────────────────────────── */
+
+.ems-section-selector {
+    margin-bottom: 20px;
+}
+
+.ems-section-selector label {
+    margin-right: 10px;
+}
+
+.ems-import-bucket {
+    margin-bottom: 20px;
+}
+
+.ems-import-bucket__list {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 10px;
+}
+
+.ems-import-error {
+    color: #d63638;
+    margin-left: 10px;
+}
+
+.ems-import-review {
+    margin-top: 30px;
+    border-top: 1px solid #ccc;
+    padding-top: 20px;
+}
+
+/* ─── Phase 1: OSMMapPicker ─────────────────────────────────────────────────── */
+
+.ems-map-picker {
+    margin-bottom: 16px;
+    background: #fafafa;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.ems-map-picker__header {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.ems-map-picker__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ems-map-placeholder {
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f1;
+    color: #646970;
+    border-radius: 3px;
+}
+
+.ems-map-canvas {
+    height: 300px;
+    border-radius: 3px;
+    border: 1px solid #dcdcde;
+    z-index: 1;
+}
+
+.ems-map-help {
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: #646970;
+}
+
+/* ─── Phase 1: RichTextEditor ───────────────────────────────────────────────── */
+
+.ems-editor-wrapper {
+    margin-top: 4px;
+}
+
+/* ─── Phase 1: SeasonForm / EventForm ───────────────────────────────────────── */
+
+.ems-form-wrapper {
+    padding: 16px;
+    border: 1px solid #ddd;
+    background: #fff;
+    margin-bottom: 20px;
+}
+
+.ems-form-wrapper--lg {
+    padding: 20px;
+    background: #fff;
+}
+
+.ems-form-label-block {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.ems-form-hint {
+    display: block;
+    margin-top: 4px;
+}
+
+.ems-btn-cancel {
+    margin-left: 8px;
+}
+
+/* ─── Phase 1: OSMReadOnlyMap ───────────────────────────────────────────────── */
+
+.ems-map-readonly-wrapper {
+    margin-top: 16px;
+    margin-bottom: 20px;
+}
+
+.ems-btn-archive-red {
+    border-color: #d63638 !important;
+    color: #d63638 !important;
+}
+.ems-btn-archive-red:hover {
+    background: #fcf0f1 !important;
+    border-color: #b32d2e !important;
+    color: #b32d2e !important;
+}
+
+.ems-map-readonly-canvas {
+    height: 250px;
+    width: 100%;
+    border-radius: 4px;
+    border: 1px solid #ccd0d4;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.07);
+}
+
+/* ─── Phase 1: ExpeditionBoard ──────────────────────────────────────────────── */
+
+.ems-board-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.ems-board-synced {
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* ─── Phase 1: EventForm grids ──────────────────────────────────────────────── */
+
+.ems-form-grid-5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ems-form-grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ems-form-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ems-form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ems-form-section {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.ems-form-section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+.ems-form-input {
+    display: block;
+    margin-top: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    font-size: 14px;
+    height: 35px;
+    line-height: 1.4;
+}
+
+input.ems-form-input {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 8px !important;
+    line-height: 28px !important;
+}
+
+/* ─── Responsive Stacking Breakpoint ────────────────────────────────────────── */
+@media screen and (max-width: 960px) {
+    .ems-split {
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+    }
+    .ems-panel--full-height {
+        height: auto;
+    }
+}
+
+/* ─── Interactive & Drag States ─────────────────────────────────────────────── */
+.ems-row-hoverable:hover {
+    background-color: var(--ems-theme-color-lighter);
+}
+.ems-item--active {
+    border-color: var(--ems-theme-color);
+}
+.ems-drag-target--active {
+    border: 2px dashed var(--ems-theme-color);
+    background-color: var(--ems-theme-color-lighter);
+}
+.ems-draggable--dragging {
+    opacity: 0.5;
+}
+
+/* ─── Fallback Textarea Editor ──────────────────────────────────────────────── */
+.ems-textarea-fallback {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+

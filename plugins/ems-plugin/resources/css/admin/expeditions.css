@@ -1,0 +1,965 @@
+/* ─── Phase 2: EventsDashboard ───────────────────────────────────────────────── */
+
+.ems-dashboard-title {
+    margin: 0;
+    font-size: 20px;
+    color: #1d2327;
+}
+
+/* New event card */
+.ems-new-event-card {
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+}
+
+.ems-new-event-card h3 {
+    margin: 0 0 16px;
+    font-size: 16px;
+}
+
+/* Tab navigation - WordPress Nav Tab Pattern (works in admin and frontend shortcodes) */
+.nav-tab-wrapper,
+.ems-nav-tab-wrapper,
+.ems-tab-nav {
+    border-bottom: 1px solid #c3c4c7 !important;
+    padding-top: 9px !important;
+    padding-bottom: 0 !important;
+    line-height: inherit !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    margin-bottom: 20px !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+}
+
+.nav-tab,
+.ems-nav-tab-wrapper button.nav-tab,
+.ems-leader-dashboard .nav-tab,
+.ems-leader-dashboard button.nav-tab,
+.ems-tab-nav__button {
+    border: 1px solid #c3c4c7 !important;
+    border-bottom: none !important;
+    background: #dcdcde !important;
+    color: #50575e !important;
+    padding: 7px 16px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    border-radius: 4px 4px 0 0 !important;
+    cursor: pointer !important;
+    margin-bottom: -1px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+.nav-tab:hover,
+.ems-nav-tab-wrapper button.nav-tab:hover,
+.ems-leader-dashboard .nav-tab:hover,
+.ems-leader-dashboard button.nav-tab:hover,
+.ems-tab-nav__button:hover {
+    background: #f0f0f1 !important;
+    color: #1d2327 !important;
+}
+
+.nav-tab-active,
+.nav-tab.nav-tab-active,
+.ems-nav-tab-wrapper button.nav-tab-active,
+.ems-leader-dashboard .nav-tab-active,
+.ems-leader-dashboard button.nav-tab.nav-tab-active,
+.ems-tab-nav__button--active {
+    background: #ffffff !important;
+    color: #1d2327 !important;
+    border-color: #c3c4c7 !important;
+    border-bottom: 1px solid #ffffff !important;
+    margin-bottom: -1px !important;
+    font-weight: 600 !important;
+}
+
+.ems-tab-nav__checkbox-label {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #50575e;
+    cursor: pointer;
+}
+
+/* Loading state */
+.ems-loading-state {
+    text-align: center;
+    padding: 40px;
+    color: #50575e;
+}
+
+.ems-loading-state p {
+    margin-top: 8px;
+}
+
+/* Table link */
+.ems-table__link {
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--ems-theme-color);
+}
+
+/* Code badge */
+.ems-code-badge {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* Small text helper for table cells */
+.ems-table-cell--small {
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* OSM events loading text */
+.ems-osm-loading {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #aaa;
+}
+
+/* ─── Phase 2: OSMReference ─────────────────────────────────────────────────── */
+
+.ems-osm-ref-container {
+    padding: 12px;
+    background: #fff;
+}
+
+.ems-osm-ref-title {
+    margin-top: 0;
+}
+
+.ems-osm-ref-filter-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+}
+
+.ems-osm-ref-filter-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.ems-osm-ref-filter-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: #666;
+}
+
+.ems-osm-ref-empty {
+    color: #666;
+}
+
+.ems-osm-ref-col-header {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.ems-osm-ref-col-sort {
+    font-size: 10px;
+}
+
+.ems-osm-ref-col-sort--active {
+    opacity: 1;
+}
+
+.ems-osm-ref-col-sort--inactive {
+    opacity: 0.35;
+}
+
+.ems-osm-ref-col-header--small {
+    font-size: 12px;
+}
+
+.ems-osm-ref-name {
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ems-osm-ref-fa-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ems-osm-ref-fa-error {
+    color: #d63638;
+    font-size: 11px;
+}
+
+.ems-osm-ref-meta {
+    font-size: 12px;
+    color: #666;
+}
+
+.ems-osm-ref-event-cell--empty {
+    color: #aaa;
+    font-size: 12px;
+}
+
+.ems-osm-ref-event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ems-osm-ref-event-item {
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.ems-osm-ref-event-date {
+    color: #666;
+    margin-left: 4px;
+}
+
+/* ─── Phase 2: EventPlanningBoard ───────────────────────────────────────────── */
+
+/* Toolbar override for right-column header row */
+.ems-planning-toolbar {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+/* Spinner wrapper */
+.ems-planning-spinner {
+    padding: 20px;
+}
+
+/* Empty state italic text */
+.ems-planning-empty {
+    color: #646970;
+    font-style: italic;
+}
+
+/* Right-column header heading */
+.ems-planning-header {
+    margin: 0;
+    flex: 1;
+}
+
+/* Checkbox column header */
+.ems-planning-checkbox-col {
+    width: 36px;
+    text-align: center;
+}
+
+/* ─── Phase 3: EventDetailPage ─────────────────────────────────────────────── */
+
+/* Detail section header */
+.ems-detail-sec-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Detail notes text */
+.ems-detail-notes {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Detail links and states */
+.ems-detail-link {
+    color: var(--ems-theme-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.ems-detail-link-loading {
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+    margin-top: 2px;
+}
+
+.ems-detail-link-resolved {
+    font-size: 12px;
+    color: #555;
+    font-style: italic;
+    margin-top: 2px;
+}
+
+/* Field value component */
+.ems-field-val {
+    margin-bottom: 8px;
+}
+
+/* Status badge modifiers */
+.ems-status-badge--active,
+.ems-status-badge--open,
+.ems-status-badge--allocated,
+.ems-status-badge--processed,
+.ems-status-badge--paid {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.ems-status-badge--archived,
+.ems-status-badge--completed {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.ems-status-badge--draft,
+.ems-status-badge--pending,
+.ems-status-badge--received {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.ems-status-badge--failed,
+.ems-status-badge--rejected {
+    background: #fdf2f2;
+    color: #b91c1c;
+}
+
+.ems-status-badge--planning {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.ems-status-badge--confirmed {
+    background: #c7d2fe;
+    color: #3730a3;
+}
+
+/* Event detail header area */
+.ems-event-detail-header {
+    padding: 20px 24px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.ems-event-detail__title {
+    margin: 0 0 4px;
+    font-size: 22px;
+    color: #1d2327;
+}
+
+.ems-event-detail__meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ems-event-detail__stats {
+    text-align: right;
+    font-size: 13px;
+    color: #50575e;
+}
+
+.ems-event-detail__stats strong {
+    font-weight: 600;
+}
+
+/* Team card */
+.ems-team-card {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 16px;
+    background: #fff;
+    min-width: 260px;
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ems-team-card--warning {
+    border-color: #f0b849;
+}
+
+.ems-team-card--virtual {
+    background: #f8fafc;
+}
+
+/* Team card header */
+.ems-team-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 8px;
+}
+
+.ems-team-card__title {
+    font-size: 15px;
+}
+
+.ems-team-card__title--virtual {
+    color: #1e293b;
+}
+
+.ems-team-card__title--regular {
+    color: #0f172a;
+}
+
+/* Team card size badge */
+.ems-team-card__size {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.ems-team-card__size--virtual {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.ems-team-card__size--regular {
+    background: #f0fdf4;
+    color: #166534;
+}
+
+/* Team card member row */
+.ems-team-card__member-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex-grow: 1;
+}
+
+.ems-team-card__member {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 13px;
+}
+
+.ems-team-card__member-name {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ems-team-card__member-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ems-team-card__empty-member {
+    color: #aaa;
+    font-size: 13px;
+    padding: 8px 0;
+    text-align: center;
+}
+
+/* Team card actions bar */
+.ems-team-card__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 8px;
+}
+
+/* Team card add member */
+.ems-team-card__add-member {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 8px;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 8px;
+}
+
+/* Team card dialog (move/duplicate) */
+.ems-team-card__dialog {
+    background: #f8fafc;
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.ems-team-card__dialog label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.ems-team-card__dialog select {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.ems-team-card__member-actions select {
+    max-width: 100px;
+    font-size: 11px;
+    height: 24px;
+    min-height: 24px;
+    line-height: 1;
+    padding: 0 20px 0 6px;
+    margin: 0;
+}
+
+.ems-member-remove {
+    color: #d63638;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    border: none;
+    background: transparent;
+    padding: 0 4px;
+}
+
+.ems-member-remove:hover {
+    color: #b32124;
+}
+
+.ems-team-card__add-member select {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    height: 30px;
+}
+
+/* ASN warning icon */
+.ems-asn-warning {
+    color: #d97706;
+    cursor: pointer;
+    margin-right: 2px;
+    font-weight: bold;
+}
+
+/* Move member select */
+.ems-move-select {
+    font-size: 11px;
+    padding: 2px;
+    width: 70px;
+    height: 22px;
+}
+
+/* Training tab */
+.ems-training-header {
+    margin-top: 0;
+}
+
+.ems-training-description {
+    color: #646970;
+}
+
+.ems-training-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+    background: #f6f7f7;
+    padding: 16px;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.ems-training-course {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.ems-training-empty {
+    color: #aaa;
+    margin: 0;
+}
+
+.ems-training-info-box {
+    background: #f0f6fc;
+    padding: 12px;
+    border-left: 4px solid #2271b1;
+    color: #1d2327;
+    font-size: 13px;
+}
+
+.ems-training-complete {
+    color: #1b5e20;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.ems-training-incomplete {
+    color: #b71c1c;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.ems-completion-table {
+    margin-top: 12px;
+    margin-bottom: 20px;
+}
+
+/* ASN tab */
+.ems-asn-tab-header {
+    margin-top: 0;
+}
+
+.ems-asn-tab-description {
+    color: #646970;
+}
+
+.ems-asn-team-cell {
+    font-size: 11px;
+    color: #646970;
+    margin-top: 4px;
+}
+
+.ems-asn-parent-note {
+    vertical-align: top;
+}
+
+.ems-asn-parent-note--has {
+    color: #b45309;
+    font-weight: 600;
+}
+
+.ems-asn-parent-note--empty {
+    color: #646970;
+}
+
+.ems-asn-textarea {
+    width: 100%;
+    height: 60px;
+    box-sizing: border-box;
+    font-size: 13px;
+}
+
+.ems-asn-saved {
+    color: #00a32a;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.ems-asn-actions {
+    vertical-align: top;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.ems-asn-empty-cell {
+    text-align: center;
+    color: #aaa;
+    padding: 16px;
+}
+
+/* QR codes tab */
+.ems-qr-header {
+    margin-top: 0;
+}
+
+.ems-qr-form {
+    max-width: 600px;
+    margin-bottom: 32px;
+}
+
+.ems-qr-container {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+
+.ems-qr-item {
+    text-align: center;
+}
+
+.ems-qr-item__title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.ems-qr-item__link {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.ems-qr-item__image {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+}
+
+.ems-qr-empty {
+    color: #aaa;
+}
+
+.ems-qr-saved {
+    margin-left: 12px;
+    color: #00a32a;
+    font-weight: 600;
+}
+
+/* ASN Drawer */
+.ems-asn-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 400px;
+    background: #fff;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.15);
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.ems-asn-drawer__header {
+    padding: 16px 20px;
+    background: #1d2327;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ems-asn-drawer__title {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.ems-asn-drawer__close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.ems-asn-drawer__body {
+    padding: 20px;
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.ems-asn-drawer__footer {
+    padding: 16px 20px;
+    border-top: 1px solid #dcdcde;
+    background: #f6f7f7;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    align-items: center;
+}
+
+.ems-asn-drawer__saved {
+    color: #00a32a;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.ems-asn-drawer__section-label {
+    display: block;
+    font-size: 12px;
+    color: #646970;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.ems-asn-drawer__parent-note {
+    padding: 10px;
+    background: #fffbeb;
+    border-left: 4px solid #d97706;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #78350f;
+    min-height: 60px;
+    white-space: pre-wrap;
+}
+
+.ems-asn-drawer__textarea {
+    width: 100%;
+    height: 120px;
+    box-sizing: border-box;
+    font-size: 13px;
+    padding: 8px;
+}
+
+.ems-asn-drawer__error {
+    color: #d63638;
+}
+
+/* Teams tab header */
+.ems-teams-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.ems-teams-stats {
+    font-size: 13px;
+    color: #50575e;
+}
+
+.ems-teams-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+/* Overview tab */
+.ems-overview-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+/* RTE readonly styles */
+.ems-rte-readonly ul {
+    list-style-type: disc !important;
+    margin: 8px 0 8px 20px !important;
+    padding: 0 !important;
+}
+
+.ems-rte-readonly ol {
+    list-style-type: decimal !important;
+    margin: 8px 0 8px 20px !important;
+    padding: 0 !important;
+}
+
+.ems-rte-readonly li {
+    display: list-item !important;
+    margin-bottom: 4px !important;
+}
+
+/* Event detail page layout */
+.ems-event-detail {
+    position: relative;
+}
+
+.ems-event-detail__toolbar {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ems-edit-bar {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ems-event-detail__back {
+    color: #2271b1;
+    font-size: 13px;
+}
+
+.ems-event-detail__archive {
+    color: #d63638;
+}
+
+.ems-event-detail__archive--archived {
+    color: #2271b1;
+}
+
+.ems-event-detail__header {
+    padding: 20px 24px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.ems-event-detail__title {
+    margin: 0 0 4px;
+    font-size: 22px;
+    color: #1d2327;
+}
+
+.ems-event-detail__meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ems-event-detail__code {
+    background: #f0f0f0;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.ems-event-detail__date {
+    font-size: 13px;
+    color: #50575e;
+}
+
+.ems-event-detail__stats {
+    text-align: right;
+    font-size: 13px;
+    color: #50575e;
+}
+
+.ems-event-detail__stats strong {
+    font-weight: 600;
+}
+
+.ems-event-detail__content {
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-top: none;
+}
+
+.ems-event-detail__tabs {
+    margin-bottom: 0;
+}
+

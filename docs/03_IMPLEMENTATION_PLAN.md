@@ -18,16 +18,11 @@
 - **Slice 1B — Sign-up Processing Workflow & Consolidated Anomalies (`[DONE]`):** Table-first processing statuses (`new`, `place_allocated`, `team_allocated`, etc.), inline `participant_place_allocated` pairing, bulk updates, `PATCH /ems/v1/signups/{id}/status` with `Event_Bus` events, and consolidated `UnitChaserView`.
 - **Slice 2 — Cross-Stage Team Formation, Two-Tier Deadlines & Manual Place Offers (`[DONE]`):** Standardised UI/dispatch on "Team" terminology, built `DeadlinePolicyService` (`ems_deadline_policies` + Settings tab), added `offer_status` tracking, atomic portal `Accept / Query / Decline` with hard-cutoff enforcement, `Pushback_Sync_Manager` `accepted` filtering + override, and Networker `"Myself"` + children switcher.
 - **Pre-Slice 3 — Bug Fixes, Status Transitions, Explorer 360° & Portal Polish (`[DONE]`):** Enabled `scout_id = 0` provisional team/event placement (fixed `/teams/{id}/members` route collision & `StageMatrixView`), centralised cross-entity status transitions in `SignupStatusTransitionService`, integrated `Explorer360Drawer` into Team Builder with offer/response interaction history, restricted offer responses to Parents/Networkers, converted child switcher to highlighted buttons, made portal notices dismissable, added `ems_offer_query_email` setting, and enforced a 1000-character query limit + counter.
+- **Slice 3 — Final CSS Split & Daily Deadline Crons (`[DONE]`):** Split monolithic `ems-admin.css` and `ems-route-card.css` into [tokens.css](file:///home/David/Projects/EMS/expedition-management-system/plugins/ems-plugin/resources/css/tokens.css), `resources/css/admin/{base,expeditions,signups,components}.css`, and `resources/css/route-card/{studio,table}.css` imported via Vite entrypoints; implemented `DeadlineReminderCron` (`ems_daily_deadline_check`) for deduplicated 3-day and due-date reminders logged to `ems_notification_logs` plus the `place_offer_reminder` template in `Email_Template_Registry`.
 
 ### Operational / Live Verification Pending (Completed Slices)
 - **[PENDING — Operational]** Export Unified JSON Backup (`EMS -> Settings -> Backups`) before production rollout.
 - **[PENDING — Operational]** Live browser/staging check of `[ems_signup_banner]` on Elementor, `Table_Installer` DB upgrade, Place Offer dispatch, portal `Accept / Query / Decline`, hard cutoff enforcement, and OSM pushback.
-
----
-
-## Slice 3 — Final CSS Split & Daily Deadline Crons (Pending)
-1. **[PENDING]** Split remaining monolithic `ems-admin.css` / `ems-route-card.css` into scoped token + module stylesheets and eliminate remaining inline styles.
-2. **[PENDING]** Enable `ems_daily_deadline_check` WP-Cron for deduplicated reminders against configured communicated deadlines.
 
 ---
 

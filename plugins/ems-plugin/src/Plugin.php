@@ -51,6 +51,10 @@ class Plugin {
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_and_enqueue_frontend_assets' ) );
 		add_action( 'init', array( new \EMS\Core\Role_Manager(), 'register_roles' ) );
 		add_action( 'ems_daily_log_cleanup', array( '\\EMS\\Core\\Log_Rotator', 'purge_old_logs' ) );
+		add_action(
+			\EMS\Modules\Notifications\Services\DeadlineReminderCron::CRON_HOOK,
+			array( \EMS\Modules\Notifications\Services\DeadlineReminderCron::class, 'run_scheduled' )
+		);
 
 		add_action( 'wp_login', function( $user_login, $user ) {
 			$u_id = ( $user instanceof \WP_User ) ? $user->ID : null;
@@ -631,6 +635,7 @@ class Plugin {
 		( new Table_Installer() )->install();
 		( new \EMS\Core\Role_Manager() )->register_roles();
 		\EMS\Core\Log_Rotator::register_cron();
+		\EMS\Modules\Notifications\Services\DeadlineReminderCron::register_cron();
 		update_option( 'ems_db_version', EMS_VERSION );
 	}
 
@@ -639,6 +644,7 @@ class Plugin {
 			( new Table_Installer() )->install();
 			( new \EMS\Core\Role_Manager() )->register_roles();
 			\EMS\Core\Log_Rotator::register_cron();
+			\EMS\Modules\Notifications\Services\DeadlineReminderCron::register_cron();
 			update_option( 'ems_db_version', EMS_VERSION );
 		}
 	}

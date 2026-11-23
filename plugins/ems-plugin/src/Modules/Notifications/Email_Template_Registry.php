@@ -24,6 +24,12 @@ class Email_Template_Registry {
 	public const DEFAULT_PLACE_OFFER_SUBJECT     = '[{{site_name}}] Expedition Place Offer — Team {{team_code}}';
 	public const DEFAULT_PLACE_OFFER_BODY        = "<p>Hi {{explorer_name}},</p>\n<p>We are pleased to offer you a place on <strong>Team {{team_code}}</strong> for your upcoming DofE Expedition.</p>\n<p><strong>Expedition Dates:</strong></p>\n<ul>\n<li><strong>Practice Expedition:</strong> {{practice_dates}}</li>\n<li><strong>Qualifying Expedition:</strong> {{qualifier_dates}}</li>\n</ul>\n<p><strong>Your Teammates:</strong></p>\n{{teammates_list}}\n{{date_conflict_notice}}\n<p>Please confirm your place via the Explorer Portal by <strong>{{acceptance_deadline}}</strong>:</p>\n<p><a href=\"{{portal_offer_url}}\">{{portal_offer_url}}</a></p>\n<p>Regards,<br>{{site_name}}</p>";
 
+	public const OPTION_OFFER_REMINDER_SUBJECT   = 'ems_place_offer_reminder_subject';
+	public const OPTION_OFFER_REMINDER_REPLY_TO  = 'ems_place_offer_reminder_reply_to';
+	public const OPTION_OFFER_REMINDER_BODY      = 'ems_place_offer_reminder_body';
+	public const DEFAULT_OFFER_REMINDER_SUBJECT  = '[{{site_name}}] Reminder: Confirm Expedition Place Offer — Team {{team_code}}';
+	public const DEFAULT_OFFER_REMINDER_BODY     = "<p>Hi {{explorer_name}},</p>\n<p>This is a reminder that your expedition place offer for <strong>Team {{team_code}}</strong> is still awaiting a response from a parent, guardian, or networker.</p>\n<p>Please respond via the Participant Portal by <strong>{{acceptance_deadline}}</strong>:</p>\n<p><a href=\"{{portal_offer_url}}\">{{portal_offer_url}}</a></p>\n<p>Regards,<br>{{site_name}}</p>";
+
 	/**
 	 * @var array<string, array<string, mixed>>
 	 */
@@ -324,6 +330,52 @@ class Email_Template_Registry {
 						'label'       => 'Acceptance Deadline',
 						'description' => 'Deadline date for confirming the expedition place (defaults to 31 Dec)',
 						'example'     => self::DEFAULT_ACCEPTANCE_DEADLINE,
+					),
+					array(
+						'token'       => '{{site_name}}',
+						'label'       => 'Site Name',
+						'description' => 'WordPress site title',
+						'example'     => $live_site_name,
+					),
+				),
+			)
+		);
+
+		$this->register_template(
+			array(
+				'slug'            => 'place_offer_reminder',
+				'label'           => 'Place Offer Deadline Reminder',
+				'category'        => 'Expeditions & Teams',
+				'description'     => 'Automated daily cron reminder sent 3 days before and on the configured Place Offer communicated deadline for pending offers.',
+				'subject_option'  => self::OPTION_OFFER_REMINDER_SUBJECT,
+				'reply_to_option' => self::OPTION_OFFER_REMINDER_REPLY_TO,
+				'body_option'     => self::OPTION_OFFER_REMINDER_BODY,
+				'default_subject' => self::DEFAULT_OFFER_REMINDER_SUBJECT,
+				'default_body'    => self::DEFAULT_OFFER_REMINDER_BODY,
+				'tokens'          => array(
+					array(
+						'token'       => '{{explorer_name}}',
+						'label'       => 'Explorer Name',
+						'description' => 'Full name of the explorer',
+						'example'     => 'Amy Brown',
+					),
+					array(
+						'token'       => '{{team_code}}',
+						'label'       => 'Team Code',
+						'description' => 'Assigned team code',
+						'example'     => 'B-FOOT-01',
+					),
+					array(
+						'token'       => '{{acceptance_deadline}}',
+						'label'       => 'Communicated Deadline',
+						'description' => 'Configured communicated deadline date',
+						'example'     => '2026-12-15',
+					),
+					array(
+						'token'       => '{{portal_offer_url}}',
+						'label'       => 'Portal Offer URL',
+						'description' => 'Link to the Participant Portal',
+						'example'     => 'https://example.com/explorer-portal/',
 					),
 					array(
 						'token'       => '{{site_name}}',

@@ -1,0 +1,699 @@
+/* ─── Phase 3: SignupsBoard ─────────────────────────────────────────────────── */
+
+/* Signups Board Container & Main Layout */
+.ems-signups-container {
+    font-family: 'Inter', sans-serif;
+    color: #1d2327;
+    display: flex;
+    gap: 20px;
+    position: relative;
+}
+
+.ems-signups-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.ems-signups-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
+    padding: 16px 20px;
+    border: 1px solid #ccd0d4;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.ems-wrap {
+    flex-wrap: wrap;
+}
+
+.ems-signups-table-wrap {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+
+
+/* Slide-out Inspector Panel */
+.ems-signups-inspector {
+    width: 460px;
+    flex-shrink: 0;
+    max-width: 100%;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    max-height: none;
+    align-self: flex-start;
+}
+
+.ems-signups-inspector__header {
+    padding: 16px 20px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #ccd0d4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.ems-signups-inspector__body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ems-signups-inspector__label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #646970;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.ems-signups-inspector__value--large {
+    font-size: 16px;
+    font-weight: bold;
+    color: #1d2327;
+}
+
+.ems-signups-inspector__value {
+    font-size: 13px;
+    color: #1d2327;
+}
+
+.ems-signups-inspector__input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-top: 4px;
+    box-sizing: border-box;
+}
+
+.ems-signups-inspector__input:read-only,
+.ems-signups-inspector__input[readonly] {
+    background-color: #f6f7f7;
+    color: #646970;
+    border-color: #dcdcde;
+    cursor: default;
+}
+
+.ems-signups-inspector__transfer-alert {
+    padding: 10px 12px;
+    background: #fdf3f4;
+    color: #d63638;
+    border: 1px solid #fbc4c5;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: -4px;
+}
+
+.ems-signups-inspector__support-box {
+    font-size: 13px;
+    margin-top: 4px;
+    padding: 10px;
+    background: #f6f7f7;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    font-style: italic;
+}
+
+.ems-signups-paired-sync {
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+/* Top Zone Header with Explorer Identity and Signup Selector */
+.ems-signups-inspector__top-zone {
+    background: #f1f5f9;
+    border-bottom: 2px solid #cbd5e1;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.ems-signups-inspector__top-zone .ems-signups-inspector__header {
+    background: transparent;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 20px 10px 20px;
+}
+
+.ems-signups-inspector__selector-header {
+    padding: 12px 20px 16px 20px;
+}
+
+/* Inspector Available Entries List */
+.ems-inspector-entries-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ems-inspector-entry-card {
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 13px;
+    color: #1d2327;
+}
+
+.ems-inspector-entry-card:hover {
+    background: #f6f7f7;
+    border-color: #94a3b8;
+}
+
+.ems-inspector-entry-card--active {
+    background: #f0f6fc;
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+.ems-inspector-entry-card__selected-indicator {
+    color: #15803d;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.ems-inspector-entry-banner {
+    margin-top: -20px;
+    margin-left: -20px;
+    margin-right: -20px;
+    padding: 12px 20px;
+    border-radius: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.ems-inspector-entry-banner--participant {
+    background: #e2eff9;
+    border-left: 4px solid #2271b1;
+    border-top: 1px solid #b8daef;
+    border-bottom: 1px solid #b8daef;
+}
+
+.ems-inspector-entry-banner--expedition {
+    background: #e7f6ed;
+    border-left: 4px solid #00a650;
+    border-top: 1px solid #b5e4c8;
+    border-bottom: 1px solid #b5e4c8;
+}
+
+.ems-pill--participant {
+    background: #e2eff9;
+    color: #1e3a8a;
+    border-color: #93c5fd;
+}
+
+.ems-pill--expedition {
+    background: #e7f6ed;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.ems-signups-inspector__footer {
+    padding: 16px 20px;
+    border-top: 1px solid #ccd0d4;
+    background: #f6f7f7;
+    display: flex;
+    justify-content: space-between;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.ems-signups-inspector__header--participant {
+    background: #e2eff9 !important;
+    border-bottom: 2px solid #2271b1 !important;
+}
+
+.ems-signups-inspector__header--expedition {
+    background: #e7f6ed !important;
+    border-bottom: 2px solid #00a650 !important;
+}
+
+.ems-signups-inspector--participant {
+    border-color: #2271b1 !important;
+}
+
+.ems-signups-inspector--expedition {
+    border-color: #00a650 !important;
+}
+
+.ems-signups-inspector__header--osm {
+    background: #f5e6fe !important;
+    border-bottom: 2px solid #8a2be2 !important;
+}
+
+.ems-signups-inspector--osm {
+    border-color: #8a2be2 !important;
+}
+
+.ems-signups-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.ems-signups-detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.ems-signups-detail-item--full {
+    grid-column: span 2;
+}
+
+.ems-signups-inspector__section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #1d2327;
+    border-bottom: 1px solid #dcdcde;
+    padding-bottom: 4px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+/* Missing Layout Utilities */
+.ems-table-cell--top {
+    vertical-align: top;
+}
+.ems-italic {
+    font-style: italic;
+}
+.ems-m-0 {
+    margin: 0 !important;
+}
+.ems-font-semibold {
+    font-weight: 600;
+}
+.ems-text-muted {
+    color: #aaa;
+}
+.ems-text-warning {
+    color: #d63638;
+}
+
+/* Expedition Board Fixed Action Bar with WordPress Admin Sidebar spacing */
+.ems-action-bar--fixed {
+    position: fixed;
+    bottom: 0;
+    left: 160px;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #ccd0d4;
+    padding: 16px 24px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+@media screen and (max-width: 960px) {
+    .ems-action-bar--fixed {
+        left: 36px;
+    }
+}
+
+@media screen and (max-width: 782px) {
+    .ems-action-bar--fixed {
+        left: 0;
+    }
+}
+
+/* Status Badge Alignment and Expansion */
+.ems-status-badge--success {
+    background: #d1fae5;
+    color: #065f46;
+}
+.ems-status-badge--danger {
+    background: #fdf2f2;
+    color: #b91c1c;
+}
+
+/* Staffing and Schedule Grid Styles */
+.ems-staffing-summary {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0;
+    align-items: center;
+}
+
+.ems-empty-italic {
+    font-style: italic;
+    color: #646970;
+}
+
+.ems-schedule-th {
+    font-size: 11px !important;
+    text-align: center !important;
+}
+
+.ems-schedule-sub {
+    font-size: 9px;
+    font-weight: normal;
+    color: #646970;
+}
+
+.ems-schedule-status-nil {
+    color: #ccd0d4;
+}
+
+.ems-schedule-status-confirmed {
+    color: #00a32a;
+    font-weight: bold;
+}
+
+.ems-schedule-status-conflict {
+    color: #d63638;
+    text-decoration: line-through;
+}
+
+.ems-schedule-status-pending {
+    color: #dba617;
+}
+
+.ems-schedule-td {
+    text-align: center;
+    font-size: 11px;
+}
+
+/* Close & Utility Styles */
+.ems-inspector__close {
+    font-size: 20px;
+    margin-left: 10px;
+    text-decoration: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #646970;
+}
+.ems-inspector__close:hover {
+    color: #d63638;
+}
+
+.ems-width-full-max-240 {
+    width: 100%;
+    max-width: 240px;
+}
+
+.ems-cursor-pointer {
+    cursor: pointer;
+}
+
+.ems-divider {
+    border: 0;
+    border-top: 1px solid #ccd0d4;
+    margin: 8px 0;
+}
+
+.ems-inspector-list {
+    margin: 4px 0 0 0;
+    padding-left: 20px;
+    list-style-type: disc;
+}
+
+.ems-saved-indicator {
+    color: #00a32a;
+    font-weight: bold;
+}
+
+.ems-table-cell--meta {
+    font-size: 11px;
+    color: #646970;
+}
+
+.ems-teams-header__legend {
+    margin-left: 15px;
+    color: #646970;
+    font-size: 12px;
+}
+
+.ems-table--bordered {
+    border: 1px solid #ccd0d4;
+}
+
+/* Volunteer grid styles */
+.ems-volunteers-legend-bar {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.ems-inline-flex-center {
+    display: inline-flex;
+    align-items: center;
+}
+
+.ems-volunteers-status-icon {
+    color: #fff;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 11px;
+}
+
+.ems-volunteers-status-icon--confirmed {
+    background: #00a32a;
+}
+
+.ems-volunteers-status-icon--pending {
+    background: #dba617;
+}
+
+.ems-volunteers-status-icon--rejected {
+    background: #d63638;
+}
+
+.ems-volunteers-v-divider {
+    border-left: 1px solid #ccd0d4;
+    height: 16px;
+    margin: 0 8px;
+    display: inline-block;
+}
+
+.ems-volunteers-split {
+    display: flex;
+    gap: 20px;
+    position: relative;
+}
+
+.ems-volunteers-split > .ems-panel {
+    flex: 1;
+    min-width: 0;
+}
+
+.ems-volunteers-table-wrap {
+    overflow-x: auto;
+}
+
+.ems-volunteers-table-wrap .ems-table th:first-child,
+.ems-volunteers-table-wrap .ems-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 2;
+    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.15);
+}
+
+.ems-volunteers-table-wrap .ems-table tr.ems-row-hoverable:hover td:first-child {
+    background-color: var(--ems-theme-color-lighter);
+}
+
+.ems-volunteers-col-name {
+    width: 200px;
+}
+
+.ems-volunteers-col-event {
+    font-size: 11px !important;
+    text-align: center !important;
+    width: 100px;
+}
+
+.ems-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ems-volunteers-event-code {
+    font-size: 9px;
+    color: #646970;
+    font-weight: normal;
+}
+
+.ems-volunteers-cell-empty {
+    text-align: center;
+    color: #ccd0d4;
+}
+
+.ems-volunteers-cell-value {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.ems-volunteers-cell-badge {
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.ems-volunteers-cell-badge--confirmed {
+    background: #00a32a;
+    color: #fff;
+}
+
+.ems-volunteers-cell-badge--pending {
+    background: #dba617;
+    color: #fff;
+}
+
+.ems-volunteers-cell-badge--default {
+    background: #eee;
+    color: #555;
+}
+
+.ems-volunteer-avail-item {
+    border-bottom: 1px solid #f0f0f1;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+}
+
+.ems-volunteer-avail-shifts {
+    background: #f6f7f7;
+    padding: 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-bottom: 8px;
+}
+
+.ems-volunteer-avail-shift {
+    padding: 2px 0;
+}
+
+.ems-display-block {
+    display: block;
+}
+
+.ems-position-relative {
+    position: relative;
+}
+
+.ems-volunteers-cell-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: bold;
+    font-size: 11px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.ems-table-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #f6f7f7;
+    border-top: 1px solid #ccd0d4;
+}
+
+/* Participant Portal Responsive Enhancements */
+.ems-portal-overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.ems-portal-event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eaeaea;
+    padding-bottom: 10px;
+    gap: 12px;
+}
+
+@media screen and (max-width: 768px) {
+    .ems-portal-container {
+        padding: 12px;
+    }
+    
+    .ems-portal-overview-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ems-portal-event-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .ems-portal-event-header button {
+        align-self: flex-start;
+    }
+
+    .portal-nav-tabs,
+    .category-tabs,
+    .sub-tabs,
+    .child-selector {
+        flex-wrap: wrap !important;
+    }
+}
+
+/* Clickable table row hover transitions */
+.ems-clickable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.ems-clickable-row:hover {
+    background-color: #f4f8fa !important;
+}
+
