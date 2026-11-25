@@ -438,4 +438,47 @@ class OSM_Reference_SyncTest extends EMSTestCase {
         $this->assertSame( 'Orion Explorers', $updated_options['ems_managed_sections'][43105]['name'] );
         $this->assertSame( 'explorers', $updated_options['ems_managed_sections'][43105]['type'] );
     }
+
+    public function test_sync_tracks_newly_added_explorers_and_excludes_existing_or_failed(): void {
+        $members = [
+            [ 'member_id' => 1001, 'first_name' => 'Alice', 'last_name' => 'New', 'patrol' => 'Bears' ],
+            [ 'member_id' => 1002, 'first_name' => 'Bob', 'last_name' => 'Existing', 'patrol' => 'Wolves' ],
+            [ 'member_id' => 1003, 'first_name' => 'Charlie', 'last_name' => 'Failed', 'patrol' => 'Foxes' ],
+        ];
+
+        $this->api_client->shouldReceive( 'get_section_participants' )->andReturn( $members );
+        $this->api_client->shouldReceive( 'get_member_detail' )->with( 43105, 1001, 5001 )
+            ->andReturn( [ 'email1' => 'alice@example.com', 'p1_email1' => '' ] );
+        $this->api_client->shouldReceive( 'get_member_detail' )->with( 43105, 1002, 5001 )
+            ->andReturn( [ 'email1' => 'bob@example.com', 'p1_email1' => '' ] );
+        $this->api_client->shouldReceive( 'get_member_detail' )->with( 43105, 1003, 5001 )
+            ->andReturn( [ 'email1' => 'charlie@example.com', 'p1_email1' => '' ] );
+        $this->api_client->shouldReceive( 'get_section_events' )->andReturn( [] );
+
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0, 1, 0 );
+        $this->wpdb->shouldReceive( 'insert' )->twice()->andReturn( 1, false );
+        $this->wpdb->shouldReceive( 'update' )->once()->andReturn( 1 );
+
+        Functions\when( 'current_time' )->justReturn( '2026-06-15 08:00:00' );
+        Functions\when( 'update_option' )->justReturn( true );
+        Functions\when( 'set_transient' )->justReturn( true );
+
+        $sync   = new OSM_Reference_Sync( $this->api_client, $this->parser );
+        $result = $sync->sync( [ 43105 ], $this->make_payload(), 'mock' );
+
+        $this->assertSame( 2, $result->members_upserted );
+        $this->assertSame( 1, $result->members_failed );
+        $this->assertCount( 1, $result->new_explorers );
+        $this->assertSame(
+            [
+                'scout_id'   => 1001,
+                'section_id' => 43105,
+                'first_name' => 'Alice',
+                'last_name'  => 'New',
+                'patrol'     => 'Bears',
+                'email'      => 'alice@example.com',
+            ],
+            $result->new_explorers[0]
+        );
+    }
 }

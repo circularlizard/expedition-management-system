@@ -239,4 +239,91 @@ class Admin_PageTest extends EMSTestCase {
 		$this->assertSame( 'http://example.com/wp-admin/admin.php?page=ems-units&tab=leaders', $redirected );
 		unset( $_GET['tab'], $_GET['view'] );
 	}
+
+	public function test_render_reference_page_displays_newly_added_explorers_in_sync_readout(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'wp_nonce_field' )->justReturn( '' );
+		Functions\when( 'admin_url' )->alias( fn( $p = '' ) => 'http://example.com/wp-admin/' . $p );
+		Functions\when( 'get_option' )->justReturn( [] );
+		Functions\when( 'get_transient' )->alias( static function ( $key ) {
+			if ( $key === 'ems_last_sync_result' ) {
+				return [
+					'mode'             => 'live',
+					'started_at'       => '2026-11-25T22:00:00+00:00',
+					'members_upserted' => 5,
+					'members_failed'   => 0,
+					'events_upserted'  => 2,
+					'events_failed'    => 0,
+					'errors'           => [],
+					'new_explorers'    => [
+						[
+							'scout_id'   => 1001,
+							'section_id' => 43105,
+							'first_name' => 'Alice',
+							'last_name'  => 'Alpha',
+							'patrol'     => 'Bears',
+							'email'      => 'alice@example.com',
+						],
+					],
+				];
+			}
+			return false;
+		} );
+
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'get_results' )->andReturn( [] );
+		$GLOBALS['wpdb'] = $wpdb;
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$diagnostic->shouldReceive( 'run_all' )->andReturn( [] );
+		$page = new Admin_Page( $diagnostic );
+
+		ob_start();
+		$page->render_reference_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'Newly added explorers: 1', $output );
+		$this->assertStringContainsString( 'Alice Alpha', $output );
+		$this->assertStringContainsString( 'Scout ID: 1001', $output );
+		$this->assertStringContainsString( 'Patrol: Bears', $output );
+		$this->assertStringContainsString( 'alice@example.com', $output );
+	}
+
+	public function test_render_reference_page_displays_zero_newly_added_explorers(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'wp_nonce_field' )->justReturn( '' );
+		Functions\when( 'admin_url' )->alias( fn( $p = '' ) => 'http://example.com/wp-admin/' . $p );
+		Functions\when( 'get_option' )->justReturn( [] );
+		Functions\when( 'get_transient' )->alias( static function ( $key ) {
+			if ( $key === 'ems_last_sync_result' ) {
+				return [
+					'mode'             => 'mock',
+					'started_at'       => '2026-11-25T22:00:00+00:00',
+					'members_upserted' => 3,
+					'members_failed'   => 0,
+					'events_upserted'  => 1,
+					'events_failed'    => 0,
+					'errors'           => [],
+					'new_explorers'    => [],
+				];
+			}
+			return false;
+		} );
+
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'get_results' )->andReturn( [] );
+		$GLOBALS['wpdb'] = $wpdb;
+
+		$diagnostic = Mockery::mock( Diagnostic_Panel::class );
+		$diagnostic->shouldReceive( 'run_all' )->andReturn( [] );
+		$page = new Admin_Page( $diagnostic );
+
+		ob_start();
+		$page->render_reference_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'Newly added explorers: 0', $output );
+	}
 }

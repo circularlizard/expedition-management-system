@@ -81,9 +81,10 @@ class OSM_Reference_Sync {
 				set_transient(
 					'ems_sync_status',
 					array(
-						'state'            => 'running',
-						'members_upserted' => $result->members_upserted,
-						'events_upserted'  => $result->events_upserted,
+						'state'               => 'running',
+						'members_upserted'    => $result->members_upserted,
+						'events_upserted'     => $result->events_upserted,
+						'new_explorers_count' => count( $result->new_explorers ),
 					),
 					HOUR_IN_SECONDS
 				);
@@ -184,23 +185,29 @@ class OSM_Reference_Sync {
 
 			$detail = $this->api_client->get_member_detail( $section_id, $scout_id, $term_id );
 
+			$email        = ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' );
+			$parent_email = ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' );
+			$first_name   = (string) ( $member['first_name'] ?? '' );
+			$last_name    = (string) ( $member['last_name'] ?? '' );
+			$patrol       = (string) ( $member['patrol'] ?? '' );
+
 			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE scout_id = %d", $scout_id ) );
 			if ( $exists ) {
 				$rows = $wpdb->update(
 					$table,
 					array(
 						'section_id'   => $section_id,
-						'first_name'   => $member['first_name'] ?? '',
-						'last_name'    => $member['last_name'] ?? '',
-						'email'        => ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' ),
-						'parent_email' => ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' ),
-						'email1'       => ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' ),
+						'first_name'   => $first_name,
+						'last_name'    => $last_name,
+						'email'        => $email,
+						'parent_email' => $parent_email,
+						'email1'       => $email,
 						'email2'       => $detail['email2'] ?? '',
-						'p1_email1'    => ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' ),
+						'p1_email1'    => $parent_email,
 						'p1_email2'    => $detail['p1_email2'] ?? '',
 						'p2_email1'    => $detail['p2_email1'] ?? '',
 						'p2_email2'    => $detail['p2_email2'] ?? '',
-						'patrol'       => $member['patrol'] ?? '',
+						'patrol'       => $patrol,
 						'synced_at'    => $now,
 					),
 					array( 'scout_id' => $scout_id ),
@@ -213,17 +220,17 @@ class OSM_Reference_Sync {
 					array(
 						'scout_id'     => $scout_id,
 						'section_id'   => $section_id,
-						'first_name'   => $member['first_name'] ?? '',
-						'last_name'    => $member['last_name'] ?? '',
-						'email'        => ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' ),
-						'parent_email' => ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' ),
-						'email1'       => ! empty( $detail['email1'] ) ? $detail['email1'] : ( $detail['email'] ?? '' ),
+						'first_name'   => $first_name,
+						'last_name'    => $last_name,
+						'email'        => $email,
+						'parent_email' => $parent_email,
+						'email1'       => $email,
 						'email2'       => $detail['email2'] ?? '',
-						'p1_email1'    => ! empty( $detail['p1_email1'] ) ? $detail['p1_email1'] : ( $detail['parent_email'] ?? '' ),
+						'p1_email1'    => $parent_email,
 						'p1_email2'    => $detail['p1_email2'] ?? '',
 						'p2_email1'    => $detail['p2_email1'] ?? '',
 						'p2_email2'    => $detail['p2_email2'] ?? '',
-						'patrol'       => $member['patrol'] ?? '',
+						'patrol'       => $patrol,
 						'synced_at'    => $now,
 					),
 					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
@@ -235,6 +242,16 @@ class OSM_Reference_Sync {
 				$result->add_error( "Failed to upsert member {$scout_id}: " . $wpdb->last_error );
 			} else {
 				++$result->members_upserted;
+				if ( ! $exists ) {
+					$result->new_explorers[] = array(
+						'scout_id'   => $scout_id,
+						'section_id' => $section_id,
+						'first_name' => $first_name,
+						'last_name'  => $last_name,
+						'patrol'     => $patrol,
+						'email'      => (string) $email,
+					);
+				}
 			}
 		}
 	}

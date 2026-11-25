@@ -765,19 +765,45 @@ class Admin_Page {
 			echo '</p></div>';
 		}
 
-		$mode      = esc_html( $result['mode'] ?? 'unknown' );
-		$started   = esc_html( $result['started_at'] ?? '' );
-		$m_ok      = (int) ( $result['members_upserted'] ?? 0 );
-		$m_fail    = (int) ( $result['members_failed'] ?? 0 );
-		$e_ok      = (int) ( $result['events_upserted'] ?? 0 );
-		$e_fail    = (int) ( $result['events_failed'] ?? 0 );
-		$err_count = count( (array) ( $result['errors'] ?? array() ) );
+		$mode          = esc_html( $result['mode'] ?? 'unknown' );
+		$started       = esc_html( $result['started_at'] ?? '' );
+		$m_ok          = (int) ( $result['members_upserted'] ?? 0 );
+		$m_fail        = (int) ( $result['members_failed'] ?? 0 );
+		$e_ok          = (int) ( $result['events_upserted'] ?? 0 );
+		$e_fail        = (int) ( $result['events_failed'] ?? 0 );
+		$err_count     = count( (array) ( $result['errors'] ?? array() ) );
+		$new_explorers = (array) ( $result['new_explorers'] ?? array() );
+		$new_count     = count( $new_explorers );
 
 		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:12px 16px;margin-bottom:16px;border-radius:2px;">';
 		echo '<strong>' . esc_html__( 'Last Sync Result', 'ems-plugin' ) . '</strong>';
 		echo ' <span style="color:#666;font-size:12px;">(' . $mode . ' — ' . $started . ')</span>';
 		echo '<ul style="margin:.5em 0 0 1.5em;">';
 		echo '<li>' . sprintf( esc_html__( 'Members: %1$d upserted, %2$d failed', 'ems-plugin' ), $m_ok, $m_fail ) . '</li>';
+		if ( $new_count > 0 ) {
+			echo '<li>';
+			echo '<details open><summary>' . sprintf( esc_html__( 'Newly added explorers: %d', 'ems-plugin' ), $new_count ) . '</summary>';
+			echo '<ul style="margin:.4em 0 0 1.5em;list-style:disc;">';
+			foreach ( $new_explorers as $exp ) {
+				$exp_name   = trim( ( (string) ( $exp['first_name'] ?? '' ) ) . ' ' . ( (string) ( $exp['last_name'] ?? '' ) ) );
+				$scout_id   = (int) ( $exp['scout_id'] ?? 0 );
+				$patrol     = (string) ( $exp['patrol'] ?? '' );
+				$email      = (string) ( $exp['email'] ?? '' );
+				$meta_parts = array( sprintf( esc_html__( 'Scout ID: %d', 'ems-plugin' ), $scout_id ) );
+				if ( $patrol !== '' ) {
+					$meta_parts[] = sprintf( esc_html__( 'Patrol: %s', 'ems-plugin' ), $patrol );
+				}
+				if ( $email !== '' ) {
+					$meta_parts[] = $email;
+				}
+				echo '<li><strong>' . esc_html( $exp_name !== '' ? $exp_name : (string) $scout_id ) . '</strong>';
+				echo ' <span style="color:#666;">(' . esc_html( implode( ' · ', $meta_parts ) ) . ')</span></li>';
+			}
+			echo '</ul></details>';
+			echo '</li>';
+		} else {
+			echo '<li>' . esc_html__( 'Newly added explorers: 0', 'ems-plugin' ) . '</li>';
+		}
 		echo '<li>' . sprintf( esc_html__( 'Events: %1$d upserted, %2$d failed', 'ems-plugin' ), $e_ok, $e_fail ) . '</li>';
 		if ( $err_count > 0 ) {
 			echo '<li>';

@@ -16,6 +16,12 @@ class Sync_Result {
 	public ?int $rate_limit_reset_seconds = null;
 	public bool $api_blocked              = false;
 	public array $deprecated_endpoints    = array();
+	/**
+	 * Explorers newly inserted into ems_osm_explorers during this sync.
+	 *
+	 * @var array<int, array{scout_id: int, section_id: int, first_name: string, last_name: string, patrol: string, email: string}>
+	 */
+	public array $new_explorers           = array();
 
 	public function __construct( string $mode ) {
 		$this->mode       = $mode;
@@ -41,6 +47,7 @@ class Sync_Result {
 			'rate_limit_reset_seconds' => $this->rate_limit_reset_seconds,
 			'api_blocked'              => $this->api_blocked,
 			'deprecated_endpoints'     => $this->deprecated_endpoints,
+			'new_explorers'            => $this->new_explorers,
 		);
 	}
 }

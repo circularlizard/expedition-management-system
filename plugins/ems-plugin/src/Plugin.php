@@ -197,10 +197,13 @@ class Plugin {
 									'queued_at'        => $status['queued_at'] ?? null,
 									'started_at'       => $status['started_at'] ?? null,
 									'completed_at'     => $status['completed_at'] ?? null,
-									'members_upserted' => $state === 'running'
+									'members_upserted'    => $state === 'running'
 										? (int) ( $status['members_upserted'] ?? 0 )
 										: (int) ( $result['members_upserted'] ?? 0 ),
-									'members_failed'   => (int) ( $result['members_failed'] ?? 0 ),
+									'members_failed'      => (int) ( $result['members_failed'] ?? 0 ),
+									'new_explorers_count' => $state === 'running'
+										? (int) ( $status['new_explorers_count'] ?? 0 )
+										: count( (array) ( $result['new_explorers'] ?? array() ) ),
 									'events_upserted'  => $state === 'running'
 										? (int) ( $status['events_upserted'] ?? 0 )
 										: (int) ( $result['events_upserted'] ?? 0 ),

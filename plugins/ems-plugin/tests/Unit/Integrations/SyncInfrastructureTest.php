@@ -54,6 +54,7 @@ class SyncInfrastructureTest extends EMSTestCase {
         $this->assertFalse( $r->api_blocked );
         $this->assertEmpty( $r->errors );
         $this->assertEmpty( $r->deprecated_endpoints );
+        $this->assertEmpty( $r->new_explorers );
         $this->assertNotEmpty( $r->started_at );
     }
 
@@ -69,7 +70,8 @@ class SyncInfrastructureTest extends EMSTestCase {
         $array = $r->to_array();
         foreach ( [ 'mode', 'started_at', 'members_upserted', 'members_failed', 'events_upserted',
                     'events_failed', 'errors', 'rate_limited', 'retry_after_seconds',
-                    'rate_limit_remaining', 'rate_limit_reset_seconds', 'api_blocked', 'deprecated_endpoints' ] as $key ) {
+                    'rate_limit_remaining', 'rate_limit_reset_seconds', 'api_blocked', 'deprecated_endpoints',
+                    'new_explorers' ] as $key ) {
             $this->assertArrayHasKey( $key, $array, "Missing key: {$key}" );
         }
     }
