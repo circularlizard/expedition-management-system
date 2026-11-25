@@ -205,4 +205,67 @@ describe('Explorer360Drawer', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
         await waitFor(() => expect(onLevelChanged).toHaveBeenCalledWith(12, 'expedition', 'silver'));
     });
+
+    it('sorts the unmatched OSM explorer dropdown alphabetically', async () => {
+        const mock360 = {
+            explorer: {
+                scout_id: 0,
+                is_synced_osm: false,
+                first_name: 'Unmatched',
+                last_name: 'Person',
+                unit_name: 'Kelso',
+                dofe_number: null,
+                first_aid_level: 'none',
+            },
+            contacts: { osm_canonical: null, resolved: { explorer_email: '', parent_email: '' }, discrepancies: [] },
+            signups: [
+                {
+                    id: 99,
+                    type: 'participant',
+                    scout_id: 0,
+                    dofe_level: 'bronze',
+                    signup_status: 'submitted',
+                    kanban_stage: 'new',
+                    participant_place_allocated: false,
+                    anomalies: ['unmatched_osm'],
+                },
+            ],
+            teams: [],
+            training: { status: 'unavailable' },
+            history: [],
+        };
+
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => mock360 }));
+
+        const unsortedExplorers = [
+            { scout_id: 103, first_name: 'Zara', last_name: 'Zulu' },
+            { scout_id: 101, first_name: 'alice', last_name: 'Alpha' },
+            { scout_id: 102, first_name: 'Bob', last_name: 'Beta' },
+        ];
+
+        render(
+            <Explorer360Drawer
+                isOpen={true}
+                signupId={99}
+                signupType="participant"
+                rootUrl="/wp-json/ems/v1"
+                nonce="test-nonce"
+                initialTab="overview"
+                explorers={unsortedExplorers}
+                onReconcile={vi.fn().mockResolvedValue(undefined)}
+                onClose={() => {}}
+            />
+        );
+
+        await waitFor(() => expect(screen.getByText(/Not yet matched to an OSM Explorer/i)).toBeInTheDocument());
+
+        const select = screen.getByDisplayValue('Select OSM Explorer…') as HTMLSelectElement;
+        const optionLabels = Array.from(select.options).map((o) => o.text);
+        expect(optionLabels).toEqual([
+            'Select OSM Explorer…',
+            'alice Alpha (101)',
+            'Bob Beta (102)',
+            'Zara Zulu (103)',
+        ]);
+    });
 });

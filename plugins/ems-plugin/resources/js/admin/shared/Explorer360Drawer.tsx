@@ -196,6 +196,20 @@ export const Explorer360Drawer: React.FC<Explorer360DrawerProps> = ({
         });
     }, [explorerInfo, resolvedContacts, explorers]);
 
+    const filteredExplorers = useMemo(() => {
+        const q = reconcileSearch.trim().toLowerCase();
+        return explorers
+            .filter((e) => {
+                if (!q) return true;
+                return `${e.first_name || ''} ${e.last_name || ''} ${e.scout_id || ''}`.toLowerCase().includes(q);
+            })
+            .sort((a, b) => {
+                const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim();
+                const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim();
+                return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+            });
+    }, [explorers, reconcileSearch]);
+
     if (!isOpen) return null;
 
     const markSaved = (key: string) => {
@@ -315,12 +329,6 @@ export const Explorer360Drawer: React.FC<Explorer360DrawerProps> = ({
 
     const isDirty = Object.keys(pendingEdits).length > 0;
     const BLOCKING_ANOMALIES = new Set(['missing_edofe', 'unmatched_osm', 'duplicate_signup']);
-
-    const filteredExplorers = explorers.filter((e) => {
-        if (!reconcileSearch) return true;
-        const q = reconcileSearch.toLowerCase();
-        return `${e.first_name || ''} ${e.last_name || ''} ${e.scout_id || ''}`.toLowerCase().includes(q);
-    });
 
     return (
         <div
