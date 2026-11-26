@@ -11,6 +11,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { getUnitDistrictMap, getUniqueDistricts, normalize } from '../signups-board/tableUtils';
 import {
+  ConfirmedTeammateEdge,
   MatrixEvent,
   MatrixExplorer,
   NotifyModalOptions,
@@ -135,8 +136,14 @@ export default function CohortsContinuityView({
         asn_validated: number | null;
         first_aid_status: string;
         first_aid_expiry: string | null;
+        confirmed_preferences: ConfirmedTeammateEdge[];
       }
     >();
+
+    const extractEdges = (exp: MatrixExplorer): ConfirmedTeammateEdge[] => {
+      const raw = exp.confirmed_preferences ?? exp.teammate_preferences ?? [];
+      return Array.isArray(raw) ? raw : [];
+    };
 
     for (const exp of practiceExplorers) {
       const id = exp.expedition_signup_id;
@@ -156,6 +163,7 @@ export default function CohortsContinuityView({
         asn_validated: exp.asn_validated ?? null,
         first_aid_status: exp.first_aid_status || 'none',
         first_aid_expiry: exp.first_aid_expiry ?? null,
+        confirmed_preferences: extractEdges(exp),
       });
     }
 
@@ -165,6 +173,9 @@ export default function CohortsContinuityView({
       const existing = map.get(id);
       if (existing) {
         existing.qualifierAvail = exp.available_events || [];
+        if (existing.confirmed_preferences.length === 0) {
+          existing.confirmed_preferences = extractEdges(exp);
+        }
       } else {
         map.set(id, {
           expedition_signup_id: id,
@@ -181,6 +192,7 @@ export default function CohortsContinuityView({
           asn_validated: exp.asn_validated ?? null,
           first_aid_status: exp.first_aid_status || 'none',
           first_aid_expiry: exp.first_aid_expiry ?? null,
+          confirmed_preferences: extractEdges(exp),
         });
       }
     }
@@ -226,14 +238,37 @@ export default function CohortsContinuityView({
 
   const matchedIdsBySignup = useMemo(() => {
     const map = new Map<number, number[]>();
+    const addEdge = (fromId: number, toId: number) => {
+      if (fromId === toId) return;
+      const list = map.get(fromId) || [];
+      if (!list.includes(toId)) list.push(toId);
+      map.set(fromId, list);
+    };
+
     for (const exp of mergedExplorers) {
-      const matched = new Set<number>();
+      const avoided = new Set<number>();
+      for (const edge of exp.confirmed_preferences) {
+        if (!edge.target_signup_id) continue;
+        const status = (edge.match_status || 'confirmed').toLowerCase();
+        if (status !== 'confirmed' && status !== 'auto_matched') continue;
+        if (edge.preference_type === 'avoid') {
+          avoided.add(edge.target_signup_id);
+        } else {
+          addEdge(exp.expedition_signup_id, edge.target_signup_id);
+          addEdge(edge.target_signup_id, exp.expedition_signup_id);
+        }
+      }
+
+      // Fallback to free-text wishlist token matching when no explicit avoid edge blocks it
       for (const token of parseWishlistTokens(exp.team_preferences)) {
         const hit = fuzzyMatchExplorer(token, explorerLookupList, exp.expedition_signup_id);
-        if (hit) matched.add(hit.id);
+        if (hit && !avoided.has(hit.id)) {
+          addEdge(exp.expedition_signup_id, hit.id);
+        }
       }
       for (const other of mergedExplorers) {
         if (other.expedition_signup_id === exp.expedition_signup_id) continue;
+        if (avoided.has(other.expedition_signup_id)) continue;
         if (
           isWishlistMatch(
             exp.first_name,
@@ -244,10 +279,9 @@ export default function CohortsContinuityView({
             other.team_preferences
           )
         ) {
-          matched.add(other.expedition_signup_id);
+          addEdge(exp.expedition_signup_id, other.expedition_signup_id);
         }
       }
-      map.set(exp.expedition_signup_id, Array.from(matched));
     }
     return map;
   }, [mergedExplorers, explorerLookupList]);
@@ -318,14 +352,17 @@ export default function CohortsContinuityView({
     if (!hoveredExplorer || hoveredExplorer.expedition_signup_id === signupId) {
       return { isMatch: false, compatibleDates: false };
     }
-    const match = isWishlistMatch(
-      hoveredExplorer.first_name,
-      hoveredExplorer.last_name,
-      hoveredExplorer.wishlist,
-      firstName,
-      lastName,
-      wishlist
-    );
+    const confirmedMatch = (matchedIdsBySignup.get(hoveredExplorer.expedition_signup_id) || []).includes(signupId);
+    const match =
+      confirmedMatch ||
+      isWishlistMatch(
+        hoveredExplorer.first_name,
+        hoveredExplorer.last_name,
+        hoveredExplorer.wishlist,
+        firstName,
+        lastName,
+        wishlist
+      );
     if (!match) return { isMatch: false, compatibleDates: false };
     const sharedPrac = hoveredExplorer.practiceAvail.some((c) => pracAvail.includes(c));
     const sharedQual = hoveredExplorer.qualifierAvail.some((c) => qualAvail.includes(c));

@@ -167,6 +167,7 @@ class Backup_ManagerTest extends EMSTestCase {
 		$tables = $manager->get_all_tables();
 		$this->assertContains( 'ems_cohorts', $tables );
 		$this->assertContains( 'ems_cohort_members', $tables );
+		$this->assertContains( 'ems_teammate_preferences', $tables );
 		$this->assertSame( array(), $module->getBackupPostTypes() );
 		$this->assertSame( array(), $module->getBackupOptionNames() );
 		$this->assertSame( array(), $module->exportData() );

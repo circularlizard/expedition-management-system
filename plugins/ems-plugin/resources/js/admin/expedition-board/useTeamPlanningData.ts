@@ -5,6 +5,7 @@ import {
   MatrixExplorer,
   toCohortTransportMode,
 } from './cohortTypes';
+import type { PlanningLevel } from './TeamScopeBar';
 
 export interface UseTeamPlanningDataResult {
   cohorts: Cohort[];
@@ -20,8 +21,33 @@ export interface UseTeamPlanningDataResult {
   fetchAllData: () => Promise<void>;
 }
 
+function dedupeByKey<T>(items: T[], getKey: (item: T) => string | number): T[] {
+  const seen = new Map<string | number, T>();
+  for (const item of items) {
+    const key = getKey(item);
+    if (!seen.has(key)) {
+      seen.set(key, item);
+    }
+  }
+  return Array.from(seen.values());
+}
+
+const getCohortKey = (c: Cohort): string | number => {
+  const teamPostId = (c as Cohort & { team_post_id?: number }).team_post_id;
+  if (c.id && c.id > 0) return `c_${c.id}`;
+  if (teamPostId && teamPostId > 0) return `tp_${teamPostId}`;
+  return `${c.dofe_level}_${c.name}`;
+};
+
+const getEventKey = (e: MatrixEvent): string | number => e.id || e.event_code;
+
+const getExplorerKey = (exp: MatrixExplorer): string =>
+  exp.expedition_signup_id > 0
+    ? `s_${exp.expedition_signup_id}`
+    : `o_${exp.scout_id}_${exp.first_name}_${exp.last_name}`;
+
 export function useTeamPlanningData(
-  level: 'bronze' | 'silver' | 'gold',
+  levels: PlanningLevel[],
   transport: string,
   enabled: boolean
 ): UseTeamPlanningDataResult {
@@ -38,67 +64,84 @@ export function useTeamPlanningData(
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  const levelsKey = levels.join(',');
+
   const fetchAllData = useCallback(async () => {
     if (!enabled) return;
+    const activeLevels: PlanningLevel[] = levels.length > 0 ? levels : ['silver'];
     setLoading(true);
     setError(null);
 
     const transportMode = toCohortTransportMode(transport);
-    const teamParams = new URLSearchParams({
-      dofe_level: level,
-      transport_mode: transportMode,
-    });
-    const practiceParams = new URLSearchParams({
-      level,
-      transport,
-      type: 'practice',
-    });
-    const qualifyingParams = new URLSearchParams({
-      level,
-      transport,
-      type: 'qualifying',
-    });
 
     try {
-      const [teamsResp, practiceResp, qualifyingResp] = await Promise.all([
-        fetch(`${rootUrl}/teams-builder?${teamParams.toString()}`, {
-          headers: { 'X-WP-Nonce': nonce },
-        }),
-        fetch(`${rootUrl}/planning-board/matrix?${practiceParams.toString()}`, {
-          headers: { 'X-WP-Nonce': nonce },
-        }),
-        fetch(`${rootUrl}/planning-board/matrix?${qualifyingParams.toString()}`, {
-          headers: { 'X-WP-Nonce': nonce },
-        }),
-      ]);
+      const levelResults = await Promise.all(
+        activeLevels.map(async (level) => {
+          const teamParams = new URLSearchParams({
+            dofe_level: level,
+            transport_mode: transportMode,
+          });
+          const practiceParams = new URLSearchParams({
+            level,
+            transport,
+            type: 'practice',
+          });
+          const qualifyingParams = new URLSearchParams({
+            level,
+            transport,
+            type: 'qualifying',
+          });
 
-      if (!teamsResp.ok) {
-        throw new Error(`Failed to load teams (HTTP ${teamsResp.status})`);
-      }
-      if (!practiceResp.ok) {
-        throw new Error(`Failed to load practice matrix (HTTP ${practiceResp.status})`);
-      }
-      if (!qualifyingResp.ok) {
-        throw new Error(`Failed to load qualifying matrix (HTTP ${qualifyingResp.status})`);
-      }
+          const [teamsResp, practiceResp, qualifyingResp] = await Promise.all([
+            fetch(`${rootUrl}/teams-builder?${teamParams.toString()}`, {
+              headers: { 'X-WP-Nonce': nonce },
+            }),
+            fetch(`${rootUrl}/planning-board/matrix?${practiceParams.toString()}`, {
+              headers: { 'X-WP-Nonce': nonce },
+            }),
+            fetch(`${rootUrl}/planning-board/matrix?${qualifyingParams.toString()}`, {
+              headers: { 'X-WP-Nonce': nonce },
+            }),
+          ]);
 
-      const [teamsData, practiceData, qualifyingData] = await Promise.all([
-        teamsResp.json(),
-        practiceResp.json(),
-        qualifyingResp.json(),
-      ]);
+          if (!teamsResp.ok) {
+            throw new Error(`Failed to load teams (HTTP ${teamsResp.status})`);
+          }
+          if (!practiceResp.ok) {
+            throw new Error(`Failed to load practice matrix (HTTP ${practiceResp.status})`);
+          }
+          if (!qualifyingResp.ok) {
+            throw new Error(`Failed to load qualifying matrix (HTTP ${qualifyingResp.status})`);
+          }
 
-      setCohorts(Array.isArray(teamsData) ? teamsData : []);
-      setPracticeEvents(Array.isArray(practiceData?.events) ? practiceData.events : []);
-      setPracticeExplorers(Array.isArray(practiceData?.explorers) ? practiceData.explorers : []);
-      setQualifierEvents(Array.isArray(qualifyingData?.events) ? qualifyingData.events : []);
-      setQualifierExplorers(Array.isArray(qualifyingData?.explorers) ? qualifyingData.explorers : []);
+          const [teamsData, practiceData, qualifyingData] = await Promise.all([
+            teamsResp.json(),
+            practiceResp.json(),
+            qualifyingResp.json(),
+          ]);
+
+          return {
+            cohorts: Array.isArray(teamsData) ? (teamsData as Cohort[]) : [],
+            practiceEvents: Array.isArray(practiceData?.events) ? (practiceData.events as MatrixEvent[]) : [],
+            practiceExplorers: Array.isArray(practiceData?.explorers) ? (practiceData.explorers as MatrixExplorer[]) : [],
+            qualifierEvents: Array.isArray(qualifyingData?.events) ? (qualifyingData.events as MatrixEvent[]) : [],
+            qualifierExplorers: Array.isArray(qualifyingData?.explorers) ? (qualifyingData.explorers as MatrixExplorer[]) : [],
+          };
+        })
+      );
+
+      setCohorts(dedupeByKey(levelResults.flatMap((r) => r.cohorts), getCohortKey));
+      setPracticeEvents(dedupeByKey(levelResults.flatMap((r) => r.practiceEvents), getEventKey));
+      setPracticeExplorers(dedupeByKey(levelResults.flatMap((r) => r.practiceExplorers), getExplorerKey));
+      setQualifierEvents(dedupeByKey(levelResults.flatMap((r) => r.qualifierEvents), getEventKey));
+      setQualifierExplorers(dedupeByKey(levelResults.flatMap((r) => r.qualifierExplorers), getExplorerKey));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load planning data');
     } finally {
       setLoading(false);
     }
-  }, [enabled, level, transport, rootUrl, nonce]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, levelsKey, transport, rootUrl, nonce]);
 
   useEffect(() => {
     if (enabled) {

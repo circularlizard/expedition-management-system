@@ -19,6 +19,13 @@ export interface MatrixEvent {
   teams: MatrixTeam[];
 }
 
+export interface ConfirmedTeammateEdge {
+  target_signup_id: number;
+  preference_type?: 'prefer' | 'avoid';
+  match_status?: 'auto_matched' | 'confirmed' | string;
+  target_name?: string;
+}
+
 export interface MatrixExplorer {
   expedition_signup_id: number;
   scout_id: number;
@@ -37,6 +44,8 @@ export interface MatrixExplorer {
   first_aid_status: string;
   first_aid_expiry?: string | null;
   asn_validated?: number | null;
+  confirmed_preferences?: ConfirmedTeammateEdge[];
+  teammate_preferences?: ConfirmedTeammateEdge[];
 }
 
 export type MemberResolutionAction = 'assign_pending' | 'split_date' | 'remove_from_cohort';

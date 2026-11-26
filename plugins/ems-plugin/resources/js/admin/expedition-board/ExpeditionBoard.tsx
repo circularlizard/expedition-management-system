@@ -9,8 +9,9 @@ import StageMatrixView from './StageMatrixView';
 import TeamsReadinessView from './TeamsReadinessView';
 import { EventForm } from './EventForm';
 import { ManualNotifyModal } from './ManualNotifyModal';
+import { AutoProposeTeamsModal } from './AutoProposeTeamsModal';
 import Explorer360Drawer from '../shared/Explorer360Drawer';
-import { TeamScopeBar } from './TeamScopeBar';
+import { PlanningLevel, TeamScopeBar } from './TeamScopeBar';
 import { useTeamPlanningData } from './useTeamPlanningData';
 import { NotifyModalOptions, toCohortTransportMode } from './cohortTypes';
 import { ModuleErrorBoundary } from '../../shared/ModuleErrorBoundary';
@@ -25,10 +26,18 @@ function normalizePlanningTransport(raw?: string): string {
     return 'hillwalking';
 }
 
-function normalizePlanningLevel(raw?: string): 'bronze' | 'silver' | 'gold' {
-    const n = (raw || '').trim().toLowerCase();
-    if (n === 'bronze' || n === 'silver' || n === 'gold') return n;
-    return 'silver';
+const ALL_PLANNING_LEVELS: PlanningLevel[] = ['bronze', 'silver', 'gold'];
+
+function normalizePlanningLevels(raw?: string): PlanningLevel[] {
+    const cleaned = (raw || '').trim().toLowerCase();
+    if (!cleaned) return ['silver'];
+    if (cleaned === 'all') return [...ALL_PLANNING_LEVELS];
+    const parts = cleaned
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p): p is PlanningLevel => p === 'bronze' || p === 'silver' || p === 'gold');
+    const unique = ALL_PLANNING_LEVELS.filter((l) => parts.includes(l));
+    return unique.length > 0 ? unique : ['silver'];
 }
 
 const ExpeditionBoard: React.FC = () => {
@@ -40,13 +49,14 @@ const ExpeditionBoard: React.FC = () => {
     const [selectedEvent, setSelectedEvent] = useState<Expedition | null>(null);
     const [initialEdit, setInitialEdit] = useState(false);
 
-    const [planningLevel, setPlanningLevel] = useState<'bronze' | 'silver' | 'gold'>('silver');
+    const [planningLevels, setPlanningLevels] = useState<PlanningLevel[]>(['silver']);
     const [planningTransport, setPlanningTransport] = useState<string>('hillwalking');
     const [notifyModalOpts, setNotifyModalOpts] = useState<NotifyModalOptions | null>(null);
+    const [autoProposeOpen, setAutoProposeOpen] = useState<boolean>(false);
     const [drawerTarget, setDrawerTarget] = useState<{ scoutId?: number; signupId?: number } | null>(null);
 
     const isPlanningTab = activeTab === 'team-builder' || activeTab === 'date-grid';
-    const planningData = useTeamPlanningData(planningLevel, planningTransport, isPlanningTab);
+    const planningData = useTeamPlanningData(planningLevels, planningTransport, isPlanningTab);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -57,7 +67,7 @@ const ExpeditionBoard: React.FC = () => {
             setActiveTab(tab as BoardTab);
         }
         const lvl = params.get('level');
-        if (lvl) setPlanningLevel(normalizePlanningLevel(lvl));
+        if (lvl) setPlanningLevels(normalizePlanningLevels(lvl));
         const tr = params.get('transport');
         if (tr) setPlanningTransport(normalizePlanningTransport(tr));
 
@@ -117,7 +127,7 @@ const ExpeditionBoard: React.FC = () => {
 
     const handleOpenTeamBuilder = useCallback(
         (opts?: { level?: string; transport?: string; view?: 'team-builder' | 'date-grid' }) => {
-            if (opts?.level) setPlanningLevel(normalizePlanningLevel(opts.level));
+            if (opts?.level) setPlanningLevels(normalizePlanningLevels(opts.level));
             if (opts?.transport) setPlanningTransport(normalizePlanningTransport(opts.transport));
             setActiveTab(opts?.view ?? 'team-builder');
         },
@@ -254,15 +264,16 @@ const ExpeditionBoard: React.FC = () => {
                         )}
 
                         <TeamScopeBar
-                            level={planningLevel}
+                            levels={planningLevels}
                             transport={planningTransport}
                             pendingNotifyCount={planningData.pendingNotifyCount}
-                            onChangeLevel={setPlanningLevel}
+                            onChangeLevels={setPlanningLevels}
                             onChangeTransport={setPlanningTransport}
+                            onOpenAutoPropose={activeTab === 'team-builder' ? () => setAutoProposeOpen(true) : undefined}
                             onOpenNotify={() =>
                                 setNotifyModalOpts({
                                     scope: 'all',
-                                    level: planningLevel,
+                                    level: planningLevels.join(','),
                                     transport: planningTransport,
                                 })
                             }
@@ -275,7 +286,7 @@ const ExpeditionBoard: React.FC = () => {
                         ) : activeTab === 'team-builder' ? (
                             <ModuleErrorBoundary moduleName="Team Builder">
                                 <CohortsContinuityView
-                                    level={planningLevel}
+                                    level={planningLevels.join(',')}
                                     transport={planningTransport}
                                     rootUrl={config.root_url}
                                     nonce={config.nonce}
@@ -295,7 +306,8 @@ const ExpeditionBoard: React.FC = () => {
                         ) : (
                             <ModuleErrorBoundary moduleName="Availability & Date Grid">
                                 <StageMatrixView
-                                    level={planningLevel}
+                                    level={planningLevels.join(',')}
+                                    levels={planningLevels}
                                     transport={planningTransport}
                                     rootUrl={config.root_url}
                                     nonce={config.nonce}
@@ -312,6 +324,22 @@ const ExpeditionBoard: React.FC = () => {
                             </ModuleErrorBoundary>
                         )}
 
+                        {autoProposeOpen && (
+                            <ModuleErrorBoundary moduleName="Auto-Propose Teams">
+                                <AutoProposeTeamsModal
+                                    isOpen={true}
+                                    onClose={() => setAutoProposeOpen(false)}
+                                    level={planningLevels[0] ?? 'silver'}
+                                    levels={planningLevels}
+                                    transport={planningTransport}
+                                    rootUrl={config.root_url}
+                                    nonce={config.nonce}
+                                    onRefreshAll={planningData.fetchAllData}
+                                    onFeedback={planningData.setFeedback}
+                                />
+                            </ModuleErrorBoundary>
+                        )}
+
                         {notifyModalOpts && (
                             <ModuleErrorBoundary moduleName="Place Offer Notifications">
                                 <ManualNotifyModal
@@ -320,7 +348,7 @@ const ExpeditionBoard: React.FC = () => {
                                     initialScope={notifyModalOpts.scope}
                                     cohortId={notifyModalOpts.cohortId ?? null}
                                     cohortName={notifyModalOpts.cohortName ?? null}
-                                    dofeLevel={notifyModalOpts.level ?? planningLevel}
+                                    dofeLevel={notifyModalOpts.level ?? planningLevels.join(',')}
                                     transportMode={toCohortTransportMode(notifyModalOpts.transport ?? planningTransport)}
                                     onInspectExplorer={(target) => setDrawerTarget(target)}
                                     onDispatched={(res) => {

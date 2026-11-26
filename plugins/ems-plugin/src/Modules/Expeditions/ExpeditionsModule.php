@@ -41,7 +41,11 @@ class ExpeditionsModule implements ModuleInterface, BackupContributorInterface {
 	 * @return array<string>
 	 */
 	public function getBackupTables(): array {
-		return array();
+		return array(
+			'ems_cohorts',
+			'ems_cohort_members',
+			'ems_teammate_preferences',
+		);
 	}
 
 	/**

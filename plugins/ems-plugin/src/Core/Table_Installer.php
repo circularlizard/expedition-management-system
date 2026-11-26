@@ -817,6 +817,29 @@ class Table_Installer {
             KEY idx_template (template_slug)
         ) {$charset};";
 
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_teammate_preferences (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            source_signup_id BIGINT UNSIGNED NOT NULL,
+            target_signup_id BIGINT UNSIGNED NULL,
+            wishlist_hash CHAR(32) NOT NULL,
+            raw_token VARCHAR(255) NOT NULL,
+            unit_hint VARCHAR(120) NULL,
+            preference_type VARCHAR(16) NOT NULL DEFAULT 'prefer',
+            match_status VARCHAR(24) NOT NULL DEFAULT 'not_found',
+            confidence_score TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            candidate_ids_json TEXT NULL,
+            flag_negation TINYINT(1) NOT NULL DEFAULT 0,
+            reviewed_by BIGINT UNSIGNED NULL,
+            reviewed_at DATETIME NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_source_signup (source_signup_id),
+            KEY idx_source_hash (source_signup_id, wishlist_hash),
+            KEY idx_target_signup (target_signup_id),
+            KEY idx_match_status (match_status)
+        ) {$charset};";
+
 		return $sql;
 	}
 
@@ -839,6 +862,7 @@ class Table_Installer {
 			'cohorts'                => $wpdb->prefix . 'ems_cohorts',
 			'cohort_members'         => $wpdb->prefix . 'ems_cohort_members',
 			'notification_logs'      => $wpdb->prefix . 'ems_notification_logs',
+			'teammate_preferences'   => $wpdb->prefix . 'ems_teammate_preferences',
 		);
 	}
 }

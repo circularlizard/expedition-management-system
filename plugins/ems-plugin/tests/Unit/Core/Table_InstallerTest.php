@@ -40,7 +40,7 @@ class Table_InstallerTest extends EMSTestCase {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( 'wp_', '' );
 
-        $this->assertCount( 15, $sql );
+        $this->assertCount( 17, $sql );
 
         $all_sql = implode( ' ', $sql );
         $this->assertStringContainsString( 'ems_volunteers', $all_sql );
@@ -56,6 +56,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'ems_expedition_signups', $all_sql );
         $this->assertStringContainsString( 'ems_audit_logs', $all_sql );
         $this->assertStringContainsString( 'wp_dofe_route_cards', $all_sql );
+        $this->assertStringContainsString( 'ems_teammate_preferences', $all_sql );
 
         // Verify ems_units has refactored columns
         $units_sql = null;

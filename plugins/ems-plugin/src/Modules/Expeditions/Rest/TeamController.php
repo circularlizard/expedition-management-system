@@ -7,6 +7,9 @@ use EMS\Data\Expedition_Repository;
 use EMS\Data\Team_Member_Repository;
 use EMS\Data\Team_Repository;
 use EMS\Modules\Expeditions\Services\TeamReadinessService;
+use EMS\Modules\Expeditions\Services\TeamSolverService;
+use EMS\Modules\Expeditions\Services\WishlistMatcherService;
+use EMS\Modules\Expeditions\Services\WishlistPreferenceRepository;
 use EMS\Modules\Notifications\Services\ExpeditionOfferDispatcher;
 use EMS\Modules\Signups\Services\SignupStatusTransitionService;
 
@@ -21,17 +24,52 @@ class TeamController {
 	private Team_Repository $teams;
 	private Team_Member_Repository $team_members;
 	private ?SignupStatusTransitionService $transitions;
+	private ?WishlistPreferenceRepository $preference_repo;
+	private ?WishlistMatcherService $wishlist_matcher;
+	private ?TeamSolverService $team_solver;
 
 	public function __construct(
 		?Expedition_Repository $expeditions = null,
 		?Team_Repository $teams = null,
 		?Team_Member_Repository $team_members = null,
-		?SignupStatusTransitionService $transitions = null
+		?SignupStatusTransitionService $transitions = null,
+		?WishlistPreferenceRepository $preference_repo = null,
+		?WishlistMatcherService $wishlist_matcher = null,
+		?TeamSolverService $team_solver = null
 	) {
-		$this->expeditions  = $expeditions ?? new Expedition_Repository();
-		$this->teams        = $teams ?? new Team_Repository();
-		$this->team_members = $team_members ?? new Team_Member_Repository();
-		$this->transitions  = $transitions;
+		$this->expeditions      = $expeditions ?? new Expedition_Repository();
+		$this->teams            = $teams ?? new Team_Repository();
+		$this->team_members     = $team_members ?? new Team_Member_Repository();
+		$this->transitions      = $transitions;
+		$this->preference_repo  = $preference_repo;
+		$this->wishlist_matcher = $wishlist_matcher;
+		$this->team_solver      = $team_solver;
+	}
+
+	private function get_preference_repo(): WishlistPreferenceRepository {
+		if ( $this->preference_repo === null ) {
+			$this->preference_repo = new WishlistPreferenceRepository();
+		}
+		return $this->preference_repo;
+	}
+
+	private function get_wishlist_matcher(): WishlistMatcherService {
+		if ( $this->wishlist_matcher === null ) {
+			$this->wishlist_matcher = new WishlistMatcherService( null, $this->get_preference_repo() );
+		}
+		return $this->wishlist_matcher;
+	}
+
+	private function get_team_solver(): TeamSolverService {
+		if ( $this->team_solver === null ) {
+			$this->team_solver = new TeamSolverService(
+				null,
+				$this->get_preference_repo(),
+				$this->get_wishlist_matcher(),
+				$this->teams
+			);
+		}
+		return $this->team_solver;
 	}
 
 	private function get_transitions(): SignupStatusTransitionService {
@@ -178,6 +216,77 @@ class TeamController {
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/preferences/parse',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'parse_preferences' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/preferences/queue',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_preferences_queue' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/preferences/candidates',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_preference_candidates' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/preferences/genders',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'update_preference_genders' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/preferences/(?P<source_signup_id>\d+)',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'update_preference_decisions' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array( 'source_signup_id' => $this->id_arg() ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/teams/solver/propose',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'propose_teams' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/teams/solver/apply',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'apply_proposed_teams' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
 	}
 
 	public function check_permission(): bool {
@@ -207,7 +316,8 @@ class TeamController {
 		$signups_table   = $wpdb->prefix . 'ems_expedition_signups';
 		$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
 
-		$results = array();
+		$gender_map = $this->get_preference_repo()->getGenderMap();
+		$results    = array();
 		foreach ( $team_posts as $tp ) {
 			$tid       = (int) $tp->ID;
 			$team_code = trim( (string) get_post_meta( $tid, 'ems_team_code', true ) );
@@ -252,12 +362,21 @@ class TeamController {
 				ARRAY_A
 			) ?: array();
 
+			$signup_ids = array_values(
+				array_filter(
+					array_map( static fn( array $r ): int => (int) ( $r['expedition_signup_id'] ?? 0 ), $rows ),
+					static fn( int $id ): bool => $id > 0
+				)
+			);
+			$edges_map = ! empty( $signup_ids ) ? $this->get_preference_repo()->getEdgesMapForSignups( $signup_ids ) : array();
+
 			$members = array();
 			foreach ( $rows as $r ) {
-				$members[] = array(
+				$exp_signup_id = (int) ( $r['expedition_signup_id'] ?? 0 );
+				$members[]     = array(
 					'id'                       => (int) $r['id'],
 					'team_post_id'             => $tid,
-					'expedition_signup_id'     => (int) ( $r['expedition_signup_id'] ?? 0 ),
+					'expedition_signup_id'     => $exp_signup_id,
 					'scout_id'                 => (int) ( $r['scout_id'] ?? 0 ),
 					'availability_override'    => $r['availability_override'] ?? null,
 					'notification_status'      => (string) ( $r['notification_status'] ?? 'draft' ),
@@ -266,12 +385,14 @@ class TeamController {
 					'offer_responded_at'       => $r['offer_responded_at'] ?? null,
 					'unit_id'                  => isset( $r['unit_id'] ) ? (int) $r['unit_id'] : null,
 					'unit_name'                => $r['unit_name'] ?? null,
+					'gender'                   => $gender_map[ $exp_signup_id ] ?? '',
 					'first_name'               => (string) ( $r['first_name'] ?? '' ),
 					'last_name'                => (string) ( $r['last_name'] ?? '' ),
 					'explorer_email'           => (string) ( $r['explorer_email'] ?? '' ),
 					'parent_email'             => $r['parent_email'] ?? null,
 					'dofe_level'               => $ev_level,
 					'expedition_preferences'   => $r['expedition_preferences'] ?? null,
+					'teammate_preferences'     => $edges_map[ $exp_signup_id ] ?? array(),
 					'additional_support_needs' => $r['additional_support_needs'] ?? null,
 					'asn_validated'            => isset( $r['asn_validated'] ) ? (int) $r['asn_validated'] : null,
 					'first_aid_status'         => (string) ( $r['first_aid_status'] ?? 'none' ),
@@ -655,6 +776,70 @@ class TeamController {
 		}
 	}
 
+	public function parse_preferences( \WP_REST_Request $request ): \WP_REST_Response {
+		$body   = $this->get_request_body( $request );
+		$result = $this->get_wishlist_matcher()->parseAll( $body );
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	public function get_preferences_queue( \WP_REST_Request $request ): \WP_REST_Response {
+		$filters = array(
+			'dofe_level'     => sanitize_text_field( (string) ( $request->get_param( 'dofe_level' ) ?? '' ) ),
+			'transport_mode' => sanitize_text_field( (string) ( $request->get_param( 'transport_mode' ) ?? '' ) ),
+			'filter'         => sanitize_text_field( (string) ( $request->get_param( 'filter' ) ?? 'needs_review' ) ),
+		);
+		return new \WP_REST_Response( $this->get_wishlist_matcher()->getQueue( $filters ), 200 );
+	}
+
+	public function get_preference_candidates( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$source_signup_id = absint( $request->get_param( 'source_signup_id' ) );
+		if ( $source_signup_id <= 0 ) {
+			return $this->error( 'ems_invalid_source_signup', 'source_signup_id is required.', 400 );
+		}
+		$query      = sanitize_text_field( (string) ( $request->get_param( 'q' ) ?? '' ) );
+		$candidates = $this->get_wishlist_matcher()->searchCandidates( $source_signup_id, $query );
+		return new \WP_REST_Response( array( 'candidates' => $candidates ), 200 );
+	}
+
+	public function update_preference_decisions( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$source_signup_id = absint( $request->get_param( 'source_signup_id' ) );
+		if ( $source_signup_id <= 0 ) {
+			return $this->error( 'ems_invalid_source_signup', 'source_signup_id is required.', 400 );
+		}
+		$body      = $this->get_request_body( $request );
+		$decisions = is_array( $body['decisions'] ?? null ) ? $body['decisions'] : array();
+		$gender    = array_key_exists( 'gender', $body ) ? (string) $body['gender'] : null;
+		$result    = $gender !== null
+			? $this->get_wishlist_matcher()->saveDecisions( $source_signup_id, $decisions, $gender )
+			: $this->get_wishlist_matcher()->saveDecisions( $source_signup_id, $decisions );
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	public function update_preference_genders( \WP_REST_Request $request ): \WP_REST_Response {
+		$body    = $this->get_request_body( $request );
+		$genders = is_array( $body['genders'] ?? null ) ? $body['genders'] : array();
+		$this->get_preference_repo()->setGenders( $genders );
+		return new \WP_REST_Response(
+			array(
+				'updated' => count( $genders ),
+				'genders' => $this->get_preference_repo()->getGenderMap(),
+			),
+			200
+		);
+	}
+
+	public function propose_teams( \WP_REST_Request $request ): \WP_REST_Response {
+		$body   = $this->get_request_body( $request );
+		$result = $this->get_team_solver()->propose( $body );
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	public function apply_proposed_teams( \WP_REST_Request $request ): \WP_REST_Response {
+		$body   = $this->get_request_body( $request );
+		$result = $this->get_team_solver()->apply( $body );
+		return new \WP_REST_Response( $result, 200 );
+	}
+
 	private function normalize_transport( string $raw ): string {
 		$norm = strtolower( trim( $raw ) );
 		if ( $norm === 'walking' || $norm === 'hillwalking' ) {
@@ -677,8 +862,11 @@ class TeamController {
 		if ( is_array( $json ) && ! empty( $json ) ) {
 			return $json;
 		}
-		$params = $request->get_params();
-		return is_array( $params ) ? $params : array();
+		if ( method_exists( $request, 'get_params' ) ) {
+			$params = $request->get_params();
+			return is_array( $params ) ? $params : array();
+		}
+		return array();
 	}
 
 	/**

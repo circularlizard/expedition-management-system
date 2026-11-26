@@ -15,7 +15,8 @@ import { getUnitDistrictMap, getUniqueDistricts, normalize } from '../signups-bo
 import { Cohort, MatrixEvent, MatrixExplorer, formatDateShort } from './cohortTypes';
 
 export interface StageMatrixViewProps {
-  level: 'bronze' | 'silver' | 'gold';
+  level: string;
+  levels?: ('bronze' | 'silver' | 'gold')[];
   transport: string;
   rootUrl: string;
   nonce: string;
@@ -479,7 +480,15 @@ export default function StageMatrixView({
       {/* ── Matrix Table ── */}
       {filteredRows.length === 0 ? (
         <div className="notice notice-warning ems-m-0">
-          <p>No explorers match the current filters for {level.toUpperCase()} ({transport}).</p>
+          <p>
+            No explorers match the current filters for{' '}
+            {level
+              .split(',')
+              .map((l) => l.trim().toUpperCase())
+              .filter(Boolean)
+              .join(' / ')}{' '}
+            ({transport}).
+          </p>
         </div>
       ) : (
         <div className="ems-matrix-table-wrap">
