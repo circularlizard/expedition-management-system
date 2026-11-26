@@ -1,37 +1,25 @@
 # Automated team solver — design and implementation plan
 
 **Document status:** Design baseline  
-**Scope:** Full-season planning export/import, LLM wishlist prompt helper, local OR-Tools solver pilot, and conditional in-plugin Web Worker integration  
+**Scope:** In-plugin teammate preference matching, hash-tracked confirmation modal, and pure PHP server-side team solver  
 **Target location:** `expedition-management-system/docs/04_AUTOMATED_TEAM_SOLVER_DESIGN.md`
 
-## Recommendation and phased strategy
+## Recommendation and architecture
 
-Use a hybrid pipeline: an LLM (or local fuzzy matcher) turns unstructured teammate wishlists into a clean preference graph, and a classical constraint solver assigns teams and expedition codes deterministically.
+Build the entire automated team-building workflow inside `ems-plugin` with zero external APIs, zero Python tooling, and zero under-18 explorer data leaving the WordPress server.
 
-Run the export, wishlist resolution, and solver script in one pass for the whole season, while letting the solver partition and optimise each `(dofe_level, transport_mode)` bucket independently. That gives you one end-to-end workflow and catches cross-level wishlist mistakes automatically, without mixing Silver and Gold teams.
+Rather than adding a new admin menu tab, keep the whole workflow inside a two-step modal launched from a single **Auto-Propose Teams** button on the **Team Builder** toolbar:
 
-Deliver the system in three gated phases with zero database schema changes and zero risk to live sign-ups:
+1. **Step 1 — Confirm teammate links:** A server-side matcher parses each explorer's free-text `exped_team_names` wishlist against eligible sign-ups in the same `(dofe_level, transport_mode)` bucket. Flagged items (duplicate names, unrecognised names, cross-level requests, or negation wording) appear in a focused review step where you pick the right candidate or override via bucket-scoped search. Confirmed decisions are stored in `ems_teammate_preferences` with an MD5 `wishlist_hash` so unchanged wishlists never need re-reviewing, while edited wishlists automatically re-queue.
+2. **Step 2 — Propose and load draft teams:** A pure PHP 8.2 solver (`TeamSolverService`) partitions active sign-ups by `(dofe_level, transport_mode)` and assigns teams named `<practice_code>-<n>` onto Practice and Qualifier expedition codes. It respects per-expedition maximum team caps as a hard rule and uses First Aid status only as a very low-priority tie-breaker. You inspect the proposed teams and compromises in a preview before committing them strictly as `draft` teams.
 
-1. **Phase 1 — Plugin export/import and prompt helper:** Add full-season JSON export/import endpoints and a modal in the Team Builder, including a one-click prompt generator for Gemini or a local LLM.
-2. **Phase 2 — Local solver pilot:** Run a standalone Python OR-Tools CP-SAT script against real exported sign-ups to validate team quality, tune weights, and review human-readable trade-off reports.
-3. **Phase 3 — In-plugin Web Worker (conditional):** If the pilot saves meaningful time and produces proposals you trust, port the validated scoring model into a browser-side TypeScript Web Worker inside the Team Builder for one-click reuse in future seasons.
+## Data model and source parsing
 
-## Full-season export and import contracts
+All database changes are strictly additive. Existing tables (`ems_participant_signups`, `ems_expedition_signups`, `ems_cohorts`, `ems_team_members`) remain untouched.
 
-Both endpoints sit in `plugins/ems-plugin/src/Modules/Expeditions/` behind `manage_options` capability checks and delegate writes to your existing `CohortRepository` and `CohortSchedulerService`. Every record carries its own `dofe_level` and `transport_mode` so the same contract handles both full-season runs and single-bucket pilots.
+### Source format (`ems_expedition_signups.expedition_preferences`)
 
-The solver works purely on expedition codes (such as `H-SP1` and `H-SQ2`) and does not solve for exact dates or First Aid coverage at this stage. First Aid readiness remains audited in **Teams & Readiness** once draft teams are loaded.
-
-### Planning data export (`GET /wp-json/ems/v1/teams/planning-export`)
-
-**Query parameters:**
-* `dofe_level`: `all` | `bronze` | `silver` | `gold` (default `all`)
-* `transport_mode`: `all` | `foot` | `cycle` | `paddle` (default `all`)
-* `include_locked_teams`: `true` | `false` (default `true`)
-
-**Source parsing (`ems_expedition_signups.expedition_preferences`):**
-
-Each row's `expedition_preferences` column stores JSON in this shape:
+Each active sign-up stores preferences as JSON in this shape:
 
 ```json
 {
@@ -43,238 +31,172 @@ Each row's `expedition_preferences` column stores JSON in this shape:
 
 ```
 
-`TeamProposalService::exportPlanningData()` must:
+Parsing rules:
 
-1. Map `exped_type` case-insensitively to canonical `transport_mode` (`hillwalking` → `foot`, `biking`/`cycling` → `cycle`, `paddling` → `paddle`).
-2. Export `exped_practice_dates` and `exped_qualifier_dates` directly as `available_practice_codes` and `available_qualifier_codes`, recording any code not matched to an active `expedition` CPT in `export_warnings`.
-3. Map `exped_team_names` to `wishlist_raw` and include both `unit_code` and `unit_name` (from `ems_units`) on each explorer record so parenthesised unit hints such as `(Lauderdale ESU)` resolve cleanly.
+* Map `exped_type` case-insensitively to canonical `transport_mode` (`hillwalking` → `foot`, `biking` / `cycling` → `cycle`, `paddling` → `paddle`).
+* Read `exped_practice_dates` and `exped_qualifier_dates` directly as available expedition codes, surfacing any code not linked to an active `expedition` CPT as a warning in the solver preview.
+* Read `exped_team_names` as the raw wishlist input and compute `wishlist_hash = md5(trim($wishlistRaw))` to detect future edits.
 
-**Payload (`ems-planning-export-v1`):**
+### Additive SQL table (`{$wpdb->prefix}ems_teammate_preferences`)
 
-```json
-{
-  "schema_version": "ems-planning-export-v1",
-  "exported_at": "2026-11-26T11:30:00Z",
-  "scope": {
-    "dofe_level": "all",
-    "transport_mode": "all"
-  },
-  "expeditions": [
-    {
-      "code": "H-SP1",
-      "dofe_level": "silver",
-      "transport_mode": "foot",
-      "stage": "practice",
-      "capacity_teams": 4
-    },
-    {
-      "code": "H-SQ2",
-      "dofe_level": "silver",
-      "transport_mode": "foot",
-      "stage": "qualifier",
-      "capacity_teams": 4
-    }
-  ],
-  "explorers": [
-    {
-      "expedition_signup_id": 104,
-      "display_name": "Adam Taylor",
-      "unit_code": "CR-PI-Larkhall",
-      "unit_name": "Larkhall ESU",
-      "dofe_level": "silver",
-      "transport_mode": "foot",
-      "available_practice_codes": ["H-SP1", "H-SP3", "H-SP4"],
-      "available_qualifier_codes": ["H-SQ1", "H-SQ2", "H-SQ3"],
-      "wishlist_raw": "Lucy Hann (Lauderdale ESU)"
-    }
-  ],
-  "locked_teams": [
-    {
-      "cohort_id": 12,
-      "name": "H-SP2-1",
-      "dofe_level": "silver",
-      "transport_mode": "foot",
-      "practice_code": "H-SP2",
-      "qualifier_code": "H-SQ2",
-      "member_signup_ids": [101, 102, 103, 108]
-    }
-  ],
-  "export_warnings": []
-}
+Add via `Table_Installer.php` (`dbDelta()`) and register with `Backup_Manager` via `BackupContributorInterface` so Unified JSON Backups preserve confirmed preferences.
+
+```sql
+CREATE TABLE {$wpdb->prefix}ems_teammate_preferences ( id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, source_signup_id BIGINT UNSIGNED NOT NULL, target_signup_id BIGINT UNSIGNED NULL, wishlist_hash CHAR(32) NOT NULL, raw_token VARCHAR(255) NOT NULL, unit_hint VARCHAR(120) NULL, preference_type VARCHAR(16) NOT NULL DEFAULT 'prefer', match_status VARCHAR(24) NOT NULL DEFAULT 'not_found', confidence_score TINYINT UNSIGNED NOT NULL DEFAULT 0, candidate_ids_json TEXT NULL, flag_negation TINYINT(1) NOT NULL DEFAULT 0, reviewed_by BIGINT UNSIGNED NULL, reviewed_at DATETIME NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, PRIMARY KEY (id), KEY idx_source_signup (source_signup_id), KEY idx_source_hash (source_signup_id, wishlist_hash), KEY idx_target_signup (target_signup_id), KEY idx_match_status (match_status) ) {$charset_collate};
 
 ```
 
-**Data rules:**
+**Identity rule:** Both `source_signup_id` and `target_signup_id` reference `ems_expedition_signups.id`. Links stay collision-free even when an explorer's OSM `scout_id` is still `0`.
 
-* **Minimal PII:** Excludes parent emails, explorer emails, phone numbers, dates of birth, ASN notes, and First Aid fields. Only names, unit details, availability codes, and raw wishlists leave EMS.
-* **Collision-free identity:** Anchored strictly on `expedition_signup_id` so unmatched sign-ups (`scout_id = 0`) never collide.
+## Bucket-aware wishlist matching
 
-### Team proposal import (`POST /wp-json/ems/v1/teams/import-proposal`)
+`WishlistMatcherService` parses `exped_team_names` into individual name tokens and resolves each token against active sign-ups in strict priority order:
 
-**Team naming convention:**
-Every proposed team name must follow `<practice_code>-<n>`, where `<n>` is a 1-based sequence number within that practice expedition code (for example, `H-SP1-1`, `H-SP1-2`, `H-SP2-1`). If locked teams already occupy sequence numbers for a practice code, the solver continues from the next available integer.
+1. **Hash-based drift check:** Compare `md5(trim($wishlistRaw))` against stored `wishlist_hash` rows for `source_signup_id`. If the hash matches and rows are already `confirmed` or `ignored`, skip re-parsing so human decisions are preserved. If `exped_team_names` changed since review, purge stale rows for that explorer and re-parse.
+2. **Tokenisation and unit extraction:** Split comma-, semicolon-, or newline-separated lists, strip common prose prefixes (such as `"Same Wildlife group as per Bronze:"`), and extract parenthesised unit hints such as `(Lauderdale ESU)`. Where names are space-separated with no commas, use sliding two-token windows against the eligible roster.
+3. **Negation guard:** Flag any wishlist containing exclusion wording (`not`, `except`, `without`, `avoid`, `don't`, `do not`) with `flag_negation = 1`. Negation-flagged tokens never auto-confirm; they always enter Step 1 of the modal so an admin can set `preference_type = 'avoid'` or `prefer`.
+4. **Eligible pool matching (same level and mode):** Match tokens only against active sign-ups sharing the exact same `dofe_level` and `transport_mode` as `source_signup_id`. Compare against `explorer_first_name`, `explorer_last_name`, and fuzzy edit distance (Levenshtein / phonetic matching).
+5. **Unit-assisted disambiguation:** When two or more eligible explorers share a name (for example, two John Smiths in Silver Hillwalking), compare `unit_hint` against `ems_units.name` and `ems_units.short_code`. A clear unit match promotes the right candidate; without a decisive hint, all plausible candidates are stored in `candidate_ids_json` and flagged `ambiguous`.
+6. **Cross-bucket detection:** If a token finds no match in the eligible pool, check sign-ups in other levels or modes. If found there, store the match in `candidate_ids_json` with status `cross_bucket` so the modal explains why they cannot be paired (for example, *"Signed up for Gold Hillwalking — ineligible"*).
 
-**Payload (`ems-team-proposal-v1`):**
+### Preference status states
 
-```json
-{
-  "schema_version": "ems-team-proposal-v1",
-  "options": {
-    "dry_run": true,
-    "clear_existing_drafts": false
-  },
-  "teams": [
-    {
-      "name": "H-SP1-1",
-      "dofe_level": "silver",
-      "transport_mode": "foot",
-      "practice_code": "H-SP1",
-      "qualifier_code": "H-SQ2",
-      "notes": "Auto-proposed: 6/6 mutual friends.",
-      "members": [
-        {
-          "expedition_signup_id": 104,
-          "practice_override": "matched",
-          "qualifier_override": "matched"
-        },
-        {
-          "expedition_signup_id": 109,
-          "practice_override": "matched",
-          "qualifier_override": "date_conflict_pending"
-        }
-      ]
-    }
-  ],
-  "split_date_placements": [
-    {
-      "expedition_signup_id": 115,
-      "home_team_name": "H-SP1-1",
-      "dofe_level": "silver",
-      "transport_mode": "foot",
-      "stage": "qualifier",
-      "guest_team_name": "H-SP1-2",
-      "expedition_code": "H-SQ3"
-    }
-  ]
-}
+| Status | Meaning | Solver behaviour |
+| --- | --- | --- |
+| **`auto_matched`** | Single high-confidence match in the same level and mode, no negation flag | Included as a soft edge (editable in Step 1 if desired) |
+| **`confirmed`** | Explicitly confirmed or linked by an admin in Step 1 | Included as a confirmed `prefer` or `avoid` edge |
+| **`ambiguous`** | Two or more plausible matches in the same level and mode | Ignored by solver until resolved in Step 1 |
+| **`cross_bucket`** | Matches a sign-up in a different level or mode | Ignored by solver (ineligible) |
+| **`not_found`** | No match in any bucket | Ignored by solver |
+| **`ignored`** | Admin dismissed the token (friend not signed up or note not actionable) | Ignored by solver |
 
-```
+## Two-step Auto-Propose modal inside Team Builder
 
-On import, `TeamProposalService::importProposal()` resolves `practice_code`, `qualifier_code`, and `expedition_code` to their matching WordPress `expedition` CPT post IDs before delegating to `CohortRepository` and `CohortSchedulerService`.
+Launch from a single **Auto-Propose Teams** button in the Team Builder toolbar (no new top-level menu tab).
 
-### Strict safety guards on import
+### Step 1 — Confirm teammate links
 
-| Guard | Behaviour |
-| --- | --- |
-| **Mandatory dry-run preview** | The UI always posts `dry_run: true` first. The backend verifies that every `expedition_signup_id` and expedition code exists and matches the team's `dofe_level` and `transport_mode`, checks 4–7 team sizes per stage, and returns a structured preview before writing. |
-| **Draft-only writes** | Every imported team and `ems_team_members` row is written strictly as `notification_status = 'draft'`. The importer never calls `wp_mail()` or `ExpeditionOfferDispatcher`. |
-| **Scoped draft clearing** | If `clear_existing_drafts: true` is selected, the importer clears only 100%-draft teams belonging to the `(dofe_level, transport_mode)` buckets present in the uploaded file. Importing a Silver file never touches Gold drafts. |
-| **Notified protection** | Any team or member already marked `notified` is never modified or deleted; conflicts are skipped and surfaced in the dry-run summary. |
+* **Default filter:** Shows **Needs Review** (`ambiguous`, `not_found`, `cross_bucket`, `flag_negation = 1`) with a toggle to **Show All Parsed Wishlists**.
+* **Disambiguation and notices:** For `ambiguous` matches (such as two John Smiths), renders radio buttons showing each candidate's full name, unit (`ems_units.name`), and shared expedition code count. For `cross_bucket` and `not_found` tokens, displays clear inline notices.
+* **Bucket-scoped search override:** Every token row includes a **Search & override** picker querying strictly within the explorer's own `(dofe_level, transport_mode)` bucket by name or unit, plus a `Prefer` / `Avoid` toggle and an **+ Add teammate** action for prose-only notes.
+* **Proceed to Solver:** Saves decisions to `ems_teammate_preferences` and advances to Step 2 (or lets the admin jump straight to Step 2 if zero flagged items remain).
 
-## Built-in LLM prompt helper for wishlists
+### Step 2 — Generate proposal and load draft teams
 
-The **Auto-Plan (Export / Import)** modal in the Team Builder includes a **Copy Wishlist Prompt** button alongside the JSON download. It copies a pre-populated prompt containing the full roster (`expedition_signup_id`, `display_name`, `unit_code`, `unit_name`, `dofe_level`, `transport_mode`, `wishlist_raw`) ready to paste into Gemini or a local model (Ollama / LM Studio).
+* **Scope and weight controls:** Choose current `(dofe_level, transport_mode)` filter or **Full Season (All Buckets)**, adjust optional priority weights, and click **Generate Proposal**.
+* **Read-only preview:** Displays proposed teams (`H-SP1-1`, `H-SP1-2`, etc.) with Practice and Qualifier codes, member lists, team size (4–7), expedition capacity usage (for example, `3/4 teams on H-SP1`), friend-match counts, and an **Exceptions & Compromises** summary (`date_conflict_pending`, `split_date`, unfulfilled mutual requests).
+* **Load as Draft Teams:** Commits the previewed proposal strictly as `notification_status = 'draft'` teams via `CohortRepository` and `CohortSchedulerService`, with an optional **Replace existing draft teams in scope** checkbox.
 
-```text
-You are a data-cleaning assistant. Map each explorer's free-text teammate wishlist to exact `expedition_signup_id` values from the provided full-season roster.
+## Server-side PHP solver (`TeamSolverService`)
 
-RULES:
-1. Output valid JSON matching the schema below. No markdown prose.
-2. Match nicknames, minor spelling errors, and unit hints (including parenthesised units such as "(Lauderdale ESU)" or phrases like "Same Wildlife group") against `display_name`, `unit_code`, and `unit_name`.
-3. Use `weight: 1` for preferred teammates and `weight: -10` for explicit "do not pair" requests.
-4. Only add an edge to `edges` when source and target share the same `dofe_level` and `transport_mode`.
-5. If a requested teammate is in the roster under a different `dofe_level` or `transport_mode`, record them in `cross_bucket_mismatches` rather than `edges`.
-6. If a requested name does not appear in the roster at all, record them in `unresolved` instead of guessing.
+Because each `(dofe_level, transport_mode)` bucket holds roughly 15–55 explorers, a pure PHP 8.2 greedy + Simulated Annealing solver completes a full season in under two seconds with zero external dependencies and no shared-hosting timeout risk.
 
-OUTPUT SCHEMA:
-{
-  "edges": [
-    { "source_id": 104, "target_id": 112, "weight": 1, "confidence": "high", "note": "Exact match" }
-  ],
-  "cross_bucket_mismatches": [
-    { "source_id": 104, "target_id": 205, "raw_text": "Dylan Fletcher", "reason": "Source is silver/foot; target is gold/foot" }
-  ],
-  "unresolved": [
-    { "source_id": 104, "raw_text": "Sam Jones", "reason": "Not found in roster" }
-  ]
-}
+### Partitioned model
 
-ROSTER:
-{{INSERT_ROSTER_JSON_HERE}}
-
-```
-
-> **Under-18 PII note:** If you prefer not to send explorer names to a third-party free-tier API, run the prompt against a local model (such as Ollama) or use the offline `fuzzy_wishlist.py` (`rapidfuzz`) script included in `tools/team-solver/`.
-
-## Local solver pilot (`tools/team-solver/`)
-
-The pilot solver lives under `expedition-management-system/tools/team-solver/`, outside `plugins/ems-plugin/` so it adds zero weight to the WordPress deployable zip.
-
-### Inputs and outputs
-
-* **Inputs:** `planning-export.json` (from EMS), `preferences.json` (from the LLM prompt or `fuzzy_wishlist.py`), and `weights.json` (tunable priorities).
-* **Outputs:**
-1. `proposal.json` — conforms strictly to `ems-team-proposal-v1` with `<practice_code>-<n>` team names for upload into EMS.
-2. `tradeoff_report.md` — human-readable audit grouped by `(dofe_level, transport_mode)` showing each team's name, Practice/Qualifier codes, size, friend-match rate, `cross_bucket_mismatches`, and an **Exceptions & Compromises** table (`date_conflict_pending`, `split_date`, unfulfilled mutual requests).
-
-
-
-### Partitioned optimisation model (Google OR-Tools CP-SAT)
-
-The script partitions `expeditions`, `explorers`, `locked_teams`, and `edges` by `(dofe_level, transport_mode)` and solves each bucket independently in under two seconds.
+The solver partitions unlocked sign-ups, expedition codes, locked teams, and confirmed/auto-matched preferences by `(dofe_level, transport_mode)` and solves each bucket independently.
 
 **Hard constraints (never broken):**
 
 * Every unlocked explorer is placed in one Practice team and one Qualifier team within their `(dofe_level, transport_mode)` bucket.
 * Every active team on every expedition code has strictly 4–7 members.
-* Locked teams from `locked_teams[]` remain fixed.
+* **Per-expedition maximum teams:** The number of teams assigned to any expedition code (including already locked teams on that code) must not exceed that expedition's configured team capacity (`_ems_max_teams` / `_ems_capacity_teams` meta on the `expedition` CPT; treated as uncapped when `0` or unset).
+* Locked teams (any existing team containing `notified` members, or manually locked by the admin) remain fixed.
 
-**Tunable soft objectives (`weights.json`):**
+**Tunable soft objectives (default weights):**
 
 | Objective | Default weight | Effect |
 | --- | --- | --- |
-| **Do-not-pair exclusion** | `-500` | Strongly separates explicit exclusions |
+| **Avoid exclusion** | `-500` | Strongly separates `preference_type = 'avoid'` pairs |
 | **Cross-stage continuity** | `+100` | Keeps the same team together across Practice and Qualifier (minimises `split_date`) |
 | **Code availability** | `+80` | Avoids unavailable expedition codes (minimises `date_conflict_pending`) |
 | **Mutual wishlist pair** | `+25` | Keeps mutually requested friends together |
 | **One-way wishlist request** | `+10` | Satisfies one-way friend requests where availability allows |
 | **Same unit tie-breaker** | `+5` | Groups explorers from the same Unit when no wishlist link exists |
+| **First Aid presence (low priority)** | `+5` | Gentle tie-breaker when a team already has valid First Aid (`COALESCE(e.first_aid_level, s.first_aid_status)`), without overriding friend links or availability |
 
-## Phased implementation plan
+### Team naming convention
 
-### Phase 1 — Plugin export/import and prompt helper (1–2 days)
+Every proposed team name follows `<practice_code>-<n>`, where `<n>` is a 1-based sequence number within that practice expedition code (for example, `H-SP1-1`, `H-SP1-2`, `H-SP2-1`). If locked teams already occupy sequence numbers for a practice code, the solver continues from the next available integer.
 
-1. **Shared contracts (`packages/contracts/src/index.ts`):** Add `PlanningExportDTO`, `TeamProposalDTO`, and `ProposalDryRunResultDTO`.
-2. **Backend service and REST routes (`plugins/ems-plugin/src/Modules/Expeditions/`):**
-* Create `Services/TeamProposalService.php` implementing `exportPlanningData()` (parsing `expedition_preferences` JSON and including `unit_name`) and `importProposal()` (resolving expedition codes to `expedition` CPT post IDs and delegating writes to `CohortRepository` and `CohortSchedulerService`).
-* Register `GET /wp-json/ems/v1/teams/planning-export` and `POST /wp-json/ems/v1/teams/import-proposal` in `Rest/CohortController.php` (`manage_options`).
-* Add PHPUnit tests covering `expedition_preferences` parsing, full-season vs single-bucket exports, dry-run validation, scoped `clear_existing_drafts`, `draft`-only writes, zero `wp_mail()` calls, and protection of `notified` teams.
+### Strict safety guards
+
+* **Draft-only writes:** Every created team and `ems_team_members` row is written strictly as `notification_status = 'draft'`. Neither the solver nor the apply endpoint ever calls `wp_mail()` or `ExpeditionOfferDispatcher`.
+* **Scoped draft clearing:** When **Replace existing draft teams in scope** is selected, clears only 100%-draft teams belonging to the `(dofe_level, transport_mode)` buckets in the proposal.
+* **Notified protection:** Any team or member already marked `notified` is never modified or deleted.
+
+## REST API contracts (`/wp-json/ems/v1/`)
+
+All endpoints require `manage_options` and WordPress REST nonce verification.
+
+| Route | Method | Purpose |
+| --- | --- | --- |
+| `ems/v1/preferences/parse` | `POST` | Run `WishlistMatcherService` across all (or scoped) sign-ups, skipping explorers whose `wishlist_hash` matches already `confirmed` / `ignored` rows |
+| `ems/v1/preferences/queue` | `GET` | Return review items (`dofe_level`, `transport_mode`, `filter=needs_review|all`) with candidate metadata and unit names |
+| `ems/v1/preferences/candidates` | `GET` | Bucket-scoped search (`source_signup_id`, `q`) returning only eligible sign-ups in the same `(dofe_level, transport_mode)` |
+| `ems/v1/preferences/{source_signup_id}` | `PUT` | Save reviewed links (`confirmed` / `ignored`, `prefer` / `avoid`, manual additions) for one explorer |
+| `ems/v1/teams/solver/propose` | `POST` | Run `TeamSolverService` in memory for one bucket or all buckets; return proposed teams, capacity counts, and exceptions report (zero DB writes) |
+| `ems/v1/teams/solver/apply` | `POST` | Validate and commit an accepted proposal strictly as `draft` teams via `CohortRepository` / `CohortSchedulerService` |
+
+## Single-evening implementation plan
+
+1. **Backend schema, matcher, and solver (`Subagent 1A`):**
+* Add `ems_teammate_preferences` (with `wishlist_hash`) to `Table_Installer.php` (bump `EMS_DB_VERSION`) and register with `Backup_Manager`.
+* Implement `WishlistPreferenceRepository.php`, `WishlistMatcherService.php`, and `TeamSolverService.php` (partitioned greedy + Simulated Annealing enforcing 4–7 team sizes, per-expedition max teams, locked-team preservation, `<practice_code>-<n>` naming, and `+5` First Aid tie-breaker).
+* Register the 6 REST routes in `CohortController.php` (`manage_options`) and add PHPUnit tests covering hash drift detection, duplicate-name disambiguation, cross-bucket warnings, negation flags, per-expedition max teams, `<practice_code>-<n>` naming, `draft`-only writes, and zero `wp_mail()` calls.
 
 
-3. **Team Builder UI (`resources/js/admin/expedition-board/`):**
-* Add an **Auto-Plan (Export / Import)** button in the Team Builder toolbar opening a modal with a **Full Season (All Levels & Modes)** toggle (defaulting to checked), **Download Planning JSON**, **Copy Wishlist Prompt**, and **Import Proposal JSON** (dry-run preview followed by **Load as Draft Teams**).
+2. **Shared contracts and Team Builder two-step modal (`Subagent 1B`):**
+* Add TypeScript DTOs in `packages/contracts/src/index.ts`.
+* Build `AutoProposeTeamsModal.tsx` inside `resources/js/admin/expedition-board/` with Step 1 (**Confirm Teammate Links** — radio candidates, cross-bucket/missing notices, bucket-scoped search override, `Prefer` / `Avoid` toggle, `+ Add teammate`) and Step 2 (**Propose Teams** — scope selector, weight controls, preview of `<practice_code>-<n>` teams and compromises, and **Load as Draft Teams**).
+* Update Team Builder pool cards to read confirmed edges from `ems_teammate_preferences` where present, and add Vitest tests for both modal steps.
+
+
+3. **Verification and local deploy (`Main Agent`):**
+* Run `npm run verify:all` inside `./expedition-management-system`, deploy locally with `bash bin/deploy.sh ems`, and smoke-test against your live sign-ups snapshot.
 
 
 
-### Phase 2 — Local solver pilot (1–2 days)
 
-1. **Scaffold `tools/team-solver/`:**
-* `solve.py` (partitioned OR-Tools CP-SAT solver, `<practice_code>-<n>` team namer, `proposal.json` writer, and `tradeoff_report.md` generator).
-* `fuzzy_wishlist.py` (offline `rapidfuzz` fallback supporting parenthesised unit hints).
-* `weights.json` and `requirements.txt` (`ortools`, `rapidfuzz`).
+---
 
+### Single-evening Antigravity (`agy`) prompt
 
-2. **Pilot and tune:**
-* Export your live season sign-ups from EMS, parse wishlists, and run `python solve.py`.
-* Inspect `tradeoff_report.md`, adjust `weights.json` if needed, import `proposal.json` as Drafts in local/staging EMS, and verify how much manual tweaking remains in the Team Builder.
+Save the file above, then run this prompt at `EMS/`:
 
+```text
+Read `./expedition-management-system/docs/04_AUTOMATED_TEAM_SOLVER_DESIGN.md` and `./expedition-management-system/docs/02_TARGET_DATA_MODEL_AND_CONTRACTS.md`.
+You are the Lead Builder implementing the **Automated Team Solver & Two-Step Confirmation Modal** inside `./expedition-management-system`.
 
+CRITICAL SAFETY RULES:
+- Never modify or drop existing columns on `ems_participant_signups`, `ems_expedition_signups`, `ems_cohorts`, or `ems_team_members`. Only add the new `ems_teammate_preferences` table via `Table_Installer.php` (`dbDelta()`).
+- Imported/proposed teams and members MUST be written strictly as `notification_status = 'draft'`. Never call `wp_mail()` or `ExpeditionOfferDispatcher`.
+- Never overwrite or delete any team or member already marked `notified`.
+- Do NOT add a new top-level tab in `Expeditions & Teams`; keep the workflow inside a two-step modal launched from the **Team Builder** toolbar.
 
-### Phase 3 — In-plugin Web Worker integration (post-pilot decision gate)
+Execute using 2 parallel subagents on disjoint scopes:
 
-Proceed only if Phase 2 proves the solver produces reliable proposals and saves meaningful manual work:
+1. **Subagent 1A (`backend-matcher-and-solver`):**
+   - Add `{$wpdb->prefix}ems_teammate_preferences` (including `wishlist_hash CHAR(32)`) to `plugins/ems-plugin/src/Core/Table_Installer.php` (bump `EMS_DB_VERSION`) and register it with `Backup_Manager` (`BackupContributorInterface`).
+   - Create `WishlistPreferenceRepository.php` and `WishlistMatcherService.php` in `plugins/ems-plugin/src/Modules/Expeditions/Services/`:
+     - Parse `ems_expedition_signups.expedition_preferences` (`exped_type`, `exped_practice_dates`, `exped_qualifier_dates`, `exped_team_names`).
+     - Preserve `confirmed` / `ignored` rows when `md5(trim($wishlistRaw)) === wishlist_hash`; purge and re-parse when the hash changes.
+     - Extract parenthesised unit hints (`(Lauderdale ESU)`), flag negation wording (`not`, `except`, `without`, `avoid`), disambiguate duplicate names within the same `(dofe_level, transport_mode)` using `ems_units`, and flag cross-bucket matches (`cross_bucket`).
+   - Create `TeamSolverService.php` implementing a partitioned greedy + Simulated Annealing solver per `(dofe_level, transport_mode)`:
+     - Hard constraints: 4–7 members per team per stage, per-expedition maximum team capacity (uncapped if unset/`0`), and fixed locked/`notified` teams.
+     - Soft weights: Avoid (`-500`), Cross-stage continuity (`+100`), Code availability (`+80`), Mutual wishlist (`+25`), One-way wishlist (`+10`), Same unit (`+5`), First Aid presence (`+5` low-priority tie-breaker).
+     - Name proposed teams `<practice_code>-<n>` continuing after any existing sequence numbers on that practice code.
+   - Register `POST /preferences/parse`, `GET /preferences/queue`, `GET /preferences/candidates` (strictly bucket-scoped), `PUT /preferences/{source_signup_id}`, `POST /teams/solver/propose`, and `POST /teams/solver/apply` in `Rest/CohortController.php` (`manage_options`).
+   - Add PHPUnit tests covering hash drift detection, duplicate-name disambiguation, cross-bucket flagging, negation flagging, bucket-scoped candidate search, per-expedition max teams, `<practice_code>-<n>` naming, `draft`-only writes, scoped draft clearing, and zero `wp_mail()` calls.
 
-1. **Pure TypeScript solver (`resources/js/admin/expedition-board/solver/`):** Port the validated `weights.json` scoring model to a greedy + Simulated Annealing solver running inside a browser Web Worker (zero PHP server load, zero WASM payload, tested against anonymised season fixtures in Vitest).
-2. **In-browser wishlist review:** Add a lightweight fuzzy matcher with a quick review screen for unresolved names and cross-bucket mismatches.
-3. **One-click modal:** Upgrade the **Auto-Plan** modal to run the Web Worker locally, display the trade-off summary, and post `TeamProposalDTO` directly to `/wp-json/ems/v1/teams/import-proposal`, keeping JSON export/import tucked under an **Advanced** toggle.
+2. **Subagent 1B (`contracts-and-team-builder-modal`):**
+   - Add shared TypeScript DTOs for preference items, review candidates, solver weights, proposal previews, and apply requests in `packages/contracts/src/index.ts`.
+   - Build `AutoProposeTeamsModal.tsx` inside `plugins/ems-plugin/resources/js/admin/expedition-board/` launched by an **Auto-Propose Teams** button on the Team Builder toolbar:
+     - **Step 1 (Confirm Teammate Links):** Runs `/preferences/parse`, defaults to **Needs Review** (`ambiguous`, `not_found`, `cross_bucket`, `flag_negation`) with a toggle for **All**, renders radio candidates with unit names for duplicate names, provides a bucket-scoped **Search & override** picker, `Prefer` / `Avoid` toggle, `+ Add teammate` search, and saves via `PUT /preferences/{source_signup_id}`.
+     - **Step 2 (Propose & Load Draft Teams):** Scope selector (current bucket vs Full Season), adjustable weight inputs, **Generate Proposal** preview showing `<practice_code>-<n>` teams, expedition capacity counts, and compromises (`date_conflict_pending`, `split_date`, unfulfilled mutual pairs), plus **Load as Draft Teams** with optional scoped draft replacement.
+   - Update Team Builder pool cards to read confirmed edges from `ems_teammate_preferences` when available, and add Vitest tests covering both modal steps.
 
+Main Agent after subagents finish:
+- Run `npm run verify:all` inside `./expedition-management-system`.
+- Run `bash bin/deploy.sh ems` inside `./expedition-management-system`, verify `wp_ems_teammate_preferences` is created cleanly and existing sign-up rows are untouched, and report the summary and commit log.
+
+```
