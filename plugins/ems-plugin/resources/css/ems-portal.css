@@ -203,6 +203,10 @@
     flex-direction: column;
 }
 
+.ems-wrap {
+    flex-wrap: wrap;
+}
+
 /* Gap scale */
 .ems-gap-2  { gap: 2px; }
 .ems-gap-4  { gap: 4px; }
@@ -623,14 +627,14 @@
 
 
 /* Participant Portal Responsive Enhancements */
-.ems-portal-overview-grid {
+.ems-portal-root .ems-portal-overview-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
     margin-bottom: 20px;
 }
 
-.ems-portal-event-header {
+.ems-portal-root .ems-portal-event-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -641,27 +645,27 @@
 }
 
 @media screen and (max-width: 768px) {
-    .ems-portal-container {
+    .ems-portal-root.ems-portal-container {
         padding: 12px;
     }
     
-    .ems-portal-overview-grid {
+    .ems-portal-root .ems-portal-overview-grid {
         grid-template-columns: 1fr;
     }
     
-    .ems-portal-event-header {
+    .ems-portal-root .ems-portal-event-header {
         flex-direction: column;
         align-items: flex-start;
     }
     
-    .ems-portal-event-header button {
+    .ems-portal-root .ems-portal-event-header button {
         align-self: flex-start;
     }
 
-    .portal-nav-tabs,
-    .category-tabs,
-    .sub-tabs,
-    .child-selector {
+    .ems-portal-root .portal-nav-tabs,
+    .ems-portal-root .category-tabs,
+    .ems-portal-root .sub-tabs,
+    .ems-portal-root .child-selector {
         flex-wrap: wrap !important;
     }
 }
@@ -677,21 +681,21 @@
 }
 
 /* ─── Frontend Portal Theme Reset Rules ───────────────────────────────────── */
-.ems-portal-container {
+.ems-portal-root.ems-portal-container {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
     color: #3c434a;
     line-height: 1.4;
 }
 
-.ems-portal-container *,
-.ems-portal-container *::before,
-.ems-portal-container *::after {
+.ems-portal-root.ems-portal-container *,
+.ems-portal-root.ems-portal-container *::before,
+.ems-portal-root.ems-portal-container *::after {
     box-sizing: border-box;
 }
 
-.ems-portal-container button,
-.ems-portal-container .button,
-.ems-portal-container input[type="submit"] {
+.ems-portal-root.ems-portal-container button,
+.ems-portal-root.ems-portal-container .button,
+.ems-portal-root.ems-portal-container input[type="submit"] {
     font-family: inherit;
     font-size: 13px;
     line-height: 2.15384615;
@@ -706,11 +710,11 @@
     box-sizing: border-box;
 }
 
-.ems-portal-container select,
-.ems-portal-container input[type="text"],
-.ems-portal-container input[type="email"],
-.ems-portal-container input[type="number"],
-.ems-portal-container textarea {
+.ems-portal-root.ems-portal-container select,
+.ems-portal-root.ems-portal-container input[type="text"],
+.ems-portal-root.ems-portal-container input[type="email"],
+.ems-portal-root.ems-portal-container input[type="number"],
+.ems-portal-root.ems-portal-container textarea {
     box-sizing: border-box;
     font-family: inherit;
     font-size: 14px;
@@ -921,14 +925,39 @@
 
 /* ─── Front-End Leader Dashboard Theme-Compatible Refinements ──────────── */
 
+.ems-leader-dashboard,
+.ems-leader-dashboard-root {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.ems-leader-dashboard__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    max-width: 100%;
+}
+
+.ems-leader-dashboard__filters > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    min-width: 0;
+}
+
 .ems-leader-dashboard label,
+.ems-leader-dashboard-root label,
 .ems-leader-dashboard__nowrap {
     white-space: nowrap;
     margin-bottom: 0;
 }
 
-.ems-leader-dashboard select {
+.ems-leader-dashboard select,
+.ems-leader-dashboard-root select {
     width: auto;
+    min-width: 0;
     max-width: 100%;
     appearance: none;
     -webkit-appearance: none;
@@ -940,11 +969,13 @@
     background-size: 12px 12px;
 }
 
-.ems-leader-dashboard button {
+.ems-leader-dashboard button,
+.ems-leader-dashboard-root button {
     white-space: nowrap;
 }
 
-.ems-leader-dashboard button:disabled {
+.ems-leader-dashboard button:disabled,
+.ems-leader-dashboard-root button:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
@@ -954,7 +985,7 @@
    Participant Portal Admin Preview Bar
    ========================================================================== */
 
-.ems-portal-admin-bar {
+.ems-portal-root .ems-portal-admin-bar {
     background: #f0f6fc;
     border: 1px solid #c8d8e8;
     border-left: 4px solid #2271b1;
@@ -968,7 +999,7 @@
     flex-wrap: wrap;
 }
 
-.ems-portal-admin-bar__title {
+.ems-portal-root .ems-portal-admin-bar__title {
     font-weight: 600;
     font-size: 13px;
     color: #1e3a5f;
@@ -977,7 +1008,7 @@
     gap: 8px;
 }
 
-.ems-portal-admin-bar__badge {
+.ems-portal-root .ems-portal-admin-bar__badge {
     background: #2271b1;
     color: #fff;
     font-size: 11px;
@@ -988,14 +1019,14 @@
     text-transform: uppercase;
 }
 
-.ems-portal-admin-bar__controls {
+.ems-portal-root .ems-portal-admin-bar__controls {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-.ems-portal-admin-bar__search {
+.ems-portal-root .ems-portal-admin-bar__search {
     padding: 6px 10px;
     border-radius: 4px;
     border: 1px solid #8c8f94;
@@ -1004,7 +1035,7 @@
     width: 200px;
 }
 
-.ems-portal-admin-bar__select {
+.ems-portal-root .ems-portal-admin-bar__select {
     padding: 6px 12px;
     border-radius: 4px;
     border: 1px solid #8c8f94;
@@ -1014,7 +1045,7 @@
     max-width: 420px;
 }
 
-.ems-portal-admin-bar__btn-reset {
+.ems-portal-root .ems-portal-admin-bar__btn-reset {
     padding: 4px 12px !important;
     font-size: 12px !important;
     border-radius: 3px !important;
@@ -1058,7 +1089,7 @@
     box-shadow: none;
 }
 
-.ems-portal-switcher {
+.ems-portal-root .ems-portal-switcher {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1071,13 +1102,13 @@
     border-radius: 6px;
 }
 
-.ems-portal-switcher__label {
+.ems-portal-root .ems-portal-switcher__label {
     font-weight: 700;
     font-size: 13.5px;
     color: var(--ems-scout-navy);
 }
 
-.ems-portal-switcher__buttons {
+.ems-portal-root .ems-portal-switcher__buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -1109,7 +1140,7 @@
     box-shadow: 0 2px 6px rgba(0, 57, 130, 0.25);
 }
 
-.ems-portal-tabs {
+.ems-portal-root .ems-portal-tabs {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
@@ -1226,7 +1257,7 @@
     color: var(--ems-scout-navy);
 }
 
-.ems-portal-offer-card {
+.ems-portal-root .ems-portal-offer-card {
     background: var(--ems-scout-surface);
     border: 1px solid var(--ems-scout-border);
     border-top: 4px solid var(--ems-scout-navy);
@@ -1235,7 +1266,7 @@
     margin-bottom: 18px;
 }
 
-.ems-portal-offer-card__header {
+.ems-portal-root .ems-portal-offer-card__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1246,14 +1277,14 @@
     margin-bottom: 14px;
 }
 
-.ems-portal-offer-card__title {
+.ems-portal-root .ems-portal-offer-card__title {
     margin: 0;
     font-size: 17px;
     font-weight: 700;
     color: var(--ems-scout-navy);
 }
 
-.ems-portal-deadline-pill {
+.ems-portal-root .ems-portal-deadline-pill {
     display: inline-flex;
     align-items: center;
     padding: 4px 11px;
@@ -1264,7 +1295,7 @@
     font-weight: 700;
 }
 
-.ems-portal-offer-grid {
+.ems-portal-root .ems-portal-offer-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
@@ -1272,12 +1303,12 @@
 }
 
 @media (max-width: 720px) {
-    .ems-portal-offer-grid {
+    .ems-portal-root .ems-portal-offer-grid {
         grid-template-columns: 1fr;
     }
 }
 
-.ems-portal-offer-section-label {
+.ems-portal-root .ems-portal-offer-section-label {
     font-size: 11.5px;
     font-weight: 700;
     text-transform: uppercase;
@@ -1286,7 +1317,7 @@
     margin-bottom: 6px;
 }
 
-.ems-portal-stage-list {
+.ems-portal-root .ems-portal-stage-list {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -1295,7 +1326,7 @@
     gap: 6px;
 }
 
-.ems-portal-stage-item {
+.ems-portal-root .ems-portal-stage-item {
     font-size: 13.5px;
     color: #0f172a;
     padding: 7px 10px;
@@ -1304,7 +1335,7 @@
     border-radius: 5px;
 }
 
-.ems-portal-teammate-groups {
+.ems-portal-root .ems-portal-teammate-groups {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -1313,14 +1344,14 @@
     gap: 8px;
 }
 
-.ems-portal-teammate-group {
+.ems-portal-root .ems-portal-teammate-group {
     display: flex;
     align-items: baseline;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-.ems-portal-unit-pill {
+.ems-portal-root .ems-portal-unit-pill {
     display: inline-flex;
     align-items: center;
     padding: 2px 10px;
@@ -1333,13 +1364,13 @@
     white-space: nowrap;
 }
 
-.ems-portal-teammate-names {
+.ems-portal-root .ems-portal-teammate-names {
     font-size: 13.5px;
     font-weight: 500;
     color: #0f172a;
 }
 
-.ems-portal-offer-actions {
+.ems-portal-root .ems-portal-offer-actions {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1348,7 +1379,7 @@
     border-top: 1px solid #e2e8f0;
 }
 
-.ems-portal-offer-confirmation {
+.ems-portal-root .ems-portal-offer-confirmation {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1360,25 +1391,25 @@
     margin-top: 8px;
 }
 
-.ems-portal-offer-confirmation--accepted {
+.ems-portal-root .ems-portal-offer-confirmation--accepted {
     background: #edfaef;
     border: 1px solid #86efac;
     color: #166534;
 }
 
-.ems-portal-offer-confirmation--queried {
+.ems-portal-root .ems-portal-offer-confirmation--queried {
     background: #fffbeb;
     border: 1px solid #fde68a;
     color: #92400e;
 }
 
-.ems-portal-offer-confirmation--declined {
+.ems-portal-root .ems-portal-offer-confirmation--declined {
     background: #fef2f2;
     border: 1px solid #fecaca;
     color: #991b1b;
 }
 
-.ems-portal-query-box {
+.ems-portal-root .ems-portal-query-box {
     margin-top: 12px;
     padding: 12px;
     background: #f8fafc;
@@ -1389,7 +1420,7 @@
     gap: 10px;
 }
 
-.ems-portal-query-box textarea {
+.ems-portal-root .ems-portal-query-box textarea {
     width: 100%;
     padding: 8px 10px;
     border: 1px solid #94a3b8;
@@ -1399,7 +1430,7 @@
     box-sizing: border-box;
 }
 
-.ems-portal-event-card {
+.ems-portal-root .ems-portal-event-card {
     background: #ffffff;
     border: 1px solid var(--ems-scout-border);
     border-radius: 8px;
@@ -1407,14 +1438,14 @@
     margin-bottom: 16px;
 }
 
-.ems-portal-event-card__title {
+.ems-portal-root .ems-portal-event-card__title {
     margin: 0 0 12px 0;
     font-size: 16px;
     font-weight: 700;
     color: var(--ems-scout-navy);
 }
 
-.ems-portal-meta-grid {
+.ems-portal-root .ems-portal-meta-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
@@ -1425,12 +1456,12 @@
 }
 
 @media (max-width: 760px) {
-    .ems-portal-meta-grid {
+    .ems-portal-root .ems-portal-meta-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-.ems-portal-meta-grid__label {
+.ems-portal-root .ems-portal-meta-grid__label {
     display: block;
     font-size: 11px;
     font-weight: 700;
@@ -1440,13 +1471,13 @@
     margin-bottom: 3px;
 }
 
-.ems-portal-meta-grid__value {
+.ems-portal-root .ems-portal-meta-grid__value {
     font-size: 13.5px;
     font-weight: 600;
     color: #0f172a;
 }
 
-.ems-portal-nested-expeditions {
+.ems-portal-root .ems-portal-nested-expeditions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
@@ -1456,19 +1487,19 @@
 }
 
 @media (max-width: 720px) {
-    .ems-portal-nested-expeditions {
+    .ems-portal-root .ems-portal-nested-expeditions {
         grid-template-columns: 1fr;
     }
 }
 
-.ems-portal-nested-exp-card {
+.ems-portal-root .ems-portal-nested-exp-card {
     background: #f8fafc;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 12px 14px;
 }
 
-.ems-portal-nested-exp-card__header {
+.ems-portal-root .ems-portal-nested-exp-card__header {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1476,7 +1507,7 @@
     margin-bottom: 6px;
 }
 
-.ems-portal-stage-badge {
+.ems-portal-root .ems-portal-stage-badge {
     display: inline-flex;
     align-items: center;
     padding: 2px 8px;
@@ -1489,20 +1520,20 @@
     letter-spacing: 0.03em;
 }
 
-.ems-portal-nested-exp-card__code {
+.ems-portal-root .ems-portal-nested-exp-card__code {
     font-size: 14px;
     font-weight: 700;
     color: var(--ems-scout-navy);
 }
 
-.ems-portal-nested-exp-card__dates {
+.ems-portal-root .ems-portal-nested-exp-card__dates {
     font-size: 13.5px;
     font-weight: 600;
     color: #0f172a;
     margin-bottom: 4px;
 }
 
-.ems-portal-nested-exp-card__meta {
+.ems-portal-root .ems-portal-nested-exp-card__meta {
     font-size: 12.5px;
     color: var(--ems-scout-muted);
     line-height: 1.45;

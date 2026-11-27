@@ -139,20 +139,31 @@ function grd(cols: number): string {
 }
 
 /* Overview */
-const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdated?: (e: Expedition) => void; initialEdit?: boolean }> = ({ event, osmEvents = [], onUpdated, initialEdit = false }) => {
-    const [editing, setEditing] = useState(initialEdit);
+const OverviewTab: React.FC<{
+    event: Expedition;
+    osmEvents?: OSMEvent[];
+    editing: boolean;
+    onCancelEdit: () => void;
+    onUpdated?: (e: Expedition) => void;
+}> = ({ event, osmEvents = [], editing, onCancelEdit, onUpdated }) => {
     const matchedOsm = osmEvents?.find(e => Number(e.event_id) === Number(event.ems_osm_event_id) || Number(e.id) === Number(event.ems_osm_event_id));
     const osmEventDisplay = matchedOsm ? matchedOsm.name : (event.ems_osm_event_id || '—');
 
     return (
         <div>
-            <div className="ems-edit-bar">
-                <button className="button" onClick={() => setEditing((v) => !v)}>{editing ? 'Cancel' : 'Edit Event'}</button>
-            </div>
             {editing ? (
-                <EventForm seasonId={0} initialEvent={event} osmEvents={osmEvents} onSaved={(u) => { setEditing(false); onUpdated?.(u); }} onCancel={() => setEditing(false)} />
+                <EventForm
+                    seasonId={0}
+                    initialEvent={event}
+                    osmEvents={osmEvents}
+                    onSaved={(u) => {
+                        onCancelEdit();
+                        onUpdated?.(u);
+                    }}
+                    onCancel={onCancelEdit}
+                />
             ) : (
-                <div className="ems-overview-cards">
+                <div className="ems-overview-cards ems-overview-cards--flush">
                     <div className="ems-overview-card">
                         <h3 className="ems-overview-card__title">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -594,12 +605,17 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                     </tr>
                 </thead>
                 <tbody>
-                    {explorers.map(exp => (
+                    {explorers.map(exp => {
+                        const noteVal = notes[exp.scout_id ?? 0] || '';
+                        const isMultiline = noteVal.includes('\n') || noteVal.length > 60;
+                        return (
                         <tr key={exp.scout_id}>
-                            <td>
-                                <strong>{exp.first_name} {exp.last_name}</strong>
+                            <td className="ems-asn-explorer-cell">
+                                <div className="ems-asn-explorer-name">{exp.first_name} {exp.last_name}</div>
                                 <div className="ems-asn-team">
-                                    Team: <code>{exp.teamName === 'UNALLOCATED' ? 'Unallocated' : exp.teamName}</code>
+                                    <span className="ems-asn-team-pill">
+                                        {exp.teamName === 'UNALLOCATED' ? 'Unallocated' : exp.teamName}
+                                    </span>
                                 </div>
                             </td>
                             <td className={`ems-asn-parent-note ${parentAsn[exp.scout_id] ? 'ems-asn-parent-note--has' : 'ems-asn-parent-note--empty'}`}>
@@ -607,15 +623,17 @@ const ASNTab: React.FC<{ eventId: number; onTeamChanged: () => void }> = ({ even
                             </td>
                             <td>
                                 <textarea
-                                    className="ems-asn-textarea"
+                                    rows={1}
+                                    className={`ems-asn-textarea${isMultiline ? ' ems-asn-textarea--multiline' : ''}`}
                                     aria-label={`Organiser notes for ${exp.first_name} ${exp.last_name}`}
-                                    value={notes[exp.scout_id ?? 0] || ''}
+                                    value={noteVal}
                                     onChange={(e) => setNotes(prev => ({ ...prev, [exp.scout_id ?? 0]: e.target.value }))}
                                     placeholder="Enter private organiser notes here (e.g. medication details, actions needed)…"
                                 />
                             </td>
                         </tr>
-                    ))}
+                        );
+                    })}
                     {explorers.length === 0 && (
                         <tr>
                             <td colSpan={3} className="ems-empty-cell">
@@ -885,9 +903,11 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
     const config = window.emsExpeditionBoard;
     const [activeTab, setActiveTab] = useState<DetailTab>('overview');
     const [event, setEvent] = useState<Expedition>(initialEvent);
+    const [editing, setEditing] = useState<boolean>(initialEdit);
     const [activeAsnScoutId, setActiveAsnScoutId] = useState<number | null>(null);
 
     useEffect(() => { setEvent(initialEvent); }, [initialEvent]);
+    useEffect(() => { setEditing(initialEdit); }, [initialEdit, initialEvent.ID]);
 
     const handleUpdated = (updated: Expedition) => {
         setEvent(updated);
@@ -936,35 +956,28 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
 
     return (
         <div className="ems-event-detail">
-            <div className="ems-event-detail__toolbar">
-                <button id="ems-back-to-events" type="button" className="button-link ems-event-detail__back" onClick={onBack}>← Back to Events</button>
-
-                <button
-                    type="button"
-                    className={`button ${event.ems_status === 'archived' ? 'ems-event-detail__archive--archived' : 'ems-event-detail__archive'}`}
-                    onClick={handleArchiveEventDetail}
-                >
-                    {event.ems_status === 'archived' ? 'Restore Event' : 'Archive Event'}
-                </button>
-            </div>
-
             <div className={`ems-event-detail__header ems-event-detail__header--${event.ems_level?.toLowerCase()}`}>
-                <div className="ems-event-detail__header-main">
-                    {event.ems_level && ['bronze', 'silver', 'gold'].includes(event.ems_level.toLowerCase()) && (
-                        <img
-                            src={`${config.plugin_url}assets/images/dofe_logo_${event.ems_level.toLowerCase()}.png`}
-                            alt={`${event.ems_level} Award Logo`}
-                            className="ems-event-detail__logo"
-                        />
-                    )}
-                    <div>
-                        <h1 className="ems-event-detail__title">{event.post_title || event.ems_event_code}</h1>
-                        <div className="ems-event-detail__meta">
-                            <code className="ems-event-detail__code">{event.ems_event_code}</code>
-                            {statusBadge(event.ems_status)}
-                            <span className="ems-event-detail__date">{formatDate(event.ems_start_date)} – {formatDate(event.ems_end_date)}</span>
-                            <span className={`ems-pill ems-pill--${event.ems_type?.toLowerCase()}`}>{event.ems_type}</span>
-                            <span className="ems-pill ems-pill--transport">{transportLabel(event.ems_transport)}</span>
+                <div className="ems-event-detail__header-left">
+                    <div className="ems-event-detail__back-row">
+                        <button id="ems-back-to-events" type="button" className="button-link ems-event-detail__back" onClick={onBack}>← Expeditions</button>
+                    </div>
+                    <div className="ems-event-detail__header-main">
+                        {event.ems_level && ['bronze', 'silver', 'gold'].includes(event.ems_level.toLowerCase()) && (
+                            <img
+                                src={`${config.plugin_url}assets/images/dofe_logo_${event.ems_level.toLowerCase()}.png`}
+                                alt={`${event.ems_level} Award Logo`}
+                                className="ems-event-detail__logo"
+                            />
+                        )}
+                        <div>
+                            <h1 className="ems-event-detail__title">{event.post_title || event.ems_event_code}</h1>
+                            <div className="ems-event-detail__meta">
+                                <code className="ems-event-detail__code">{event.ems_event_code}</code>
+                                {statusBadge(event.ems_status)}
+                                <span className="ems-event-detail__date">{formatDate(event.ems_start_date)} – {formatDate(event.ems_end_date)}</span>
+                                <span className={`ems-pill ems-pill--${event.ems_type?.toLowerCase()}`}>{event.ems_type}</span>
+                                <span className="ems-pill ems-pill--transport">{transportLabel(event.ems_transport)}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -978,6 +991,25 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
                             <span className="ems-meta-text"> ({event.pool_count} pool)</span>
                         )}
                     </div>
+                    {!editing && (
+                        <button
+                            type="button"
+                            className="button button-primary"
+                            onClick={() => {
+                                setActiveTab('overview');
+                                setEditing(true);
+                            }}
+                        >
+                            Edit Event
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className={`button ${event.ems_status === 'archived' ? 'ems-event-detail__archive--archived' : 'ems-event-detail__archive'}`}
+                        onClick={handleArchiveEventDetail}
+                    >
+                        {event.ems_status === 'archived' ? 'Restore Event' : 'Archive Event'}
+                    </button>
                 </div>
             </div>
 
@@ -992,7 +1024,15 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
             </nav>
 
             <div className="ems-event-detail__content">
-                {activeTab === 'overview' && <OverviewTab event={event} osmEvents={osmEvents} onUpdated={handleUpdated} initialEdit={initialEdit} />}
+                {activeTab === 'overview' && (
+                    <OverviewTab
+                        event={event}
+                        osmEvents={osmEvents}
+                        editing={editing}
+                        onCancelEdit={() => setEditing(false)}
+                        onUpdated={handleUpdated}
+                    />
+                )}
                 {activeTab === 'teams' && (
                     <div className="ems-tab-section">
                         <div className="ems-flex-between ems-wrap ems-gap-8 ems-mb-16">

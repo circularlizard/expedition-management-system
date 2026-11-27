@@ -644,14 +644,14 @@
 }
 
 /* Participant Portal Responsive Enhancements */
-.ems-portal-overview-grid {
+.ems-portal-root .ems-portal-overview-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
     margin-bottom: 20px;
 }
 
-.ems-portal-event-header {
+.ems-portal-root .ems-portal-event-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -662,27 +662,27 @@
 }
 
 @media screen and (max-width: 768px) {
-    .ems-portal-container {
+    .ems-portal-root.ems-portal-container {
         padding: 12px;
     }
     
-    .ems-portal-overview-grid {
+    .ems-portal-root .ems-portal-overview-grid {
         grid-template-columns: 1fr;
     }
     
-    .ems-portal-event-header {
+    .ems-portal-root .ems-portal-event-header {
         flex-direction: column;
         align-items: flex-start;
     }
     
-    .ems-portal-event-header button {
+    .ems-portal-root .ems-portal-event-header button {
         align-self: flex-start;
     }
 
-    .portal-nav-tabs,
-    .category-tabs,
-    .sub-tabs,
-    .child-selector {
+    .ems-portal-root .portal-nav-tabs,
+    .ems-portal-root .category-tabs,
+    .ems-portal-root .sub-tabs,
+    .ems-portal-root .child-selector {
         flex-wrap: wrap !important;
     }
 }

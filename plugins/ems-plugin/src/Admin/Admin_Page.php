@@ -406,7 +406,7 @@ class Admin_Page {
 	private function enqueue_admin_styles(): void {
 		$css_path    = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
 		$css_url     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
-		$css_version = EMS_VERSION . ( file_exists( $css_path ) ? '.' . filemtime( $css_path ) : '' );
+		$css_version = file_exists( $css_path ) ? (string) filemtime( $css_path ) : EMS_VERSION;
 		wp_enqueue_style( 'ems-admin', $css_url, array(), $css_version );
 	}
 
@@ -910,13 +910,15 @@ class Admin_Page {
 	 * Enqueues an admin script as an ES module.
 	 */
 	private function enqueue_admin_script( string $handle, string $rel_path ): void {
-		$script_url = plugin_dir_url( EMS_PLUGIN_FILE ) . $rel_path;
+		$script_path = plugin_dir_path( EMS_PLUGIN_FILE ) . $rel_path;
+		$script_url  = plugin_dir_url( EMS_PLUGIN_FILE ) . $rel_path;
+		$script_ver  = file_exists( $script_path ) ? (string) filemtime( $script_path ) : EMS_VERSION;
 
 		wp_enqueue_script(
 			$handle,
 			$script_url,
 			array(),
-			EMS_VERSION,
+			$script_ver,
 			true
 		);
 	}

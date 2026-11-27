@@ -228,4 +228,23 @@ describe('EventDetailPage Tab Functions', () => {
             }));
         });
     });
+
+    it('renders ← Expeditions back link and Edit Event button in header across sub-tabs', () => {
+        const onBack = vi.fn();
+        render(<EventDetailPage event={mockEvent} onBack={onBack} />);
+
+        const backBtn = screen.getByRole('button', { name: '← Expeditions' });
+        expect(backBtn).toBeInTheDocument();
+        fireEvent.click(backBtn);
+        expect(onBack).toHaveBeenCalled();
+
+        // Switch to Route tab and click Edit Event in header
+        fireEvent.click(screen.getByText('Route'));
+        const editEventBtn = screen.getByRole('button', { name: 'Edit Event' });
+        expect(editEventBtn).toBeInTheDocument();
+        fireEvent.click(editEventBtn);
+
+        expect(screen.getByRole('heading', { name: 'Edit Event' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+    });
 });

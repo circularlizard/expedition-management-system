@@ -31,9 +31,9 @@ class Settings_Page {
 			'admin_enqueue_scripts',
 			function ( $hook ) use ( $settings_hook ) {
 				if ( $hook === $settings_hook ) {
-					$css_path = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
-					$css_url  = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
-					$css_version = EMS_VERSION . ( file_exists( $css_path ) ? '.' . filemtime( $css_path ) : '' );
+					$css_path    = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+					$css_url     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
+					$css_version = file_exists( $css_path ) ? (string) filemtime( $css_path ) : EMS_VERSION;
 					wp_enqueue_style( 'ems-admin', $css_url, array(), $css_version );
 				}
 			}

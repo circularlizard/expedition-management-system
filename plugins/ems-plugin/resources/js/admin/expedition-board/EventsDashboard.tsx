@@ -87,6 +87,9 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
 
     const [sortKey, setSortKey] = useState<string>('ems_start_date');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [maxTeamsDraft, setMaxTeamsDraft] = useState<Record<number, string>>({});
+    const [savingMaxTeams, setSavingMaxTeams] = useState<Record<number, boolean>>({});
+    const [savedMaxTeams, setSavedMaxTeams] = useState<Record<number, boolean>>({});
 
     const toggleSort = (key: string) => {
         if (sortKey === key) {
@@ -99,12 +102,68 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
 
     const getSortValue = (item: Expedition, key: string) => {
         if (key === 'teams') return (item.teams ?? []).length;
+        if (key === 'ems_event_code') return (item.ems_event_code || item.post_title || '').toLowerCase();
         if (key === 'name') return (item.post_title || item.ems_event_code || '').toLowerCase();
         const val = (item as any)[key];
         if (typeof val === 'string') {
             return val.toLowerCase();
         }
         return val ?? '';
+    };
+
+    const normalizeMaxTeams = (val: unknown): string => {
+        if (val === null || val === undefined || val === '') return '';
+        const n = Number(val);
+        return Number.isFinite(n) && n > 0 ? String(Math.floor(n)) : '';
+    };
+
+    const saveMaxTeams = async (event: Expedition, rawValue: string) => {
+        const currentNorm = normalizeMaxTeams(event.ems_max_teams);
+        const nextNorm = normalizeMaxTeams(rawValue.trim());
+        if (currentNorm === nextNorm) {
+            setMaxTeamsDraft((prev) => {
+                const copy = { ...prev };
+                delete copy[event.ID];
+                return copy;
+            });
+            return;
+        }
+
+        setSavingMaxTeams((prev) => ({ ...prev, [event.ID]: true }));
+        setSavedMaxTeams((prev) => ({ ...prev, [event.ID]: false }));
+        try {
+            const resp = await fetch(`${config.root_url}/events/${event.ID}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': config.nonce,
+                },
+                body: JSON.stringify({ ems_max_teams: nextNorm }),
+            });
+            if (resp.ok) {
+                const updated = await resp.json().catch(() => null);
+                setEvents((prev) =>
+                    prev.map((ev) =>
+                        ev.ID === event.ID
+                            ? { ...ev, ...(updated && typeof updated === 'object' ? updated : {}), ems_max_teams: nextNorm }
+                            : ev
+                    )
+                );
+                setMaxTeamsDraft((prev) => {
+                    const copy = { ...prev };
+                    delete copy[event.ID];
+                    return copy;
+                });
+                setSavedMaxTeams((prev) => ({ ...prev, [event.ID]: true }));
+                setTimeout(() => {
+                    setSavedMaxTeams((prev) => ({ ...prev, [event.ID]: false }));
+                }, 2500);
+            }
+        } catch {
+            // Leave draft intact on network failure so user can retry
+        } finally {
+            setSavingMaxTeams((prev) => ({ ...prev, [event.ID]: false }));
+        }
     };
 
     const sortedEvents = [...events].sort((a, b) => {
@@ -215,41 +274,47 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                     <table className="ems-table ems-mt-0">
                         <thead>
                             <tr>
-                                {renderSortHeader('Name', 'name')}
-                                {renderSortHeader('Code', 'ems_event_code')}
+                                {renderSortHeader('Expedition', 'ems_event_code')}
                                 {renderSortHeader('Type', 'ems_type')}
                                 {renderSortHeader('Transport', 'ems_transport')}
                                 {renderSortHeader('Level', 'ems_level')}
                                 {renderSortHeader('Dates', 'ems_start_date')}
-                                {renderSortHeader('Teams', 'teams', 'ems-table-cell--center')}
+                                {renderSortHeader('Teams / Max', 'teams', 'ems-table-cell--center')}
                                 {renderSortHeader('Members', 'member_count', 'ems-table-cell--center')}
                                 {renderSortHeader('Route Status', 'ems_route_status')}
                                 <th className="ems-table-cell--right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedEvents.map((event) => (
+                            {sortedEvents.map((event) => {
+                                const code = event.ems_event_code || event.post_title || '';
+                                const subtitle = event.post_title && event.ems_event_code && event.post_title !== event.ems_event_code ? event.post_title : '';
+                                const currentMax = normalizeMaxTeams(event.ems_max_teams);
+                                const draftValue = maxTeamsDraft[event.ID] !== undefined ? maxTeamsDraft[event.ID] : currentMax;
+                                return (
                                 <tr
                                     key={event.ID}
                                     className={`ems-row-hoverable${event.ems_status === 'archived' ? ' ems-table-row--archived' : ''}`}
                                     onClick={() => onSelectEvent(event)}
                                 >
                                     <td>
-                          <a
-                                             href="#"
-                                             className="ems-table__link"
-                                             onClick={(e) => { e.preventDefault(); onSelectEvent(event); }}
-                                         >
-                                            {event.post_title || event.ems_event_code}
+                                        <a
+                                            href="#"
+                                            className="ems-table__link ems-expedition-cell__code"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onSelectEvent(event);
+                                            }}
+                                        >
+                                            <strong>{code}</strong>
                                             {event.ems_status === 'archived' && (
                                                 <span className="ems-meta-text ems-ml-6">(Archived)</span>
                                             )}
                                         </a>
-                                    </td>
-                                    <td>
-                                        <code className="ems-code-badge">
-                                            {event.ems_event_code}
-                                        </code>
+                                        {subtitle && (
+                                            <div className="ems-expedition-cell__title">{subtitle}</div>
+                                        )}
                                     </td>
                                     <td>{typePill(event.ems_type)}</td>
                                     <td className="ems-table-cell--small">{transportLabel(event.ems_transport)}</td>
@@ -260,8 +325,33 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                             <> – {formatDate(event.ems_end_date)}</>
                                         )}
                                     </td>
-                                    <td className="ems-table-cell--center">
-                                        <strong>{(event.teams ?? []).length}</strong>
+                                    <td className="ems-table-cell--center" onClick={(e) => e.stopPropagation()}>
+                                        <div className="ems-teams-max-inline">
+                                            <strong>{(event.teams ?? []).length}</strong>
+                                            <span className="ems-teams-max-inline__sep">/</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                className="ems-teams-max-inline__input"
+                                                aria-label={`Max teams for ${code}`}
+                                                value={draftValue}
+                                                placeholder="∞"
+                                                disabled={Boolean(savingMaxTeams[event.ID])}
+                                                onChange={(e) =>
+                                                    setMaxTeamsDraft((prev) => ({ ...prev, [event.ID]: e.target.value }))
+                                                }
+                                                onBlur={(e) => saveMaxTeams(event, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        (e.currentTarget as HTMLInputElement).blur();
+                                                    }
+                                                }}
+                                            />
+                                            {savedMaxTeams[event.ID] && (
+                                                <span className="ems-inline-saved" aria-live="polite" title="Saved">✓</span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="ems-table-cell--center">
                                         <strong>{event.member_count ?? 0}</strong>
@@ -273,21 +363,24 @@ export const EventsDashboard: React.FC<EventsDashboardProps> = ({
                                     </td>
                                     <td>{statusBadge(event.ems_route_status || 'draft')}</td>
                                     <td className="ems-table-cell--right">
-                                        {onEditEvent && (
-                                            <button
-                                                type="button"
-                                                className="button button-small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onEditEvent(event);
-                                                }}
-                                            >
-                                                Edit
-                                            </button>
-                                        )}
+                                        <div className="ems-table-actions">
+                                            {onEditEvent && (
+                                                <button
+                                                    type="button"
+                                                    className="button button-small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onEditEvent(event);
+                                                    }}
+                                                >
+                                                    Edit
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

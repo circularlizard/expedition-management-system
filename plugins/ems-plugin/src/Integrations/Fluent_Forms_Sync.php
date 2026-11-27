@@ -1003,11 +1003,13 @@ class Fluent_Forms_Sync {
 			);
 		}
 
+		$fluent_sync_path = function_exists( 'plugin_dir_path' ) ? plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/fluent-forms-sync.js' : '';
+		$fluent_sync_ver  = ( $fluent_sync_path !== '' && file_exists( $fluent_sync_path ) ) ? (string) filemtime( $fluent_sync_path ) : EMS_VERSION;
 		wp_enqueue_script(
 			'ems-fluent-forms-sync',
 			plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/fluent-forms-sync.js',
 			array( 'jquery' ),
-			EMS_VERSION,
+			$fluent_sync_ver,
 			true
 		);
 		?>

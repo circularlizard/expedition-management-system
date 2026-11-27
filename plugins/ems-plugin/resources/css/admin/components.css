@@ -1,19 +1,19 @@
 /* ─── Frontend Portal Theme Reset Rules ───────────────────────────────────── */
-.ems-portal-container {
+.ems-portal-root.ems-portal-container {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
     color: #3c434a;
     line-height: 1.4;
 }
 
-.ems-portal-container *,
-.ems-portal-container *::before,
-.ems-portal-container *::after {
+.ems-portal-root.ems-portal-container *,
+.ems-portal-root.ems-portal-container *::before,
+.ems-portal-root.ems-portal-container *::after {
     box-sizing: border-box;
 }
 
-.ems-portal-container button,
-.ems-portal-container .button,
-.ems-portal-container input[type="submit"] {
+.ems-portal-root.ems-portal-container button,
+.ems-portal-root.ems-portal-container .button,
+.ems-portal-root.ems-portal-container input[type="submit"] {
     font-family: inherit;
     font-size: 13px;
     line-height: 2.15384615;
@@ -28,11 +28,11 @@
     box-sizing: border-box;
 }
 
-.ems-portal-container select,
-.ems-portal-container input[type="text"],
-.ems-portal-container input[type="email"],
-.ems-portal-container input[type="number"],
-.ems-portal-container textarea {
+.ems-portal-root.ems-portal-container select,
+.ems-portal-root.ems-portal-container input[type="text"],
+.ems-portal-root.ems-portal-container input[type="email"],
+.ems-portal-root.ems-portal-container input[type="number"],
+.ems-portal-root.ems-portal-container textarea {
     box-sizing: border-box;
     font-family: inherit;
     font-size: 14px;
@@ -103,7 +103,8 @@
     border-radius: 4px;
 }
 
-.ems-portal-welcome-card {
+.ems-portal-root .ems-portal-welcome-card,
+.ems-portal-root.ems-portal-welcome-card {
     padding: 40px;
     text-align: center;
     background: #f9f9f9;
@@ -111,7 +112,7 @@
     border: 1px solid #ddd;
 }
 
-.ems-portal-tabs-nav {
+.ems-portal-root .ems-portal-tabs-nav {
     display: flex;
     gap: 5px;
     margin-top: 20px;
@@ -529,6 +530,7 @@ th.ems-schedule--night {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .ems-event-detail__stat-pill {
@@ -547,6 +549,15 @@ th.ems-schedule--night {
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
     margin-top: 16px;
+}
+
+.ems-overview-cards--flush {
+    margin-top: 0;
+}
+
+.ems-overview-cards--compact {
+    margin-top: 12px;
+    gap: 16px;
 }
 
 @media (max-width: 768px) {
@@ -646,6 +657,85 @@ input.ems-form-input--title {
 
 .ems-overview-card .ems-form-group:last-child {
     margin-bottom: 0;
+}
+
+/* ─── Compact Edit Event Form & Sticky Dirty Bar ─────────────────────────── */
+.ems-event-form__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #dcdcde;
+    gap: 12px;
+}
+
+.ems-event-form__header-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ems-event-form__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ems-form-section--compact {
+    margin-bottom: 12px;
+}
+
+.ems-form-grid-title-code {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .ems-form-grid-title-code {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ems-form-group--span2 {
+    grid-column: span 2;
+}
+
+.ems-event-form .ems-overview-card {
+    padding: 16px 20px;
+}
+
+.ems-event-form .ems-overview-card__title {
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+}
+
+.ems-event-form .ems-overview-card .ems-form-group {
+    margin-bottom: 0;
+}
+
+.ems-event-form__sticky-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ems-event-form__dirty-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #996800;
 }
 
 /* ─── Signups Dashboard & Cumulative Chart ───────────────────────────────── */
@@ -958,14 +1048,39 @@ input.ems-form-input--title {
 
 /* ─── Front-End Leader Dashboard Theme-Compatible Refinements ──────────── */
 
+.ems-leader-dashboard,
+.ems-leader-dashboard-root {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.ems-leader-dashboard__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    max-width: 100%;
+}
+
+.ems-leader-dashboard__filters > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    min-width: 0;
+}
+
 .ems-leader-dashboard label,
+.ems-leader-dashboard-root label,
 .ems-leader-dashboard__nowrap {
     white-space: nowrap;
     margin-bottom: 0;
 }
 
-.ems-leader-dashboard select {
+.ems-leader-dashboard select,
+.ems-leader-dashboard-root select {
     width: auto;
+    min-width: 0;
     max-width: 100%;
     appearance: none;
     -webkit-appearance: none;
@@ -977,11 +1092,13 @@ input.ems-form-input--title {
     background-size: 12px 12px;
 }
 
-.ems-leader-dashboard button {
+.ems-leader-dashboard button,
+.ems-leader-dashboard-root button {
     white-space: nowrap;
 }
 
-.ems-leader-dashboard button:disabled {
+.ems-leader-dashboard button:disabled,
+.ems-leader-dashboard-root button:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
@@ -1806,7 +1923,7 @@ tr.ems-table-group-header:hover td,
    Participant Portal Admin Preview Bar
    ========================================================================== */
 
-.ems-portal-admin-bar {
+.ems-portal-root .ems-portal-admin-bar {
     background: #f0f6fc;
     border: 1px solid #c8d8e8;
     border-left: 4px solid #2271b1;
@@ -1820,7 +1937,7 @@ tr.ems-table-group-header:hover td,
     flex-wrap: wrap;
 }
 
-.ems-portal-admin-bar__title {
+.ems-portal-root .ems-portal-admin-bar__title {
     font-weight: 600;
     font-size: 13px;
     color: #1e3a5f;
@@ -1829,7 +1946,7 @@ tr.ems-table-group-header:hover td,
     gap: 8px;
 }
 
-.ems-portal-admin-bar__badge {
+.ems-portal-root .ems-portal-admin-bar__badge {
     background: #2271b1;
     color: #fff;
     font-size: 11px;
@@ -1840,14 +1957,14 @@ tr.ems-table-group-header:hover td,
     text-transform: uppercase;
 }
 
-.ems-portal-admin-bar__controls {
+.ems-portal-root .ems-portal-admin-bar__controls {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-.ems-portal-admin-bar__search {
+.ems-portal-root .ems-portal-admin-bar__search {
     padding: 6px 10px;
     border-radius: 4px;
     border: 1px solid #8c8f94;
@@ -1856,7 +1973,7 @@ tr.ems-table-group-header:hover td,
     width: 200px;
 }
 
-.ems-portal-admin-bar__select {
+.ems-portal-root .ems-portal-admin-bar__select {
     padding: 6px 12px;
     border-radius: 4px;
     border: 1px solid #8c8f94;
@@ -1866,7 +1983,7 @@ tr.ems-table-group-header:hover td,
     max-width: 420px;
 }
 
-.ems-portal-admin-bar__btn-reset {
+.ems-portal-root .ems-portal-admin-bar__btn-reset {
     padding: 4px 12px !important;
     font-size: 12px !important;
     border-radius: 3px !important;

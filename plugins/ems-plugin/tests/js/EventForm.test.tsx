@@ -87,4 +87,27 @@ describe('EventForm', () => {
             });
         });
     });
+
+    it('shows top Save Changes + Cancel in edit mode and sticky dirty bar on change', () => {
+        const initialEvent = {
+            ID: 10,
+            post_title: 'Hill Practice 1',
+            ems_event_code: 'H-SP1',
+            ems_type: 'practice' as const,
+            ems_transport: 'hillwalking' as const,
+            ems_level: 'silver' as const,
+            ems_start_date: '2027-06-01',
+            ems_end_date: '2027-06-03',
+            teams: [],
+        };
+        const onCancel = vi.fn();
+        render(<EventForm seasonId={0} initialEvent={initialEvent} onCancel={onCancel} />);
+
+        expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+        expect(screen.queryByRole('region', { name: 'Unsaved changes' })).not.toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/Max Teams/i), { target: { value: '5' } });
+        expect(screen.getByRole('region', { name: 'Unsaved changes' })).toBeInTheDocument();
+    });
 });

@@ -291,7 +291,7 @@ export const LeaderDashboard: React.FC = () => {
 
     if (!config.user_data.logged_in) {
         return (
-            <div className="ems-leader-dashboard">
+            <div className="ems-leader-dashboard ems-leader-dashboard-root">
                 <div>
                     <h2>Unit Leader Signups Dashboard</h2>
                     <p className="ems-mb-20">Please log in with your Unit Leader account to view explorer DofE signups.</p>
@@ -305,7 +305,7 @@ export const LeaderDashboard: React.FC = () => {
 
     if (!config.user_data.can_access) {
         return (
-            <div className="ems-leader-dashboard">
+            <div className="ems-leader-dashboard ems-leader-dashboard-root">
                 <div>
                     <h2>Access Restricted</h2>
                     <p className="ems-mb-20">Your account does not have Unit Leader permissions to view this dashboard.</p>
@@ -319,7 +319,7 @@ export const LeaderDashboard: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="ems-leader-dashboard">
+            <div className="ems-leader-dashboard ems-leader-dashboard-root">
                 <p>Loading explorer signups...</p>
             </div>
         );
@@ -348,7 +348,7 @@ export const LeaderDashboard: React.FC = () => {
     };
 
     return (
-        <div className="ems-leader-dashboard">
+        <div className="ems-leader-dashboard ems-leader-dashboard-root">
             {error && <div className="ems-error-notice">{error}</div>}
 
             <nav className="nav-tab-wrapper ems-nav-tab-wrapper ems-mb-20" aria-label="Dashboard sections">
@@ -371,7 +371,7 @@ export const LeaderDashboard: React.FC = () => {
             {activeTab === 'summary' ? (
                 <ModuleErrorBoundary moduleName="Leader Dashboard Summary">
                     <div>
-                    <div className="ems-flex-center ems-gap-16 ems-wrap ems-mb-20">
+                    <div className="ems-leader-dashboard__filters ems-mb-20">
                         <div className="ems-flex-center ems-gap-8">
                             <span className="ems-toolbar__label">View:</span>
                             <label className={`ems-filter-pill ${summaryTypeFilter === 'all' ? 'ems-filter-pill--active' : ''}`}>
@@ -814,7 +814,7 @@ export const LeaderDashboard: React.FC = () => {
             ) : (
                 <ModuleErrorBoundary moduleName="Leader Dashboard Explorer Signups">
                     <>
-                    <div className="ems-flex-center ems-gap-16 ems-wrap ems-mb-20">
+                    <div className="ems-leader-dashboard__filters ems-mb-20">
                 <div className="ems-flex-center ems-gap-8">
                     <label htmlFor="leader-grouping-select">Group By:</label>
                     <select

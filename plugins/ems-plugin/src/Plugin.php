@@ -49,6 +49,7 @@ class Plugin {
 		add_action( 'init', array( $this->cpt_registry, 'register' ) );
 		add_action( 'init', array( $this, 'disable_emoji_cdn' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_and_enqueue_frontend_assets' ) );
+		add_action( 'template_redirect', array( $this, 'send_portal_nocache_headers' ) );
 		add_action( 'init', array( new \EMS\Core\Role_Manager(), 'register_roles' ) );
 		add_action( 'ems_daily_log_cleanup', array( '\\EMS\\Core\\Log_Rotator', 'purge_old_logs' ) );
 		add_action(
@@ -652,18 +653,44 @@ class Plugin {
 		}
 	}
 
+	/**
+	 * Returns a cache-busting version string based on file modification time.
+	 */
+	private function get_asset_version( string $rel_path ): string {
+		$file_path = plugin_dir_path( EMS_PLUGIN_FILE ) . ltrim( $rel_path, '/' );
+		return file_exists( $file_path ) ? (string) filemtime( $file_path ) : EMS_VERSION;
+	}
+
+	/**
+	 * Sends no-cache HTTP headers on pages hosting authenticated portal shortcodes.
+	 */
+	public function send_portal_nocache_headers(): void {
+		global $post;
+		if ( ! is_a( $post, 'WP_Post' ) ) {
+			return;
+		}
+		if (
+			has_shortcode( $post->post_content, 'ems-portal' ) ||
+			has_shortcode( $post->post_content, 'ems-leader-dashboard' ) ||
+			has_shortcode( $post->post_content, 'ems-lic-dashboard' )
+		) {
+			if ( function_exists( 'nocache_headers' ) ) {
+				nocache_headers();
+			}
+		}
+	}
+
 	public function register_and_enqueue_frontend_assets(): void {
 		$css_path            = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
-		$css_file            = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-admin.css';
-		$css_ver             = EMS_VERSION . ( file_exists( $css_file ) ? '.' . filemtime( $css_file ) : '' );
+		$css_ver             = $this->get_asset_version( 'assets/js/ems-admin.css' );
 		$portal_css_path     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.css';
-		$portal_css_file     = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.css';
-		$portal_css_ver      = EMS_VERSION . ( file_exists( $portal_css_file ) ? '.' . filemtime( $portal_css_file ) : '' );
+		$portal_css_ver      = $this->get_asset_version( 'assets/js/ems-portal.css' );
 		$volunteer_js        = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/volunteer-signup.js';
+		$volunteer_js_ver    = $this->get_asset_version( 'assets/js/volunteer-signup.js' );
 		$portal_js           = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/ems-portal.js';
+		$portal_js_ver       = $this->get_asset_version( 'assets/js/ems-portal.js' );
 		$leader_dashboard_js = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/leader-dashboard.js';
-		$leader_js_file      = plugin_dir_path( EMS_PLUGIN_FILE ) . 'assets/js/leader-dashboard.js';
-		$leader_js_ver       = EMS_VERSION . ( file_exists( $leader_js_file ) ? '.' . filemtime( $leader_js_file ) : '' );
+		$leader_js_ver       = $this->get_asset_version( 'assets/js/leader-dashboard.js' );
 
 		wp_register_style( 'ems-admin', $css_path, array(), $css_ver );
 		wp_register_style( 'ems-portal', $portal_css_path, array(), $portal_css_ver );
@@ -671,14 +698,14 @@ class Plugin {
 			'ems-volunteer-signup',
 			$volunteer_js,
 			array(),
-			EMS_VERSION,
+			$volunteer_js_ver,
 			true
 		);
 		wp_register_script(
 			'ems-portal',
 			$portal_js,
 			array(),
-			EMS_VERSION,
+			$portal_js_ver,
 			true
 		);
 		wp_register_script(
@@ -689,12 +716,13 @@ class Plugin {
 			true
 		);
 
-		$fluent_sync_js = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/fluent-forms-sync.js';
+		$fluent_sync_js     = plugin_dir_url( EMS_PLUGIN_FILE ) . 'assets/js/fluent-forms-sync.js';
+		$fluent_sync_js_ver = $this->get_asset_version( 'assets/js/fluent-forms-sync.js' );
 		wp_register_script(
 			'ems-fluent-forms-sync',
 			$fluent_sync_js,
 			array( 'jquery' ),
-			EMS_VERSION,
+			$fluent_sync_js_ver,
 			true
 		);
 
@@ -717,6 +745,10 @@ class Plugin {
 
 	public function render_leader_dashboard_shortcode(): string {
 		return \EMS\Core\Shortcode_Boundary::execute( function() {
+			if ( function_exists( 'nocache_headers' ) && ! headers_sent() ) {
+				nocache_headers();
+			}
+
 			if ( ! \EMS\Core\Feature_Flags::is_enabled( 'leader_dashboard' ) && ! \EMS\Core\Feature_Flags::is_enabled( 'leader-dashboard' ) ) {
 				return '<div class="ems-error-boundary ems-shortcode-disabled"><p>The leader dashboard is currently disabled or undergoing maintenance.</p></div>';
 			}
@@ -797,6 +829,10 @@ class Plugin {
 
 	public function render_portal_shortcode(): string {
 		return \EMS\Core\Shortcode_Boundary::execute( function() {
+			if ( function_exists( 'nocache_headers' ) && ! headers_sent() ) {
+				nocache_headers();
+			}
+
 			if ( ! \EMS\Core\Feature_Flags::is_enabled( 'portal' ) ) {
 				return '<div class="ems-error-boundary ems-shortcode-disabled"><p>The portal is currently disabled or undergoing maintenance.</p></div>';
 			}
