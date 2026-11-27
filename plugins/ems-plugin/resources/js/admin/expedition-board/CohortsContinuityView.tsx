@@ -71,6 +71,18 @@ function extractWishlistFromPrefs(prefsJson: string | null): string {
   }
 }
 
+function extractAvailCodesFromPrefs(prefsJson: string | null, stage: 'practice' | 'qualifier'): string[] {
+  if (!prefsJson) return [];
+  try {
+    const parsed = JSON.parse(prefsJson);
+    const raw = stage === 'practice' ? parsed?.exped_practice_dates : parsed?.exped_qualifier_dates;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((c: unknown) => String(c || '').trim().toUpperCase()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 export default function CohortsContinuityView({
   level,
   transport,
@@ -1060,6 +1072,35 @@ export default function CohortsContinuityView({
                                 <strong>{m.first_name} {m.last_name}</strong>
                               )}{' '}
                               {isFA && <span className="ems-matrix-tag ems-matrix-tag--fa">FA</span>}
+                              {(() => {
+                                const stageName = isPractice ? 'practice' : 'qualifier';
+                                const expCode = String(team.expedition_code || '').trim().toUpperCase();
+                                const availCodes =
+                                  (isPractice ? poolMatch?.practiceAvail : poolMatch?.qualifierAvail)?.map((c) =>
+                                    String(c || '').trim().toUpperCase()
+                                  ) || extractAvailCodesFromPrefs(m.expedition_preferences, stageName);
+                                if (!expCode || availCodes.length === 0 || availCodes.includes(expCode)) {
+                                  return null;
+                                }
+                                return (
+                                  <span
+                                    title={`This explorer did not list ${expCode} as available on their sign-up.`}
+                                    style={{
+                                      display: 'inline-block',
+                                      marginLeft: '4px',
+                                      padding: '0 6px',
+                                      borderRadius: '999px',
+                                      fontSize: '10px',
+                                      fontWeight: 600,
+                                      background: '#fef3c7',
+                                      color: '#92400e',
+                                      border: '1px solid #fcd34d',
+                                    }}
+                                  >
+                                    {isPractice ? 'Unavailable: Practice' : 'Unavailable: Qualifier'}
+                                  </span>
+                                );
+                              })()}
                               {(() => {
                                 const key = m.expedition_signup_id ? `s:${m.expedition_signup_id}` : m.scout_id ? `sc:${m.scout_id}` : '';
                                 const others = (otherTeamsByMemberKey.get(key) || []).filter(
