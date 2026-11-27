@@ -1,3 +1,6 @@
+> [!NOTE]
+> **LEGACY / SUPERSEDED:** Early planning vision consolidated into [01_TECHNICAL_ARCHITECTURE.md](../01_TECHNICAL_ARCHITECTURE.md) and [05_UI_IA_AND_API_REFERENCE.md](../05_UI_IA_AND_API_REFERENCE.md). Preserved for historical reference.
+
 # Expedition planning
 
 ## System Objectives & Boundaries

@@ -1,3 +1,6 @@
+> [!NOTE]
+> **LEGACY / SUPERSEDED:** This baseline target IA document has been superseded by [01_TECHNICAL_ARCHITECTURE.md](../01_TECHNICAL_ARCHITECTURE.md) and [05_UI_IA_AND_API_REFERENCE.md](../05_UI_IA_AND_API_REFERENCE.md). Preserved for historical reference.
+
 # Target Domain Model, Personas & Information Architecture
 
 **Document Status:** Design Baseline (Step 1)  

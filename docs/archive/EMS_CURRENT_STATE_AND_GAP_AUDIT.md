@@ -1,3 +1,6 @@
+> [!NOTE]
+> **LEGACY / SUPERSEDED:** Point-in-time gap audit snapshot (2026-11-18) superseded by the canonical docs in `docs/`. Preserved for historical reference.
+
 # EMS Current State & Gap Audit
 
 **Baseline Date:** 2026-11-18  

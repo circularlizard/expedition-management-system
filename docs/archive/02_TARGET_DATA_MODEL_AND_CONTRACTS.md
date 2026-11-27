@@ -1,3 +1,6 @@
+> [!NOTE]
+> **LEGACY / SUPERSEDED:** This target data model document has been superseded by [02_DATA_REFERENCE.md](../02_DATA_REFERENCE.md). Preserved for historical reference.
+
 # Target Data Model, State Machines & Contracts
 
 **Document Status:** Technical Specification (Step 2)  
