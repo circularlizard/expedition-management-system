@@ -473,4 +473,98 @@ class TeamSolverServiceTest extends EMSTestCase {
 		sort( $femaleTeamCounts );
 		$this->assertSame( array( 0, 2 ), $femaleTeamCounts );
 	}
+
+	public function test_propose_bucket_scope_supports_multiple_levels(): void {
+		\Brain\Monkey\Functions\when( 'get_posts' )->alias(
+			static function ( array $args ): array {
+				if ( ( $args['post_type'] ?? '' ) === 'expedition' ) {
+					return array(
+						(object) array( 'ID' => 301, 'post_title' => 'H-BP1' ),
+						(object) array( 'ID' => 302, 'post_title' => 'H-BQ1' ),
+						(object) array( 'ID' => 303, 'post_title' => 'H-SP1' ),
+						(object) array( 'ID' => 304, 'post_title' => 'H-SQ1' ),
+					);
+				}
+				return array();
+			}
+		);
+
+		$meta = array(
+			301 => array( 'ems_status' => 'active', 'ems_type' => 'practice', 'ems_event_code' => 'H-BP1', 'ems_level' => 'bronze', 'ems_transport' => 'hillwalking' ),
+			302 => array( 'ems_status' => 'active', 'ems_type' => 'qualifying', 'ems_event_code' => 'H-BQ1', 'ems_level' => 'bronze', 'ems_transport' => 'hillwalking' ),
+			303 => array( 'ems_status' => 'active', 'ems_type' => 'practice', 'ems_event_code' => 'H-SP1', 'ems_level' => 'silver', 'ems_transport' => 'hillwalking' ),
+			304 => array( 'ems_status' => 'active', 'ems_type' => 'qualifying', 'ems_event_code' => 'H-SQ1', 'ems_level' => 'silver', 'ems_transport' => 'hillwalking' ),
+		);
+		\Brain\Monkey\Functions\when( 'get_post_meta' )->alias(
+			static function ( int $id, string $key, bool $single = false ) use ( $meta ) {
+				return $meta[ $id ][ $key ] ?? '';
+			}
+		);
+
+		$signups = array();
+		for ( $i = 1; $i <= 4; $i++ ) {
+			$signups[] = array(
+				'id'                     => $i,
+				'scout_id'               => 500 + $i,
+				'unit_id'                => 1,
+				'unit_name'              => 'Unit A',
+				'explorer_first_name'    => 'Bronze',
+				'explorer_last_name'     => "E{$i}",
+				'dofe_level'             => 'bronze',
+				'first_aid_status'       => 'none',
+				'osm_first_aid_level'    => 'none',
+				'expedition_preferences' => wp_json_encode(
+					array(
+						'exped_type'            => 'Hillwalking',
+						'exped_practice_dates'  => array( 'H-BP1' ),
+						'exped_qualifier_dates' => array( 'H-BQ1' ),
+					)
+				),
+			);
+		}
+		for ( $i = 5; $i <= 8; $i++ ) {
+			$signups[] = array(
+				'id'                     => $i,
+				'scout_id'               => 500 + $i,
+				'unit_id'                => 1,
+				'unit_name'              => 'Unit A',
+				'explorer_first_name'    => 'Silver',
+				'explorer_last_name'     => "E{$i}",
+				'dofe_level'             => 'silver',
+				'first_aid_status'       => 'none',
+				'osm_first_aid_level'    => 'none',
+				'expedition_preferences' => wp_json_encode(
+					array(
+						'exped_type'            => 'Hillwalking',
+						'exped_practice_dates'  => array( 'H-SP1' ),
+						'exped_qualifier_dates' => array( 'H-SQ1' ),
+					)
+				),
+			);
+		}
+
+		$wpdb         = \Mockery::mock( \wpdb::class );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+			static function ( string $query ) use ( $signups ): array {
+				if ( str_contains( $query, 'ems_expedition_signups' ) ) {
+					return $signups;
+				}
+				return array();
+			}
+		);
+
+		$solver = new TeamSolverService( $wpdb );
+		$result = $solver->propose(
+			array(
+				'scope'          => 'bucket',
+				'dofe_level'     => 'bronze,silver',
+				'dofe_levels'    => array( 'bronze', 'silver' ),
+				'transport_mode' => 'foot',
+			)
+		);
+
+		$this->assertCount( 2, $result['proposed_teams'] );
+		$this->assertSame( 8, $result['stats']['total_explorers'] );
+	}
 }

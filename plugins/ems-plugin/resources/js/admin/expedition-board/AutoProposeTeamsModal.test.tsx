@@ -539,8 +539,8 @@ describe('AutoProposeTeamsModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Skip to Step 2/i }));
 
     // Multi-level defaults to Full Season, first radio shows Current filter (Bronze, Silver / Hillwalking)
-    expect(screen.getByRole('radio', { name: /Full Season \(All Buckets\)/i })).toBeChecked();
-    expect(screen.getByRole('radio', { name: /Current filter \(Bronze, Silver \/ Hillwalking\)/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Full Season \(All Buckets/i })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Current filter \(Bronze, Silver \/ Hillwalking/i })).toBeInTheDocument();
 
     // Weighting explanation callout & solo_gender_penalty default -40
     expect(screen.getByText(/How Solver Weights Work:/i)).toBeInTheDocument();

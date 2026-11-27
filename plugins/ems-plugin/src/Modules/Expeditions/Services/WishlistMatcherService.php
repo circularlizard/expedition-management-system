@@ -166,12 +166,25 @@ class WishlistMatcherService {
 			$grouped[ $src ][] = $row;
 		}
 
+		$bucketSignupsCount = 0;
+		foreach ( $signups as $s ) {
+			if ( $filterLevel !== '' && $s['dofe_level'] !== $filterLevel ) {
+				continue;
+			}
+			if ( $filterMode !== '' && $s['transport_mode'] !== $filterMode ) {
+				continue;
+			}
+			++$bucketSignupsCount;
+		}
+
 		$summary = array(
-			'total'        => 0,
-			'needs_review' => 0,
-			'auto_matched' => 0,
-			'confirmed'    => 0,
-			'ignored'      => 0,
+			'total'                     => 0,
+			'needs_review'              => 0,
+			'auto_matched'              => 0,
+			'confirmed'                 => 0,
+			'ignored'                   => 0,
+			'bucket_signups_count'      => $bucketSignupsCount,
+			'full_season_signups_count' => count( $signups ),
 		);
 
 		$items = array();

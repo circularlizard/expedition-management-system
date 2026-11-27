@@ -183,6 +183,8 @@ export interface PreferenceQueueResponseDTO {
     auto_matched: number;
     confirmed: number;
     ignored: number;
+    bucket_signups_count?: number;
+    full_season_signups_count?: number;
   };
 }
 

@@ -59,12 +59,28 @@ class TeamSolverService {
 	 * @return array<string, mixed>
 	 */
 	public function propose( array $params = array() ): array {
-		$scope       = (string) ( $params['scope'] ?? 'bucket' ) === 'full_season' ? 'full_season' : 'bucket';
-		$filterLevel = strtolower( trim( (string) ( $params['dofe_level'] ?? '' ) ) );
-		$filterMode  = isset( $params['transport_mode'] ) && $params['transport_mode'] !== ''
+		$scope        = (string) ( $params['scope'] ?? 'bucket' ) === 'full_season' ? 'full_season' : 'bucket';
+		$filterLevels = array();
+		if ( ! empty( $params['dofe_levels'] ) && is_array( $params['dofe_levels'] ) ) {
+			foreach ( $params['dofe_levels'] as $lvl ) {
+				$clean = strtolower( trim( (string) $lvl ) );
+				if ( $clean !== '' ) {
+					$filterLevels[] = $clean;
+				}
+			}
+		} elseif ( isset( $params['dofe_level'] ) && trim( (string) $params['dofe_level'] ) !== '' ) {
+			foreach ( explode( ',', (string) $params['dofe_level'] ) as $lvl ) {
+				$clean = strtolower( trim( $lvl ) );
+				if ( $clean !== '' ) {
+					$filterLevels[] = $clean;
+				}
+			}
+		}
+		$filterLevels = array_values( array_unique( $filterLevels ) );
+		$filterMode   = isset( $params['transport_mode'] ) && $params['transport_mode'] !== ''
 			? $this->matcher->normalizeTransportMode( (string) $params['transport_mode'] )
 			: '';
-		$weights     = $this->resolveWeights( is_array( $params['weights'] ?? null ) ? $params['weights'] : array() );
+		$weights      = $this->resolveWeights( is_array( $params['weights'] ?? null ) ? $params['weights'] : array() );
 
 		$signups     = $this->matcher->loadActiveSignups();
 		$expeditions = $this->loadActiveExpeditions();
@@ -90,7 +106,7 @@ class TeamSolverService {
 				continue;
 			}
 			if ( $scope === 'bucket' ) {
-				if ( $filterLevel !== '' && $level !== $filterLevel ) {
+				if ( ! empty( $filterLevels ) && ! in_array( $level, $filterLevels, true ) ) {
 					continue;
 				}
 				if ( $filterMode !== '' && $mode !== $filterMode ) {
@@ -214,7 +230,7 @@ class TeamSolverService {
 			$locked = (int) ( $lockedInfo['locked_count_by_exp'][ $eid ] ?? 0 );
 			$prop   = (int) ( $proposedCountByExp[ $eid ] ?? 0 );
 			if ( $scope === 'bucket' ) {
-				if ( $filterLevel !== '' && $exp['dofe_level'] !== $filterLevel && $exp['dofe_level'] !== 'multiple' ) {
+				if ( ! empty( $filterLevels ) && ! in_array( $exp['dofe_level'], $filterLevels, true ) && $exp['dofe_level'] !== 'multiple' ) {
 					continue;
 				}
 				if ( $filterMode !== '' && $exp['transport_mode'] !== $filterMode ) {

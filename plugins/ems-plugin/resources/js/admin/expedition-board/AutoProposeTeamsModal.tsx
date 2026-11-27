@@ -276,6 +276,8 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
         auto_matched: 0,
         confirmed: 0,
         ignored: 0,
+        bucket_signups_count: 0,
+        full_season_signups_count: 0,
       };
       for (const r of results) {
         for (const item of r.items) {
@@ -288,6 +290,11 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
         mergedSummary.auto_matched += Number(r.summary.auto_matched ?? 0);
         mergedSummary.confirmed += Number(r.summary.confirmed ?? 0);
         mergedSummary.ignored += Number(r.summary.ignored ?? 0);
+        mergedSummary.bucket_signups_count += Number(r.summary.bucket_signups_count ?? 0);
+        mergedSummary.full_season_signups_count = Math.max(
+          mergedSummary.full_season_signups_count,
+          Number(r.summary.full_season_signups_count ?? 0)
+        );
       }
 
       const normalized: PreferenceQueueResponseDTO = {
@@ -1209,7 +1216,11 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                       disabled={proposing || applying}
                     />
                     <span>
-                      Current filter ({selectedLevels.map(formatLevelLabel).join(', ')} / {formatTransportLabel(transport)})
+                      Current filter ({selectedLevels.map(formatLevelLabel).join(', ')} / {formatTransportLabel(transport)}
+                      {typeof queueData?.summary?.bucket_signups_count === 'number'
+                        ? ` — ${queueData.summary.bucket_signups_count} explorer${queueData.summary.bucket_signups_count === 1 ? '' : 's'}`
+                        : ''}
+                      )
                     </span>
                   </label>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
@@ -1221,7 +1232,13 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                       onChange={() => setSolverScope('full_season')}
                       disabled={proposing || applying}
                     />
-                    <span>Full Season (All Buckets)</span>
+                    <span>
+                      Full Season (All Buckets
+                      {typeof queueData?.summary?.full_season_signups_count === 'number' && queueData.summary.full_season_signups_count > 0
+                        ? ` — ${queueData.summary.full_season_signups_count} explorer${queueData.summary.full_season_signups_count === 1 ? '' : 's'}`
+                        : ''}
+                      )
+                    </span>
                   </label>
                 </div>
 

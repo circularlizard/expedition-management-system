@@ -10,6 +10,11 @@ use EMS\Tests\EMSTestCase;
 
 class WishlistMatcherServiceTest extends EMSTestCase {
 
+	protected function setUp(): void {
+		parent::setUp();
+		Functions\when( 'get_option' )->justReturn( array() );
+	}
+
 	private function makeWpdbMock( array $signupRows, array &$prefRows, array &$deletedQueries = array() ): \wpdb {
 		$wpdb         = \Mockery::mock( \wpdb::class );
 		$wpdb->prefix = 'wp_';
