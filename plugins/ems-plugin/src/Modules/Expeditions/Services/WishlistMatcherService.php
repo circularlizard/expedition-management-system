@@ -188,15 +188,30 @@ class WishlistMatcherService {
 		);
 
 		$items = array();
-		foreach ( $grouped as $sourceId => $rows ) {
-			$src = $signupsById[ $sourceId ] ?? null;
-			if ( $src === null ) {
-				continue;
-			}
+		foreach ( $signups as $src ) {
+			$sourceId = (int) $src['id'];
 			if ( $filterLevel !== '' && $src['dofe_level'] !== $filterLevel ) {
 				continue;
 			}
 			if ( $filterMode !== '' && $src['transport_mode'] !== $filterMode ) {
+				continue;
+			}
+
+			$rows = $grouped[ $sourceId ] ?? array();
+			if ( empty( $rows ) ) {
+				if ( $filterScope === 'all' ) {
+					$items[] = array(
+						'source_signup_id' => $sourceId,
+						'explorer_name'    => $src['explorer_name'],
+						'unit_name'        => $src['unit_name'],
+						'gender'           => $src['gender'] ?? '',
+						'dofe_level'       => $src['dofe_level'],
+						'transport_mode'   => $src['transport_mode'],
+						'wishlist_raw'     => $src['wishlist_raw'],
+						'wishlist_hash'    => md5( trim( (string) $src['wishlist_raw'] ) ),
+						'tokens'           => array(),
+					);
+				}
 				continue;
 			}
 

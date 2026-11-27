@@ -300,7 +300,7 @@ class WishlistMatcherServiceTest extends EMSTestCase {
 		$queue = $service->getQueue( array( 'filter' => 'all' ) );
 		$this->assertSame( 2, $queue['summary']['auto_matched'] );
 		$this->assertSame( 0, $queue['summary']['needs_review'] );
-		$this->assertCount( 1, $queue['items'] );
+		$this->assertCount( 3, $queue['items'] );
 		$this->assertSame( 'Lauderdale ESU', $queue['items'][0]['tokens'][1]['resolved_target_unit'] );
 	}
 
@@ -333,7 +333,10 @@ class WishlistMatcherServiceTest extends EMSTestCase {
 
 		$service->parseAll();
 		$queue = $service->getQueue( array( 'filter' => 'all' ) );
+		$this->assertCount( 2, $queue['items'] );
 		$this->assertSame( 'female', $queue['items'][0]['gender'] );
+		$this->assertSame( 'male', $queue['items'][1]['gender'] );
+		$this->assertSame( array(), $queue['items'][1]['tokens'] );
 
 		$candidates = $service->searchCandidates( 1, 'Lucy' );
 		$this->assertCount( 1, $candidates );

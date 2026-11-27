@@ -270,6 +270,7 @@ class Admin_View_Controller {
 		$anomaly_result  = $anomaly_service->computeAnomalies( $participant_rows, $expedition_rows );
 		$by_key          = $anomaly_result['by_key'];
 
+		$gender_map  = ( new \EMS\Modules\Expeditions\Services\WishlistPreferenceRepository() )->getGenderMap();
 		$all_signups = array();
 		foreach ( $expedition_rows as $er ) {
 			$prefs = ! empty( $er['expedition_preferences'] ) ? json_decode( (string) $er['expedition_preferences'], true ) : null;
@@ -279,6 +280,7 @@ class Admin_View_Controller {
 				'scout_id'                    => (int) $er['scout_id'],
 				'unit_id'                     => ! empty( $er['unit_id'] ) ? (int) $er['unit_id'] : null,
 				'unit_name'                   => $er['unit_name'] ?: 'Unassigned',
+				'gender'                      => $gender_map[ (int) $er['id'] ] ?? '',
 				'explorer_first_name'         => $er['explorer_first_name'] ?? '',
 				'explorer_last_name'          => $er['explorer_last_name'] ?? '',
 				'explorer_email'              => $er['explorer_email'] ?? '',

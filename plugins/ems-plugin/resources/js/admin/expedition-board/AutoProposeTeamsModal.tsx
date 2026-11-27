@@ -79,7 +79,7 @@ const WEIGHT_FIELDS: Array<{ key: keyof SolverWeightsDTO; label: string; descrip
   {
     key: 'solo_gender_penalty',
     label: 'Solo gender penalty',
-    description: 'Penalizes leaving a single boy or girl alone on a team.',
+    description: 'Penalizes leaving a single male or female alone on a team.',
   },
   {
     key: 'solo_unit_district_penalty',
@@ -171,7 +171,7 @@ function getStatusBadgeStyle(
         border: '#d8b4fe',
       };
     case 'ignored':
-      return { label: 'Ignored', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
+      return { label: 'No Match', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
     case 'not_found':
     default:
       return { label: 'Not found', bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' };
@@ -717,7 +717,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                     Confirmed: <strong>{summary?.confirmed ?? 0}</strong>
                   </span>
                   <span>
-                    Ignored: <strong>{summary?.ignored ?? 0}</strong>
+                    No Match: <strong>{summary?.ignored ?? 0}</strong>
                   </span>
                 </div>
 
@@ -728,7 +728,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                     onChange={(e) => void handleToggleFilter(e.target.checked ? 'all' : 'needs_review')}
                     disabled={loadingQueue}
                   />
-                  <span>Show All Parsed Wishlists</span>
+                  <span>Show All Explorers</span>
                 </label>
               </div>
 
@@ -803,11 +803,11 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                                   void handleGenderChange(item.source_signup_id, e.target.value as ExplorerGender)
                                 }
                                 disabled={savingStep1}
-                                style={{ fontSize: '12px', padding: '2px 4px', minHeight: '26px' }}
+                                style={{ fontSize: '12px', padding: '2px 28px 2px 8px', minWidth: '105px', minHeight: '28px', height: 'auto' }}
                               >
                                 <option value="">Unknown</option>
-                                <option value="male">Boy</option>
-                                <option value="female">Girl</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
                                 <option value="other">Other</option>
                               </select>
                             </label>
@@ -1066,7 +1066,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                                         })
                                       }
                                     >
-                                      Ignore
+                                      No Match
                                     </button>
                                   </div>
                                 </div>
@@ -1122,7 +1122,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                                 {tok.match_status === 'not_found' && effectiveStatus === 'not_found' && (
                                   <div style={{ marginTop: '6px', fontSize: '12px', color: '#991b1b' }}>
                                     <FontAwesomeIcon icon={faCircleExclamation} /> No matching sign-up found in this bucket. Use{' '}
-                                    <strong>Search &amp; override</strong> to link manually, or <strong>Ignore</strong>.
+                                    <strong>Search &amp; override</strong> to link manually, or mark <strong>No Match</strong>.
                                   </div>
                                 )}
 
@@ -1414,12 +1414,12 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                     ) : (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
                         {proposal.proposed_teams.map((team) => {
-                          const boyCount = team.members.filter((m) => m.gender === 'male').length;
-                          const girlCount = team.members.filter((m) => m.gender === 'female').length;
+                          const maleCount = team.members.filter((m) => m.gender === 'male').length;
+                          const femaleCount = team.members.filter((m) => m.gender === 'female').length;
                           const otherCount = team.members.filter((m) => m.gender === 'other').length;
-                          const hasGenderData = boyCount > 0 || girlCount > 0 || otherCount > 0;
+                          const hasGenderData = maleCount > 0 || femaleCount > 0 || otherCount > 0;
                           const genderSummary = hasGenderData
-                            ? `${boyCount}B / ${girlCount}G${otherCount > 0 ? ` / ${otherCount}O` : ''}`
+                            ? `${maleCount}M / ${femaleCount}F${otherCount > 0 ? ` / ${otherCount}O` : ''}`
                             : null;
 
                           return (
@@ -1517,7 +1517,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                             .map(
                               (t) =>
                                 `${t.team_name} (${t.stage}: ${t.explorer_name} — solo ${
-                                  t.solo_gender === 'male' ? 'boy' : 'girl'
+                                  t.solo_gender === 'male' ? 'male' : 'female'
                                 })`
                             )
                             .join('; ')}

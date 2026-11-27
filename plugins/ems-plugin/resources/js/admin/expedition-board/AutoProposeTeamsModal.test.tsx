@@ -308,8 +308,8 @@ describe('AutoProposeTeamsModal', () => {
     const addCandBtn = await screen.findByRole('button', { name: /Robert Brown \(Lauderdale ESU\)/i });
     fireEvent.click(addCandBtn);
 
-    // Toggle Show All Parsed Wishlists
-    fireEvent.click(screen.getByRole('checkbox', { name: /Show All Parsed Wishlists/i }));
+    // Toggle Show All Explorers
+    fireEvent.click(screen.getByRole('checkbox', { name: /Show All Explorers/i }));
     expect(await screen.findByText('Clara Fraser')).toBeInTheDocument();
 
     // Save & Proceed to Step 2
@@ -514,13 +514,13 @@ describe('AutoProposeTeamsModal', () => {
       />
     );
 
-    // Step 1: unit_preference badge & Prefer/Avoid/Ignore controls
+    // Step 1: unit_preference badge & Prefer/Avoid/No Match controls
     expect(await screen.findByText('Unit preference: Lauderdale ESU')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Prefer' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Avoid' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ignore' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'No Match' })).toBeInTheDocument();
 
-    // Gender selector defaults to Girl ('female') and updates via PUT /preferences/genders
+    // Gender selector defaults to Female ('female') and updates via PUT /preferences/genders
     const genderSelect = screen.getByLabelText('Gender for Sophie Kerr') as HTMLSelectElement;
     expect(genderSelect.value).toBe('female');
     fireEvent.change(genderSelect, { target: { value: 'male' } });
@@ -545,14 +545,14 @@ describe('AutoProposeTeamsModal', () => {
     // Weighting explanation callout & solo_gender_penalty default -40
     expect(screen.getByText(/How Solver Weights Work:/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Solo gender penalty/i)).toHaveValue(-40);
-    expect(screen.getByText(/Penalizes leaving a single boy or girl alone on a team\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Penalizes leaving a single male or female alone on a team\./i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Generate Proposal/i }));
 
     // Team card shows gender counts and Exceptions & Compromises surfaces solo_gender_teams
-    expect(await screen.findByText(/1B \/ 1G/i)).toBeInTheDocument();
+    expect(await screen.findByText(/1M \/ 1F/i)).toBeInTheDocument();
     expect(screen.getByText(/Solo Gender Teams:/i)).toBeInTheDocument();
-    expect(screen.getByText(/H-BP1-2 \(practice: Sophie Kerr — solo girl\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/H-BP1-2 \(practice: Sophie Kerr — solo female\)/i)).toBeInTheDocument();
   });
 });
 

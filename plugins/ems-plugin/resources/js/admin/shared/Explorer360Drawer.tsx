@@ -147,6 +147,13 @@ export const Explorer360Drawer: React.FC<Explorer360DrawerProps> = ({
         () => resolvedSignups.filter((s) => s.signup_status !== 'archived'),
         [resolvedSignups]
     );
+    const primaryExpSignup = useMemo(
+        () =>
+            activeSignups.find((s: any) => s.type === 'expedition') ??
+            resolvedSignups.find((s: any) => s.type === 'expedition') ??
+            null,
+        [activeSignups, resolvedSignups]
+    );
     const archivedSignups = useMemo(
         () => resolvedSignups.filter((s) => s.signup_status === 'archived'),
         [resolvedSignups]
@@ -330,6 +337,34 @@ export const Explorer360Drawer: React.FC<Explorer360DrawerProps> = ({
     const isDirty = Object.keys(pendingEdits).length > 0;
     const BLOCKING_ANOMALIES = new Set(['missing_edofe', 'unmatched_osm', 'duplicate_signup']);
 
+    const handleGenderChange = async (nextGender: string) => {
+        if (!primaryExpSignup?.id) return;
+        setSavingKey('gender');
+        setError(null);
+        try {
+            const res = await fetch(`${rootUrl}/preferences/genders`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': nonce,
+                },
+                body: JSON.stringify({
+                    genders: { [primaryExpSignup.id]: nextGender },
+                }),
+            });
+            if (!res.ok) {
+                throw new Error(`Failed to update gender (HTTP ${res.status})`);
+            }
+            markSaved('gender');
+            await load360();
+            onUpdated?.();
+        } catch (err: any) {
+            setError(err?.message || 'Failed to update gender.');
+        } finally {
+            setSavingKey(null);
+        }
+    };
+
     return (
         <div
             className="ems-drawer-backdrop"
@@ -469,6 +504,32 @@ export const Explorer360Drawer: React.FC<Explorer360DrawerProps> = ({
                                             {resolvedContacts.explorer_email || '—'}
                                         </div>
                                     </div>
+                                    {primaryExpSignup && (
+                                        <div className="ems-signups-detail-item">
+                                            <span className="ems-signups-inspector__label">
+                                                Gender (Team Solver)
+                                            </span>
+                                            <div className="ems-signups-inspector__value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <select
+                                                    aria-label="Explorer Gender"
+                                                    value={primaryExpSignup.gender || ''}
+                                                    disabled={savingKey === 'gender'}
+                                                    onChange={(e) => void handleGenderChange(e.target.value)}
+                                                    style={{ fontSize: '12px', padding: '2px 28px 2px 8px', minWidth: '110px', height: 'auto' }}
+                                                >
+                                                    <option value="">Unknown</option>
+                                                    <option value="male">Male</option>
+                                                    <option value="female">Female</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                                {savedKey === 'gender' && (
+                                                    <span className="ems-field-status ems-field-status--success">
+                                                        <FontAwesomeIcon icon={faCheck} /> Saved
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                     {osmContacts && (
                                         <div className="ems-signups-detail-item">
                                             <span className="ems-signups-inspector__label">
