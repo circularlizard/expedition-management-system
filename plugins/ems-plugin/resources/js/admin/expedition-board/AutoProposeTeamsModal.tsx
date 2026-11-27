@@ -44,7 +44,9 @@ const DEFAULT_WEIGHTS: SolverWeightsDTO = {
   mutual_wishlist: 25,
   one_way_wishlist: 10,
   solo_gender_penalty: -40,
+  solo_unit_district_penalty: -30,
   same_unit: 5,
+  same_district: 3,
   first_aid_presence: 5,
 };
 
@@ -80,9 +82,19 @@ const WEIGHT_FIELDS: Array<{ key: keyof SolverWeightsDTO; label: string; descrip
     description: 'Penalizes leaving a single boy or girl alone on a team.',
   },
   {
+    key: 'solo_unit_district_penalty',
+    label: 'Solo unit/district penalty',
+    description: 'Presumption against placing 1 explorer from a unit/district into a team with others from another district.',
+  },
+  {
     key: 'same_unit',
     label: 'Same unit tie-breaker',
     description: 'Gentle tie-breaker to group explorers from the same unit.',
+  },
+  {
+    key: 'same_district',
+    label: 'Same district tie-breaker',
+    description: 'Gentle tie-breaker to group explorers from the same district (weaker than same unit).',
   },
   {
     key: 'first_aid_presence',

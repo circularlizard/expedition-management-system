@@ -203,7 +203,9 @@ export interface SolverWeightsDTO {
   mutual_wishlist: number;
   one_way_wishlist: number;
   solo_gender_penalty: number;
+  solo_unit_district_penalty: number;
   same_unit: number;
+  same_district: number;
   first_aid_presence: number;
 }
 

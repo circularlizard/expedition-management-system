@@ -1062,7 +1062,7 @@ class WishlistMatcherService {
 				s.first_aid_status, s.first_aid_expiry,
 				e.first_name AS osm_first_name, e.last_name AS osm_last_name,
 				e.first_aid_level AS osm_first_aid_level,
-				u.name AS resolved_unit_name, u.short_code AS unit_short_code
+				u.name AS resolved_unit_name, u.short_code AS unit_short_code, u.district AS unit_district
 			FROM {$signupsTable} s
 			LEFT JOIN {$explorersTable} e ON (s.scout_id > 0 AND s.scout_id = e.scout_id)
 			LEFT JOIN {$unitsTable} u ON (s.unit_id IS NOT NULL AND s.unit_id > 0 AND s.unit_id = u.unit_id)
@@ -1095,6 +1095,7 @@ class WishlistMatcherService {
 				'unit_id'             => isset( $row['unit_id'] ) && $row['unit_id'] !== null ? (int) $row['unit_id'] : null,
 				'unit_name'           => $unitName,
 				'unit_short_code'     => trim( (string) ( $row['unit_short_code'] ?? '' ) ),
+				'district'            => trim( (string) ( $row['unit_district'] ?? '' ) ),
 				'gender'              => $genderMap[ $signupId ] ?? '',
 				'first_name'          => $first,
 				'last_name'           => $last,

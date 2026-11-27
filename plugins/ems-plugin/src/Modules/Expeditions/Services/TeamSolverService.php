@@ -17,14 +17,16 @@ use EMS\Data\Team_Repository;
 class TeamSolverService {
 
 	public const DEFAULT_WEIGHTS = array(
-		'avoid_exclusion'        => -500,
-		'cross_stage_continuity' => 100,
-		'code_availability'      => 80,
-		'mutual_wishlist'        => 25,
-		'one_way_wishlist'       => 10,
-		'same_unit'              => 5,
-		'first_aid_presence'     => 5,
-		'solo_gender_penalty'    => -40,
+		'avoid_exclusion'            => -500,
+		'cross_stage_continuity'     => 100,
+		'code_availability'          => 80,
+		'mutual_wishlist'            => 25,
+		'one_way_wishlist'           => 10,
+		'same_unit'                  => 5,
+		'same_district'              => 3,
+		'first_aid_presence'         => 5,
+		'solo_gender_penalty'        => -40,
+		'solo_unit_district_penalty' => -30,
 	);
 
 	private ?\wpdb $wpdb;
@@ -485,7 +487,7 @@ class TeamSolverService {
 		}
 
 		// Greedy initial clustering into K teams of size 4..7.
-		$teamAssign = $this->greedyInitialPartition( $n, $k, $preferAdj, $avoidAdj );
+		$teamAssign = $this->greedyInitialPartition( $n, $k, $preferAdj, $avoidAdj, $signupByIdx );
 
 		// Assign each team a Practice and Qualifier expedition respecting max_teams.
 		$pSlots = $this->buildExpeditionSlots( $practiceExps, $lockedInfo['locked_count_by_exp'], $proposedCountByExp );
@@ -520,20 +522,29 @@ class TeamSolverService {
 		$curScore = $bestScore;
 
 		$iterations = 1500;
+		$rng        = 1234567;
 		for ( $iter = 0; $iter < $iterations; $iter++ ) {
-			$temp = 40.0 * pow( 0.01, $iter / max( 1, $iterations - 1 ) );
+			$rng  = ( $rng * 1103515245 + 12345 ) & 0x7fffffff;
+			$temp = 60.0 * pow( 0.01, $iter / max( 1, $iterations - 1 ) );
 			$next = $curState;
 
 			$moveType = $iter % 3;
 			if ( $moveType === 0 && $k >= 2 ) {
 				// Swap two explorers between different teams.
-				$u = $iter % $n;
-				$v = ( $iter * 7 + 3 ) % $n;
+				$u    = $rng % $n;
+				$rng  = ( $rng * 1103515245 + 12345 ) & 0x7fffffff;
+				$v    = $rng % $n;
 				if ( $next['assign'][ $u ] === $next['assign'][ $v ] ) {
-					$v = ( $v + 1 ) % $n;
+					for ( $step = 1; $step < $n; $step++ ) {
+						$candV = ( $v + $step ) % $n;
+						if ( $next['assign'][ $candV ] !== $next['assign'][ $u ] ) {
+							$v = $candV;
+							break;
+						}
+					}
 				}
 				if ( $next['assign'][ $u ] !== $next['assign'][ $v ] ) {
-					$tmp                = $next['assign'][ $u ];
+					$tmp                  = $next['assign'][ $u ];
 					$next['assign'][ $u ] = $next['assign'][ $v ];
 					$next['assign'][ $v ] = $tmp;
 				}
@@ -584,6 +595,43 @@ class TeamSolverService {
 				if ( $curScore > $bestScore ) {
 					$bestState = $curState;
 					$bestScore = $curScore;
+				}
+			}
+		}
+
+		// Deterministic 2-opt swap polish so no improving pairwise swap is left behind.
+		if ( $k >= 2 ) {
+			for ( $pass = 0; $pass < 10; $pass++ ) {
+				$improved = false;
+				for ( $u = 0; $u < $n; $u++ ) {
+					for ( $v = $u + 1; $v < $n; $v++ ) {
+						if ( $bestState['assign'][ $u ] === $bestState['assign'][ $v ] ) {
+							continue;
+						}
+						$cand               = $bestState;
+						$tmp                = $cand['assign'][ $u ];
+						$cand['assign'][ $u ] = $cand['assign'][ $v ];
+						$cand['assign'][ $v ] = $tmp;
+						$candScore          = $this->scoreSolution(
+							$cand['assign'],
+							$cand['pExp'],
+							$cand['qExp'],
+							$signupByIdx,
+							$preferAdj,
+							$avoidAdj,
+							$mutualPairs,
+							$weights,
+							$unitPreferPrefs
+						);
+						if ( $candScore > $bestScore ) {
+							$bestState = $cand;
+							$bestScore = $candScore;
+							$improved  = true;
+						}
+					}
+				}
+				if ( ! $improved ) {
+					break;
 				}
 			}
 		}
@@ -731,11 +779,12 @@ class TeamSolverService {
 	}
 
 	/**
-	 * @param array<int, array<int, bool>> $preferAdj
-	 * @param array<int, array<int, bool>> $avoidAdj
+	 * @param array<int, array<int, bool>>     $preferAdj
+	 * @param array<int, array<int, bool>>     $avoidAdj
+	 * @param array<int, array<string, mixed>> $signupByIdx
 	 * @return array<int, int>
 	 */
-	private function greedyInitialPartition( int $n, int $k, array $preferAdj, array $avoidAdj ): array {
+	private function greedyInitialPartition( int $n, int $k, array $preferAdj, array $avoidAdj, array $signupByIdx = array() ): array {
 		$visited  = array();
 		$clusters = array();
 
@@ -773,18 +822,41 @@ class TeamSolverService {
 
 		usort( $clusters, static fn( array $a, array $b ): int => count( $b ) <=> count( $a ) );
 
-		$assign = array_fill( 0, $n, 0 );
-		$sizes  = array_fill( 0, $k, 0 );
+		$assign     = array_fill( 0, $n, 0 );
+		$sizes      = array_fill( 0, $k, 0 );
+		$targetSize = max( 4, (int) ceil( $n / max( 1, $k ) ) );
 
 		foreach ( $clusters as $cluster ) {
-			// Find team with smallest size that can fit cluster (<= 7) with fewest avoid conflicts.
+			// Find team that can fit cluster (<= 7) with fewest avoid conflicts and same-district/unit affinity.
 			$bestT    = 0;
 			$bestCost = PHP_INT_MAX;
 			for ( $t = 0; $t < $k; $t++ ) {
 				if ( $sizes[ $t ] + count( $cluster ) > 7 ) {
 					continue;
 				}
-				$cost = $sizes[ $t ];
+				$avoidCost    = 0;
+				$affinityGain = 0;
+				foreach ( $cluster as $idx ) {
+					$uDistrict = strtolower( trim( (string) ( $signupByIdx[ $idx ]['district'] ?? '' ) ) );
+					$uUnit     = strtolower( trim( (string) ( $signupByIdx[ $idx ]['unit_name'] ?? '' ) ) );
+					foreach ( $assign as $other => $otherT ) {
+						if ( $otherT !== $t || $sizes[ $t ] === 0 ) {
+							continue;
+						}
+						if ( isset( $avoidAdj[ $idx ][ $other ] ) ) {
+							++$avoidCost;
+						}
+						$vDistrict = strtolower( trim( (string) ( $signupByIdx[ $other ]['district'] ?? '' ) ) );
+						$vUnit     = strtolower( trim( (string) ( $signupByIdx[ $other ]['unit_name'] ?? '' ) ) );
+						if ( $uUnit !== '' && $uUnit === $vUnit ) {
+							$affinityGain += 15;
+						} elseif ( $uDistrict !== '' && $uDistrict === $vDistrict ) {
+							$affinityGain += 10;
+						}
+					}
+				}
+				$overflowPenalty = ( $sizes[ $t ] + count( $cluster ) > $targetSize ) ? 50 : 0;
+				$cost            = $avoidCost * 100 + $overflowPenalty + $sizes[ $t ] - $affinityGain;
 				if ( $cost < $bestCost ) {
 					$bestCost = $cost;
 					$bestT    = $t;
@@ -944,6 +1016,11 @@ class TeamSolverService {
 				if ( $u < $v && $su['unit_name'] !== '' && strcasecmp( $su['unit_name'], $signupByIdx[ $v ]['unit_name'] ) === 0 ) {
 					$score += $weights['same_unit'];
 				}
+				$uDistrict = trim( (string) ( $su['district'] ?? '' ) );
+				$vDistrict = trim( (string) ( $signupByIdx[ $v ]['district'] ?? '' ) );
+				if ( $u < $v && $uDistrict !== '' && $vDistrict !== '' && strcasecmp( $uDistrict, $vDistrict ) === 0 ) {
+					$score += $weights['same_district'];
+				}
 			}
 		}
 
@@ -957,6 +1034,29 @@ class TeamSolverService {
 			}
 			if ( $femaleCount === 1 ) {
 				$score += $weights['solo_gender_penalty'];
+			}
+		}
+
+		// Solo unit/district presumption: penalise placing 1 person from a unit/district with others from another district.
+		$districtGroups = array();
+		foreach ( $members as $u ) {
+			$su       = $signupByIdx[ $u ];
+			$district = strtolower( trim( (string) ( $su['district'] ?? '' ) ) );
+			$unit     = strtolower( trim( (string) ( $su['unit_name'] ?? '' ) ) );
+			if ( $district !== '' ) {
+				$groupKey = 'd:' . $district;
+			} elseif ( $unit !== '' ) {
+				$groupKey = 'u:' . $unit;
+			} else {
+				continue;
+			}
+			$districtGroups[ $groupKey ] = ( $districtGroups[ $groupKey ] ?? 0 ) + 1;
+		}
+		if ( count( $districtGroups ) >= 2 ) {
+			foreach ( $districtGroups as $cnt ) {
+				if ( $cnt === 1 ) {
+					$score += $weights['solo_unit_district_penalty'];
+				}
 			}
 		}
 

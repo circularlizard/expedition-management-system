@@ -567,4 +567,109 @@ class TeamSolverServiceTest extends EMSTestCase {
 		$this->assertCount( 2, $result['proposed_teams'] );
 		$this->assertSame( 8, $result['stats']['total_explorers'] );
 	}
+
+	public function test_propose_prefers_same_district_and_avoids_solo_district_member(): void {
+		\Brain\Monkey\Functions\when( 'get_posts' )->alias(
+			static function ( array $args ): array {
+				if ( ( $args['post_type'] ?? '' ) === 'expedition' ) {
+					return array(
+						(object) array( 'ID' => 401, 'post_title' => 'H-SP1' ),
+						(object) array( 'ID' => 402, 'post_title' => 'H-SQ1' ),
+					);
+				}
+				return array();
+			}
+		);
+
+		$meta = array(
+			401 => array( 'ems_status' => 'active', 'ems_type' => 'practice', 'ems_event_code' => 'H-SP1', 'ems_level' => 'silver', 'ems_transport' => 'hillwalking' ),
+			402 => array( 'ems_status' => 'active', 'ems_type' => 'qualifying', 'ems_event_code' => 'H-SQ1', 'ems_level' => 'silver', 'ems_transport' => 'hillwalking' ),
+		);
+		\Brain\Monkey\Functions\when( 'get_post_meta' )->alias(
+			static function ( int $id, string $key, bool $single = false ) use ( $meta ) {
+				return $meta[ $id ][ $key ] ?? '';
+			}
+		);
+
+		// 4 explorers from District A (4 different units) and 4 explorers from District B (4 different units).
+		// With same_district (+3) and solo_unit_district_penalty (-30), the 2 teams of 4 should be [4 from A] and [4 from B].
+		$signups = array();
+		for ( $i = 1; $i <= 4; $i++ ) {
+			$signups[] = array(
+				'id'                     => $i,
+				'scout_id'               => 600 + $i,
+				'unit_id'                => $i,
+				'unit_name'              => "Unit A{$i}",
+				'unit_district'          => 'District Alpha',
+				'explorer_first_name'    => 'Alpha',
+				'explorer_last_name'     => "E{$i}",
+				'dofe_level'             => 'silver',
+				'first_aid_status'       => 'none',
+				'osm_first_aid_level'    => 'none',
+				'expedition_preferences' => wp_json_encode(
+					array(
+						'exped_type'            => 'Hillwalking',
+						'exped_practice_dates'  => array( 'H-SP1' ),
+						'exped_qualifier_dates' => array( 'H-SQ1' ),
+					)
+				),
+			);
+		}
+		for ( $i = 5; $i <= 8; $i++ ) {
+			$signups[] = array(
+				'id'                     => $i,
+				'scout_id'               => 600 + $i,
+				'unit_id'                => $i,
+				'unit_name'              => "Unit B{$i}",
+				'unit_district'          => 'District Beta',
+				'explorer_first_name'    => 'Beta',
+				'explorer_last_name'     => "E{$i}",
+				'dofe_level'             => 'silver',
+				'first_aid_status'       => 'none',
+				'osm_first_aid_level'    => 'none',
+				'expedition_preferences' => wp_json_encode(
+					array(
+						'exped_type'            => 'Hillwalking',
+						'exped_practice_dates'  => array( 'H-SP1' ),
+						'exped_qualifier_dates' => array( 'H-SQ1' ),
+					)
+				),
+			);
+		}
+
+		$wpdb         = \Mockery::mock( \wpdb::class );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+			static function ( string $query ) use ( $signups ): array {
+				if ( str_contains( $query, 'ems_expedition_signups' ) ) {
+					return $signups;
+				}
+				return array();
+			}
+		);
+
+		$solver = new TeamSolverService( $wpdb );
+		$result = $solver->propose(
+			array(
+				'scope'          => 'bucket',
+				'dofe_level'     => 'silver',
+				'transport_mode' => 'foot',
+			)
+		);
+
+		$this->assertCount( 2, $result['proposed_teams'] );
+		$teamUnitPrefixes = array();
+		foreach ( $result['proposed_teams'] as $team ) {
+			$prefixes = array_unique(
+				array_map(
+					static fn( array $m ): string => substr( (string) $m['unit_name'], 0, 6 ),
+					$team['members']
+				)
+			);
+			$this->assertCount( 1, $prefixes, 'Each team should stay within a single district when 4+4 are available' );
+			$teamUnitPrefixes[] = $prefixes[0];
+		}
+		sort( $teamUnitPrefixes );
+		$this->assertSame( array( 'Unit A', 'Unit B' ), $teamUnitPrefixes );
+	}
 }
