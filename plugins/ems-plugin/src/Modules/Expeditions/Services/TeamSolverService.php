@@ -226,6 +226,11 @@ class TeamSolverService {
 			$stats['first_aid_teams_covered'] += $bucketResult['stats']['first_aid_teams_covered'];
 		}
 
+		usort(
+			$proposedTeams,
+			static fn( array $a, array $b ): int => strnatcasecmp( (string) ( $a['team_name'] ?? '' ), (string) ( $b['team_name'] ?? '' ) )
+		);
+
 		$expeditionCapacity = array();
 		foreach ( $expeditions as $exp ) {
 			$eid    = (int) $exp['id'];
