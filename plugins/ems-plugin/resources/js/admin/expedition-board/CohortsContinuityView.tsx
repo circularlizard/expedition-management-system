@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCheck,
@@ -83,6 +83,18 @@ function extractAvailCodesFromPrefs(prefsJson: string | null, stage: 'practice' 
   }
 }
 
+const VIEW_DENSITY_KEY = 'ems_team_builder_view_density';
+
+function getStoredViewDensity(): 'compact' | 'detailed' | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const val = localStorage.getItem(VIEW_DENSITY_KEY);
+    return val === 'compact' || val === 'detailed' ? val : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function CohortsContinuityView({
   level,
   transport,
@@ -111,6 +123,31 @@ export default function CohortsContinuityView({
   const [stageFilter, setStageFilter] = useState<'all' | 'practice' | 'qualifier'>('all');
   const [groupByUnit, setGroupByUnit] = useState(false);
   const [hideAllocated, setHideAllocated] = useState(true);
+  const [viewDensity, setViewDensity] = useState<'compact' | 'detailed'>(
+    () => getStoredViewDensity() ?? (teams.length >= 6 ? 'compact' : 'detailed')
+  );
+  const [hasManualDensity, setHasManualDensity] = useState<boolean>(() => getStoredViewDensity() !== null);
+  const [pairLinkedStages, setPairLinkedStages] = useState<boolean>(false);
+  const [poolCollapsed, setPoolCollapsed] = useState<boolean>(false);
+  const [poolManualToggle, setPoolManualToggle] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!hasManualDensity) {
+      setViewDensity(teams.length >= 6 ? 'compact' : 'detailed');
+    }
+  }, [teams.length, hasManualDensity]);
+
+  const handleSetViewDensity = (mode: 'compact' | 'detailed') => {
+    setHasManualDensity(true);
+    setViewDensity(mode);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(VIEW_DENSITY_KEY, mode);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  };
 
   // ── Selection & Team Actions ───────────────────────────────────────────────
   const [selectedSignupIds, setSelectedSignupIds] = useState<number[]>([]);
@@ -538,18 +575,69 @@ export default function CohortsContinuityView({
     }
   };
 
+  const isPoolAutoCollapsed = hideAllocated && filteredPool.length === 0 && !poolManualToggle;
+  const effectivePoolCollapsed = poolCollapsed || isPoolAutoCollapsed;
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 370px) 1fr', gap: '16px', alignItems: 'start' }}>
-      {/* Left: Unassigned / Pool with Wishlist Matching & Availability */}
-      <div className="ems-panel ems-p-16">
-        <div className="ems-flex-between ems-mb-8">
-          <h3 className="ems-m-0">Explorers Pool ({filteredPool.length})</h3>
-          {selectedSignupIds.length > 0 && (
-            <button type="button" className="button button-small" onClick={() => setSelectedSignupIds([])}>
-              Clear ({selectedSignupIds.length})
-            </button>
-          )}
+    <div className={`ems-team-builder-layout ${effectivePoolCollapsed ? 'ems-team-builder-layout--collapsed' : ''}`}>
+      {/* Left: Collapsible Explorers Pool */}
+      {effectivePoolCollapsed ? (
+        <div
+          className="ems-panel ems-pool-collapsed-bar"
+          role="button"
+          tabIndex={0}
+          aria-label="Expand Explorers Pool"
+          title="Expand Explorers Pool"
+          onClick={() => {
+            setPoolManualToggle(true);
+            setPoolCollapsed(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setPoolManualToggle(true);
+              setPoolCollapsed(false);
+            }
+          }}
+        >
+          <button
+            type="button"
+            className="button button-small"
+            aria-label="Expand Pool"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPoolManualToggle(true);
+              setPoolCollapsed(false);
+            }}
+          >
+            »
+          </button>
+          <span className="ems-pool-collapsed-bar__label">Pool ({filteredPool.length})</span>
         </div>
+      ) : (
+        <div className="ems-panel ems-p-16">
+          <div className="ems-flex-between ems-mb-8">
+            <h3 className="ems-m-0">Explorers Pool ({filteredPool.length})</h3>
+            <div className="ems-flex-center ems-gap-6">
+              {selectedSignupIds.length > 0 && (
+                <button type="button" className="button button-small" onClick={() => setSelectedSignupIds([])}>
+                  Clear ({selectedSignupIds.length})
+                </button>
+              )}
+              <button
+                type="button"
+                className="button button-small"
+                aria-label="Collapse Pool"
+                title="Collapse Explorers Pool"
+                onClick={() => {
+                  setPoolManualToggle(true);
+                  setPoolCollapsed(true);
+                }}
+              >
+                «
+              </button>
+            </div>
+          </div>
 
         <input
           type="search"
@@ -717,6 +805,7 @@ export default function CohortsContinuityView({
           )}
         </div>
       </div>
+      )}
 
       {/* Right: Event Teams */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -759,17 +848,43 @@ export default function CohortsContinuityView({
             </button>
           </div>
 
-          <div className="ems-btn-group">
-            {(['all', 'practice', 'qualifier'] as const).map((st) => (
-              <button
-                key={st}
-                type="button"
-                className={`button button-small ${stageFilter === st ? 'button-primary' : ''}`}
-                onClick={() => setStageFilter(st)}
-              >
-                {st === 'all' ? 'All Stages' : st === 'practice' ? 'Practice' : 'Qualifier'}
-              </button>
-            ))}
+          <div className="ems-flex-center ems-gap-8 ems-wrap">
+            <div className="ems-btn-group" role="group" aria-label="Stage Filter">
+              {(['all', 'practice', 'qualifier'] as const).map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  className={`button button-small ${stageFilter === st ? 'button-primary' : ''}`}
+                  onClick={() => setStageFilter(st)}
+                >
+                  {st === 'all' ? 'All Stages' : st === 'practice' ? 'Practice' : 'Qualifier'}
+                </button>
+              ))}
+            </div>
+
+            <div className="ems-btn-group" role="group" aria-label="View Density">
+              {(['compact', 'detailed'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`button button-small ${viewDensity === mode ? 'button-primary' : ''}`}
+                  onClick={() => handleSetViewDensity(mode)}
+                >
+                  {mode === 'compact' ? 'Compact' : 'Detailed'}
+                </button>
+              ))}
+            </div>
+
+            {stageFilter === 'all' && (
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={pairLinkedStages}
+                  onChange={(e) => setPairLinkedStages(e.target.checked)}
+                />
+                <span>Pair linked stages</span>
+              </label>
+            )}
           </div>
         </div>
 
@@ -806,12 +921,79 @@ export default function CohortsContinuityView({
           </div>
         )}
 
-        {visibleTeams.length === 0 ? (
-          <div className="ems-panel ems-p-16">
-            <p className="ems-meta-text ems-m-0">No event teams found for this level/transport yet. Create one above or in Date Grid.</p>
-          </div>
-        ) : (
-          visibleTeams.map((team) => {
+        {(() => {
+          const renderMemberMetaBadges = (team: any, m: any, isPractice: boolean, poolMatch: any, partnerMemberIds?: Set<number>) => {
+            const isFA = hasValidFirstAid(m.first_aid_level, m.first_aid_status, m.first_aid_expiry);
+            const stageName = isPractice ? 'practice' : 'qualifier';
+            const expCode = String(team.expedition_code || '').trim().toUpperCase();
+            const availCodes =
+              (isPractice ? poolMatch?.practiceAvail : poolMatch?.qualifierAvail)?.map((c: string) =>
+                String(c || '').trim().toUpperCase()
+              ) || extractAvailCodesFromPrefs(m.expedition_preferences, stageName);
+            const isUnavailable = Boolean(expCode && availCodes.length > 0 && !availCodes.includes(expCode));
+            const isSplitFromPair = Boolean(
+              partnerMemberIds && m.expedition_signup_id && !partnerMemberIds.has(Number(m.expedition_signup_id))
+            );
+            const key = m.expedition_signup_id ? `s:${m.expedition_signup_id}` : m.scout_id ? `sc:${m.scout_id}` : '';
+            const others = (otherTeamsByMemberKey.get(key) || []).filter(
+              (ot) => ot.team_post_id !== Number(team.team_post_id || team.id)
+            );
+
+            return (
+              <>
+                {isFA && <span className="ems-matrix-tag ems-matrix-tag--fa">FA</span>}
+                {isUnavailable && (
+                  <span
+                    title={`This explorer did not list ${expCode} as available on their sign-up.`}
+                    style={{
+                      display: 'inline-block',
+                      marginLeft: '4px',
+                      padding: '0 6px',
+                      borderRadius: '999px',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      background: '#fef3c7',
+                      color: '#92400e',
+                      border: '1px solid #fcd34d',
+                    }}
+                  >
+                    {isPractice ? 'Unavailable: Practice' : 'Unavailable: Qualifier'}
+                  </span>
+                )}
+                {isSplitFromPair && (
+                  <span
+                    title="This explorer is not in the paired partner stage team."
+                    style={{
+                      display: 'inline-block',
+                      marginLeft: '4px',
+                      padding: '0 6px',
+                      borderRadius: '999px',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      background: '#ffedd5',
+                      color: '#9a3412',
+                      border: '1px solid #fdba74',
+                    }}
+                  >
+                    Split date
+                  </span>
+                )}
+                {viewDensity === 'detailed' &&
+                  others.map((ot) => (
+                    <span
+                      key={ot.team_post_id}
+                      className="ems-matrix-tag ems-matrix-tag--pref"
+                      style={{ marginLeft: '4px' }}
+                      title={`Also in ${ot.name} (${ot.stage})`}
+                    >
+                      {ot.name}
+                    </span>
+                  ))}
+              </>
+            );
+          };
+
+          const renderTeamCard = (team: any, partnerMemberIds?: Set<number>) => {
             const members: any[] = team.members || [];
             const sizeOk = members.length >= 4 && members.length <= 7;
             const faCount = members.filter((m) =>
@@ -819,12 +1001,19 @@ export default function CohortsContinuityView({
             ).length;
             const faOk = faCount >= 2;
             const isPractice = team.stage === 'practice';
+            const isCompact = viewDensity === 'compact';
 
             return (
-              <div key={team.team_post_id || team.id} className="ems-panel ems-p-16">
-                <div className="ems-flex-between ems-wrap ems-gap-8 ems-mb-12">
-                  <div className="ems-flex-center ems-wrap ems-gap-8">
-                    <h3 className="ems-m-0">{team.name}</h3>
+              <div
+                key={team.team_post_id || team.id}
+                className="ems-panel"
+                style={{ padding: isCompact ? '12px' : '16px' }}
+              >
+                <div className="ems-flex-between ems-wrap ems-gap-8" style={{ marginBottom: isCompact ? '8px' : '12px' }}>
+                  <div className="ems-flex-center ems-wrap ems-gap-6">
+                    <h3 className="ems-m-0" style={isCompact ? { fontSize: '14px' } : undefined}>
+                      {team.name}
+                    </h3>
                     <span
                       className="ems-badge"
                       style={{
@@ -834,7 +1023,7 @@ export default function CohortsContinuityView({
                     >
                       {isPractice ? 'Practice' : 'Qualifier'}
                     </span>
-                    <span className="ems-meta-text">
+                    <span className="ems-meta-text" style={{ fontSize: isCompact ? '11.5px' : undefined }}>
                       {onOpenEvent && team.expedition_id ? (
                         <button
                           type="button"
@@ -866,8 +1055,7 @@ export default function CohortsContinuityView({
                         color: faOk ? '#065f46' : '#92400e',
                       }}
                     >
-                      <FontAwesomeIcon icon={faOk ? faCheck : faTriangleExclamation} />{' '}
-                      {faCount} FA
+                      <FontAwesomeIcon icon={faOk ? faCheck : faTriangleExclamation} /> {faCount} FA
                     </span>
                   </div>
 
@@ -944,6 +1132,7 @@ export default function CohortsContinuityView({
                       disabled={busy}
                       onClick={() => handleDeleteTeam(team.team_post_id || team.id, team.name)}
                       title="Delete team"
+                      aria-label={`Delete team ${team.name}`}
                     >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
@@ -961,50 +1150,147 @@ export default function CohortsContinuityView({
                       : null;
 
                   return (
-                  <div className="ems-mb-12" style={{ padding: '8px', background: '#f8fafc', borderRadius: '6px' }}>
-                    <div className="ems-flex-center ems-gap-8 ems-wrap">
-                      <span style={{ fontSize: '12px', fontWeight: 600 }}>Copy members to Qualifier event:</span>
-                      <select
-                        className="ems-select ems-select-sm"
-                        value={copyTargetExpId}
-                        onChange={(e) => setCopyTargetExpId(e.target.value)}
-                      >
-                        {qualifierEvents.map((ev) => {
-                          const score =
-                            teamPoolMembers.length > 0
-                              ? scoreEventForExplorers(ev.event_code, 'qualifier', teamPoolMembers)
-                              : null;
-                          return (
-                            <option key={ev.id} value={String(ev.id)}>
-                              {ev.event_code} — {ev.title} ({formatDateShort(ev.start_date)})
-                              {score ? ` · ${score.availableCount}/${score.total} avail` : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      <button
-                        type="button"
-                        className="button button-small button-primary"
-                        disabled={busy || !copyTargetExpId}
-                        onClick={() => handleCopyToQualifier(team.team_post_id || team.id)}
-                      >
-                        Copy Team
-                      </button>
-                      <button type="button" className="button button-small" onClick={() => setCopyingTeamId(null)}>
-                        Cancel
-                      </button>
-                    </div>
-                    {selectedScore && selectedScore.unavailableNames.length > 0 && (
-                      <div style={{ fontSize: '11.5px', color: '#92400e', marginTop: '6px' }}>
-                        Unavailable for {selectedQual?.event_code}: {selectedScore.unavailableNames.join(', ')}
+                    <div className="ems-mb-12" style={{ padding: '8px', background: '#f8fafc', borderRadius: '6px' }}>
+                      <div className="ems-flex-center ems-gap-8 ems-wrap">
+                        <span style={{ fontSize: '12px', fontWeight: 600 }}>Copy members to Qualifier event:</span>
+                        <select
+                          className="ems-select ems-select-sm"
+                          value={copyTargetExpId}
+                          onChange={(e) => setCopyTargetExpId(e.target.value)}
+                        >
+                          {qualifierEvents.map((ev) => {
+                            const score =
+                              teamPoolMembers.length > 0
+                                ? scoreEventForExplorers(ev.event_code, 'qualifier', teamPoolMembers)
+                                : null;
+                            return (
+                              <option key={ev.id} value={String(ev.id)}>
+                                {ev.event_code} — {ev.title} ({formatDateShort(ev.start_date)})
+                                {score ? ` · ${score.availableCount}/${score.total} avail` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <button
+                          type="button"
+                          className="button button-small button-primary"
+                          disabled={busy || !copyTargetExpId}
+                          onClick={() => handleCopyToQualifier(team.team_post_id || team.id)}
+                        >
+                          Copy Team
+                        </button>
+                        <button type="button" className="button button-small" onClick={() => setCopyingTeamId(null)}>
+                          Cancel
+                        </button>
                       </div>
-                    )}
-                  </div>
+                      {selectedScore && selectedScore.unavailableNames.length > 0 && (
+                        <div style={{ fontSize: '11.5px', color: '#92400e', marginTop: '6px' }}>
+                          Unavailable for {selectedQual?.event_code}: {selectedScore.unavailableNames.join(', ')}
+                        </div>
+                      )}
+                    </div>
                   );
                 })()}
 
                 {members.length === 0 ? (
                   <p className="ems-meta-text ems-m-0">No members in this team yet.</p>
+                ) : isCompact ? (
+                  <div className="ems-compact-member-list">
+                    {members.map((m) => {
+                      const badge = getOfferStatusBadge(m);
+                      const wishlist = extractWishlistFromPrefs(m.expedition_preferences);
+                      const poolMatch = mergedExplorers.find((ex) => ex.expedition_signup_id === m.expedition_signup_id);
+                      const compat = checkCompatibility(
+                        m.first_name,
+                        m.last_name,
+                        wishlist,
+                        poolMatch?.practiceAvail || [],
+                        poolMatch?.qualifierAvail || [],
+                        m.expedition_signup_id
+                      );
+                      return (
+                        <div
+                          key={`${team.team_post_id}_${m.expedition_signup_id || m.scout_id}`}
+                          className="ems-compact-member-row"
+                          onMouseEnter={() =>
+                            setHoveredExplorer({
+                              expedition_signup_id: m.expedition_signup_id,
+                              first_name: m.first_name,
+                              last_name: m.last_name,
+                              wishlist,
+                              practiceAvail: poolMatch?.practiceAvail || [],
+                              qualifierAvail: poolMatch?.qualifierAvail || [],
+                            })
+                          }
+                          onMouseLeave={() => setHoveredExplorer(null)}
+                          style={
+                            compat.isMatch
+                              ? {
+                                  background: '#eff6ff',
+                                  boxShadow: `inset 3px 0 0 ${compat.compatibleDates ? '#2563eb' : '#f59e0b'}`,
+                                }
+                              : undefined
+                          }
+                        >
+                          <div className="ems-compact-member-row__left">
+                            {onInspectExplorer ? (
+                              <button
+                                type="button"
+                                className="button-link"
+                                style={{ fontWeight: 600, padding: 0, textAlign: 'left', fontSize: '12px' }}
+                                title="Open Explorer 360° drawer"
+                                onClick={() =>
+                                  onInspectExplorer({
+                                    scoutId: m.scout_id > 0 ? m.scout_id : undefined,
+                                    signupId: m.expedition_signup_id > 0 ? m.expedition_signup_id : undefined,
+                                  })
+                                }
+                              >
+                                {m.first_name} {m.last_name}
+                              </button>
+                            ) : (
+                              <strong>{m.first_name} {m.last_name}</strong>
+                            )}
+                            <span style={{ color: '#64748b', fontSize: '11px' }}>
+                              ({m.unit_name || 'Unassigned'})
+                            </span>
+                            {renderMemberMetaBadges(team, m, isPractice, poolMatch, partnerMemberIds)}
+                          </div>
+                          <div className="ems-compact-member-row__right">
+                            <span
+                              className="ems-matrix-tag"
+                              style={{
+                                background: badge.bg,
+                                color: badge.color,
+                                border: `1px solid ${badge.border}`,
+                                fontSize: '10px',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              {badge.label}
+                            </span>
+                            <button
+                              type="button"
+                              className="button button-link"
+                              disabled={busy}
+                              onClick={() =>
+                                handleRemoveMember(
+                                  team.team_post_id || team.id,
+                                  m.expedition_signup_id || m.scout_id,
+                                  `${m.first_name} ${m.last_name}`
+                                )
+                              }
+                              aria-label={`Remove ${m.first_name} ${m.last_name}`}
+                              title={`Remove ${m.first_name} ${m.last_name}`}
+                              style={{ color: '#64748b', padding: '0 4px', minHeight: 'auto', textDecoration: 'none' }}
+                            >
+                              <FontAwesomeIcon icon={faXmark} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
                   <table className="ems-table" style={{ fontSize: '12.5px' }}>
                     <thead>
@@ -1018,7 +1304,6 @@ export default function CohortsContinuityView({
                     <tbody>
                       {members.map((m) => {
                         const badge = getOfferStatusBadge(m);
-                        const isFA = hasValidFirstAid(m.first_aid_level, m.first_aid_status, m.first_aid_expiry);
                         const wishlist = extractWishlistFromPrefs(m.expedition_preferences);
                         const poolMatch = mergedExplorers.find((ex) => ex.expedition_signup_id === m.expedition_signup_id);
                         const compat = checkCompatibility(
@@ -1071,52 +1356,7 @@ export default function CohortsContinuityView({
                               ) : (
                                 <strong>{m.first_name} {m.last_name}</strong>
                               )}{' '}
-                              {isFA && <span className="ems-matrix-tag ems-matrix-tag--fa">FA</span>}
-                              {(() => {
-                                const stageName = isPractice ? 'practice' : 'qualifier';
-                                const expCode = String(team.expedition_code || '').trim().toUpperCase();
-                                const availCodes =
-                                  (isPractice ? poolMatch?.practiceAvail : poolMatch?.qualifierAvail)?.map((c) =>
-                                    String(c || '').trim().toUpperCase()
-                                  ) || extractAvailCodesFromPrefs(m.expedition_preferences, stageName);
-                                if (!expCode || availCodes.length === 0 || availCodes.includes(expCode)) {
-                                  return null;
-                                }
-                                return (
-                                  <span
-                                    title={`This explorer did not list ${expCode} as available on their sign-up.`}
-                                    style={{
-                                      display: 'inline-block',
-                                      marginLeft: '4px',
-                                      padding: '0 6px',
-                                      borderRadius: '999px',
-                                      fontSize: '10px',
-                                      fontWeight: 600,
-                                      background: '#fef3c7',
-                                      color: '#92400e',
-                                      border: '1px solid #fcd34d',
-                                    }}
-                                  >
-                                    {isPractice ? 'Unavailable: Practice' : 'Unavailable: Qualifier'}
-                                  </span>
-                                );
-                              })()}
-                              {(() => {
-                                const key = m.expedition_signup_id ? `s:${m.expedition_signup_id}` : m.scout_id ? `sc:${m.scout_id}` : '';
-                                const others = (otherTeamsByMemberKey.get(key) || []).filter(
-                                  (ot) => ot.team_post_id !== Number(team.team_post_id || team.id)
-                                );
-                                return others.map((ot) => (
-                                  <span
-                                    key={ot.team_post_id}
-                                    className="ems-matrix-tag ems-matrix-tag--pref"
-                                    style={{ marginLeft: '4px' }}
-                                    title={`Also in ${ot.name} (${ot.stage})`}
-                                  >
-                                    {ot.name}
-                                  </span>
-                                ));
-                              })()}
+                              {renderMemberMetaBadges(team, m, isPractice, poolMatch, partnerMemberIds)}
                             </td>
                             <td>{m.unit_name || 'Unassigned'}</td>
                             <td>
@@ -1152,8 +1392,110 @@ export default function CohortsContinuityView({
                 )}
               </div>
             );
-          })
-        )}
+          };
+
+          if (visibleTeams.length === 0) {
+            return (
+              <div className="ems-panel ems-p-16">
+                <p className="ems-meta-text ems-m-0">No event teams found for this level/transport yet. Create one above or in Date Grid.</p>
+              </div>
+            );
+          }
+
+          if (stageFilter === 'all' && pairLinkedStages) {
+            const practiceList = visibleTeams.filter((t) => t.stage === 'practice');
+            const qualifierList = visibleTeams.filter((t) => t.stage === 'qualifier');
+            const usedQualIds = new Set<number>();
+            const pairedRows: Array<{ practice: any; qualifier: any | null }> = [];
+
+            for (const pTeam of practiceList) {
+              const pIds = new Set<number>(
+                (pTeam.members || []).map((m: any) => Number(m.expedition_signup_id || 0)).filter(Boolean)
+              );
+              let bestQ: any | null = null;
+              let bestOverlap = 0;
+
+              for (const qTeam of qualifierList) {
+                const qKey = Number(qTeam.team_post_id || qTeam.id);
+                if (usedQualIds.has(qKey)) continue;
+                const overlap = (qTeam.members || []).filter((m: any) =>
+                  pIds.has(Number(m.expedition_signup_id || 0))
+                ).length;
+                if (overlap > bestOverlap) {
+                  bestOverlap = overlap;
+                  bestQ = qTeam;
+                }
+              }
+
+              if (bestQ && bestOverlap > 0) {
+                usedQualIds.add(Number(bestQ.team_post_id || bestQ.id));
+                pairedRows.push({ practice: pTeam, qualifier: bestQ });
+              } else {
+                pairedRows.push({ practice: pTeam, qualifier: null });
+              }
+            }
+
+            const unpairedQuals = qualifierList.filter(
+              (q) => !usedQualIds.has(Number(q.team_post_id || q.id))
+            );
+
+            return (
+              <div className="ems-teams-paired-list">
+                {pairedRows.map(({ practice, qualifier }) => {
+                  const pIds = new Set<number>(
+                    (practice.members || []).map((m: any) => Number(m.expedition_signup_id || 0)).filter(Boolean)
+                  );
+                  const qIds = qualifier
+                    ? new Set<number>(
+                        (qualifier.members || []).map((m: any) => Number(m.expedition_signup_id || 0)).filter(Boolean)
+                      )
+                    : undefined;
+                  const splitCount = qualifier
+                    ? Array.from(pIds).filter((id) => !qIds!.has(id)).length +
+                      Array.from(qIds!).filter((id) => !pIds.has(id)).length
+                    : 0;
+
+                  return (
+                    <div key={`pair_${practice.team_post_id || practice.id}`} className="ems-paired-card">
+                      <div className="ems-paired-card__header">
+                        <span>
+                          Paired Stage Teams: <strong>{practice.name}</strong> ↔{' '}
+                          <strong>{qualifier ? qualifier.name : 'No linked Qualifier'}</strong>
+                        </span>
+                        {splitCount > 0 && (
+                          <span style={{ color: '#9a3412', fontSize: '11px' }}>
+                            {splitCount} split-date member{splitCount === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="ems-paired-card__grid">
+                        {renderTeamCard(practice, qIds)}
+                        {qualifier ? (
+                          renderTeamCard(qualifier, pIds)
+                        ) : (
+                          <div className="ems-panel ems-p-16" style={{ color: '#64748b', fontSize: '12px' }}>
+                            No matching Qualifier team linked yet. Use <strong>Copy to Qualifier…</strong> to create one.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {unpairedQuals.length > 0 && (
+                  <div className={viewDensity === 'compact' ? 'ems-teams-compact-grid' : 'ems-teams-paired-list'}>
+                    {unpairedQuals.map((q) => renderTeamCard(q))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <div className={viewDensity === 'compact' ? 'ems-teams-compact-grid' : 'ems-teams-paired-list'}>
+              {visibleTeams.map((team) => renderTeamCard(team))}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

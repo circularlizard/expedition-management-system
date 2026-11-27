@@ -1016,4 +1016,124 @@
     }
 }
 
+/* Team Builder — Collapsible Pool, Compact Grid & Paired Stage Cards */
+.ems-team-builder-layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 370px) 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.ems-team-builder-layout--collapsed {
+    grid-template-columns: 44px 1fr;
+}
+
+@media (max-width: 960px) {
+    .ems-team-builder-layout {
+        grid-template-columns: 1fr;
+    }
+    .ems-team-builder-layout--collapsed {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ems-pool-collapsed-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 6px;
+    gap: 12px;
+    min-height: 150px;
+    cursor: pointer;
+}
+
+.ems-pool-collapsed-bar__label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-weight: 600;
+    font-size: 12px;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.ems-teams-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.ems-teams-paired-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ems-paired-card {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.ems-paired-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ems-paired-card__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+@media (max-width: 860px) {
+    .ems-paired-card__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ems-compact-member-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.ems-compact-member-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 2px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 12px;
+}
+
+.ems-compact-member-row:last-child {
+    border-bottom: none;
+}
+
+.ems-compact-member-row__left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+}
+
+.ems-compact-member-row__right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+
 
