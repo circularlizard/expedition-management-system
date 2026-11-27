@@ -234,10 +234,24 @@ class Admin_View_ControllerTest extends EMSTestCase {
         $wpdb = Mockery::mock( \wpdb::class );
         $wpdb->prefix = 'wp_';
         $wpdb->postmeta = 'wp_postmeta';
-        $wpdb->shouldReceive( 'prepare' )->once()->andReturn( 'MOCKED SQL' );
-        $wpdb->shouldReceive( 'get_results' )->once()->with( 'MOCKED SQL', ARRAY_A )->andReturn( [
-            [ 'scout_id' => 30001, 'wp_user_id' => 42, 'first_name' => 'Alice', 'last_name' => 'Brown', 'unit_name' => 'SMESU' ]
+        $wpdb->shouldReceive( 'prepare' )->andReturnUsing( function( $sql, ...$args ) {
+            $pattern = str_replace( [ '%d', '%f' ], '%s', $sql );
+            return vsprintf( $pattern, $args );
+        } );
+        $wpdb->shouldReceive( 'get_results' )->with( Mockery::on( function( $sql ) {
+            return strpos( $sql, 'FROM wp_ems_osm_explorers' ) !== false;
+        } ), ARRAY_A )->once()->andReturn( [
+            [ 'scout_id' => 30001, 'wp_user_id' => 42, 'first_name' => 'Alice', 'last_name' => 'Brown', 'patrol' => 'SMESU', 'section_id' => 99001 ]
         ] );
+        $wpdb->shouldReceive( 'get_results' )->with( 'SELECT unit_id, name, short_code FROM wp_ems_units', ARRAY_A )->once()->andReturn( [
+            [ 'unit_id' => 101, 'name' => 'South Morningside ESU', 'short_code' => 'SMESU' ]
+        ] );
+        $wpdb->shouldReceive( 'get_results' )->with( Mockery::on( function( $sql ) {
+            return strpos( $sql, 'FROM wp_ems_participant_signups' ) !== false;
+        } ), ARRAY_A )->once()->andReturn( [] );
+        $wpdb->shouldReceive( 'get_results' )->with( Mockery::on( function( $sql ) {
+            return strpos( $sql, 'FROM wp_ems_expedition_signups' ) !== false;
+        } ), ARRAY_A )->once()->andReturn( [] );
         
         $this->tutor_client->shouldReceive( 'get_enrollment_matrix' )->once()->with( [ 42 ], [ 101 ] )->andReturn( [
             42 => [ 101 => 'complete' ]
@@ -252,7 +266,7 @@ class Admin_View_ControllerTest extends EMSTestCase {
         $this->assertSame( 200, $response->get_status() );
         $this->assertCount( 1, $data['completion'] );
         $this->assertSame( 'Alice', $data['completion'][0]['first_name'] );
-        $this->assertSame( 'SMESU', $data['completion'][0]['unit_name'] );
+        $this->assertSame( 'South Morningside ESU', $data['completion'][0]['unit_name'] );
         $this->assertSame( 'complete', $data['completion'][0]['matrix'][101] );
     }
 

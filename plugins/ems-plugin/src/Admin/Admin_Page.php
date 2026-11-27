@@ -236,7 +236,7 @@ class Admin_Page {
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'units';
-		$valid_tabs = array( 'units', 'leaders', 'patrols', 'explorers', 'osm_patrols', 'events', 'sections', 'pushback', 'mapper', 'diagnostics' );
+		$valid_tabs = array( 'units', 'leaders', 'explorers', 'events', 'sections', 'pushback', 'mapper', 'diagnostics' );
 		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 			$active_tab = 'units';
 		}
@@ -293,12 +293,10 @@ class Admin_Page {
 		echo '</nav>';
 		echo '<div class="ems-admin-tab-content-panel">';
 
-		if ( in_array( $active_tab, array( 'units', 'leaders', 'patrols' ), true ) ) {
+		if ( in_array( $active_tab, array( 'units', 'leaders' ), true ) ) {
 			$unit_leader_page->render_tab_content( $active_tab );
 		} elseif ( $active_tab === 'explorers' ) {
 			$this->render_explorers_tab( $wpdb );
-		} elseif ( $active_tab === 'osm_patrols' ) {
-			$this->render_patrols_tab( $wpdb );
 		} elseif ( $active_tab === 'events' ) {
 			$this->render_events_tab( $wpdb );
 		} elseif ( $active_tab === 'sections' ) {
@@ -441,7 +439,7 @@ class Admin_Page {
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'explorers';
-		$valid_tabs = array( 'explorers', 'patrols', 'events', 'sections', 'diagnostics', 'pushback' );
+		$valid_tabs = array( 'explorers', 'events', 'sections', 'diagnostics', 'pushback' );
 		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 			$active_tab = 'explorers';
 		}
@@ -492,7 +490,6 @@ class Admin_Page {
 
 		$tab_labels = array(
 			'explorers'   => __( 'Explorers', 'ems-plugin' ),
-			'patrols'     => __( 'Patrols', 'ems-plugin' ),
 			'events'      => __( 'Events', 'ems-plugin' ),
 			'sections'    => __( 'Managed Sections', 'ems-plugin' ),
 			'pushback'    => __( 'Pushback Sync', 'ems-plugin' ),
@@ -509,8 +506,6 @@ class Admin_Page {
 
 		if ( $active_tab === 'explorers' ) {
 			$this->render_explorers_tab( $wpdb );
-		} elseif ( $active_tab === 'patrols' ) {
-			$this->render_patrols_tab( $wpdb );
 		} elseif ( $active_tab === 'events' ) {
 			$this->render_events_tab( $wpdb );
 		} elseif ( $active_tab === 'sections' ) {
@@ -545,32 +540,6 @@ class Admin_Page {
 
 	private function render_explorers_tab( $wpdb ): void {
 		echo '<div id="ems-explorers-root"></div>';
-	}
-
-	private function render_patrols_tab( $wpdb ): void {
-		$table = $wpdb->prefix . 'ems_osm_explorers';
-		$rows  = $wpdb->get_results(
-			"SELECT patrol, COUNT(*) AS member_count FROM {$table} GROUP BY patrol ORDER BY patrol",
-			ARRAY_A
-		);
-
-		if ( empty( $rows ) ) {
-			echo '<p>' . esc_html__( 'No patrol data. Run an OSM sync first.', 'ems-plugin' ) . '</p>';
-			return;
-		}
-
-		echo '<table class="wp-list-table widefat fixed striped">';
-		echo '<thead><tr>';
-		echo '<th>' . esc_html__( 'Patrol', 'ems-plugin' ) . '</th>';
-		echo '<th>' . esc_html__( 'Members', 'ems-plugin' ) . '</th>';
-		echo '</tr></thead><tbody>';
-		foreach ( $rows as $row ) {
-			echo '<tr>';
-			echo '<td>' . esc_html( $row['patrol'] ?: __( '(none)', 'ems-plugin' ) ) . '</td>';
-			echo '<td>' . (int) $row['member_count'] . '</td>';
-			echo '</tr>';
-		}
-		echo '</tbody></table>';
 	}
 
 	private function render_events_tab( $wpdb ): void {

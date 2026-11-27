@@ -468,7 +468,10 @@ class Expedition_Admin_ControllerTest extends EMSTestCase {
             return vsprintf( $pattern, $args );
         } );
 
-        // 1. Leader email from ems_units
+        // 1. Sign-up unit_id lookup and leader email from ems_units
+        $wpdb->shouldReceive( 'get_var' )->with( \Mockery::on( function( $sql ) {
+            return strpos( $sql, 'SELECT unit_id FROM wp_ems_participant_signups' ) !== false;
+        } ) )->andReturn( null );
         $wpdb->shouldReceive( 'get_var' )->with( \Mockery::on( function( $sql ) {
             return strpos( $sql, 'leader_email FROM wp_ems_units' ) !== false;
         } ) )->andReturn( 'leader@example.com' );

@@ -90,8 +90,8 @@ class Menu_Manager {
 					$view       = isset( $_GET['view'] ) ? sanitize_key( wp_unslash( $_GET['view'] ) ) : '';
 					$target_tab = ( $view === 'leaders' ) ? 'leaders' : 'units';
 					$target     = admin_url( 'admin.php?page=ems-units-sync&tab=' . $target_tab );
-				} elseif ( $tab === 'patrols' ) {
-					$target = admin_url( 'admin.php?page=ems-units-sync&tab=osm_patrols' );
+				} elseif ( in_array( $tab, array( 'patrols', 'osm_patrols' ), true ) ) {
+					$target = admin_url( 'admin.php?page=ems-units-sync&tab=units' );
 				} else {
 					$valid  = array( 'explorers', 'events', 'sections', 'pushback', 'diagnostics' );
 					$dest   = in_array( $tab, $valid, true ) ? $tab : 'explorers';
@@ -102,9 +102,14 @@ class Menu_Manager {
 				if ( $tab === 'email' ) {
 					$target = admin_url( 'admin.php?page=ems-emails' );
 				} else {
-					$valid  = array( 'units', 'leaders', 'patrols' );
+					$valid  = array( 'units', 'leaders' );
 					$dest   = in_array( $tab, $valid, true ) ? $tab : 'units';
 					$target = admin_url( 'admin.php?page=ems-units-sync&tab=' . $dest );
+				}
+				break;
+			case 'ems-units-sync':
+				if ( in_array( $tab, array( 'patrols', 'osm_patrols' ), true ) ) {
+					$target = admin_url( 'admin.php?page=ems-units-sync&tab=units' );
 				}
 				break;
 			case 'ems-training-report':

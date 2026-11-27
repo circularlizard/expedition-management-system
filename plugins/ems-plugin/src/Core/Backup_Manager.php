@@ -11,7 +11,6 @@ class Backup_Manager {
 	public const DEFAULT_TABLES = array(
 		'ems_osm_explorers',
 		'ems_units',
-		'ems_unit_patrols',
 		'ems_participant_signups',
 		'ems_expedition_signups',
 		'ems_team_members',

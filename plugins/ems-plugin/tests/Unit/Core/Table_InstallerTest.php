@@ -40,7 +40,7 @@ class Table_InstallerTest extends EMSTestCase {
         $installer = new Table_Installer();
         $sql = $installer->generate_sql( 'wp_', '' );
 
-        $this->assertCount( 17, $sql );
+        $this->assertCount( 16, $sql );
 
         $all_sql = implode( ' ', $sql );
         $this->assertStringContainsString( 'ems_volunteers', $all_sql );
@@ -51,7 +51,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertStringContainsString( 'ems_osm_events', $all_sql );
         $this->assertStringContainsString( 'ems_osm_event_attendance', $all_sql );
         $this->assertStringContainsString( 'ems_units', $all_sql );
-        $this->assertStringContainsString( 'ems_unit_patrols', $all_sql );
+        $this->assertStringNotContainsString( 'ems_unit_patrols', $all_sql );
         $this->assertStringContainsString( 'ems_participant_signups', $all_sql );
         $this->assertStringContainsString( 'ems_expedition_signups', $all_sql );
         $this->assertStringContainsString( 'ems_audit_logs', $all_sql );
@@ -108,7 +108,7 @@ class Table_InstallerTest extends EMSTestCase {
         $this->assertEquals( 'wp_ems_osm_events', $names['osm_events'] );
         $this->assertEquals( 'wp_ems_osm_event_attendance', $names['osm_event_attendance'] );
         $this->assertEquals( 'wp_ems_units', $names['units'] );
-        $this->assertEquals( 'wp_ems_unit_patrols', $names['unit_patrols'] );
+        $this->assertArrayNotHasKey( 'unit_patrols', $names );
         $this->assertEquals( 'wp_ems_participant_signups', $names['participant_signups'] );
         $this->assertEquals( 'wp_ems_expedition_signups', $names['expedition_signups'] );
         $this->assertEquals( 'wp_dofe_route_cards', $names['dofe_route_cards'] );

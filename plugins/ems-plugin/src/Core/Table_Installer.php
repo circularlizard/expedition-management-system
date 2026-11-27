@@ -362,7 +362,6 @@ class Table_Installer {
 
 	private function migrate_units_table( object $wpdb ): void {
 		$units_table = $wpdb->prefix . 'ems_units';
-		$patrols_table = $wpdb->prefix . 'ems_unit_patrols';
 
 		if ( ! $this->column_exists( $wpdb, $units_table, 'patrol_id' ) ) {
 			// Already migrated
@@ -373,15 +372,13 @@ class Table_Installer {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$old_rows = $wpdb->get_results( "SELECT * FROM {$units_table}", ARRAY_A );
 
-		// 2. Separate into master units and patrol mappings
+		// 2. Extract master units (legacy patrol mappings are ignored as ems_unit_patrols is deprecated)
 		$master_units = array();
-		$patrol_mappings = array();
 		$next_generated_unit_id = 900000;
 
 		if ( ! empty( $old_rows ) && is_array( $old_rows ) ) {
 			foreach ( $old_rows as $row ) {
 				$patrol_id = isset( $row['patrol_id'] ) ? (int) $row['patrol_id'] : 0;
-				$section_id = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
 				$unit_id = ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null;
 
 				// Determine if this row contains unit information
@@ -402,34 +399,23 @@ class Table_Installer {
 						'created_at'   => $row['synced_at'] ?? current_time( 'mysql' ),
 						'updated_at'   => $row['updated_at'] ?? null,
 					);
-				} else {
-					// Synced patrol
-					if ( $has_unit_info ) {
-						if ( ! $unit_id ) {
-							$unit_id = $next_generated_unit_id++;
-						}
-						$master_key = (string) $unit_id;
-						if ( ! isset( $master_units[ $master_key ] ) ) {
-							$master_units[ $master_key ] = array(
-								'unit_id'      => $unit_id,
-								'district'     => '',
-								'name'         => $row['name'] ?? '',
-								'short_code'   => $row['short_code'] ?: ( $row['name'] ?? '' ),
-								'leader_email' => $row['leader_email'] ?? '',
-								'created_at'   => current_time( 'mysql' ),
-								'updated_at'   => $row['updated_at'] ?? null,
-							);
-						}
+				} elseif ( $has_unit_info ) {
+					// Synced patrol with unit info
+					if ( ! $unit_id ) {
+						$unit_id = $next_generated_unit_id++;
 					}
-
-					$patrol_mappings[] = array(
-						'unit_id'    => $unit_id,
-						'section_id' => $section_id,
-						'patrol_id'  => $patrol_id,
-						'name'       => $row['name'] ?? '',
-						'active'     => isset( $row['active'] ) ? (int) $row['active'] : 1,
-						'synced_at'  => $row['synced_at'] ?? current_time( 'mysql' ),
-					);
+					$master_key = (string) $unit_id;
+					if ( ! isset( $master_units[ $master_key ] ) ) {
+						$master_units[ $master_key ] = array(
+							'unit_id'      => $unit_id,
+							'district'     => '',
+							'name'         => $row['name'] ?? '',
+							'short_code'   => $row['short_code'] ?: ( $row['name'] ?? '' ),
+							'leader_email' => $row['leader_email'] ?? '',
+							'created_at'   => current_time( 'mysql' ),
+							'updated_at'   => $row['updated_at'] ?? null,
+						);
+					}
 				}
 			}
 		}
@@ -453,16 +439,7 @@ class Table_Installer {
 			);
 		}
 
-		// 6. Insert patrol mappings
-		foreach ( $patrol_mappings as $mapping ) {
-			$wpdb->insert(
-				$patrols_table,
-				$mapping,
-				array( '%d', '%d', '%d', '%s', '%d', '%s' )
-			);
-		}
-
-		// 7. Drop obsolete columns from ems_units
+		// 6. Drop obsolete columns from ems_units
 		// Drop unique key index first if it exists to allow column drops
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$index_exists = $wpdb->get_row( $wpdb->prepare( "SHOW INDEX FROM {$units_table} WHERE Key_name = %s", 'idx_patrol_section' ) );
@@ -649,19 +626,6 @@ class Table_Installer {
             PRIMARY KEY (id),
             UNIQUE KEY idx_unit_id (unit_id),
             UNIQUE KEY idx_short_code (short_code)
-        ) {$charset};";
-
-		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}ems_unit_patrols (
-            id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            unit_id           BIGINT UNSIGNED          DEFAULT NULL,
-            section_id        BIGINT UNSIGNED NOT NULL,
-            patrol_id         BIGINT          NOT NULL,
-            name              VARCHAR(100)    NOT NULL DEFAULT '',
-            active            TINYINT(1)      NOT NULL DEFAULT 1,
-            synced_at         DATETIME        NOT NULL,
-            PRIMARY KEY (id),
-            UNIQUE KEY idx_patrol_section (patrol_id, section_id),
-            KEY idx_unit_id (unit_id)
         ) {$charset};";
 
 
@@ -855,7 +819,6 @@ class Table_Installer {
 			'osm_events'             => $wpdb->prefix . 'ems_osm_events',
 			'osm_event_attendance'   => $wpdb->prefix . 'ems_osm_event_attendance',
 			'units'                  => $wpdb->prefix . 'ems_units',
-			'unit_patrols'           => $wpdb->prefix . 'ems_unit_patrols',
 			'participant_signups'    => $wpdb->prefix . 'ems_participant_signups',
 			'expedition_signups'     => $wpdb->prefix . 'ems_expedition_signups',
 			'audit_logs'             => $wpdb->prefix . 'ems_audit_logs',

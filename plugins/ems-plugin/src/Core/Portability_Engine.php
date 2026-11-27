@@ -47,7 +47,6 @@ class Portability_Engine {
 		'ems_osm_events',
 		'ems_osm_event_attendance',
 		'ems_units',
-		'ems_unit_patrols',
 		'ems_participant_signups',
 		'ems_expedition_signups',
 		'ems_audit_logs',
@@ -140,7 +139,6 @@ class Portability_Engine {
 		global $wpdb;
 
 		$units_table = $wpdb->prefix . 'ems_units';
-		$patrols_table = $wpdb->prefix . 'ems_unit_patrols';
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$units = $wpdb->get_results( "SELECT * FROM {$units_table}", ARRAY_A );
@@ -148,18 +146,11 @@ class Portability_Engine {
 			$units = array();
 		}
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$patrols = $wpdb->get_results( "SELECT * FROM {$patrols_table}", ARRAY_A );
-		if ( ! is_array( $patrols ) ) {
-			$patrols = array();
-		}
-
 		$payload = array(
-			'type'         => 'ems_units_export',
-			'version'      => '0.1.x',
-			'exported_at'  => current_time( 'mysql' ),
-			'units'        => $units,
-			'unit_patrols' => $patrols,
+			'type'        => 'ems_units_export',
+			'version'     => '0.1.x',
+			'exported_at' => current_time( 'mysql' ),
+			'units'       => $units,
 		);
 
 		return (string) wp_json_encode( $payload, JSON_PRETTY_PRINT );
@@ -181,12 +172,9 @@ class Portability_Engine {
 		}
 
 		$units_table = $wpdb->prefix . 'ems_units';
-		$patrols_table = $wpdb->prefix . 'ems_unit_patrols';
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query( "TRUNCATE TABLE {$units_table}" );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->query( "TRUNCATE TABLE {$patrols_table}" );
 
 		$units = $data['units'];
 
@@ -200,14 +188,12 @@ class Portability_Engine {
 		}
 
 		if ( $is_legacy ) {
-			// Migrate legacy units array
+			// Migrate legacy units array (legacy patrol_id mappings are ignored as ems_unit_patrols is deprecated)
 			$master_units = array();
-			$patrol_mappings = array();
 			$next_generated_unit_id = 900000;
 
 			foreach ( $units as $row ) {
 				$patrol_id = isset( $row['patrol_id'] ) ? (int) $row['patrol_id'] : 0;
-				$section_id = isset( $row['section_id'] ) ? (int) $row['section_id'] : 0;
 				$unit_id = ! empty( $row['unit_id'] ) ? (int) $row['unit_id'] : null;
 
 				$has_unit_info = ! empty( $row['unit_id'] ) || ! empty( $row['short_code'] ) || ! empty( $row['leader_email'] );
@@ -226,33 +212,22 @@ class Portability_Engine {
 						'created_at'   => $row['synced_at'] ?? current_time( 'mysql' ),
 						'updated_at'   => $row['updated_at'] ?? null,
 					);
-				} else {
-					if ( $has_unit_info ) {
-						if ( ! $unit_id ) {
-							$unit_id = $next_generated_unit_id++;
-						}
-						$master_key = (string) $unit_id;
-						if ( ! isset( $master_units[ $master_key ] ) ) {
-							$master_units[ $master_key ] = array(
-								'unit_id'      => $unit_id,
-								'district'     => '',
-								'name'         => $row['name'] ?? '',
-								'short_code'   => $row['short_code'] ?: ( $row['name'] ?? '' ),
-								'leader_email' => $row['leader_email'] ?? '',
-								'created_at'   => current_time( 'mysql' ),
-								'updated_at'   => $row['updated_at'] ?? null,
-							);
-						}
+				} elseif ( $has_unit_info ) {
+					if ( ! $unit_id ) {
+						$unit_id = $next_generated_unit_id++;
 					}
-
-					$patrol_mappings[] = array(
-						'unit_id'    => $unit_id,
-						'section_id' => $section_id,
-						'patrol_id'  => $patrol_id,
-						'name'       => $row['name'] ?? '',
-						'active'     => isset( $row['active'] ) ? (int) $row['active'] : 1,
-						'synced_at'  => $row['synced_at'] ?? current_time( 'mysql' ),
-					);
+					$master_key = (string) $unit_id;
+					if ( ! isset( $master_units[ $master_key ] ) ) {
+						$master_units[ $master_key ] = array(
+							'unit_id'      => $unit_id,
+							'district'     => '',
+							'name'         => $row['name'] ?? '',
+							'short_code'   => $row['short_code'] ?: ( $row['name'] ?? '' ),
+							'leader_email' => $row['leader_email'] ?? '',
+							'created_at'   => current_time( 'mysql' ),
+							'updated_at'   => $row['updated_at'] ?? null,
+						);
+					}
 				}
 			}
 
@@ -261,27 +236,13 @@ class Portability_Engine {
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 				$wpdb->insert( $units_table, $u );
 			}
-
-			// Insert patrol mappings
-			foreach ( $patrol_mappings as $mapping ) {
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-				$wpdb->insert( $patrols_table, $mapping );
-			}
 		} else {
-			// Modern import
+			// Modern import (legacy unit_patrols / patrol_id fields are ignored gracefully)
 			if ( ! empty( $units ) ) {
 				foreach ( $units as $row ) {
 					unset( $row['patrol_id'], $row['section_id'], $row['active'], $row['synced_at'], $row['leader_first_name'], $row['leader_last_name'] );
 					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 					$wpdb->insert( $units_table, $row );
-				}
-			}
-
-			$patrols = $data['unit_patrols'] ?? array();
-			if ( ! empty( $patrols ) ) {
-				foreach ( $patrols as $row ) {
-					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-					$wpdb->insert( $patrols_table, $row );
 				}
 			}
 		}

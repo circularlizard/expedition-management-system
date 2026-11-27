@@ -8,7 +8,8 @@ import { AdminPreviewBar, PreviewTarget } from './AdminPreviewBar';
 interface Teammate {
     first_name: string;
     last_initial: string;
-    patrol: string;
+    patrol?: string;
+    unit_name?: string;
 }
 
 interface EventData {
@@ -79,7 +80,7 @@ interface OfferStage {
 function renderTeammateGroups(teammates: Teammate[]) {
     const groups = new Map<string, string[]>();
     for (const tm of teammates) {
-        const unit = (tm.patrol || '').trim();
+        const unit = (tm.unit_name || tm.patrol || '').trim();
         const displayName = `${tm.first_name} ${tm.last_initial}`.trim();
         if (!groups.has(unit)) groups.set(unit, []);
         groups.get(unit)!.push(displayName);
@@ -281,7 +282,8 @@ interface Profile {
     scout_id: number;
     first_name: string;
     last_name: string;
-    patrol: string;
+    patrol?: string;
+    unit_name?: string;
     relationship?: 'self' | 'child';
     label?: string;
 }

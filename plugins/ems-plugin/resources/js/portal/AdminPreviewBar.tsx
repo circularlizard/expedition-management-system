@@ -27,7 +27,7 @@ interface ExplorerTarget {
     scout_id: number;
     first_name: string;
     last_name: string;
-    patrol: string;
+    patrol?: string;
     unit_name?: string;
 }
 
@@ -144,6 +144,7 @@ export const AdminPreviewBar: React.FC<AdminPreviewBarProps> = ({
             !term ||
             e.first_name.toLowerCase().includes(term) ||
             e.last_name.toLowerCase().includes(term) ||
+            (e.unit_name && e.unit_name.toLowerCase().includes(term)) ||
             (e.patrol && e.patrol.toLowerCase().includes(term)) ||
             String(e.scout_id).includes(term)
     );
@@ -159,7 +160,7 @@ export const AdminPreviewBar: React.FC<AdminPreviewBarProps> = ({
                 <input
                     type="text"
                     aria-label="Filter preview targets"
-                    placeholder="Search name, scout ID, patrol..."
+                    placeholder="Search name, scout ID, unit..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="ems-portal-admin-bar__search"
@@ -198,12 +199,15 @@ export const AdminPreviewBar: React.FC<AdminPreviewBarProps> = ({
 
                     {filteredExplorers.length > 0 && (
                         <optgroup label="All Synced Explorers">
-                            {filteredExplorers.map((e) => (
-                                <option key={`e-${e.scout_id}`} value={`explorer:${e.scout_id}:member`}>
-                                    Explorer: {e.first_name} {e.last_name} (#{e.scout_id}
-                                    {e.patrol ? ` • ${e.patrol}` : ''})
-                                </option>
-                            ))}
+                            {filteredExplorers.map((e) => {
+                                const unitLabel = e.unit_name || e.patrol;
+                                return (
+                                    <option key={`e-${e.scout_id}`} value={`explorer:${e.scout_id}:member`}>
+                                        Explorer: {e.first_name} {e.last_name} (#{e.scout_id}
+                                        {unitLabel ? ` • ${unitLabel}` : ''})
+                                    </option>
+                                );
+                            })}
                         </optgroup>
                     )}
                 </select>

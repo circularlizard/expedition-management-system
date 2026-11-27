@@ -16,73 +16,6 @@ class Unit_RepositoryTest extends EMSTestCase {
 		Functions\when( 'get_pages' )->justReturn( [] );
 	}
 
-	public function test_sync_patrol_creates_or_updates_and_matches(): void {
-		$wpdb = new class {
-			public $prefix = 'wp_';
-			public $queries = [];
-			public $last_args = [];
-			public $insert_args = [];
-
-			public function prepare( string $sql, ...$args ): string {
-				if ( str_contains( $sql, 'INSERT INTO' ) ) {
-					$this->insert_args = $args;
-				}
-				$this->last_args = $args;
-				return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', $sql ) ), $args );
-			}
-
-			public function query( string $sql ) {
-				$this->queries[] = $sql;
-				return 1;
-			}
-
-			public function get_results( string $sql, string $output = 'OBJECT' ) {
-				// Return master units for matching logic
-				return [
-					[ 'id' => 1, 'unit_id' => 10, 'short_code' => 'BO-Orion', 'name' => 'Orion ESU' ]
-				];
-			}
-
-			public function get_var( string $sql ) {
-				return 99;
-			}
-		};
-
-		$repo = new Unit_Repository( $wpdb );
-		$id = $repo->sync_patrol( [
-			'patrol_id'  => 101,
-			'section_id' => 99001,
-			'name'       => 'Orion', // matches 'Orion ESU' by substring
-			'active'     => 1,
-		] );
-
-		$this->assertEquals( 99, $id );
-		$this->assertCount( 1, $wpdb->queries );
-		$this->assertStringContainsString( 'INSERT INTO wp_ems_unit_patrols', $wpdb->queries[0] );
-		// unit_id argument in INSERT should be 10 (the matched unit_id)
-		$this->assertEquals( 10, $wpdb->insert_args[0] );
-	}
-
-	public function test_find_matching_unit(): void {
-		$repo = new Unit_Repository();
-		$master_units = [
-			[ 'unit_id' => 10, 'short_code' => 'BO-Kelso', 'name' => 'Kelso ESU' ],
-			[ 'unit_id' => 20, 'short_code' => 'BO-Orion', 'name' => 'Orion' ]
-		];
-
-		// 1. Exact match on short code
-		$match = $repo->find_matching_unit( 'BO-Kelso', $master_units );
-		$this->assertEquals( 10, $match['unit_id'] );
-
-		// 2. Exact match on name
-		$match = $repo->find_matching_unit( 'Orion', $master_units );
-		$this->assertEquals( 20, $match['unit_id'] );
-
-		// 3. Substring match
-		$match = $repo->find_matching_unit( 'Kelso', $master_units );
-		$this->assertEquals( 10, $match['unit_id'] );
-	}
-
 	public function test_update_custom_mappings_success(): void {
 		$wpdb = new class {
 			public $prefix = 'wp_';
@@ -222,10 +155,7 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$res = $repo->delete_custom_unit( 5 );
 
 		$this->assertTrue( $res );
-		$this->assertCount( 1, $wpdb->updated );
-		$this->assertEquals( 'wp_ems_unit_patrols', $wpdb->updated[0]['table'] );
-		$this->assertNull( $wpdb->updated[0]['data']['unit_id'] );
-		$this->assertEquals( 12345, $wpdb->updated[0]['where']['unit_id'] );
+		$this->assertCount( 0, $wpdb->updated );
 
 		$this->assertCount( 1, $wpdb->deleted );
 		$this->assertEquals( 'wp_ems_units', $wpdb->deleted[0]['table'] );
@@ -268,10 +198,9 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$this->assertCount( 1, $res['details'] );
 		$this->assertStringContainsString( 'BR-ALBATROSS: Merged 1 duplicate(s) into Unit ID 46461', $res['details'][0] );
 
-		// Check that UPDATE and DELETE queries were executed
-		$this->assertCount( 2, $wpdb->queries );
-		$this->assertStringContainsString( 'UPDATE wp_ems_unit_patrols SET unit_id = 46461 WHERE unit_id IN (46502)', $wpdb->queries[0] );
-		$this->assertStringContainsString( 'DELETE FROM wp_ems_units WHERE id IN (11)', $wpdb->queries[1] );
+		// Check that DELETE query was executed
+		$this->assertCount( 1, $wpdb->queries );
+		$this->assertStringContainsString( 'DELETE FROM wp_ems_units WHERE id IN (11)', $wpdb->queries[0] );
 	}
 
 	public function test_invite_unit_leaders_creates_users_sends_notifications_and_skips_invited(): void {
@@ -849,109 +778,5 @@ class Unit_RepositoryTest extends EMSTestCase {
 		$this->assertSame( 'leader@example.com', $inserted_users[0]['user_email'] );
 		$this->assertCount( 1, $notified_users );
 		$this->assertSame( 777, $notified_users[0] );
-	}
-
-	public function test_get_patrols_queries_with_filters(): void {
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-
-		$wpdb->shouldReceive( 'prepare' )
-			->andReturnUsing( function( $sql, ...$args ) {
-				return vsprintf( str_replace( [ '%s', '%d' ], [ "'%s'", '%d' ], $sql ), $args );
-			} );
-
-		$wpdb->shouldReceive( 'get_results' )
-			->once()
-			->andReturnUsing( function( $query ) {
-				$this->assertStringContainsString( 'FROM wp_ems_unit_patrols p', $query );
-				$this->assertStringContainsString( 'LEFT JOIN wp_ems_units u ON p.unit_id = u.unit_id', $query );
-				$this->assertStringContainsString( 'p.unit_id IS NULL OR p.unit_id = 0 OR u.unit_id IS NULL', $query );
-				$this->assertStringContainsString( 'p.section_id = 99001', $query );
-				$this->assertStringContainsString( 'ORDER BY p.name ASC', $query );
-
-				return [
-					[
-						'id' => 1,
-						'patrol_id' => 991,
-						'section_id' => 99001,
-						'name' => 'Kestrels',
-						'unit_id' => null,
-						'unit_name' => null,
-						'unit_short_code' => null,
-					],
-				];
-			} );
-
-		$repo = new Unit_Repository( $wpdb );
-		$results = $repo->get_patrols( 'unmatched', 99001 );
-
-		$this->assertCount( 1, $results );
-		$this->assertSame( 'Kestrels', $results[0]['name'] );
-	}
-
-	public function test_count_patrols_returns_totals_by_status(): void {
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-
-		$wpdb->shouldReceive( 'prepare' )
-			->andReturnUsing( function( $sql, ...$args ) {
-				return vsprintf( str_replace( [ '%s', '%d' ], [ "'%s'", '%d' ], $sql ), $args );
-			} );
-
-		$wpdb->shouldReceive( 'get_results' )
-			->once()
-			->andReturn( [
-				[ 'status_type' => 'mapped', 'cnt' => '5' ],
-				[ 'status_type' => 'unmatched', 'cnt' => '2' ],
-			] );
-
-		$repo = new Unit_Repository( $wpdb );
-		$counts = $repo->count_patrols();
-
-		$this->assertSame( 7, $counts['all'] );
-		$this->assertSame( 2, $counts['unmatched'] );
-		$this->assertSame( 5, $counts['mapped'] );
-	}
-
-	public function test_link_patrol_updates_unit_id_in_db(): void {
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-
-		$wpdb->shouldReceive( 'update' )
-			->once()
-			->with(
-				'wp_ems_unit_patrols',
-				[ 'unit_id' => 850 ],
-				[ 'patrol_id' => 1234, 'section_id' => 99001 ],
-				[ '%d' ],
-				[ '%d', '%d' ]
-			)
-			->andReturn( 1 );
-
-		$repo = new Unit_Repository( $wpdb );
-		$result = $repo->link_patrol( 1234, 99001, 850 );
-
-		$this->assertTrue( $result );
-	}
-
-	public function test_unlink_patrol_sets_unit_id_to_null_in_db(): void {
-		$wpdb = Mockery::mock( 'wpdb' );
-		$wpdb->prefix = 'wp_';
-
-		$wpdb->shouldReceive( 'update' )
-			->once()
-			->with(
-				'wp_ems_unit_patrols',
-				[ 'unit_id' => null ],
-				[ 'patrol_id' => 1234, 'section_id' => 99001 ],
-				[ '%d' ],
-				[ '%d', '%d' ]
-			)
-			->andReturn( 1 );
-
-		$repo = new Unit_Repository( $wpdb );
-		$result = $repo->unlink_patrol( 1234, 99001 );
-
-		$this->assertTrue( $result );
 	}
 }

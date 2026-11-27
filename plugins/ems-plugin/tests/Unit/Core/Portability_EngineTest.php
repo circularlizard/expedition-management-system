@@ -122,20 +122,6 @@ class Portability_EngineTest extends EMSTestCase {
 				]
 			] );
 
-		$this->wpdb->shouldReceive( 'get_results' )
-			->with( 'SELECT * FROM wp_ems_unit_patrols', ARRAY_A )
-			->once()
-			->andReturn( [
-				[
-					'id' => 1,
-					'unit_id' => 10,
-					'section_id' => 201,
-					'patrol_id' => 101,
-					'name' => 'Kelso',
-					'active' => 1,
-				]
-			] );
-
 		$engine = new Portability_Engine();
 		$json = $engine->export_units();
 
@@ -144,6 +130,7 @@ class Portability_EngineTest extends EMSTestCase {
 		$this->assertSame( '0.1.x', $data['version'] );
 		$this->assertArrayNotHasKey( 'options', $data );
 		$this->assertArrayNotHasKey( 'tables', $data );
+		$this->assertArrayNotHasKey( 'unit_patrols', $data );
 		$this->assertSame( [
 			[
 				'id' => 1,
@@ -153,16 +140,6 @@ class Portability_EngineTest extends EMSTestCase {
 				'short_code' => 'BO-Kelso',
 			]
 		], $data['units'] );
-		$this->assertSame( [
-			[
-				'id' => 1,
-				'unit_id' => 10,
-				'section_id' => 201,
-				'patrol_id' => 101,
-				'name' => 'Kelso',
-				'active' => 1,
-			]
-		], $data['unit_patrols'] );
 	}
 
 	public function test_import_units_restores_only_ems_units(): void {
@@ -196,11 +173,6 @@ class Portability_EngineTest extends EMSTestCase {
 			->once()
 			->andReturn( true );
 
-		$this->wpdb->shouldReceive( 'query' )
-			->with( 'TRUNCATE TABLE wp_ems_unit_patrols' )
-			->once()
-			->andReturn( true );
-
 		$this->wpdb->shouldReceive( 'insert' )
 			->with( 'wp_ems_units', [
 				'id'        => 5,
@@ -208,18 +180,6 @@ class Portability_EngineTest extends EMSTestCase {
 				'district'  => 'Braid',
 				'name'      => 'Kelso ESU',
 				'short_code'=> 'BO-Kelso',
-			] )
-			->once()
-			->andReturn( true );
-
-		$this->wpdb->shouldReceive( 'insert' )
-			->with( 'wp_ems_unit_patrols', [
-				'id'        => 1,
-				'unit_id'   => 10,
-				'section_id'=> 201,
-				'patrol_id' => 101,
-				'name'      => 'Kelso',
-				'active'    => 1,
 			] )
 			->once()
 			->andReturn( true );

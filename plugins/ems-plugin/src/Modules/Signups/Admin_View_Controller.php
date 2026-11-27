@@ -738,19 +738,20 @@ class Admin_View_Controller {
 		$completion = array();
 		if ( ! empty( $member_ids ) ) {
 			global $wpdb;
+			$member_ids      = array_values( array_unique( array_map( 'intval', $member_ids ) ) );
 			$explorers_table = $wpdb->prefix . 'ems_osm_explorers';
 			$ids_placeholder = implode( ',', array_fill( 0, count( $member_ids ), '%d' ) );
 			$rows            = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT e.scout_id, e.wp_user_id, e.first_name, e.last_name, COALESCE(u.name, p.name, e.patrol) as unit_name 
+					"SELECT e.scout_id, e.wp_user_id, e.first_name, e.last_name, e.section_id, e.patrol
                  FROM {$explorers_table} e
-                 LEFT JOIN {$wpdb->prefix}ems_unit_patrols p ON e.section_id = p.section_id AND e.patrol = p.name
-                 LEFT JOIN {$wpdb->prefix}ems_units u ON (p.unit_id = u.unit_id OR e.section_id = u.unit_id)
                  WHERE e.scout_id IN ({$ids_placeholder})",
 					...$member_ids
 				),
 				ARRAY_A
 			);
+
+			$unit_names_by_scout = $this->resolve_unit_names_for_explorers( $rows );
 
 			$user_ids = array();
 			foreach ( $rows as $r ) {
@@ -782,7 +783,7 @@ class Admin_View_Controller {
 					'first_name' => $r['first_name'] ?? '',
 					'last_name'  => $r['last_name'] ?? '',
 					'user_id'    => $u_id,
-					'unit_name'  => $r['unit_name'] ?: 'Unassigned',
+					'unit_name'  => ( $unit_names_by_scout[ $scout_id ] ?? '' ) ?: 'Unassigned',
 					'matrix'     => $matrix_formatted,
 				);
 			}
@@ -796,6 +797,120 @@ class Admin_View_Controller {
 			),
 			200
 		);
+	}
+
+	/**
+	 * Resolve unit display names for explorer rows directly via signup unit_id and ems_units short_code/name/unit_id.
+	 *
+	 * @param array<int, array<string, mixed>> $explorers Explorer rows from ems_osm_explorers.
+	 * @return array<int, string> Map of scout_id => resolved unit name.
+	 */
+	private function resolve_unit_names_for_explorers( array $explorers ): array {
+		if ( empty( $explorers ) ) {
+			return array();
+		}
+
+		global $wpdb;
+		$scout_ids = array_values(
+			array_unique(
+				array_filter(
+					array_map( fn( $r ) => (int) ( $r['scout_id'] ?? 0 ), $explorers ),
+					fn( $id ) => $id > 0
+				)
+			)
+		);
+
+		$units_rows          = $wpdb->get_results(
+			"SELECT unit_id, name, short_code FROM {$wpdb->prefix}ems_units",
+			ARRAY_A
+		) ?: array();
+		$units_by_id         = array();
+		$units_by_short_code = array();
+		$units_by_name       = array();
+
+		foreach ( $units_rows as $u ) {
+			$display = trim( (string) ( $u['name'] ?? '' ) );
+			if ( $display === '' ) {
+				$display = trim( (string) ( $u['short_code'] ?? '' ) );
+			}
+			$uid = (int) ( $u['unit_id'] ?? 0 );
+			if ( $uid > 0 && $display !== '' ) {
+				$units_by_id[ $uid ] = $display;
+			}
+			$sc = strtolower( trim( (string) ( $u['short_code'] ?? '' ) ) );
+			if ( $sc !== '' && $display !== '' ) {
+				$units_by_short_code[ $sc ] = $display;
+			}
+			$nm = strtolower( trim( (string) ( $u['name'] ?? '' ) ) );
+			if ( $nm !== '' ) {
+				$units_by_name[ $nm ] = $display;
+			}
+		}
+
+		$signup_by_scout = array();
+		if ( ! empty( $scout_ids ) ) {
+			$ids_placeholder = implode( ',', array_fill( 0, count( $scout_ids ), '%d' ) );
+
+			$participant_rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT scout_id, unit_id, unit_name
+					 FROM {$wpdb->prefix}ems_participant_signups
+					 WHERE scout_id IN ({$ids_placeholder})
+					 ORDER BY created_at ASC",
+					...$scout_ids
+				),
+				ARRAY_A
+			) ?: array();
+			foreach ( $participant_rows as $row ) {
+				$signup_by_scout[ (int) $row['scout_id'] ] = $row;
+			}
+
+			$expedition_rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT scout_id, unit_id, unit_name
+					 FROM {$wpdb->prefix}ems_expedition_signups
+					 WHERE scout_id IN ({$ids_placeholder})
+					 ORDER BY created_at ASC",
+					...$scout_ids
+				),
+				ARRAY_A
+			) ?: array();
+			foreach ( $expedition_rows as $row ) {
+				$signup_by_scout[ (int) $row['scout_id'] ] = $row;
+			}
+		}
+
+		$resolved = array();
+		foreach ( $explorers as $r ) {
+			$scout_id        = (int) ( $r['scout_id'] ?? 0 );
+			$signup          = $signup_by_scout[ $scout_id ] ?? null;
+			$signup_unit_id  = (int) ( $signup['unit_id'] ?? 0 );
+			$patrol_raw      = trim( (string) ( $r['patrol'] ?? '' ) );
+			$patrol_key      = strtolower( $patrol_raw );
+			$section_id      = (int) ( $r['section_id'] ?? 0 );
+			$signup_unit_raw = trim( (string) ( $signup['unit_name'] ?? '' ) );
+			$signup_unit_key = strtolower( $signup_unit_raw );
+
+			if ( $signup_unit_id > 0 && isset( $units_by_id[ $signup_unit_id ] ) ) {
+				$resolved[ $scout_id ] = $units_by_id[ $signup_unit_id ];
+			} elseif ( $patrol_key !== '' && isset( $units_by_short_code[ $patrol_key ] ) ) {
+				$resolved[ $scout_id ] = $units_by_short_code[ $patrol_key ];
+			} elseif ( $patrol_key !== '' && isset( $units_by_name[ $patrol_key ] ) ) {
+				$resolved[ $scout_id ] = $units_by_name[ $patrol_key ];
+			} elseif ( $section_id > 0 && isset( $units_by_id[ $section_id ] ) ) {
+				$resolved[ $scout_id ] = $units_by_id[ $section_id ];
+			} elseif ( $signup_unit_key !== '' && isset( $units_by_short_code[ $signup_unit_key ] ) ) {
+				$resolved[ $scout_id ] = $units_by_short_code[ $signup_unit_key ];
+			} elseif ( $signup_unit_key !== '' && isset( $units_by_name[ $signup_unit_key ] ) ) {
+				$resolved[ $scout_id ] = $units_by_name[ $signup_unit_key ];
+			} elseif ( $signup_unit_raw !== '' ) {
+				$resolved[ $scout_id ] = $signup_unit_raw;
+			} else {
+				$resolved[ $scout_id ] = $patrol_raw;
+			}
+		}
+
+		return $resolved;
 	}
 
 	/**

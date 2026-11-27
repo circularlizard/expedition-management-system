@@ -1946,22 +1946,7 @@ class Expedition_Admin_Controller {
 
 		global $wpdb;
 
-		// 1. Leader email from ems_units
-		$leader_email = '';
-		if ( ! empty( $explorer['patrol'] ) ) {
-			$leader_email = $wpdb->get_var(
-				$wpdb->prepare(
-					"SELECT u.leader_email FROM {$wpdb->prefix}ems_units u
-                 JOIN {$wpdb->prefix}ems_unit_patrols p ON u.unit_id = p.unit_id
-                 WHERE p.name = %s AND p.section_id = %d AND p.active = 1 
-                 LIMIT 1",
-					$explorer['patrol'],
-					(int) $explorer['section_id']
-				)
-			) ?: '';
-		}
-
-		// 2. Teams/events assignments
+		// 1. Teams/events assignments
 		$assigned_teams = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT tm.team_post_id as team_id,
@@ -2052,6 +2037,9 @@ class Expedition_Admin_Controller {
 			$parent_asn  = $expedition_signup['additional_support_needs'] ?: '';
 		}
 
+		// Resolve unit leader email directly via signup unit_id / ems_units.short_code.
+		$leader_email = $this->resolve_explorer_leader_email( $scout_id, $explorer, $expedition_signup );
+
 		// 4. Participant places signups
 		$participant_signups = $wpdb->get_results(
 			$wpdb->prepare(
@@ -2120,6 +2108,81 @@ class Expedition_Admin_Controller {
 			),
 			200
 		);
+	}
+
+	/**
+	 * Resolve an explorer's unit leader email directly via signup unit_id or ems_units short_code/name/unit_id.
+	 *
+	 * @param int        $scout_id          Explorer Scout ID.
+	 * @param array      $explorer          Explorer row from ems_osm_explorers.
+	 * @param array|null $expedition_signup Latest expedition signup row, if any.
+	 */
+	private function resolve_explorer_leader_email( int $scout_id, array $explorer, ?array $expedition_signup ): string {
+		global $wpdb;
+		$units_table = $wpdb->prefix . 'ems_units';
+
+		// 1. Direct lookup via signup unit_id (expedition signup, then participant signup).
+		$unit_id = (int) ( $expedition_signup['unit_id'] ?? 0 );
+		if ( $unit_id <= 0 ) {
+			$unit_id = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT unit_id FROM {$wpdb->prefix}ems_participant_signups
+					 WHERE scout_id = %d AND unit_id IS NOT NULL AND unit_id > 0
+					 ORDER BY created_at DESC LIMIT 1",
+					$scout_id
+				)
+			);
+		}
+
+		if ( $unit_id > 0 ) {
+			$email = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT leader_email FROM {$units_table} WHERE unit_id = %d LIMIT 1",
+					$unit_id
+				)
+			);
+			if ( ! empty( $email ) ) {
+				return (string) $email;
+			}
+		}
+
+		// 2. Direct lookup via ems_units.short_code or name matching patrol / signup unit_name.
+		$unit_ref = trim( (string) ( $explorer['patrol'] ?? '' ) );
+		if ( $unit_ref === '' && ! empty( $expedition_signup['unit_name'] ) ) {
+			$unit_ref = trim( (string) $expedition_signup['unit_name'] );
+		}
+		if ( $unit_ref !== '' ) {
+			$email = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT leader_email FROM {$units_table}
+					 WHERE short_code = %s OR name = %s
+					 ORDER BY (short_code = %s) DESC
+					 LIMIT 1",
+					$unit_ref,
+					$unit_ref,
+					$unit_ref
+				)
+			);
+			if ( ! empty( $email ) ) {
+				return (string) $email;
+			}
+		}
+
+		// 3. Direct lookup via explorer section_id matching ems_units.unit_id.
+		$section_id = (int) ( $explorer['section_id'] ?? 0 );
+		if ( $section_id > 0 ) {
+			$email = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT leader_email FROM {$units_table} WHERE unit_id = %d LIMIT 1",
+					$section_id
+				)
+			);
+			if ( ! empty( $email ) ) {
+				return (string) $email;
+			}
+		}
+
+		return (string) ( $expedition_signup['leader_email'] ?? '' );
 	}
 
 	public function get_planning_matrix( \WP_REST_Request $request ): \WP_REST_Response {

@@ -12,106 +12,6 @@ class Unit_Repository {
 	}
 
 	/**
-	 * Sync patrol from OSM (Insert or update metadata while preserving admin configurations)
-	 */
-	public function sync_patrol( array $data ): int {
-		if ( empty( $data['patrol_id'] ) || empty( $data['section_id'] ) ) {
-			throw new \InvalidArgumentException( 'patrol_id and section_id are required for syncing' );
-		}
-
-		$now        = current_time( 'mysql' );
-		$patrol_id  = (int) $data['patrol_id'];
-		$section_id = (int) $data['section_id'];
-		$name       = sanitize_text_field( $data['name'] ?? '' );
-		$active     = isset( $data['active'] ) ? (int) $data['active'] : 1;
-		$synced_at  = $data['synced_at'] ?? $now;
-
-		// 1. Find all active units to run matching logic
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$units        = $this->wpdb->get_results( "SELECT * FROM {$this->wpdb->prefix}ems_units", ARRAY_A ) ?: array();
-		$matched_unit = $this->find_matching_unit( $name, $units );
-		$unit_id      = $matched_unit ? (int) $matched_unit['unit_id'] : null;
-
-		// 2. Insert or update the patrol in ems_unit_patrols
-		$sql = "INSERT INTO {$this->wpdb->prefix}ems_unit_patrols 
-            (unit_id, section_id, patrol_id, name, active, synced_at) 
-            VALUES (%d, %d, %d, %s, %d, %s) 
-            ON DUPLICATE KEY UPDATE 
-            unit_id = VALUES(unit_id),
-            name = VALUES(name), 
-            active = VALUES(active), 
-            synced_at = VALUES(synced_at)";
-
-		$prepared = $this->wpdb->prepare(
-			$sql,
-			$unit_id,
-			$section_id,
-			$patrol_id,
-			$name,
-			$active,
-			$synced_at
-		);
-
-		$this->wpdb->query( $prepared );
-
-		return (int) $this->wpdb->get_var(
-			$this->wpdb->prepare(
-				"SELECT id FROM {$this->wpdb->prefix}ems_unit_patrols WHERE patrol_id = %d AND section_id = %d",
-				$patrol_id,
-				$section_id
-			)
-		);
-	}
-
-	/**
-	 * Find a master unit matching a patrol name.
-	 */
-	public function find_matching_unit( string $patrol_name, array $master_units ): ?array {
-		$patrol_clean = strtolower( trim( $patrol_name ) );
-		if ( empty( $patrol_clean ) ) {
-			return null;
-		}
-
-		// 1. Exact match on short_code (case-insensitive)
-		foreach ( $master_units as $unit ) {
-			if ( ! empty( $unit['short_code'] ) && strtolower( trim( $unit['short_code'] ) ) === $patrol_clean ) {
-				return $unit;
-			}
-		}
-
-		// 2. Exact match on unit name (case-insensitive)
-		foreach ( $master_units as $unit ) {
-			if ( ! empty( $unit['name'] ) && strtolower( trim( $unit['name'] ) ) === $patrol_clean ) {
-				return $unit;
-			}
-		}
-
-		// 3. Substring match: unit name contains patrol name, or vice versa
-		foreach ( $master_units as $unit ) {
-			$unit_name_clean  = ! empty( $unit['name'] ) ? strtolower( trim( $unit['name'] ) ) : '';
-			$short_code_clean = ! empty( $unit['short_code'] ) ? strtolower( trim( $unit['short_code'] ) ) : '';
-
-			if ( ( $unit_name_clean !== '' && str_contains( $unit_name_clean, $patrol_clean ) ) ||
-				 ( $short_code_clean !== '' && str_contains( $short_code_clean, $patrol_clean ) ) ) {
-				return $unit;
-			}
-		}
-
-		// 4. Substring match: patrol name contains unit name or short code
-		foreach ( $master_units as $unit ) {
-			$unit_name_clean  = ! empty( $unit['name'] ) ? strtolower( trim( $unit['name'] ) ) : '';
-			$short_code_clean = ! empty( $unit['short_code'] ) ? strtolower( trim( $unit['short_code'] ) ) : '';
-
-			if ( ( $unit_name_clean !== '' && str_contains( $patrol_clean, $unit_name_clean ) ) ||
-				 ( $short_code_clean !== '' && str_contains( $patrol_clean, $short_code_clean ) ) ) {
-				return $unit;
-			}
-		}
-
-		return null;
-	}
-
-	/**
 	 * Update custom mapping configurations manually set by administrator
 	 */
 	public function update_custom_mappings( int $id, array $data ): bool {
@@ -216,18 +116,6 @@ class Unit_Repository {
 			return false;
 		}
 
-		$unit_id = (int) $unit['unit_id'];
-
-		if ( $unit_id ) {
-			$this->wpdb->update(
-				$this->wpdb->prefix . 'ems_unit_patrols',
-				array( 'unit_id' => null ),
-				array( 'unit_id' => $unit_id ),
-				array( '%d' ),
-				array( '%d' )
-			);
-		}
-
 		$deleted = $this->wpdb->delete(
 			$this->wpdb->prefix . 'ems_units',
 			array( 'id' => $id ),
@@ -248,170 +136,6 @@ class Unit_Repository {
 		return $row ?: null;
 	}
 
-	public function find_by_patrol_section( int $patrol_id, int $section_id ): ?array {
-		$patrol = $this->wpdb->get_row(
-			$this->wpdb->prepare(
-				"SELECT unit_id FROM {$this->wpdb->prefix}ems_unit_patrols WHERE patrol_id = %d AND section_id = %d LIMIT 1",
-				$patrol_id,
-				$section_id
-			),
-			ARRAY_A
-		);
-
-		if ( empty( $patrol ) || empty( $patrol['unit_id'] ) ) {
-			return null;
-		}
-
-		return $this->wpdb->get_row(
-			$this->wpdb->prepare(
-				"SELECT * FROM {$this->wpdb->prefix}ems_units WHERE unit_id = %d LIMIT 1",
-				$patrol['unit_id']
-			),
-			ARRAY_A
-		) ?: null;
-	}
-
-	/**
-	 * Retrieves active patrols with master unit metadata, optionally filtered by status, section, or unit.
-	 *
-	 * @param string|null $status     Optional filter: 'all', 'unmatched', or 'mapped'.
-	 * @param int|null    $section_id Optional section ID to filter by.
-	 * @param int|null    $unit_id    Optional unit ID to filter by.
-	 * @return array<int, array<string, mixed>>
-	 */
-	public function get_patrols( ?string $status = null, ?int $section_id = null, ?int $unit_id = null ): array {
-		$where_clauses = array( 'p.active = 1' );
-		$args          = array();
-
-		if ( $status === 'unmatched' ) {
-			$where_clauses[] = '(p.unit_id IS NULL OR p.unit_id = 0 OR u.unit_id IS NULL)';
-		} elseif ( $status === 'mapped' ) {
-			$where_clauses[] = '(p.unit_id IS NOT NULL AND p.unit_id > 0 AND u.unit_id IS NOT NULL)';
-		}
-
-		if ( $section_id !== null && $section_id > 0 ) {
-			$where_clauses[] = 'p.section_id = %d';
-			$args[]          = $section_id;
-		}
-
-		if ( $unit_id !== null && $unit_id > 0 ) {
-			$where_clauses[] = 'p.unit_id = %d';
-			$args[]          = $unit_id;
-		}
-
-		$where_sql = implode( ' AND ', $where_clauses );
-		$sql       = "SELECT p.*, u.name AS unit_name, u.short_code AS unit_short_code, u.district AS unit_district 
-		              FROM {$this->wpdb->prefix}ems_unit_patrols p 
-		              LEFT JOIN {$this->wpdb->prefix}ems_units u ON p.unit_id = u.unit_id 
-		              WHERE {$where_sql} 
-		              ORDER BY p.name ASC";
-
-		if ( ! empty( $args ) ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			$sql = $this->wpdb->prepare( $sql, ...$args );
-		}
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
-		return $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
-	}
-
-	/**
-	 * Counts active patrols grouped by status ('all', 'unmatched', 'mapped').
-	 *
-	 * @param int|null $section_id Optional section ID to scope counts.
-	 * @return array{all: int, unmatched: int, mapped: int}
-	 */
-	public function count_patrols( ?int $section_id = null ): array {
-		$where = 'WHERE p.active = 1';
-		$args  = array();
-
-		if ( $section_id !== null && $section_id > 0 ) {
-			$where .= ' AND p.section_id = %d';
-			$args[] = $section_id;
-		}
-
-		$sql = "SELECT 
-			CASE 
-				WHEN (p.unit_id IS NOT NULL AND p.unit_id > 0 AND u.unit_id IS NOT NULL) THEN 'mapped' 
-				ELSE 'unmatched' 
-			END AS status_type, 
-			COUNT(*) AS cnt 
-			FROM {$this->wpdb->prefix}ems_unit_patrols p 
-			LEFT JOIN {$this->wpdb->prefix}ems_units u ON p.unit_id = u.unit_id 
-			{$where} 
-			GROUP BY status_type";
-
-		if ( ! empty( $args ) ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			$sql = $this->wpdb->prepare( $sql, ...$args );
-		}
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$rows = $this->wpdb->get_results( $sql, ARRAY_A ) ?: array();
-
-		$counts = array(
-			'all'       => 0,
-			'unmatched' => 0,
-			'mapped'    => 0,
-		);
-
-		foreach ( $rows as $row ) {
-			$type = $row['status_type'] ?? '';
-			$cnt  = (int) ( $row['cnt'] ?? 0 );
-			if ( isset( $counts[ $type ] ) ) {
-				$counts[ $type ] = $cnt;
-			}
-			$counts['all'] += $cnt;
-		}
-
-		return $counts;
-	}
-
-	/**
-	 * Links an OSM patrol to a master unit.
-	 *
-	 * @param int $patrol_id  The OSM patrol ID.
-	 * @param int $section_id The OSM section ID.
-	 * @param int $unit_id    The master unit ID.
-	 * @return bool True if updated or already linked.
-	 */
-	public function link_patrol( int $patrol_id, int $section_id, int $unit_id ): bool {
-		$result = $this->wpdb->update(
-			$this->wpdb->prefix . 'ems_unit_patrols',
-			array( 'unit_id' => $unit_id ),
-			array(
-				'patrol_id'  => $patrol_id,
-				'section_id' => $section_id,
-			),
-			array( '%d' ),
-			array( '%d', '%d' )
-		);
-
-		return $result !== false;
-	}
-
-	/**
-	 * Unlinks an OSM patrol from its master unit (sets unit_id to null).
-	 *
-	 * @param int $patrol_id  The OSM patrol ID.
-	 * @param int $section_id The OSM section ID.
-	 * @return bool True if updated.
-	 */
-	public function unlink_patrol( int $patrol_id, int $section_id ): bool {
-		$result = $this->wpdb->update(
-			$this->wpdb->prefix . 'ems_unit_patrols',
-			array( 'unit_id' => null ),
-			array(
-				'patrol_id'  => $patrol_id,
-				'section_id' => $section_id,
-			),
-			array( '%d' ),
-			array( '%d', '%d' )
-		);
-
-		return $result !== false;
-	}
-
 	public function list_active_units(): array {
 		/** @var array<int, array<string, mixed>> $units */
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -419,21 +143,6 @@ class Unit_Repository {
 			"SELECT * FROM {$this->wpdb->prefix}ems_units ORDER BY name",
 			ARRAY_A
 		) ?: array();
-
-		foreach ( $units as &$u ) {
-			$u['matched_patrols'] = array();
-			$unit_id              = (int) ( $u['unit_id'] ?? 0 );
-			if ( $unit_id ) {
-				$patrols = $this->wpdb->get_results(
-					$this->wpdb->prepare(
-						"SELECT * FROM {$this->wpdb->prefix}ems_unit_patrols WHERE unit_id = %d AND active = 1",
-						$unit_id
-					),
-					ARRAY_A
-				) ?: array();
-				$u['matched_patrols'] = $patrols;
-			}
-		}
 
 		return $units;
 	}
@@ -488,31 +197,16 @@ class Unit_Repository {
 				}
 			);
 
-			$primary            = $unit_list[0];
-			$primary_unit_id    = (int) $primary['unit_id'];
-			$duplicates         = array_slice( $unit_list, 1 );
-			$duplicate_ids      = array();
-			$duplicate_unit_ids = array();
+			$primary         = $unit_list[0];
+			$primary_unit_id = (int) $primary['unit_id'];
+			$duplicates      = array_slice( $unit_list, 1 );
+			$duplicate_ids = array();
 
 			foreach ( $duplicates as $dup ) {
 				$duplicate_ids[] = (int) $dup['id'];
-				if ( ! empty( $dup['unit_id'] ) ) {
-					$duplicate_unit_ids[] = (int) $dup['unit_id'];
-				}
 			}
 
-			// 1. Reassign all patrols pointing to duplicate unit_ids to primary_unit_id
-			if ( ! empty( $duplicate_unit_ids ) ) {
-				$in_unit_ids = implode( ',', array_map( 'intval', $duplicate_unit_ids ) );
-				$this->wpdb->query(
-					$this->wpdb->prepare(
-						"UPDATE {$this->wpdb->prefix}ems_unit_patrols SET unit_id = %d WHERE unit_id IN ({$in_unit_ids})",
-						$primary_unit_id
-					)
-				);
-			}
-
-			// 2. Delete duplicate ems_units rows
+			// Delete duplicate ems_units rows
 			if ( ! empty( $duplicate_ids ) ) {
 				$in_ids = implode( ',', array_map( 'intval', $duplicate_ids ) );
 				$this->wpdb->query( "DELETE FROM {$this->wpdb->prefix}ems_units WHERE id IN ({$in_ids})" );
