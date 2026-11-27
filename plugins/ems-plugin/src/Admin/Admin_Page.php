@@ -208,12 +208,7 @@ class Admin_Page {
 			'admin_enqueue_scripts',
 			function ( $hook ) use ( $units_sync_hook ) {
 				if ( $hook === $units_sync_hook ) {
-					$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'units';
-					if ( $tab === 'mapper' ) {
-						$this->enqueue_mapper_assets();
-					} else {
-						$this->enqueue_dashboard_assets();
-					}
+					$this->enqueue_dashboard_assets();
 				}
 			}
 		);
@@ -236,7 +231,7 @@ class Admin_Page {
 		}
 
 		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'units';
-		$valid_tabs = array( 'units', 'leaders', 'explorers', 'events', 'sections', 'pushback', 'mapper', 'diagnostics' );
+		$valid_tabs = array( 'units', 'leaders', 'explorers', 'events', 'sections', 'pushback', 'diagnostics' );
 		if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 			$active_tab = 'units';
 		}
@@ -303,8 +298,6 @@ class Admin_Page {
 			$this->render_sections_tab();
 		} elseif ( $active_tab === 'pushback' ) {
 			$this->render_pushback_tab();
-		} elseif ( $active_tab === 'mapper' ) {
-			echo '<div id="ems-column-mapper-root"></div>';
 		} elseif ( $active_tab === 'diagnostics' ) {
 			$this->render_diagnostics_tab();
 		}
@@ -336,30 +329,6 @@ class Admin_Page {
 		);
 	}
 
-	/**
-	 * Registers the Column Mapper submenu (called at a later priority for correct ordering).
-	 */
-	public function register_mapper_menu(): void {
-		$mapper_hook = add_submenu_page(
-			null,
-			__( 'Column Mapper', 'ems-plugin' ),
-			__( 'Column Mapper', 'ems-plugin' ),
-			'manage_options',
-			'ems-column-mapper',
-			array( $this, 'render_column_mapper' )
-		);
-
-		add_action(
-			'admin_enqueue_scripts',
-			function ( $hook ) use ( $mapper_hook ) {
-				if ( $hook === $mapper_hook ) {
-					$this->enqueue_mapper_assets();
-				}
-			}
-		);
-	}
-
-
 	private function enqueue_dashboard_assets(): void {
 		wp_enqueue_editor();
 		$this->enqueue_admin_script( 'ems-expedition-board', 'assets/js/expedition-board.js' );
@@ -378,20 +347,6 @@ class Admin_Page {
 				'sections'   => (array) get_option( 'ems_managed_sections', array() ),
 				'plugin_url' => plugin_dir_url( EMS_PLUGIN_FILE ),
 				'units'      => $units,
-			)
-		);
-	}
-
-	private function enqueue_mapper_assets(): void {
-		$this->enqueue_admin_script( 'ems-column-mapper', 'assets/js/column-mapper.js' );
-		$this->enqueue_admin_styles();
-		wp_localize_script(
-			'ems-column-mapper',
-			'emsColumnMapper',
-			array(
-				'root_url' => get_rest_url( null, 'ems/v1' ),
-				'nonce'    => wp_create_nonce( 'wp_rest' ),
-				'sections' => (array) get_option( 'ems_managed_sections', array() ),
 			)
 		);
 	}
@@ -836,13 +791,6 @@ class Admin_Page {
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Volunteers', 'ems-plugin' ) . '</h1>';
 		echo '<div id="ems-volunteers-root"></div>';
-		echo '</div>';
-	}
-
-	public function render_column_mapper(): void {
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Flexi-Record Column Mapper', 'ems-plugin' ) . '</h1>';
-		echo '<div id="ems-column-mapper-root"></div>';
 		echo '</div>';
 	}
 

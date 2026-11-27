@@ -178,50 +178,6 @@ class Live_Driver implements Driver_Interface {
 		return $this->request( $url );
 	}
 
-	public function get_flexi_records( int $section_id ): array {
-		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-		$url  = add_query_arg(
-			array(
-				'action'    => 'getFlexiRecords',
-				'sectionid' => $section_id,
-				'archived'  => 'n',
-			),
-			$base . '/ext/members/flexirecords/'
-		);
-
-		return $this->request( $url );
-	}
-
-	public function get_flexi_record_structure( int $section_id, int $flexi_id ): array {
-		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-		$url  = add_query_arg(
-			array(
-				'action'    => 'getStructure',
-				'sectionid' => $section_id,
-				'extraid'   => $flexi_id,
-			),
-			$base . '/ext/members/flexirecords/'
-		);
-
-		return $this->request( $url );
-	}
-
-	public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array {
-		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-		$args = array(
-			'action'    => 'getData',
-			'extraid'   => $flexi_id,
-			'sectionid' => $section_id,
-			'nototal'   => '',
-		);
-		if ( $term_id > 0 ) {
-			$args['termid'] = $term_id;
-		}
-		$url = add_query_arg( $args, $base . '/ext/members/flexirecords/' );
-
-		return $this->request( $url );
-	}
-
 	public function get_individual( int $section_id, int $member_id, int $term_id = 0 ): array {
 		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
 		$args = array(
@@ -272,65 +228,6 @@ class Live_Driver implements Driver_Interface {
 				'field'      => 'attending',
 				'value'      => 'invited',
 				'member_ids' => implode( ',', $member_updates ),
-			),
-		) );
-	}
-
-	public function create_flexi_record( int $section_id, string $name ): array {
-		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-		$url  = add_query_arg(
-			array(
-				'action'    => 'addRecordSet',
-				'sectionid' => $section_id,
-			),
-			$base . '/ext/members/flexirecords/'
-		);
-		return $this->request( $url, array(
-			'method' => 'POST',
-			'body'   => array(
-				'name'   => $name,
-				'dob'    => 1,
-				'age'    => 1,
-				'patrol' => 1,
-				'type'   => 'none',
-			),
-		) );
-	}
-
-	public function add_flexi_record_column( int $section_id, int $flexi_id, string $column_name ): array {
-		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-		$url  = add_query_arg(
-			array(
-				'action'    => 'addColumn',
-				'sectionid' => $section_id,
-				'extraid'   => $flexi_id,
-			),
-			$base . '/ext/members/flexirecords/'
-		);
-		return $this->request( $url, array(
-			'method' => 'POST',
-			'body'   => array(
-				'columnName' => $column_name,
-			),
-		) );
-	}
-
-	public function update_flexi_record_data( int $section_id, int $flexi_id, array $values ): array {
-		$base = rtrim( (string) get_option( 'ems_osm_api_base_url', 'https://www.onlinescoutmanager.co.uk' ), '/' );
-		$url  = add_query_arg(
-			array(
-				'action'    => 'multiUpdate',
-				'sectionid' => $section_id,
-			),
-			$base . '/ext/members/flexirecords/'
-		);
-		return $this->request( $url, array(
-			'method' => 'POST',
-			'body'   => array(
-				'scouts'  => wp_json_encode( array_map( 'strval', $values['scouts'] ) ),
-				'value'   => $values['value'],
-				'col'     => $values['col'],
-				'extraid' => $flexi_id,
 			),
 		) );
 	}

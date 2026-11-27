@@ -38,13 +38,3 @@ Feature: Milestone 5 - OSM Push-Back Sync Preview
       | 30001    | Alice Smith |
     When I request the sync preview for section 101
     Then the response should skip event attendance preview for expedition 10
-
-  Scenario: Previewing flexi-record value changes
-    Given a section exists with ID 101
-    And a managed flexi-record exists with ID 99848
-    And the current OSM flexi-record data for 99848 has:
-      | scoutid | f_9 (PRACTICE GROUPS) |
-      | 30001   | HGP1-1                |
-    And scout 30001 is assigned to local team "HGP1-2" in EMS (practice)
-    When I request the sync preview for section 101
-    Then the response should propose updating flexi-record 99848 column f_9 for scout 30001 to "HGP1-2"

@@ -70,18 +70,6 @@ class Mock_Driver implements Driver_Interface {
 		return $this->load( 'osm-patrols.json' );
 	}
 
-	public function get_flexi_records( int $section_id ): array {
-		return $this->load( 'osm-flexi-records.json' );
-	}
-
-	public function get_flexi_record_structure( int $section_id, int $flexi_id ): array {
-		return $this->load( 'osm-flexi-record-structure.json' );
-	}
-
-	public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array {
-		return $this->load( 'osm-flexi-record-data.json' );
-	}
-
 	public function get_individual( int $section_id, int $member_id, int $term_id = 0 ): array {
 		return $this->load( 'osm-get-individual.json' );
 	}
@@ -96,23 +84,6 @@ class Mock_Driver implements Driver_Interface {
 
 	public function update_event_attendance( int $section_id, int $event_id, array $member_updates ): array {
 		return array( 'error' => false, 'updated' => count( $member_updates ) );
-	}
-
-	public function create_flexi_record( int $section_id, string $name ): array {
-		return array( 'id' => 99848, 'name' => $name );
-	}
-
-	public function add_flexi_record_column( int $section_id, int $flexi_id, string $column_name ): array {
-		// Mock column mapping behavior: return a random f_ code
-		return array(
-			'field'      => 'f_99',
-			'columnName' => $column_name,
-			'error'      => false,
-		);
-	}
-
-	public function update_flexi_record_data( int $section_id, int $flexi_id, array $values ): array {
-		return array( 'error' => false );
 	}
 }
 

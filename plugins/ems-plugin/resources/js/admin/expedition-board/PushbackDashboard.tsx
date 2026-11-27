@@ -7,17 +7,6 @@ interface SectionInfo {
 	type: string;
 }
 
-interface FlexiUpdate {
-	scout_id: number;
-	first_name: string;
-	last_name: string;
-	column: string;
-	column_name: string;
-	current_value: string;
-	proposed_value: string;
-	overwrite?: boolean;
-}
-
 interface EventInvite {
 	scout_id: number;
 	first_name: string;
@@ -36,13 +25,6 @@ interface ProposedEvent {
 }
 
 interface PreviewData {
-	flexi_record: {
-		exists: boolean;
-		id: number | null;
-		proposed_name: string;
-		missing_columns: string[];
-		updates: FlexiUpdate[];
-	};
 	events: ProposedEvent[];
 	errors: string[];
 }
@@ -182,8 +164,7 @@ export const PushbackDashboard: React.FC = () => {
 	}, [selectedSection]);
 
 	const totalUpdatesCount = preview
-		? preview.flexi_record.updates.length +
-		  preview.events.reduce((acc, ev) => acc + ev.proposed_invites.filter(inv => inv.action === 'Invite').length, 0)
+		? preview.events.reduce((acc, ev) => acc + ev.proposed_invites.filter(inv => inv.action === 'Invite').length, 0)
 		: 0;
 
 	const toggleEventCollapse = (eventId: number) => {
@@ -297,74 +278,6 @@ export const PushbackDashboard: React.FC = () => {
 								</ul>
 							</div>
 						)}
-
-						{/* Flexi-record Preview */}
-						<div className="card ems-card-panel">
-							<h2>Flexi-Record: {preview.flexi_record.proposed_name}</h2>
-							<p className="description">
-								Status:{' '}
-								<strong>
-									{preview.flexi_record.exists
-										? `Linked (ID: ${preview.flexi_record.id})`
-										: 'Will be created on sync'}
-								</strong>
-							</p>
-
-							{preview.flexi_record.missing_columns &&
-								preview.flexi_record.missing_columns.length > 0 && (
-									<div className="notice notice-warning inline" style={{ margin: '10px 0' }}>
-										<p>
-											<strong>Missing Columns to Create:</strong>{' '}
-											{preview.flexi_record.missing_columns.join(', ')}
-										</p>
-									</div>
-								)}
-
-							<h3>Proposed Values Updates</h3>
-							{preview.flexi_record.updates && preview.flexi_record.updates.length > 0 ? (
-								<table className="wp-list-table widefat fixed striped">
-									<thead>
-										<tr>
-											<th>Scout ID</th>
-											<th>Name</th>
-											<th>Column</th>
-											<th>Current OSM Value</th>
-											<th>Proposed EMS Value</th>
-										</tr>
-									</thead>
-									<tbody>
-										{preview.flexi_record.updates.map((up, idx) => (
-											<tr key={idx}>
-												<td>{up.scout_id}</td>
-												<td>
-													{up.first_name} {up.last_name}
-												</td>
-												<td>
-													<strong>{up.column_name}</strong> ({up.column})
-												</td>
-												<td>
-													<span className="ems-deleted-item">
-														{up.current_value || '—'}
-													</span>
-													{up.overwrite && (
-														<span className="ems-status-badge ems-status-badge--danger ems-status-badge--mini">
-															<FontAwesomeIcon icon={faTriangleExclamation} /> Overwrite
-														</span>
-													)}
-												</td>
-												<td>
-													<span className="ems-text-success">
-														{up.proposed_value}
-													</span>
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
-							) : (
-								<p className="description">No flexi-record field discrepancies found.</p>
-							)}
-						</div>
 
 						{/* Event Attendance Preview */}
 						<div className="card ems-card-panel">

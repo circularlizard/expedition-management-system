@@ -55,9 +55,9 @@ class Sync_Preview_ControllerTest extends EMSTestCase {
 			->with( 'test-oauth-token' )
 			->once();
 
-		$mock_preview = [ 'flexi_record' => [ 'exists' => true ], 'events' => [], 'errors' => [] ];
+		$mock_preview = [ 'events' => [], 'errors' => [] ];
 		$this->sync_manager->shouldReceive( 'get_preview' )
-			->with( 101 )
+			->with( 101, false )
 			->once()
 			->andReturn( $mock_preview );
 
@@ -96,7 +96,7 @@ class Sync_Preview_ControllerTest extends EMSTestCase {
 		$this->assertSame( 400, $response->get_error_data()['status'] );
 	}
 
-	public function test_execute_sync_push_calls_ensure_flexi_record_and_returns_success(): void {
+	public function test_execute_sync_push_returns_success(): void {
 		$controller = new Sync_Preview_Controller( $this->api_client, $this->sync_manager );
 		Functions\when( 'current_user_can' )->justReturn( true );
 
@@ -105,11 +105,10 @@ class Sync_Preview_ControllerTest extends EMSTestCase {
 			->once();
 
 		$this->sync_manager->shouldReceive( 'execute_sync' )
-			->with( 101 )
+			->with( 101, false )
 			->once()
 			->andReturn( [
 				'success' => true,
-				'flexi_updates_count' => 3,
 				'event_invites_count' => 2
 			] );
 
@@ -121,7 +120,7 @@ class Sync_Preview_ControllerTest extends EMSTestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertTrue( $response->get_data()['success'] );
-		$this->assertStringContainsString( 'Updated 3 flexi-record fields and invited 2 members', $response->get_data()['message'] );
+		$this->assertStringContainsString( 'Invited 2 members', $response->get_data()['message'] );
 	}
 
 	public function test_execute_sync_push_returns_409_when_locked(): void {

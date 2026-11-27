@@ -127,9 +127,8 @@ class Sync_Preview_Controller {
 				array(
 					'success' => true,
 					'message' => sprintf(
-						'Push-back sync completed. Updated %d flexi-record fields and invited %d members.',
-						$result['flexi_updates_count'],
-						$result['event_invites_count']
+						'Push-back sync completed. Invited %d members.',
+						$result['event_invites_count'] ?? 0
 					),
 				),
 				200
@@ -138,9 +137,8 @@ class Sync_Preview_Controller {
 			$unsynced = 0;
 			try {
 				$include_unaccepted = filter_var( $request->get_param( 'include_unaccepted' ), FILTER_VALIDATE_BOOLEAN );
-		$preview            = $this->sync_manager->get_preview( $section_id, $include_unaccepted );
-				$flexi_count = isset( $preview['flexi_record']['updates'] ) ? count( $preview['flexi_record']['updates'] ) : 0;
-				$event_count = 0;
+				$preview            = $this->sync_manager->get_preview( $section_id, $include_unaccepted );
+				$event_count        = 0;
 				if ( isset( $preview['events'] ) ) {
 					foreach ( $preview['events'] as $ev ) {
 						foreach ( $ev['proposed_invites'] as $inv ) {
@@ -150,7 +148,7 @@ class Sync_Preview_Controller {
 						}
 					}
 				}
-				$unsynced = $flexi_count + $event_count;
+				$unsynced = $event_count;
 			} catch ( \Exception $prev_e ) {
 				$unsynced = 0;
 			}

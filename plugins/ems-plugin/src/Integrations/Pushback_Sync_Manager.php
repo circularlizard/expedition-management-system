@@ -18,15 +18,8 @@ class Pushback_Sync_Manager {
 		global $wpdb;
 
 		$preview = array(
-			'flexi_record' => array(
-				'exists'           => false,
-				'id'               => null,
-				'proposed_name'    => '2026 Expeditions',
-				'missing_columns'  => array(),
-				'updates'          => array(),
-			),
-			'events'       => array(),
-			'errors'       => array(),
+			'events' => array(),
+			'errors' => array(),
 		);
 
 		try {
@@ -36,59 +29,7 @@ class Pushback_Sync_Manager {
 			$term    = $this->parser->find_current_term( $terms, $section_id );
 			$term_id = $term ? (int) $term['term_id'] : 0;
 
-			// 2. Fetch flexi-record structure
-			$flexi_id = $this->get_flexi_record_id( $section_id );
-			if ( ! $flexi_id ) {
-				$records = $this->api_client->get_flexi_records( $section_id );
-				$items   = $records['items'] ?? $records;
-				foreach ( $items as $rec ) {
-					if ( ( $rec['name'] ?? '' ) === '2026 Expeditions' ) {
-						$flexi_id = (int) ( $rec['extraid'] ?? $rec['id'] ?? 0 );
-						$this->update_flexi_record_id( $section_id, $flexi_id );
-						break;
-					}
-				}
-			}
-
-			$columns = array();
-			$osm_data = array();
-
-			if ( $flexi_id ) {
-				$preview['flexi_record']['exists'] = true;
-				$preview['flexi_record']['id']     = (int) $flexi_id;
-
-				$struct = $this->api_client->get_flexi_record_structure( $section_id, $flexi_id );
-				$config = json_decode( $struct['config'] ?? '[]', true ) ?: array();
-				
-				$mapped_cols = array();
-				foreach ( $config as $col ) {
-					$mapped_cols[ strtoupper( $col['name'] ?? '' ) ] = $col['id'] ?? '';
-				}
-
-				$required_cols = array(
-					'PRACTICE GROUPS',
-					'PRACTICE ACCEPTED',
-					'QUALIFIER GROUPS',
-					'QUALIFIER ACCEPTED',
-					'TRAINING DAY',
-					'FIRST AID',
-				);
-
-				foreach ( $required_cols as $req ) {
-					if ( ! isset( $mapped_cols[ $req ] ) ) {
-						$preview['flexi_record']['missing_columns'][] = $req;
-					} else {
-						$columns[ $req ] = $mapped_cols[ $req ];
-					}
-				}
-
-				$data_payload = $this->api_client->get_flexi_record_data( $section_id, $flexi_id, $term_id );
-				foreach ( $data_payload['items'] ?? array() as $item ) {
-					$osm_data[ (int) $item['scoutid'] ] = $item;
-				}
-			}
-
-			// 3. Query local EMS assignments
+			// 2. Query local EMS assignments
 			$t_members = $wpdb->prefix . 'ems_team_members';
 			$t_explorers = $wpdb->prefix . 'ems_osm_explorers';
 			$posts = $wpdb->posts;
@@ -134,22 +75,6 @@ class Pushback_Sync_Manager {
 				) ?: array();
 			}
 
-			$eligible_assignments = array();
-			foreach ( $local_assignments as $assign ) {
-				$scout_id = (int) $assign->scout_id;
-				if ( ! isset( $osm_data[ $scout_id ] ) ) {
-					$preview['errors'][] = sprintf(
-						'Explorer %s %s (Scout ID: %d) is not a member of this section in Online Scout Manager. They must be added to the target section in OSM to be synced.',
-						$assign->first_name,
-						$assign->last_name,
-						$scout_id
-					);
-					continue;
-				}
-				$eligible_assignments[] = $assign;
-			}
-			$local_assignments = $eligible_assignments;
-
 			// Group by Event ID to fetch event attendance
 			$event_to_assignments = array();
 			foreach ( $local_assignments as $assign ) {
@@ -159,7 +84,7 @@ class Pushback_Sync_Manager {
 				}
 			}
 
-			// 4. Compute Event Attendance proposed invitations
+			// 3. Compute Event Attendance proposed invitations
 			foreach ( $event_to_assignments as $eid => $assigns ) {
 				try {
 					$attendance = $this->api_client->get_event_attendance( $eid, $term_id );
@@ -251,85 +176,6 @@ class Pushback_Sync_Manager {
 				}
 			}
 
-			// 5. Compute Flexi-record proposed updates
-			if ( $flexi_id ) {
-				// Group local assignments by scout to aggregate their values
-				$scout_assignments = array();
-				foreach ( $local_assignments as $assign ) {
-					$scout_assignments[ (int) $assign->scout_id ][] = $assign;
-				}
-
-				foreach ( $scout_assignments as $scout_id => $assigns ) {
-					$osm_row = $osm_data[ $scout_id ] ?? array();
-
-					// Compute proposed value per column
-					$proposed_values = array();
-
-					// Practice
-					$practice_team = '';
-					$practice_accepted = '';
-					// Qualifier
-					$qualifier_team = '';
-					$qualifier_accepted = '';
-					// Training
-					$training_day = '';
-					// First Aid
-					$first_aid = '';
-
-					foreach ( $assigns as $assign ) {
-						$type = $assign->event_type;
-						$code = $assign->team_code ?: $assign->team_name;
-						$event_code = $assign->event_code ?: '';
-						$date_str = $assign->event_date ? date( 'j/n', strtotime( $assign->event_date ) ) : '';
-
-						if ( $assign->first_aid_level ) {
-							$first_aid = strtoupper( str_replace( '_', ' ', $assign->first_aid_level ) );
-						}
-
-						if ( $type === 'practice' ) {
-							$practice_team = $code;
-							$practice_accepted = trim( "{$event_code} {$date_str}" );
-						} elseif ( $type === 'qualifying' ) {
-							$qualifier_team = $code;
-							$qualifier_accepted = trim( "{$event_code} {$date_str}" );
-						} elseif ( $type === 'training' ) {
-							$training_day = $code;
-						}
-					}
-
-					$fields_to_map = array(
-						'PRACTICE GROUPS'    => $practice_team,
-						'PRACTICE ACCEPTED'  => $practice_accepted,
-						'QUALIFIER GROUPS'   => $qualifier_team,
-						'QUALIFIER ACCEPTED' => $qualifier_accepted,
-						'TRAINING DAY'       => $training_day,
-						'FIRST AID'          => $first_aid,
-					);
-
-					foreach ( $fields_to_map as $col_name => $proposed_val ) {
-						if ( ! isset( $columns[ $col_name ] ) || $proposed_val === '' ) {
-							continue;
-						}
-
-						$col_key = $columns[ $col_name ];
-						$current = $osm_row[ $col_key ] ?? '';
-
-						if ( $current !== $proposed_val ) {
-							$preview['flexi_record']['updates'][] = array(
-								'scout_id'       => $scout_id,
-								'first_name'     => $assigns[0]->first_name,
-								'last_name'      => $assigns[0]->last_name,
-								'column'         => $col_key,
-								'column_name'    => $col_name,
-								'current_value'  => $current,
-								'proposed_value' => $proposed_val,
-								'overwrite'      => ( $current !== '' ),
-							);
-						}
-					}
-				}
-			}
-
 		} catch ( Rate_Limit_Exception $e ) {
 			$preview['errors'][] = 'Rate limit exceeded: ' . $e->getMessage();
 		} catch ( Api_Blocked_Exception $e ) {
@@ -341,148 +187,20 @@ class Pushback_Sync_Manager {
 		return $preview;
 	}
 
-	public function get_flexi_record_id( int $section_id ): ?int {
-		$writeback_section = (int) get_option( 'ems_writeback_section_id', 0 );
-		if ( $section_id === $writeback_section ) {
-			$flexi_id = get_option( 'ems_osm_writeback_flexi_record_id', false );
-		} else {
-			$flexi_id = get_option( 'ems_osm_flexi_record_' . $section_id, false );
-		}
-		return $flexi_id ? (int) $flexi_id : null;
-	}
-
-	public function update_flexi_record_id( int $section_id, int $flexi_id ): void {
-		$writeback_section = (int) get_option( 'ems_writeback_section_id', 0 );
-		if ( $section_id === $writeback_section ) {
-			update_option( 'ems_osm_writeback_flexi_record_id', $flexi_id );
-		}
-		update_option( 'ems_osm_flexi_record_' . $section_id, $flexi_id );
-	}
-
 	/**
-	 * Ensures the flexi-record exists on OSM for the given section and has all required columns.
+	 * Executes the sync push by pushing all computed event invitations to OSM.
 	 *
-	 * @param int $section_id
-	 * @return int The flexi-record ID
-	 */
-	public function ensure_flexi_record( int $section_id ): int {
-		$flexi_id = $this->get_flexi_record_id( $section_id );
-
-		// Verify existence on OSM if ID is stored
-		$exists_on_osm = false;
-		if ( $flexi_id ) {
-			try {
-				$records = $this->api_client->get_flexi_records( $section_id );
-				$items   = $records['items'] ?? $records;
-				foreach ( $items as $rec ) {
-					$rec_id = (int) ( $rec['extraid'] ?? $rec['id'] ?? 0 );
-					if ( $rec_id === $flexi_id ) {
-						$exists_on_osm = true;
-						break;
-					}
-				}
-			} catch ( \Exception $e ) {
-				$exists_on_osm = false;
-			}
-		}
-
-		// If it doesn't exist, check by name "2026 Expeditions" or create it
-		if ( ! $exists_on_osm ) {
-			$records = $this->api_client->get_flexi_records( $section_id );
-			$items   = $records['items'] ?? $records;
-			$found_id = null;
-			foreach ( $items as $rec ) {
-				if ( ( $rec['name'] ?? '' ) === '2026 Expeditions' ) {
-					$found_id = (int) ( $rec['extraid'] ?? $rec['id'] ?? 0 );
-					break;
-				}
-			}
-
-			if ( $found_id ) {
-				$flexi_id = $found_id;
-				$this->update_flexi_record_id( $section_id, $flexi_id );
-			} else {
-				// Create a new flexi record
-				$response = $this->api_client->create_flexi_record( $section_id, '2026 Expeditions' );
-				$flexi_id = (int) ( $response['id'] ?? $response['extraid'] ?? 0 );
-				if ( ! $flexi_id ) {
-					throw new \Exception( 'Failed to create flexi-record on OSM.' );
-				}
-				$this->update_flexi_record_id( $section_id, $flexi_id );
-			}
-		}
-
-		// Now ensure columns exist
-		$struct = $this->api_client->get_flexi_record_structure( $section_id, $flexi_id );
-		$config = json_decode( $struct['config'] ?? '[]', true ) ?: array();
-
-		$mapped_cols = array();
-		foreach ( $config as $col ) {
-			$mapped_cols[ strtoupper( $col['name'] ?? '' ) ] = $col['id'] ?? '';
-		}
-
-		$required_cols = array(
-			'PRACTICE GROUPS',
-			'PRACTICE ACCEPTED',
-			'QUALIFIER GROUPS',
-			'QUALIFIER ACCEPTED',
-			'TRAINING DAY',
-			'FIRST AID',
-		);
-
-		foreach ( $required_cols as $req ) {
-			if ( ! isset( $mapped_cols[ $req ] ) ) {
-				$this->api_client->add_flexi_record_column( $section_id, $flexi_id, $req );
-			}
-		}
-
-		return $flexi_id;
-	}
-
-	/**
-	 * Executes the sync push by pushing all computed flexi-record updates and event invitations to OSM.
-	 *
-	 * @param int $section_id
+	 * @param int  $section_id
+	 * @param bool $include_unaccepted
 	 * @return array
 	 * @throws \Exception
 	 */
 	public function execute_sync( int $section_id, bool $include_unaccepted = false ): array {
-		$flexi_id = $this->ensure_flexi_record( $section_id );
-		$preview  = $this->get_preview( $section_id, $include_unaccepted );
+		$preview = $this->get_preview( $section_id, $include_unaccepted );
 
-		$flexi_updates_count = 0;
 		$event_invites_count = 0;
 
-		// 1. Process flexi-record updates
-		$updates = $preview['flexi_record']['updates'] ?? array();
-		if ( ! empty( $updates ) ) {
-			// Group updates by column and value
-			$grouped_updates = array();
-			foreach ( $updates as $up ) {
-				$col      = $up['column'];
-				$val      = $up['proposed_value'];
-				$scout_id = (int) $up['scout_id'];
-				$grouped_updates[ $col ][ $val ][] = $scout_id;
-			}
-
-			// Perform batch update for each col/val combo
-			foreach ( $grouped_updates as $col => $values_map ) {
-				foreach ( $values_map as $val => $scout_ids ) {
-					$this->api_client->update_flexi_record_data(
-						$section_id,
-						$flexi_id,
-						array(
-							'scouts' => $scout_ids,
-							'col'    => $col,
-							'value'  => $val,
-						)
-					);
-					$flexi_updates_count += count( $scout_ids );
-				}
-			}
-		}
-
-		// 2. Process event invitations
+		// Process event invitations
 		$events = $preview['events'] ?? array();
 		foreach ( $events as $ev ) {
 			$event_id   = (int) $ev['event_id'];
@@ -505,7 +223,6 @@ class Pushback_Sync_Manager {
 
 		return array(
 			'success'             => true,
-			'flexi_updates_count' => $flexi_updates_count,
 			'event_invites_count' => $event_invites_count,
 		);
 	}

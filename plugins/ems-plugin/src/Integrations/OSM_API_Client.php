@@ -87,28 +87,6 @@ class OSM_API_Client {
 		return $data;
 	}
 
-	public function get_flexi_record_data( int $section_id, int $flexi_id, int $term_id = 0 ): array {
-		$this->rate_limiter->consume();
-		$start = microtime( true );
-		try {
-			$data = $this->driver->get_flexi_record_data( $section_id, $flexi_id, $term_id );
-		} finally {
-			$this->after_call( 'get_flexi_record_data', $start );
-		}
-		return $data;
-	}
-
-	public function get_flexi_records( int $section_id ): array {
-		$this->rate_limiter->consume();
-		$start = microtime( true );
-		try {
-			$data = $this->driver->get_flexi_records( $section_id );
-		} finally {
-			$this->after_call( 'get_flexi_records', $start );
-		}
-		return $data;
-	}
-
 	public function get_event_attendance( int $event_id, int $term_id ): array {
 		$this->rate_limiter->consume();
 		$start = microtime( true );
@@ -116,17 +94,6 @@ class OSM_API_Client {
 			$data = $this->driver->get_event_attendance( $event_id, $term_id );
 		} finally {
 			$this->after_call( 'get_event_attendance', $start );
-		}
-		return $data;
-	}
-
-	public function get_flexi_record_structure( int $section_id, int $flexi_id ): array {
-		$this->rate_limiter->consume();
-		$start = microtime( true );
-		try {
-			$data = $this->driver->get_flexi_record_structure( $section_id, $flexi_id );
-		} finally {
-			$this->after_call( 'get_flexi_record_structure', $start );
 		}
 		return $data;
 	}
@@ -161,39 +128,6 @@ class OSM_API_Client {
 			$data = $this->driver->update_event_attendance( $section_id, $event_id, $member_updates );
 		} finally {
 			$this->after_call( 'update_event_attendance', $start );
-		}
-		return $data;
-	}
-
-	public function create_flexi_record( int $section_id, string $name ): array {
-		$this->rate_limiter->consume();
-		$start = microtime( true );
-		try {
-			$data = $this->driver->create_flexi_record( $section_id, $name );
-		} finally {
-			$this->after_call( 'create_flexi_record', $start );
-		}
-		return $data;
-	}
-
-	public function add_flexi_record_column( int $section_id, int $flexi_id, string $column_name ): array {
-		$this->rate_limiter->consume();
-		$start = microtime( true );
-		try {
-			$data = $this->driver->add_flexi_record_column( $section_id, $flexi_id, $column_name );
-		} finally {
-			$this->after_call( 'add_flexi_record_column', $start );
-		}
-		return $data;
-	}
-
-	public function update_flexi_record_data( int $section_id, int $flexi_id, array $values ): array {
-		$this->rate_limiter->consume();
-		$start = microtime( true );
-		try {
-			$data = $this->driver->update_flexi_record_data( $section_id, $flexi_id, $values );
-		} finally {
-			$this->after_call( 'update_flexi_record_data', $start );
 		}
 		return $data;
 	}

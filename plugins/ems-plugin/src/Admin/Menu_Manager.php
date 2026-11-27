@@ -45,7 +45,7 @@ class Menu_Manager {
 		// 3. Volunteers
 		$this->admin_page->register_volunteers_menu();
 
-		// 4. Units & OSM Sync (consolidates Units & Leaders, Explorers, OSM Reference & Column Mapper)
+		// 4. Units & OSM Sync (consolidates Units & Leaders, Explorers & OSM Reference)
 		$this->admin_page->register_units_sync_menu( $this->unit_leader_page );
 		add_action( 'admin_init', array( $this->unit_leader_page, 'maybe_handle_export' ) );
 
@@ -83,7 +83,7 @@ class Menu_Manager {
 				$target = admin_url( 'admin.php?page=ems-units-sync&tab=explorers' );
 				break;
 			case 'ems-column-mapper':
-				$target = admin_url( 'admin.php?page=ems-units-sync&tab=mapper' );
+				$target = admin_url( 'admin.php?page=ems-units-sync&tab=units' );
 				break;
 			case 'ems-reference':
 				if ( $tab === 'unit_mapping' ) {
@@ -108,7 +108,7 @@ class Menu_Manager {
 				}
 				break;
 			case 'ems-units-sync':
-				if ( in_array( $tab, array( 'patrols', 'osm_patrols' ), true ) ) {
+				if ( in_array( $tab, array( 'patrols', 'osm_patrols', 'mapper' ), true ) ) {
 					$target = admin_url( 'admin.php?page=ems-units-sync&tab=units' );
 				}
 				break;

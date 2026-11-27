@@ -49,7 +49,7 @@ class OSM_Sync_Auth_Handler {
 			return;
 		}
 
-		$scope = get_option( 'ems_osm_scope', 'section:member:read section:event:write section:flexirecord:write' );
+		$scope = get_option( 'ems_osm_scope', 'section:member:read section:event:write' );
 		$state = wp_create_nonce( 'ems_osm_sync' ) . ':' . $mode;
 		$query = http_build_query(
 			array(
@@ -160,7 +160,7 @@ class OSM_Sync_Auth_Handler {
 		}
 		$scopes = (array) $payload['scopes'];
 
-		return in_array( 'section:event:write', $scopes, true ) && in_array( 'section:flexirecord:write', $scopes, true );
+		return in_array( 'section:event:write', $scopes, true );
 	}
 
 	/**

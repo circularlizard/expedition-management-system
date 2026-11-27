@@ -15,31 +15,20 @@ const mockConfig = {
 (global as any).window.emsExpeditionBoard = mockConfig;
 
 const mockPreviewData = {
-	flexi_record: {
-		exists: true,
-		id: 73848,
-		proposed_name: '2026 Expeditions',
-		missing_columns: ['PRACTICE ACCEPTED'],
-		updates: [
-			{
-				scout_id: 30001,
-				first_name: 'Alice',
-				last_name: 'Smith',
-				column: 'f_9',
-				column_name: 'PRACTICE GROUPS',
-				current_value: 'HGP1-1',
-				proposed_value: 'HGP1-2'
-			}
-		]
-	},
 	events: [
 		{
 			event_id: 50001,
+			expedition_name: 'Bronze Practice',
+			osm_event_name: 'OSM Practice',
 			proposed_invites: [
 				{
 					scout_id: 30001,
 					first_name: 'Alice',
-					last_name: 'Smith'
+					last_name: 'Smith',
+					status: 'Not Invited',
+					action: 'Invite',
+					in_ems: true,
+					inconsistency: null
 				}
 			]
 		}
@@ -71,11 +60,14 @@ describe('PushbackDashboard', () => {
 		expect(screen.getByText('Explorers Section 1 (explorers)')).toBeInTheDocument();
 
 		await waitFor(() => {
-			expect(screen.getByText(/Flexi-Record: 2026 Expeditions/)).toBeInTheDocument();
-			expect(screen.getAllByText(/Alice Smith/)[0]).toBeInTheDocument();
-			expect(screen.getByText('HGP1-2')).toBeInTheDocument();
+			expect(screen.getByText(/Event Attendance Invitations/)).toBeInTheDocument();
 			expect(screen.getByText(/ID: 50001/)).toBeInTheDocument();
 			expect(screen.getByText('Testing diagnostic log warning.')).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByText(/Bronze Practice/));
+		await waitFor(() => {
+			expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
 		});
 	});
 

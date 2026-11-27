@@ -11,7 +11,6 @@ class Portability_Engine {
 		'ems_osm_client_id',
 		'ems_osm_api_base_url',
 		'ems_osm_scope',
-		'ems_flexirecord_column_map',
 		'ems_fluent_participant_form_id',
 		'ems_fluent_expedition_form_id',
 		'ems_participant_form_mappings',
