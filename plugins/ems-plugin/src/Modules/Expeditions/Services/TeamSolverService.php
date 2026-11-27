@@ -29,6 +29,8 @@ class TeamSolverService {
 		'solo_unit_district_penalty' => -30,
 	);
 
+	private const WEIGHTS_OPTION = 'ems_solver_weights';
+
 	private ?\wpdb $wpdb;
 	private WishlistPreferenceRepository $prefs;
 	private WishlistMatcherService $matcher;
@@ -1388,8 +1390,56 @@ class TeamSolverService {
 	 * @param array<string, mixed> $overrides
 	 * @return array<string, int>
 	 */
-	private function resolveWeights( array $overrides ): array {
+	/**
+	 * Load saved solver weights from wp_options merged over DEFAULT_WEIGHTS.
+	 *
+	 * @return array<string, int>
+	 */
+	public function getSavedWeights(): array {
 		$weights = self::DEFAULT_WEIGHTS;
+		if ( ! function_exists( 'get_option' ) ) {
+			return $weights;
+		}
+		try {
+			$saved = get_option( self::WEIGHTS_OPTION, array() );
+		} catch ( \Throwable $e ) {
+			return $weights;
+		}
+		if ( is_array( $saved ) ) {
+			foreach ( $weights as $key => $default ) {
+				if ( isset( $saved[ $key ] ) && is_numeric( $saved[ $key ] ) ) {
+					$weights[ $key ] = (int) $saved[ $key ];
+				}
+			}
+		}
+		return $weights;
+	}
+
+	/**
+	 * Persist solver weights to wp_options.
+	 *
+	 * @param array<string, mixed> $overrides
+	 * @return array<string, int>
+	 */
+	public function saveWeights( array $overrides ): array {
+		$weights = self::DEFAULT_WEIGHTS;
+		foreach ( $weights as $key => $default ) {
+			if ( isset( $overrides[ $key ] ) && is_numeric( $overrides[ $key ] ) ) {
+				$weights[ $key ] = (int) $overrides[ $key ];
+			}
+		}
+		if ( function_exists( 'update_option' ) ) {
+			update_option( self::WEIGHTS_OPTION, $weights, false );
+		}
+		return $weights;
+	}
+
+	/**
+	 * @param array<string, mixed> $overrides
+	 * @return array<string, int>
+	 */
+	private function resolveWeights( array $overrides ): array {
+		$weights = $this->getSavedWeights();
 		foreach ( $weights as $key => $default ) {
 			if ( isset( $overrides[ $key ] ) && is_numeric( $overrides[ $key ] ) ) {
 				$weights[ $key ] = (int) $overrides[ $key ];

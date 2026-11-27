@@ -271,6 +271,23 @@ class TeamController {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/teams/solver/weights',
+			array(
+				array(
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_solver_weights' ),
+					'permission_callback' => array( $this, 'check_permission' ),
+				),
+				array(
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => array( $this, 'save_solver_weights' ),
+					'permission_callback' => array( $this, 'check_permission' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/teams/solver/propose',
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -832,6 +849,22 @@ class TeamController {
 				'updated' => count( $genders ),
 				'genders' => $this->get_preference_repo()->getGenderMap(),
 			),
+			200
+		);
+	}
+
+	public function get_solver_weights(): \WP_REST_Response {
+		return new \WP_REST_Response(
+			array( 'weights' => $this->get_team_solver()->getSavedWeights() ),
+			200
+		);
+	}
+
+	public function save_solver_weights( \WP_REST_Request $request ): \WP_REST_Response {
+		$body    = $this->get_request_body( $request );
+		$weights = is_array( $body['weights'] ?? null ) ? $body['weights'] : $body;
+		return new \WP_REST_Response(
+			array( 'weights' => $this->get_team_solver()->saveWeights( $weights ) ),
 			200
 		);
 	}

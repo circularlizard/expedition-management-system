@@ -223,9 +223,12 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
     isMultiLevel ? 'full_season' : 'bucket'
   );
   const [weights, setWeights] = useState<SolverWeightsDTO>(DEFAULT_WEIGHTS);
+  const [savingWeights, setSavingWeights] = useState(false);
+  const [weightsSavedMsg, setWeightsSavedMsg] = useState<string | null>(null);
   const [proposing, setProposing] = useState(false);
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<SolverProposalDTO | null>(null);
+  const [warningsDismissed, setWarningsDismissed] = useState(false);
   const [replaceExistingDrafts, setReplaceExistingDrafts] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
@@ -334,7 +337,23 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
     setSearchOpenKey(null);
     setProposal(null);
     setProposalError(null);
+    setWarningsDismissed(false);
+    setWeightsSavedMsg(null);
     setApplyError(null);
+
+    // Load saved solver weights in the background (gracefully keep DEFAULT_WEIGHTS if unavailable)
+    fetch(buildApiUrl(rootUrl, '/teams/solver/weights'), {
+      headers: { 'X-WP-Nonce': nonce },
+    })
+      .then((res) => (res && res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.weights) {
+          setWeights({ ...DEFAULT_WEIGHTS, ...data.weights });
+        }
+      })
+      .catch(() => {
+        // Ignore if endpoint unavailable in tests
+      });
 
     const init = async () => {
       setLoadingQueue(true);
@@ -541,9 +560,38 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
     }
   };
 
+  const handleSaveWeights = async () => {
+    setSavingWeights(true);
+    setWeightsSavedMsg(null);
+    try {
+      const res = await fetch(buildApiUrl(rootUrl, '/teams/solver/weights'), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce,
+        },
+        body: JSON.stringify({ weights }),
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data?.weights) {
+        setWeights({ ...DEFAULT_WEIGHTS, ...data.weights });
+      }
+      setWeightsSavedMsg('Saved');
+      setTimeout(() => setWeightsSavedMsg(null), 2500);
+    } catch {
+      setWeightsSavedMsg('Failed to save');
+    } finally {
+      setSavingWeights(false);
+    }
+  };
+
   const handleGenerateProposal = async () => {
     setProposing(true);
     setProposalError(null);
+    setWarningsDismissed(false);
     try {
       const res = await fetch(buildApiUrl(rootUrl, '/teams/solver/propose'), {
         method: 'POST',
@@ -1265,13 +1313,38 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                     color: '#1e3a8a',
                   }}
                 >
-                  <strong>How Solver Weights Work:</strong> Positive weights (<code>+</code>) reward desirable groupings
-                  while negative weights (<code>-</code>) penalize undesirable pairings. Priority order (highest to
-                  lowest): Avoid exclusions (-500) → Cross-stage continuity (+100) → Code availability (+80) → Solo
-                  gender balance (-40) → Mutual wishlists (+25) → One-way wishlists (+10) → Same unit / First Aid (+5).
+                  <strong>How Solver Weights Work (Relative Scale):</strong> Weights are unbounded relative score points
+                  (no fixed min/max). Set <code>0</code> to disable a rule; <code>±1–10</code> for gentle tie-breakers;{' '}
+                  <code>±25–50</code> for strong preferences/presumptions; <code>±80–100</code> for high priorities; and{' '}
+                  <code>-500</code> for near-hard exclusions.
                 </div>
 
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '6px' }}>Objective Weights</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ fontWeight: 600, fontSize: '13px' }}>Objective Weights</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {weightsSavedMsg && (
+                      <span style={{ fontSize: '12px', color: weightsSavedMsg === 'Saved' ? '#166534' : '#991b1b', fontWeight: 600 }}>
+                        {weightsSavedMsg}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="button button-small button-secondary"
+                      onClick={() => void handleSaveWeights()}
+                      disabled={savingWeights || proposing || applying}
+                    >
+                      {savingWeights ? 'Saving…' : 'Save Weights'}
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-small"
+                      onClick={() => setWeights(DEFAULT_WEIGHTS)}
+                      disabled={savingWeights || proposing || applying}
+                    >
+                      Reset Defaults
+                    </button>
+                  </div>
+                </div>
                 <div
                   style={{
                     display: 'grid',
@@ -1361,14 +1434,28 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                   </div>
 
                   {/* Warnings */}
-                  {proposal.warnings.length > 0 && (
-                    <div className="ems-dispatch-alert ems-dispatch-alert--warn">
-                      <FontAwesomeIcon icon={faTriangleExclamation} />
-                      <div>
-                        {proposal.warnings.map((w, idx) => (
-                          <div key={idx}>{w}</div>
-                        ))}
+                  {proposal.warnings.length > 0 && !warningsDismissed && (
+                    <div
+                      className="ems-dispatch-alert ems-dispatch-alert--warn"
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}
+                    >
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <FontAwesomeIcon icon={faTriangleExclamation} style={{ marginTop: '2px' }} />
+                        <div>
+                          {proposal.warnings.map((w, idx) => (
+                            <div key={idx}>{w}</div>
+                          ))}
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        className="button button-link"
+                        aria-label="Dismiss warnings"
+                        onClick={() => setWarningsDismissed(true)}
+                        style={{ color: '#92400e', textDecoration: 'none', padding: '0 4px', minHeight: 'auto' }}
+                      >
+                        <FontAwesomeIcon icon={faXmark} />
+                      </button>
                     </div>
                   )}
 

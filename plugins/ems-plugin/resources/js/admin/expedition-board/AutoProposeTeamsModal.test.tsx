@@ -543,7 +543,7 @@ describe('AutoProposeTeamsModal', () => {
     expect(screen.getByRole('radio', { name: /Current filter \(Bronze, Silver \/ Hillwalking/i })).toBeInTheDocument();
 
     // Weighting explanation callout & solo_gender_penalty default -40
-    expect(screen.getByText(/How Solver Weights Work:/i)).toBeInTheDocument();
+    expect(screen.getByText(/How Solver Weights Work/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Solo gender penalty/i)).toHaveValue(-40);
     expect(screen.getByText(/Penalizes leaving a single male or female alone on a team\./i)).toBeInTheDocument();
 
