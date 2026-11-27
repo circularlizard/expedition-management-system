@@ -110,7 +110,7 @@ describe('Team Builder Compact Grid, Paired Stages, and Collapsible Pool', () =>
     }
   });
 
-  it('defaults to Compact when 6+ teams exist, toggles to Detailed, and persists density', () => {
+  it('renders the multi-column compact card grid by default without a density toggle', () => {
     const sixTeams = [1, 2, 3, 4, 5, 6].map((n) =>
       makeTeam(10 + n, `H-SP1-${n}`, 'practice', [makeMember(n, `Exp${n}`, 'Test')])
     );
@@ -135,10 +135,7 @@ describe('Team Builder Compact Grid, Paired Stages, and Collapsible Pool', () =>
     expect(container.querySelector('.ems-teams-compact-grid')).toBeInTheDocument();
     expect(container.querySelector('.ems-compact-member-row')).toBeInTheDocument();
     expect(container.querySelector('table.ems-table')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Detailed' }));
-    expect(container.querySelector('.ems-teams-compact-grid')).not.toBeInTheDocument();
-    expect(container.querySelector('table.ems-table')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'View Density' })).not.toBeInTheDocument();
   });
 
   it('pairs Practice & Qualifier teams side-by-side when Pair linked stages is checked', () => {

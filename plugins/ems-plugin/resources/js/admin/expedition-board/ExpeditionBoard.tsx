@@ -171,25 +171,25 @@ const ExpeditionBoard: React.FC = () => {
                         className={`nav-tab ${activeTab === 'dashboard' ? 'nav-tab-active' : ''}`}
                         onClick={() => setActiveTab('dashboard')}
                     >
-                        Events Dashboard
-                    </button>
-                    <button
-                        className={`nav-tab ${activeTab === 'team-builder' ? 'nav-tab-active' : ''}`}
-                        onClick={() => setActiveTab('team-builder')}
-                    >
-                        Team Builder
+                        Expeditions
                     </button>
                     <button
                         className={`nav-tab ${activeTab === 'date-grid' ? 'nav-tab-active' : ''}`}
                         onClick={() => setActiveTab('date-grid')}
                     >
-                        Availability &amp; Date Grid
+                        Availability
+                    </button>
+                    <button
+                        className={`nav-tab ${activeTab === 'team-builder' ? 'nav-tab-active' : ''}`}
+                        onClick={() => setActiveTab('team-builder')}
+                    >
+                        Teams
                     </button>
                     <button
                         className={`nav-tab ${activeTab === 'readiness' ? 'nav-tab-active' : ''}`}
                         onClick={() => setActiveTab('readiness')}
                     >
-                        Teams &amp; Readiness
+                        Readiness
                     </button>
                 </nav>
             )}

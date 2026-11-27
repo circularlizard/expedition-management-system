@@ -625,7 +625,7 @@ export const TeamsReadinessView: React.FC<TeamsReadinessViewProps> = ({
           isOpen={true}
           onClose={handleCloseReminderModal}
           mode="compliance_reminder"
-          title={`Send Reminder — ${reminderRecord.cohort_name || reminderRecord.team_code || reminderRecord.team_title}`}
+          title={`Send Reminder — ${(reminderRecord.cohort_name || reminderRecord.team_code || reminderRecord.team_title || '').replace(/^Team\s+/i, '').trim()}`}
           subtitle={
             formatEventSubtitle(
               reminderRecord.expedition_code,

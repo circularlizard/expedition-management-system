@@ -180,7 +180,7 @@ describe('EventDetailPage Tab Functions', () => {
             view: 'team-builder',
         });
 
-        fireEvent.click(screen.getByRole('button', { name: /Availability & Date Grid/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Availability/ }));
         expect(onOpenTeamBuilder).toHaveBeenCalledWith({
             level: 'silver',
             transport: undefined,

@@ -75,7 +75,7 @@ describe('ExpeditionBoard', () => {
     it('renders the events dashboard by default', async () => {
         render(<ExpeditionBoard />);
         await waitFor(() => {
-            expect(screen.getByText('Events Dashboard')).toBeInTheDocument();
+            expect(screen.getByText('Expeditions')).toBeInTheDocument();
         });
     });
 
@@ -104,7 +104,7 @@ describe('ExpeditionBoard', () => {
         render(<ExpeditionBoard />);
         
         await waitFor(() => {
-            expect(screen.getByText('Events Dashboard')).toBeInTheDocument();
+            expect(screen.getByText('Expeditions')).toBeInTheDocument();
         });
 
         const createBtn = screen.getByRole('button', { name: '+ Create Event' });

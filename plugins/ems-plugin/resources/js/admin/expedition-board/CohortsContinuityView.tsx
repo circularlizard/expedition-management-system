@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCheck,
@@ -83,18 +83,6 @@ function extractAvailCodesFromPrefs(prefsJson: string | null, stage: 'practice' 
   }
 }
 
-const VIEW_DENSITY_KEY = 'ems_team_builder_view_density';
-
-function getStoredViewDensity(): 'compact' | 'detailed' | null {
-  try {
-    if (typeof localStorage === 'undefined') return null;
-    const val = localStorage.getItem(VIEW_DENSITY_KEY);
-    return val === 'compact' || val === 'detailed' ? val : null;
-  } catch {
-    return null;
-  }
-}
-
 export default function CohortsContinuityView({
   level,
   transport,
@@ -123,31 +111,9 @@ export default function CohortsContinuityView({
   const [stageFilter, setStageFilter] = useState<'all' | 'practice' | 'qualifier'>('all');
   const [groupByUnit, setGroupByUnit] = useState(false);
   const [hideAllocated, setHideAllocated] = useState(true);
-  const [viewDensity, setViewDensity] = useState<'compact' | 'detailed'>(
-    () => getStoredViewDensity() ?? (teams.length >= 6 ? 'compact' : 'detailed')
-  );
-  const [hasManualDensity, setHasManualDensity] = useState<boolean>(() => getStoredViewDensity() !== null);
   const [pairLinkedStages, setPairLinkedStages] = useState<boolean>(false);
   const [poolCollapsed, setPoolCollapsed] = useState<boolean>(false);
   const [poolManualToggle, setPoolManualToggle] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!hasManualDensity) {
-      setViewDensity(teams.length >= 6 ? 'compact' : 'detailed');
-    }
-  }, [teams.length, hasManualDensity]);
-
-  const handleSetViewDensity = (mode: 'compact' | 'detailed') => {
-    setHasManualDensity(true);
-    setViewDensity(mode);
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(VIEW_DENSITY_KEY, mode);
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  };
 
   // ── Selection & Team Actions ───────────────────────────────────────────────
   const [selectedSignupIds, setSelectedSignupIds] = useState<number[]>([]);
@@ -862,19 +828,6 @@ export default function CohortsContinuityView({
               ))}
             </div>
 
-            <div className="ems-btn-group" role="group" aria-label="View Density">
-              {(['compact', 'detailed'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={`button button-small ${viewDensity === mode ? 'button-primary' : ''}`}
-                  onClick={() => handleSetViewDensity(mode)}
-                >
-                  {mode === 'compact' ? 'Compact' : 'Detailed'}
-                </button>
-              ))}
-            </div>
-
             {stageFilter === 'all' && (
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
                 <input
@@ -978,17 +931,6 @@ export default function CohortsContinuityView({
                     Split date
                   </span>
                 )}
-                {viewDensity === 'detailed' &&
-                  others.map((ot) => (
-                    <span
-                      key={ot.team_post_id}
-                      className="ems-matrix-tag ems-matrix-tag--pref"
-                      style={{ marginLeft: '4px' }}
-                      title={`Also in ${ot.name} (${ot.stage})`}
-                    >
-                      {ot.name}
-                    </span>
-                  ))}
               </>
             );
           };
@@ -1001,17 +943,16 @@ export default function CohortsContinuityView({
             ).length;
             const faOk = faCount >= 2;
             const isPractice = team.stage === 'practice';
-            const isCompact = viewDensity === 'compact';
 
             return (
               <div
                 key={team.team_post_id || team.id}
                 className="ems-panel"
-                style={{ padding: isCompact ? '12px' : '16px' }}
+                style={{ padding: '12px' }}
               >
-                <div className="ems-flex-between ems-wrap ems-gap-8" style={{ marginBottom: isCompact ? '8px' : '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
                   <div className="ems-flex-center ems-wrap ems-gap-6">
-                    <h3 className="ems-m-0" style={isCompact ? { fontSize: '14px' } : undefined}>
+                    <h3 className="ems-m-0" style={{ fontSize: '14px' }}>
                       {team.name}
                     </h3>
                     <span
@@ -1023,7 +964,7 @@ export default function CohortsContinuityView({
                     >
                       {isPractice ? 'Practice' : 'Qualifier'}
                     </span>
-                    <span className="ems-meta-text" style={{ fontSize: isCompact ? '11.5px' : undefined }}>
+                    <span className="ems-meta-text" style={{ fontSize: '11.5px' }}>
                       {onOpenEvent && team.expedition_id ? (
                         <button
                           type="button"
@@ -1194,7 +1135,7 @@ export default function CohortsContinuityView({
 
                 {members.length === 0 ? (
                   <p className="ems-meta-text ems-m-0">No members in this team yet.</p>
-                ) : isCompact ? (
+                ) : (
                   <div className="ems-compact-member-list">
                     {members.map((m) => {
                       const badge = getOfferStatusBadge(m);
@@ -1291,104 +1232,6 @@ export default function CohortsContinuityView({
                       );
                     })}
                   </div>
-                ) : (
-                  <table className="ems-table" style={{ fontSize: '12.5px' }}>
-                    <thead>
-                      <tr>
-                        <th>Explorer</th>
-                        <th>Unit</th>
-                        <th>Offer Status</th>
-                        <th style={{ textAlign: 'right' }}>Remove</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {members.map((m) => {
-                        const badge = getOfferStatusBadge(m);
-                        const wishlist = extractWishlistFromPrefs(m.expedition_preferences);
-                        const poolMatch = mergedExplorers.find((ex) => ex.expedition_signup_id === m.expedition_signup_id);
-                        const compat = checkCompatibility(
-                          m.first_name,
-                          m.last_name,
-                          wishlist,
-                          poolMatch?.practiceAvail || [],
-                          poolMatch?.qualifierAvail || [],
-                          m.expedition_signup_id
-                        );
-                        return (
-                          <tr
-                            key={`${team.team_post_id}_${m.expedition_signup_id || m.scout_id}`}
-                            onMouseEnter={() =>
-                              setHoveredExplorer({
-                                expedition_signup_id: m.expedition_signup_id,
-                                first_name: m.first_name,
-                                last_name: m.last_name,
-                                wishlist,
-                                practiceAvail: poolMatch?.practiceAvail || [],
-                                qualifierAvail: poolMatch?.qualifierAvail || [],
-                              })
-                            }
-                            onMouseLeave={() => setHoveredExplorer(null)}
-                            style={
-                              compat.isMatch
-                                ? {
-                                    background: '#eff6ff',
-                                    boxShadow: `inset 3px 0 0 ${compat.compatibleDates ? '#2563eb' : '#f59e0b'}`,
-                                  }
-                                : undefined
-                            }
-                          >
-                            <td>
-                              {onInspectExplorer ? (
-                                <button
-                                  type="button"
-                                  className="button-link"
-                                  style={{ fontWeight: 600, padding: 0, textAlign: 'left' }}
-                                  title="Open Explorer 360° drawer"
-                                  onClick={() =>
-                                    onInspectExplorer({
-                                      scoutId: m.scout_id > 0 ? m.scout_id : undefined,
-                                      signupId: m.expedition_signup_id > 0 ? m.expedition_signup_id : undefined,
-                                    })
-                                  }
-                                >
-                                  {m.first_name} {m.last_name}
-                                </button>
-                              ) : (
-                                <strong>{m.first_name} {m.last_name}</strong>
-                              )}{' '}
-                              {renderMemberMetaBadges(team, m, isPractice, poolMatch, partnerMemberIds)}
-                            </td>
-                            <td>{m.unit_name || 'Unassigned'}</td>
-                            <td>
-                              <span
-                                className="ems-matrix-tag"
-                                style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}
-                              >
-                                {badge.label}
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <button
-                                type="button"
-                                className="button button-small"
-                                disabled={busy}
-                                onClick={() =>
-                                  handleRemoveMember(
-                                    team.team_post_id || team.id,
-                                    m.expedition_signup_id || m.scout_id,
-                                    `${m.first_name} ${m.last_name}`
-                                  )
-                                }
-                                aria-label={`Remove ${m.first_name} ${m.last_name}`}
-                              >
-                                <FontAwesomeIcon icon={faXmark} />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
                 )}
               </div>
             );
@@ -1482,7 +1325,7 @@ export default function CohortsContinuityView({
                   );
                 })}
                 {unpairedQuals.length > 0 && (
-                  <div className={viewDensity === 'compact' ? 'ems-teams-compact-grid' : 'ems-teams-paired-list'}>
+                  <div className="ems-teams-compact-grid">
                     {unpairedQuals.map((q) => renderTeamCard(q))}
                   </div>
                 )}
@@ -1491,7 +1334,7 @@ export default function CohortsContinuityView({
           }
 
           return (
-            <div className={viewDensity === 'compact' ? 'ems-teams-compact-grid' : 'ems-teams-paired-list'}>
+            <div className="ems-teams-compact-grid">
               {visibleTeams.map((team) => renderTeamCard(team))}
             </div>
           );
