@@ -108,7 +108,8 @@ class TeamController {
 				'callback'            => array( $this, 'delete_team' ),
 				'permission_callback' => array( $this, 'check_permission' ),
 				'args'                => array( 'id' => $this->id_arg() ),
-			)
+			),
+			true
 		);
 
 		register_rest_route(
@@ -461,11 +462,18 @@ class TeamController {
 		$tm_table = $wpdb->prefix . 'ems_team_members';
 		$members  = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT scout_id, expedition_signup_id FROM {$tm_table} WHERE team_post_id = %d",
+				"SELECT scout_id, expedition_signup_id, notification_status FROM {$tm_table} WHERE team_post_id = %d",
 				$team_post_id
 			),
 			ARRAY_A
 		) ?: array();
+
+		foreach ( $members as $m ) {
+			$notif = strtolower( (string) ( $m['notification_status'] ?? 'draft' ) );
+			if ( $notif === 'notified' || $notif === 're_notify_needed' ) {
+				return $this->error( 'ems_team_notified', 'Cannot delete a team that has notified members.', 409 );
+			}
+		}
 
 		$wpdb->delete( $tm_table, array( 'team_post_id' => $team_post_id ), array( '%d' ) );
 		wp_trash_post( $team_post_id );
