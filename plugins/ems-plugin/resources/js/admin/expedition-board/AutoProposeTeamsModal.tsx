@@ -50,56 +50,74 @@ const DEFAULT_WEIGHTS: SolverWeightsDTO = {
   first_aid_presence: 5,
 };
 
-const WEIGHT_FIELDS: Array<{ key: keyof SolverWeightsDTO; label: string; description: string }> = [
+const WEIGHT_TIERS: Array<{
+  title: string;
+  fields: Array<{ key: keyof SolverWeightsDTO; label: string; description: string }>;
+}> = [
   {
-    key: 'avoid_exclusion',
-    label: 'Avoid exclusion',
-    description: 'Strong penalty to keep "Avoid" pairs on separate teams.',
+    title: 'Strong Rules (Hard to Override)',
+    fields: [
+      {
+        key: 'avoid_exclusion',
+        label: 'Avoid exclusions',
+        description: 'Strong penalty to keep "Avoid" pairs on separate teams.',
+      },
+      {
+        key: 'cross_stage_continuity',
+        label: 'Keep teams together across Practice & Qualifier',
+        description: 'Keeps the same explorers together across practice & qualifier.',
+      },
+      {
+        key: 'code_availability',
+        label: "Only use expedition codes they're available for",
+        description: 'Rewards assigning explorers to expedition codes they can attend.',
+      },
+    ],
   },
   {
-    key: 'cross_stage_continuity',
-    label: 'Cross-stage continuity',
-    description: 'Keeps the same explorers together across practice & qualifier.',
+    title: 'Avoid Splitting People Up',
+    fields: [
+      {
+        key: 'solo_gender_penalty',
+        label: "Don't leave 1 boy or girl alone on a team",
+        description: 'Penalizes leaving a single male or female alone on a team.',
+      },
+      {
+        key: 'solo_unit_district_penalty',
+        label: "Don't leave 1 explorer from a unit/district alone",
+        description: 'Presumption against placing 1 explorer from a unit/district into a team with others from another district.',
+      },
+    ],
   },
   {
-    key: 'code_availability',
-    label: 'Code availability',
-    description: 'Rewards assigning explorers to expedition codes they can attend.',
-  },
-  {
-    key: 'mutual_wishlist',
-    label: 'Mutual wishlist pair',
-    description: 'Rewards pairing two explorers who both listed each other.',
-  },
-  {
-    key: 'one_way_wishlist',
-    label: 'One-way wishlist',
-    description: 'Rewards honoring a one-sided teammate preference.',
-  },
-  {
-    key: 'solo_gender_penalty',
-    label: 'Solo gender penalty',
-    description: 'Penalizes leaving a single male or female alone on a team.',
-  },
-  {
-    key: 'solo_unit_district_penalty',
-    label: 'Solo unit/district penalty',
-    description: 'Presumption against placing 1 explorer from a unit/district into a team with others from another district.',
-  },
-  {
-    key: 'same_unit',
-    label: 'Same unit tie-breaker',
-    description: 'Gentle tie-breaker to group explorers from the same unit.',
-  },
-  {
-    key: 'same_district',
-    label: 'Same district tie-breaker',
-    description: 'Gentle tie-breaker to group explorers from the same district (weaker than same unit).',
-  },
-  {
-    key: 'first_aid_presence',
-    label: 'First Aid presence',
-    description: 'Rewards ensuring at least one First Aid-qualified explorer per team.',
+    title: 'Friend & Unit Tie-Breakers',
+    fields: [
+      {
+        key: 'mutual_wishlist',
+        label: 'Mutual friend requests',
+        description: 'Rewards pairing two explorers who both listed each other.',
+      },
+      {
+        key: 'one_way_wishlist',
+        label: 'One-way friend requests',
+        description: 'Rewards honoring a one-sided teammate preference.',
+      },
+      {
+        key: 'same_unit',
+        label: 'Same unit',
+        description: 'Gentle tie-breaker to group explorers from the same unit.',
+      },
+      {
+        key: 'same_district',
+        label: 'Same district',
+        description: 'Gentle tie-breaker to group explorers from the same district (weaker than same unit).',
+      },
+      {
+        key: 'first_aid_presence',
+        label: 'Has First Aid qualification',
+        description: 'Rewards ensuring at least one First Aid-qualified explorer per team.',
+      },
+    ],
   },
 ];
 
@@ -1308,18 +1326,42 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                     border: '1px solid #bfdbfe',
                     borderRadius: '4px',
                     padding: '8px 10px',
-                    marginBottom: '10px',
+                    marginBottom: '8px',
                     fontSize: '12px',
                     color: '#1e3a8a',
                   }}
                 >
-                  <strong>How Solver Weights Work (Relative Scale):</strong> Weights are unbounded relative score points
-                  (no fixed min/max). Set <code>0</code> to disable a rule; <code>±1–10</code> for gentle tie-breakers;{' '}
-                  <code>±25–50</code> for strong preferences/presumptions; <code>±80–100</code> for high priorities; and{' '}
-                  <code>-500</code> for near-hard exclusions.
+                  <strong>How weights work:</strong> Higher numbers win when goals compete.{' '}
+                  <strong>Positive (+)</strong> groups explorers together; <strong>negative (-)</strong> keeps them
+                  apart. Weights have no fixed cap—only their relative size matters.
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
+                <details className="ems-solver-scale-details">
+                  <summary>View relative weighting scale (0 to ±500)</summary>
+                  <ul className="ems-solver-scale-details__list">
+                    <li>
+                      <strong>0</strong> = Rule disabled
+                    </li>
+                    <li>
+                      <strong>±1–10</strong> = Gentle tie-breaker (e.g., <em>Same district</em>: <code>+3</code>,{' '}
+                      <em>Same unit</em>: <code>+5</code>, <em>First Aid presence</em>: <code>+5</code>)
+                    </li>
+                    <li>
+                      <strong>±25–50</strong> = Strong preference / presumption (e.g., <em>Mutual wishlist</em>:{' '}
+                      <code>+25</code>, <em>Solo unit/district penalty</em>: <code>-30</code>,{' '}
+                      <em>Solo gender penalty</em>: <code>-40</code>)
+                    </li>
+                    <li>
+                      <strong>±80–100</strong> = High priority (e.g., <em>Code availability</em>: <code>+80</code>,{' '}
+                      <em>Cross-stage continuity</em>: <code>+100</code>)
+                    </li>
+                    <li>
+                      <strong>-500</strong> = Near-hard exclusion (<em>Avoid exclusion</em>: <code>-500</code>)
+                    </li>
+                  </ul>
+                </details>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ fontWeight: 600, fontSize: '13px' }}>Objective Weights</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {weightsSavedMsg && (
@@ -1345,42 +1387,41 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                     </button>
                   </div>
                 </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                    gap: '10px',
-                    marginBottom: '12px',
-                  }}
-                >
-                  {WEIGHT_FIELDS.map(({ key, label: fieldLabel, description }) => {
-                    const inputId = `ems-solver-weight-${key}`;
-                    return (
-                      <div key={key}>
-                        <label htmlFor={inputId} style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '2px' }}>
-                          {fieldLabel}
-                        </label>
-                        <input
-                          id={inputId}
-                          type="number"
-                          value={weights[key]}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            setWeights((prev) => ({
-                              ...prev,
-                              [key]: Number.isNaN(val) ? 0 : val,
-                            }));
-                          }}
-                          disabled={proposing || applying}
-                          style={{ width: '100%' }}
-                        />
-                        <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px', lineHeight: 1.3 }}>
-                          {description}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+
+                {WEIGHT_TIERS.map((tier) => (
+                  <div key={tier.title} className="ems-solver-tier">
+                    <h4 className="ems-solver-tier__title">{tier.title}</h4>
+                    <div className="ems-solver-tier__grid">
+                      {tier.fields.map(({ key, label: fieldLabel, description }) => {
+                        const inputId = `ems-solver-weight-${key}`;
+                        return (
+                          <div key={key}>
+                            <label htmlFor={inputId} style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '2px' }}>
+                              {fieldLabel}
+                            </label>
+                            <input
+                              id={inputId}
+                              type="number"
+                              value={weights[key]}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                setWeights((prev) => ({
+                                  ...prev,
+                                  [key]: Number.isNaN(val) ? 0 : val,
+                                }));
+                              }}
+                              disabled={proposing || applying}
+                              style={{ width: '100%' }}
+                            />
+                            <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px', lineHeight: 1.3 }}>
+                              {description}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
 
                 <button
                   type="button"

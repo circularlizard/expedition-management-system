@@ -385,12 +385,12 @@ describe('AutoProposeTeamsModal', () => {
     fireEvent.click(skipBtn);
 
     // Step 2: Scope selector & default weights
-    expect(screen.getByLabelText(/Avoid exclusion/i)).toHaveValue(-500);
-    expect(screen.getByLabelText(/Cross-stage continuity/i)).toHaveValue(100);
-    expect(screen.getByLabelText(/First Aid presence/i)).toHaveValue(5);
+    expect(screen.getByLabelText(/Avoid exclusions/i)).toHaveValue(-500);
+    expect(screen.getByLabelText(/Keep teams together across Practice & Qualifier/i)).toHaveValue(100);
+    expect(screen.getByLabelText(/Has First Aid qualification/i)).toHaveValue(5);
 
     fireEvent.click(screen.getByRole('radio', { name: /Full Season \(All Buckets\)/i }));
-    fireEvent.change(screen.getByLabelText(/Mutual wishlist pair/i), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText(/Mutual friend requests/i), { target: { value: '40' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Generate Proposal/i }));
 
@@ -542,9 +542,13 @@ describe('AutoProposeTeamsModal', () => {
     expect(screen.getByRole('radio', { name: /Full Season \(All Buckets/i })).toBeChecked();
     expect(screen.getByRole('radio', { name: /Current filter \(Bronze, Silver \/ Hillwalking/i })).toBeInTheDocument();
 
-    // Weighting explanation callout & solo_gender_penalty default -40
-    expect(screen.getByText(/How Solver Weights Work/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Solo gender penalty/i)).toHaveValue(-40);
+    // Weighting explanation callout, collapsible scale guide, and tiered inputs
+    expect(screen.getByText(/How weights work:/i)).toBeInTheDocument();
+    expect(screen.getByText(/View relative weighting scale \(0 to ±500\)/i)).toBeInTheDocument();
+    expect(screen.getByText('Strong Rules (Hard to Override)')).toBeInTheDocument();
+    expect(screen.getByText('Avoid Splitting People Up')).toBeInTheDocument();
+    expect(screen.getByText('Friend & Unit Tie-Breakers')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Don't leave 1 boy or girl alone on a team/i)).toHaveValue(-40);
     expect(screen.getByText(/Penalizes leaving a single male or female alone on a team\./i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Generate Proposal/i }));
