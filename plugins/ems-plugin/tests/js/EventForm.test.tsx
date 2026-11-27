@@ -26,6 +26,7 @@ describe('EventForm', () => {
         fireEvent.change(screen.getByLabelText(/Start Date/), { target: { value: '2027-06-01' } });
         fireEvent.change(screen.getByLabelText(/End Date/), { target: { value: '2027-06-03' } });
         fireEvent.change(screen.getByLabelText(/First Aid Required/i), { target: { value: 'first_response' } });
+        fireEvent.change(screen.getByLabelText(/Max Teams/i), { target: { value: '4' } });
 
         fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
@@ -36,6 +37,7 @@ describe('EventForm', () => {
         );
         const body = JSON.parse((global.fetch as any).mock.calls[0][1].body);
         expect(body.ems_first_aid_level).toBe('first_response');
+        expect(body.ems_max_teams).toBe('4');
     });
 
     it('shows validation errors for missing required fields', () => {

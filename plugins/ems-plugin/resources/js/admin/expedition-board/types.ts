@@ -58,6 +58,7 @@ export interface Expedition {
     ems_route_status?: string;
     ems_req_assessors?: number | string;
     ems_req_volunteers?: number | string;
+    ems_max_teams?: number | string;
     ems_first_aid_level?: 'none' | 'first_response' | 'full_first_aid';
     ems_expedition_whatsapp_explorers?: string;
     ems_expedition_whatsapp_parents?: string;

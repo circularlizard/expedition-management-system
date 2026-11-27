@@ -38,6 +38,7 @@ class Expedition_Repository {
 			'ems_level',
 			'ems_req_assessors',
 			'ems_req_volunteers',
+			'ems_max_teams',
 			'ems_lic_name',
 			'ems_lic_email',
 			'ems_lic_phone',
@@ -96,6 +97,7 @@ class Expedition_Repository {
 			'ems_level',
 			'ems_req_assessors',
 			'ems_req_volunteers',
+			'ems_max_teams',
 			'ems_lic_name',
 			'ems_lic_email',
 			'ems_lic_phone',
@@ -298,6 +300,7 @@ class Expedition_Repository {
 			'ems_level',
 			'ems_req_assessors',
 			'ems_req_volunteers',
+			'ems_max_teams',
 			'ems_lic_name',
 			'ems_lic_email',
 			'ems_lic_phone',
@@ -323,6 +326,16 @@ class Expedition_Repository {
 
 		foreach ( $meta_fields as $key ) {
 			$result[ $key ] = get_post_meta( $post->ID, $key, true );
+		}
+
+		if ( $result['ems_max_teams'] === '' ) {
+			foreach ( array( '_ems_max_teams', '_ems_capacity_teams', 'ems_capacity_teams' ) as $legacy_key ) {
+				$legacy_val = get_post_meta( $post->ID, $legacy_key, true );
+				if ( $legacy_val !== '' ) {
+					$result['ems_max_teams'] = $legacy_val;
+					break;
+				}
+			}
 		}
 
 		return $result;

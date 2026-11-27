@@ -44,6 +44,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         ems_lic_id: '',
         ems_req_assessors: '',
         ems_req_volunteers: '',
+        ems_max_teams: '',
         ems_start_location: '',
         ems_end_location: '',
         ems_route_info: '',
@@ -78,6 +79,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 ems_lic_id: initialEvent.ems_lic_id || '',
                 ems_req_assessors: String(initialEvent.ems_req_assessors || ''),
                 ems_req_volunteers: String(initialEvent.ems_req_volunteers || ''),
+                ems_max_teams: String(initialEvent.ems_max_teams || ''),
                 ems_start_location: initialEvent.ems_start_location || '',
                 ems_end_location: initialEvent.ems_end_location || '',
                 ems_route_info: initialEvent.ems_route_info || '',
@@ -305,6 +307,10 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                     <label className="ems-form-group ems-mt-12">
                         <div className="ems-form-label">Required Volunteers (Supervisors)</div>
                         <input type="number" name="ems_req_volunteers" value={formData.ems_req_volunteers} onChange={handleChange} className="ems-form-input" min="0" />
+                    </label>
+                    <label className="ems-form-group ems-mt-12">
+                        <div className="ems-form-label">Max Teams (0 or blank = uncapped)</div>
+                        <input type="number" name="ems_max_teams" value={formData.ems_max_teams} onChange={handleChange} className="ems-form-input" min="0" placeholder="Uncapped" />
                     </label>
                     <label className="ems-form-group ems-mt-12">
                         <div className="ems-form-label">OSM Event</div>

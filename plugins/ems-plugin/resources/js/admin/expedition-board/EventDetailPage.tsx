@@ -201,6 +201,7 @@ const OverviewTab: React.FC<{ event: Expedition; osmEvents?: OSMEvent[]; onUpdat
                         <div className={grd(2)}>
                             <FieldVal label="Required Assessors" value={event.ems_req_assessors || '0'} />
                             <FieldVal label="Required Volunteers" value={event.ems_req_volunteers || '0'} />
+                            <FieldVal label="Max Teams" value={event.ems_max_teams && Number(event.ems_max_teams) > 0 ? String(event.ems_max_teams) : 'Uncapped'} />
                             <FieldVal label="OSM Event" value={osmEventDisplay} />
                             <FieldVal label="Route Status" value={capitalize(event.ems_route_status || 'draft')} />
                         </div>

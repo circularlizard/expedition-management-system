@@ -43,6 +43,7 @@ class CPT_Registry {
 			),
 			'ems_req_assessors'                 => array( 'type' => 'integer' ),
 			'ems_req_volunteers'                => array( 'type' => 'integer' ),
+			'ems_max_teams'                     => array( 'type' => 'integer' ),
 			'ems_type'                          => array(
 				'type' => 'string',
 				'enum' => array( 'training', 'practice', 'qualifying' ),
