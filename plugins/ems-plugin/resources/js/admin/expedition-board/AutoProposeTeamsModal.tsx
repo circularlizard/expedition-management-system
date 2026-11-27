@@ -1583,8 +1583,27 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                                   {m.name} <span style={{ color: '#64748b' }}>({m.unit_name})</span>
                                   {m.has_first_aid && ' [FA]'}
                                   {m.resolution_status !== 'ok' && (
-                                    <span style={{ color: '#b45309', marginLeft: '4px' }}>
-                                      [{m.resolution_status}]
+                                    <span
+                                      title="This explorer did not list the assigned expedition code(s) as available. You can resolve or split them after loading draft teams."
+                                      style={{
+                                        display: 'inline-block',
+                                        marginLeft: '6px',
+                                        padding: '0 6px',
+                                        borderRadius: '999px',
+                                        fontSize: '10px',
+                                        fontWeight: 600,
+                                        background: '#fef3c7',
+                                        color: '#92400e',
+                                        border: '1px solid #fcd34d',
+                                      }}
+                                    >
+                                      {!m.practice_available && !m.qualifier_available
+                                        ? 'Unavailable: Practice & Qualifier'
+                                        : !m.practice_available
+                                        ? 'Unavailable: Practice'
+                                        : !m.qualifier_available
+                                        ? 'Unavailable: Qualifier'
+                                        : 'Split date'}
                                     </span>
                                   )}
                                 </li>
