@@ -90,6 +90,8 @@ class CPT_Registry {
 			'ems_expedition_whatsapp_explorers' => array( 'type' => 'string' ),
 			'ems_expedition_whatsapp_parents'   => array( 'type' => 'string' ),
 			'ems_route_info'                    => array( 'type' => 'string' ),
+			'ems_joining_instructions'          => array( 'type' => 'string' ),
+			'ems_route_days'                    => array( 'type' => 'string' ),
 			'ems_expedition_route_info'         => array( 'type' => 'string' ),
 			'ems_route_received'                => array(
 				'type' => 'string',

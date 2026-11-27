@@ -679,10 +679,13 @@ class Expedition_Admin_Controller {
 			$pool_members     = $unallocated_team ? $this->team_members->list_by_team( (int) $unallocated_team['ID'] ) : array();
 			$pool_count       = count( $pool_members );
 
-			$event['teams']        = $teams;
-			$event['pool_count']   = $pool_count;
-			$event['member_count'] = array_sum( array_column( $teams, 'member_count' ) ) + $pool_count;
-			$events[]              = $event;
+			$event['teams']               = $teams;
+			$event['pool_count']          = $pool_count;
+			$event['member_count']        = array_sum( array_column( $teams, 'member_count' ) ) + $pool_count;
+			$event['assigned_volunteers'] = $this->count_assigned_staff( (int) $event['ID'], 'volunteer' );
+			$event['assigned_assessors']  = $this->count_assigned_staff( (int) $event['ID'], 'assessor' );
+			$event['routes_approved']     = $this->count_approved_routes( $teams );
+			$events[]                     = $event;
 		}
 
 		$synthetic_season = array(
@@ -754,13 +757,108 @@ class Expedition_Admin_Controller {
 			$pool_members     = $unallocated_team ? $this->team_members->list_by_team( (int) $unallocated_team['ID'] ) : array();
 			$pool_count       = count( $pool_members );
 
-			$event['teams']        = $teams;
-			$event['pool_count']   = $pool_count;
-			$event['member_count'] = array_sum( array_column( $teams, 'member_count' ) ) + $pool_count;
-			$events[]              = $event;
+			$event['teams']               = $teams;
+			$event['pool_count']          = $pool_count;
+			$event['member_count']        = array_sum( array_column( $teams, 'member_count' ) ) + $pool_count;
+			$event['assigned_volunteers'] = $this->count_assigned_staff( (int) $event['ID'], 'volunteer' );
+			$event['assigned_assessors']  = $this->count_assigned_staff( (int) $event['ID'], 'assessor' );
+			$event['routes_approved']     = $this->count_approved_routes( $teams );
+			$events[]                     = $event;
 		}
 
 		return new \WP_REST_Response( array( 'events' => $events ) );
+	}
+
+	/**
+	 * Count confirmed volunteers or assessors assigned to an expedition.
+	 *
+	 * @param int    $expedition_id Expedition post ID.
+	 * @param string $role_type 'volunteer' or 'assessor'.
+	 * @return int
+	 */
+	private function count_assigned_staff( int $expedition_id, string $role_type ): int {
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || $expedition_id <= 0 ) {
+			return 0;
+		}
+		$avail_table = $wpdb->prefix . 'ems_volunteer_availability';
+		$vol_table   = $wpdb->prefix . 'ems_volunteers';
+		$has_tables  = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $avail_table ) );
+		if ( $has_tables !== $avail_table ) {
+			return 0;
+		}
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DISTINCT v.id, v.preferred_roles
+				 FROM {$avail_table} a
+				 INNER JOIN {$vol_table} v ON v.id = a.volunteer_id
+				 WHERE a.expedition_post_id = %d AND a.confirmed = 1",
+				$expedition_id
+			),
+			ARRAY_A
+		);
+		if ( ! is_array( $rows ) ) {
+			return 0;
+		}
+
+		$count = 0;
+		foreach ( $rows as $row ) {
+			$roles       = json_decode( (string) ( $row['preferred_roles'] ?? '[]' ), true );
+			$roles_lower = is_array( $roles ) ? array_map( 'strtolower', $roles ) : array();
+			$is_assessor = in_array( 'assessor', $roles_lower, true );
+			if ( $role_type === 'assessor' && $is_assessor ) {
+				$count++;
+			} elseif ( $role_type === 'volunteer' && ! $is_assessor ) {
+				$count++;
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Count allocated teams with an approved route plan.
+	 *
+	 * @param array<int, array<string, mixed>> $teams Expedition teams.
+	 * @return int
+	 */
+	private function count_approved_routes( array $teams ): int {
+		global $wpdb;
+		$sub_table = ( isset( $wpdb ) && is_object( $wpdb ) ) ? $wpdb->prefix . 'ems_route_submissions' : '';
+		$has_table = $sub_table !== '' && $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $sub_table ) ) === $sub_table;
+
+		$approved = 0;
+		foreach ( $teams as $team ) {
+			if ( ( $team['ems_team_code'] ?? '' ) === 'UNALLOCATED' ) {
+				continue;
+			}
+			$team_id = (int) ( $team['ID'] ?? 0 );
+			if ( $team_id <= 0 ) {
+				continue;
+			}
+			$is_approved = false;
+			if ( $has_table ) {
+				$latest_status = $wpdb->get_var(
+					$wpdb->prepare(
+						"SELECT status FROM {$sub_table} WHERE team_post_id = %d ORDER BY version DESC, id DESC LIMIT 1",
+						$team_id
+					)
+				);
+				if ( is_string( $latest_status ) && strtolower( trim( $latest_status ) ) === 'approved' ) {
+					$is_approved = true;
+				}
+			}
+			if ( ! $is_approved && function_exists( 'get_post_meta' ) ) {
+				$meta_status = strtolower( trim( (string) get_post_meta( $team_id, 'ems_route_status', true ) ) );
+				if ( $meta_status === 'approved' ) {
+					$is_approved = true;
+				}
+			}
+			if ( $is_approved ) {
+				$approved++;
+			}
+		}
+		return $approved;
 	}
 
 	public function get_whatsapp_links( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {

@@ -1,13 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMapPin, faMap, faLightbulb } from '@fortawesome/free-solid-svg-icons';
+import { ExpeditionRouteDay } from './types';
+
+export interface ActiveWaypointTarget {
+    dayIndex: number;
+    kind: 'start' | 'checkpoint' | 'end';
+    checkpointIndex?: number;
+}
 
 interface OSMMapPickerProps {
-    startValue: string;
-    endValue: string;
-    onSelectStart: (val: string) => void;
-    onSelectEnd: (val: string) => void;
+    days: ExpeditionRouteDay[];
+    activeTarget: ActiveWaypointTarget | null;
+    onSelectTarget: (target: ActiveWaypointTarget | null) => void;
+    onMapPick: (target: ActiveWaypointTarget, lat: number, lng: number) => void;
+    onAddCheckpoint: (dayIndex: number) => void;
 }
+
+const DAY_COLORS = ['#2271b1', '#15803d', '#b45309', '#7e22ce', '#be123c', '#0f766e'];
 
 const loadLeaflet = (): Promise<any> => {
     return new Promise((resolve, reject) => {
@@ -30,233 +38,230 @@ const loadLeaflet = (): Promise<any> => {
     });
 };
 
-const parseCoords = (val: string): [number, number] | null => {
-    if (!val) return null;
-    const match = val.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
-    if (match) {
-        return [parseFloat(match[1]), parseFloat(match[2])];
-    }
-    return null;
+const targetKey = (t: ActiveWaypointTarget | null): string => {
+    if (!t) return '';
+    return t.kind === 'checkpoint'
+        ? `${t.dayIndex}:cp:${t.checkpointIndex ?? 0}`
+        : `${t.dayIndex}:${t.kind}`;
 };
 
-const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
-    try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-            headers: { 'Accept-Language': 'en' }
-        });
-        if (res.ok) {
-            const data = await res.json();
-            const addr = data.address;
-            const name = addr.road || addr.suburb || addr.town || addr.city || addr.county || '';
-            const county = addr.county || addr.state || '';
-            return name ? (county ? `${name}, ${county}` : name) : `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-        }
-    } catch (e) {
-        console.error(e);
-    }
-    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+const describeTarget = (t: ActiveWaypointTarget | null, days: ExpeditionRouteDay[]): string => {
+    if (!t || !days[t.dayIndex]) return '';
+    const dayNum = days[t.dayIndex].day_number;
+    if (t.kind === 'start') return `Day ${dayNum} · Start`;
+    if (t.kind === 'end') return `Day ${dayNum} · End`;
+    return `Day ${dayNum} · Checkpoint ${(t.checkpointIndex ?? 0) + 1}`;
 };
 
 export const OSMMapPicker: React.FC<OSMMapPickerProps> = ({
-    startValue,
-    endValue,
-    onSelectStart,
-    onSelectEnd,
+    days,
+    activeTarget,
+    onSelectTarget,
+    onMapPick,
+    onAddCheckpoint,
 }) => {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<any>(null);
-    const startMarkerRef = useRef<any>(null);
-    const endMarkerRef = useRef<any>(null);
-    const routeLineRef = useRef<any>(null);
-    
+    const layerGroupRef = useRef<any>(null);
+
     const [leafletLoaded, setLeafletLoaded] = useState(false);
-    const [mode, setMode] = useState<'idle' | 'setStart' | 'setEnd'>('idle');
+    const [toolbarDayIndex, setToolbarDayIndex] = useState(0);
 
-    const modeRef = useRef(mode);
+    const activeTargetRef = useRef(activeTarget);
+    const onMapPickRef = useRef(onMapPick);
     useEffect(() => {
-        modeRef.current = mode;
-    }, [mode]);
+        activeTargetRef.current = activeTarget;
+    }, [activeTarget]);
+    useEffect(() => {
+        onMapPickRef.current = onMapPick;
+    }, [onMapPick]);
 
     useEffect(() => {
-        loadLeaflet().then(() => {
-            setLeafletLoaded(true);
-        }).catch(err => {
-            console.error('Failed to load Leaflet:', err);
-        });
+        if (toolbarDayIndex >= days.length && days.length > 0) {
+            setToolbarDayIndex(days.length - 1);
+        }
+    }, [days.length, toolbarDayIndex]);
+
+    useEffect(() => {
+        loadLeaflet()
+            .then(() => setLeafletLoaded(true))
+            .catch((err) => console.error('Failed to load Leaflet:', err));
     }, []);
 
     useEffect(() => {
         if (!leafletLoaded || !mapContainerRef.current) return;
-        
         const L = (window as any).L;
         if (!L) return;
 
-        // Standard Edinburgh/UK default center
-        const defaultCenter: [number, number] = [55.9533, -3.1883];
-        let center = defaultCenter;
-        let zoom = 11;
-
-        const startCoords = parseCoords(startValue);
-        const endCoords = parseCoords(endValue);
-
-        if (startCoords) {
-            center = startCoords;
-            zoom = 13;
-        } else if (endCoords) {
-            center = endCoords;
-            zoom = 13;
-        }
-
-        const map = L.map(mapContainerRef.current).setView(center, zoom);
+        const map = L.map(mapContainerRef.current).setView([55.9533, -3.1883], 11);
         mapRef.current = map;
+        layerGroupRef.current = L.layerGroup().addTo(map);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '© OpenStreetMap contributors',
         }).addTo(map);
 
-        // Map Click Event
-        map.on('click', async (e: any) => {
+        map.on('click', (e: any) => {
+            const target = activeTargetRef.current;
+            if (!target) return;
             const { lat, lng } = e.latlng;
-            const valueStr = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-
-            if (modeRef.current === 'setStart') {
-                onSelectStart(valueStr);
-                setMode('idle');
-            } else if (modeRef.current === 'setEnd') {
-                onSelectEnd(valueStr);
-                setMode('idle');
-            }
+            onMapPickRef.current(target, Number(lat.toFixed(6)), Number(lng.toFixed(6)));
         });
 
         return () => {
             map.remove();
             mapRef.current = null;
-            startMarkerRef.current = null;
-            endMarkerRef.current = null;
-            routeLineRef.current = null;
+            layerGroupRef.current = null;
         };
     }, [leafletLoaded]);
 
-    // Handle marker / route updates when values change
     useEffect(() => {
-        if (!leafletLoaded || !mapRef.current) return;
+        if (!leafletLoaded || !mapRef.current || !layerGroupRef.current) return;
         const L = (window as any).L;
         const map = mapRef.current;
+        const group = layerGroupRef.current;
+        group.clearLayers();
 
-        const startCoords = parseCoords(startValue);
-        const endCoords = parseCoords(endValue);
+        const allCoords: [number, number][] = [];
 
-        // 1. Start Marker
-        if (startCoords) {
-            if (startMarkerRef.current) {
-                startMarkerRef.current.setLatLng(startCoords);
-            } else {
-                const greenIcon = new L.Icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
+        days.forEach((day, dIdx) => {
+            const color = DAY_COLORS[dIdx % DAY_COLORS.length];
+            const dayCoords: [number, number][] = [];
+
+            const addPointMarker = (
+                lat: number | null,
+                lng: number | null,
+                badge: string,
+                title: string,
+                isEndpoint: boolean
+            ) => {
+                if (lat === null || lng === null || Number.isNaN(lat) || Number.isNaN(lng)) return;
+                const pt: [number, number] = [lat, lng];
+                dayCoords.push(pt);
+                allCoords.push(pt);
+
+                const icon = L.divIcon({
+                    html: `<div style="background-color:${isEndpoint ? color : '#ffffff'};color:${isEndpoint ? '#ffffff' : color};border:2px solid ${color};border-radius:9999px;min-width:26px;height:24px;padding:0 5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;box-shadow:0 2px 4px rgba(0,0,0,0.25);white-space:nowrap;">${badge}</div>`,
+                    className: 'ems-day-marker-icon',
+                    iconSize: [28, 24],
+                    iconAnchor: [14, 12],
                 });
-                startMarkerRef.current = L.marker(startCoords, { icon: greenIcon })
-                    .addTo(map)
-                    .bindPopup('<b>Start Location</b>');
-            }
-        } else {
-            if (startMarkerRef.current) {
-                map.removeLayer(startMarkerRef.current);
-                startMarkerRef.current = null;
-            }
-        }
+                L.marker(pt, { icon }).addTo(group).bindPopup(`<strong>${title}</strong><br/>${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+            };
 
-        // 2. End Marker
-        if (endCoords) {
-            if (endMarkerRef.current) {
-                endMarkerRef.current.setLatLng(endCoords);
-            } else {
-                const redIcon = new L.Icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
-                });
-                endMarkerRef.current = L.marker(endCoords, { icon: redIcon })
-                    .addTo(map)
-                    .bindPopup('<b>End Location</b>');
-            }
-        } else {
-            if (endMarkerRef.current) {
-                map.removeLayer(endMarkerRef.current);
-                endMarkerRef.current = null;
-            }
-        }
+            addPointMarker(day.start.lat, day.start.lng, `D${day.day_number} S`, `Day ${day.day_number} Start: ${day.start.label}`, true);
+            day.checkpoints.forEach((cp, cpIdx) => {
+                addPointMarker(cp.lat, cp.lng, `D${day.day_number}·${cpIdx + 1}`, `Day ${day.day_number} CP${cpIdx + 1}: ${cp.label}`, false);
+            });
+            addPointMarker(day.end.lat, day.end.lng, `D${day.day_number} E`, `Day ${day.day_number} End: ${day.end.label}`, true);
 
-        // 3. Polyline between markers
-        if (startCoords && endCoords) {
-            if (routeLineRef.current) {
-                routeLineRef.current.setLatLngs([startCoords, endCoords]);
-            } else {
-                routeLineRef.current = L.polyline([startCoords, endCoords], { color: '#2271b1', weight: 4, dashArray: '5, 10' })
-                    .addTo(map);
+            if (dayCoords.length >= 2) {
+                L.polyline(dayCoords, { color, weight: 4, opacity: 0.85 }).addTo(group);
             }
-            
-            // Adjust bounds to fit both markers
-            const bounds = L.latLngBounds([startCoords, endCoords]);
-            map.fitBounds(bounds, { padding: [40, 40] });
-        } else {
-            if (routeLineRef.current) {
-                map.removeLayer(routeLineRef.current);
-                routeLineRef.current = null;
-            }
+        });
+
+        if (allCoords.length >= 2) {
+            map.fitBounds(L.latLngBounds(allCoords), { padding: [36, 36] });
+        } else if (allCoords.length === 1) {
+            map.setView(allCoords[0], 13);
         }
-    }, [leafletLoaded, startValue, endValue]);
+    }, [leafletLoaded, days]);
+
+    const selectedDayIdx = Math.min(toolbarDayIndex, Math.max(0, days.length - 1));
+    const currentDay = days[selectedDayIdx];
 
     return (
         <div className="ems-map-picker">
             <div className="ems-map-picker__header">
-                <span className="ems-map-picker__title">
-                    <FontAwesomeIcon icon={faMapPin} className="ems-btn-icon" /> Interactive OSM Map Picker
-                </span>
-                <button
-                    type="button"
-                    className={`button ${mode === 'setStart' ? 'button-primary' : ''}`}
-                    onClick={() => setMode(mode === 'setStart' ? 'idle' : 'setStart')}
-                >
-                    {mode === 'setStart' ? 'Click map to set Start...' : <><FontAwesomeIcon icon={faMap} className="ems-btn-icon" /> Set Start Point</>}
-                </button>
-                <button
-                    type="button"
-                    className={`button ${mode === 'setEnd' ? 'button-primary' : ''}`}
-                    onClick={() => setMode(mode === 'setEnd' ? 'idle' : 'setEnd')}
-                >
-                    {mode === 'setEnd' ? 'Click map to set End...' : <><FontAwesomeIcon icon={faMap} className="ems-btn-icon" /> Set End Point</>}
-                </button>
-                {mode !== 'idle' && (
-                    <button type="button" className="button-link ems-import-error" onClick={() => setMode('idle')}>
-                        Cancel
-                    </button>
+                <span className="ems-map-picker__title">Interactive Route Map</span>
+
+                {days.length > 0 && (
+                    <div className="ems-map-picker__controls">
+                        <select
+                            aria-label="Active day for map toolbar"
+                            className="ems-form-input ems-map-picker__day-select"
+                            value={selectedDayIdx}
+                            onChange={(e) => setToolbarDayIndex(Number(e.target.value))}
+                        >
+                            {days.map((d, idx) => (
+                                <option key={d.day_number} value={idx}>
+                                    Day {d.day_number}{d.date ? ` (${d.date})` : ''}
+                                </option>
+                            ))}
+                        </select>
+
+                        <select
+                            aria-label="Active waypoint target"
+                            className="ems-form-input ems-map-picker__target-select"
+                            value={targetKey(activeTarget)}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) {
+                                    onSelectTarget(null);
+                                    return;
+                                }
+                                const [dStr, kind, cpStr] = val.split(':');
+                                const dayIndex = Number(dStr);
+                                if (kind === 'cp') {
+                                    onSelectTarget({ dayIndex, kind: 'checkpoint', checkpointIndex: Number(cpStr) });
+                                } else if (kind === 'start' || kind === 'end') {
+                                    onSelectTarget({ dayIndex, kind });
+                                }
+                            }}
+                        >
+                            <option value="">Select waypoint to place on map…</option>
+                            {days.map((d, dIdx) => (
+                                <React.Fragment key={d.day_number}>
+                                    <option value={`${dIdx}:start`}>Day {d.day_number} · Start</option>
+                                    {d.checkpoints.map((_, cpIdx) => (
+                                        <option key={`cp-${cpIdx}`} value={`${dIdx}:cp:${cpIdx}`}>
+                                            Day {d.day_number} · Checkpoint {cpIdx + 1}
+                                        </option>
+                                    ))}
+                                    <option value={`${dIdx}:end`}>Day {d.day_number} · End</option>
+                                </React.Fragment>
+                            ))}
+                        </select>
+
+                        {currentDay && (
+                            <button
+                                type="button"
+                                className="button button-small"
+                                onClick={() => onAddCheckpoint(selectedDayIdx)}
+                            >
+                                + Add Checkpoint to Day {currentDay.day_number}
+                            </button>
+                        )}
+
+                        {activeTarget && (
+                            <button
+                                type="button"
+                                className="button-link ems-import-error"
+                                onClick={() => onSelectTarget(null)}
+                            >
+                                Cancel Pick
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
-            
-            {!leafletLoaded ? (
-                <div className="ems-map-placeholder">
-                    Loading OpenStreetMaps widget…
+
+            {activeTarget && (
+                <div className="ems-map-picker__banner">
+                    Click anywhere on the map to set coordinates for <strong>{describeTarget(activeTarget, days)}</strong>.
                 </div>
-            ) : (
-                <div 
-                    ref={mapContainerRef} 
-                    className="ems-map-canvas" 
-                />
             )}
+
+            {!leafletLoaded ? (
+                <div className="ems-map-placeholder">Loading OpenStreetMap…</div>
+            ) : (
+                <div ref={mapContainerRef} className="ems-map-canvas" />
+            )}
+
             <p className="ems-map-help">
-                <FontAwesomeIcon icon={faLightbulb} className="ems-btn-icon" /> Click one of the buttons above, then click on the map to set the starting or ending coordinates (lat, lng).
+                Choose a waypoint target above (or click &ldquo;Pick on Map&rdquo; on any row below), then click the map to set its coordinates.
             </p>
         </div>
     );
 };
-
-export default OSMMapPicker;

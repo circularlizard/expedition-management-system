@@ -48,6 +48,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
         ems_start_location: '',
         ems_end_location: '',
         ems_route_info: '',
+        ems_joining_instructions: '',
         ems_route_deadline: '',
         ems_status: 'active',
         ems_route_status: 'draft',
@@ -84,6 +85,7 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                 ems_start_location: initialEvent.ems_start_location || '',
                 ems_end_location: initialEvent.ems_end_location || '',
                 ems_route_info: initialEvent.ems_route_info || '',
+                ems_joining_instructions: initialEvent.ems_joining_instructions || '',
                 ems_route_deadline: initialEvent.ems_route_deadline || '',
                 ems_status: initialEvent.ems_status || 'active',
                 ems_route_status: initialEvent.ems_route_status || 'draft',
@@ -345,6 +347,21 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                         </label>
                     </div>
                 </div>
+            </div>
+
+            <div className="ems-overview-card ems-mt-16">
+                <h3 className="ems-overview-card__title">Joining Instructions &amp; Notes</h3>
+                <label className="ems-form-group">
+                    <div className="ems-form-label">Joining Instructions &amp; Operational Notes</div>
+                    <textarea
+                        name="ems_joining_instructions"
+                        rows={3}
+                        value={formData.ems_joining_instructions}
+                        onChange={handleChange}
+                        className="ems-form-input"
+                        placeholder="Meeting times, kit notes, transport details, or coordinator reminders…"
+                    />
+                </label>
             </div>
 
             {!initialEvent && (

@@ -167,7 +167,7 @@ describe('EventDetailPage Tab Functions', () => {
         );
 
         // Switch to Teams tab
-        fireEvent.click(screen.getByText('Teams'));
+        fireEvent.click(screen.getByRole('button', { name: 'Teams' }));
 
         expect(screen.getByText('Allocated Event Teams')).toBeInTheDocument();
         expect(screen.getByText('H-SP1-1')).toBeInTheDocument();
@@ -246,5 +246,76 @@ describe('EventDetailPage Tab Functions', () => {
 
         expect(screen.getByRole('heading', { name: 'Edit Event' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+    });
+
+    it('renders 4-card operational summary strip, Expedition Summary, and Joining Instructions on Overview', () => {
+        render(
+            <EventDetailPage
+                event={{
+                    ...mockEvent,
+                    ems_max_teams: 4,
+                    ems_req_volunteers: 3,
+                    ems_req_assessors: 2,
+                    assigned_volunteers: 2,
+                    assigned_assessors: 1,
+                    routes_approved: 1,
+                    ems_route_deadline: '2026-06-14',
+                    ems_osm_event_id: 999,
+                    ems_joining_instructions: 'Meet at main car park at 08:30.',
+                }}
+                lastSync="2026-06-01T10:00:00Z"
+                onBack={() => {}}
+            />
+        );
+
+        expect(screen.getByText('1 / 4 Max')).toBeInTheDocument();
+        expect(screen.getByText('Volunteers: 2/3 · Assessors: 1/2')).toBeInTheDocument();
+        expect(screen.getByText('1/1 Approved')).toBeInTheDocument();
+        expect(screen.getAllByText('#999').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByText('Expedition Summary')).toBeInTheDocument();
+        expect(screen.getByText('3 days / 2 nights')).toBeInTheDocument();
+        expect(screen.getByText('Joining Instructions & Notes')).toBeInTheDocument();
+        expect(screen.getByText('Meet at main car park at 08:30.')).toBeInTheDocument();
+    });
+
+    it('auto-seeds multi-day route, supports checkpoints and Same as Day End, and derives start/end on save', async () => {
+        render(<EventDetailPage event={mockEvent} onBack={() => {}} />);
+
+        fireEvent.click(screen.getByText('Route'));
+        // Read-only itinerary shows 3 seeded days (2026-06-28 to 2026-06-30)
+        expect(screen.getByText('3 days')).toBeInTheDocument();
+        expect(screen.getByText('Day 1')).toBeInTheDocument();
+        expect(screen.getByText('Day 3')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Route' }));
+
+        // Fill Day 1 Start & End
+        fireEvent.change(screen.getByLabelText('Day 1 start latitude'), { target: { value: '55.95' } });
+        fireEvent.change(screen.getByLabelText('Day 1 start longitude'), { target: { value: '-3.18' } });
+        fireEvent.change(screen.getByLabelText('Day 1 end latitude'), { target: { value: '55.96' } });
+        fireEvent.change(screen.getByLabelText('Day 1 end longitude'), { target: { value: '-3.19' } });
+
+        // Copy Day 1 End into Day 2 Start
+        fireEvent.click(screen.getByRole('button', { name: 'Same as Day 1 End' }));
+        expect((screen.getByLabelText('Day 2 start latitude') as HTMLInputElement).value).toBe('55.96');
+
+        // Fill Day 3 End
+        fireEvent.change(screen.getByLabelText('Day 3 end latitude'), { target: { value: '55.99' } });
+        fireEvent.change(screen.getByLabelText('Day 3 end longitude'), { target: { value: '-3.22' } });
+
+        (global.fetch as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ ...mockEvent }),
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Route Details' }));
+
+        await waitFor(() => {
+            const patchCall = (global.fetch as any).mock.calls.find((c: any) => c[0].includes('/events/10') && c[1]?.method === 'PATCH');
+            expect(patchCall).toBeDefined();
+            const body = JSON.parse(patchCall[1].body);
+            expect(body.ems_route_days).toHaveLength(3);
+            expect(body.ems_start_location).toBe('55.950000, -3.180000');
+            expect(body.ems_end_location).toBe('55.990000, -3.220000');
+        });
     });
 });

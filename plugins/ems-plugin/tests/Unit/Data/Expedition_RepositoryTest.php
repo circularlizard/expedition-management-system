@@ -142,4 +142,82 @@ class Expedition_RepositoryTest extends EMSTestCase {
 
         $this->assertCount( 2, $expeditions );
     }
+
+    public function test_persists_route_days_and_derives_start_end_locations(): void {
+        $meta_store = [];
+        Functions\when( 'wp_insert_post' )->justReturn( 42 );
+        Functions\when( 'is_wp_error' )->justReturn( false );
+        Functions\when( 'get_post' )->alias(
+            static function ( $id ) {
+                return (object) [
+                    'ID'          => (int) $id,
+                    'post_type'   => 'expedition',
+                    'post_title'  => 'Multi-Day Route Test',
+                    'post_status' => 'publish',
+                    'post_parent' => 0,
+                ];
+            }
+        );
+        Functions\when( 'wp_json_encode' )->alias( static fn( $v ) => json_encode( $v ) );
+        Functions\when( 'sanitize_text_field' )->alias( static fn( $v ) => trim( (string) $v ) );
+        Functions\when( 'sanitize_textarea_field' )->alias( static fn( $v ) => trim( (string) $v ) );
+        Functions\when( 'update_post_meta' )->alias(
+            static function ( $post_id, $key, $value ) use ( &$meta_store ) {
+                $meta_store[ $key ] = $value;
+                return true;
+            }
+        );
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key, $single = true ) use ( &$meta_store ) {
+                return $meta_store[ $key ] ?? '';
+            }
+        );
+
+        $repo = new Expedition_Repository();
+        $id   = $repo->create(
+            array(
+                'post_title'     => 'Multi-Day Route Test',
+                'ems_event_code' => 'H-MDR1',
+                'ems_start_date' => '2027-06-04',
+                'ems_end_date'   => '2027-06-05',
+            )
+        );
+
+        $days = array(
+            array(
+                'day_number'  => 1,
+                'date'        => '2027-06-04',
+                'start'       => array( 'id' => 'd1-s', 'label' => 'Car Park', 'lat' => 55.9533, 'lng' => -3.1883, 'notes' => 'Meet 9am' ),
+                'checkpoints' => array(
+                    array( 'id' => 'd1-c1', 'label' => 'CP1 Bridge', 'lat' => 55.96, 'lng' => -3.19, 'notes' => '' ),
+                ),
+                'end'         => array( 'id' => 'd1-e', 'label' => 'Camp 1', 'lat' => 55.97, 'lng' => -3.20, 'notes' => '' ),
+            ),
+            array(
+                'day_number'  => 2,
+                'date'        => '2027-06-05',
+                'start'       => array( 'id' => 'd2-s', 'label' => 'Camp 1', 'lat' => 55.97, 'lng' => -3.20, 'notes' => '' ),
+                'checkpoints' => array(),
+                'end'         => array( 'id' => 'd2-e', 'label' => 'Finish Gate', 'lat' => 55.99, 'lng' => -3.22, 'notes' => 'Pickup 4pm' ),
+            ),
+        );
+
+        $repo->update(
+            $id,
+            array(
+                'ems_route_days'           => $days,
+                'ems_joining_instructions' => 'Bring waterproofs and compass.',
+            )
+        );
+
+        $saved = $repo->get_by_id( $id );
+        $this->assertIsArray( $saved );
+        $this->assertSame( 'Bring waterproofs and compass.', $saved['ems_joining_instructions'] );
+        $this->assertSame( '55.953300, -3.188300', $saved['ems_start_location'] );
+        $this->assertSame( '55.990000, -3.220000', $saved['ems_end_location'] );
+        $this->assertCount( 2, $saved['ems_route_days'] );
+        $this->assertSame( 'Car Park', $saved['ems_route_days'][0]['start']['label'] );
+        $this->assertCount( 1, $saved['ems_route_days'][0]['checkpoints'] );
+        $this->assertSame( 'Finish Gate', $saved['ems_route_days'][1]['end']['label'] );
+    }
 }

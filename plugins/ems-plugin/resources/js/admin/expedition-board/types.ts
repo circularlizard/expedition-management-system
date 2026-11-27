@@ -30,6 +30,22 @@ export interface Team {
     members?: Member[];
 }
 
+export interface RouteWaypoint {
+    id: string;
+    label: string;
+    lat: number | null;
+    lng: number | null;
+    notes?: string;
+}
+
+export interface ExpeditionRouteDay {
+    day_number: number;
+    date?: string;
+    start: RouteWaypoint;
+    checkpoints: RouteWaypoint[];
+    end: RouteWaypoint;
+}
+
 export interface Expedition {
     ID: number;
     post_title: string;
@@ -52,6 +68,8 @@ export interface Expedition {
     ems_start_location?: string;
     ems_end_location?: string;
     ems_route_info?: string;
+    ems_joining_instructions?: string;
+    ems_route_days?: ExpeditionRouteDay[];
     ems_route_deadline?: string;
     ems_osm_event_id?: number | string;
     ems_status?: string;
@@ -59,6 +77,9 @@ export interface Expedition {
     ems_req_assessors?: number | string;
     ems_req_volunteers?: number | string;
     ems_max_teams?: number | string;
+    assigned_volunteers?: number;
+    assigned_assessors?: number;
+    routes_approved?: number;
     ems_first_aid_level?: 'none' | 'first_response' | 'full_first_aid';
     ems_expedition_whatsapp_explorers?: string;
     ems_expedition_whatsapp_parents?: string;

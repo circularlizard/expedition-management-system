@@ -8,18 +8,19 @@ import {
     faUser,
     faLock
 } from '@fortawesome/free-solid-svg-icons';
-import { Expedition, Team, Member, Explorer, FirstAidLevel, OSMEvent } from './types';
+import { Expedition, Team, Member, Explorer, FirstAidLevel, OSMEvent, ExpeditionRouteDay, RouteWaypoint } from './types';
 import { EventForm } from './EventForm';
 import { OSMReadOnlyMap } from './OSMReadOnlyMap';
 import { EventRosterPanel } from '../volunteers/EventRosterPanel';
 import { RichTextEditor } from './RichTextEditor';
-import { OSMMapPicker } from './OSMMapPicker';
+import { OSMMapPicker, ActiveWaypointTarget } from './OSMMapPicker';
 
 interface EventDetailPageProps {
     event: Expedition;
     onBack: () => void;
     osmEvents?: OSMEvent[];
     allEvents?: Expedition[];
+    lastSync?: string | null;
     onEventUpdated?: (updated: Expedition) => void;
     initialEdit?: boolean;
     onOpenTeamBuilder?: (opts: { level?: string; transport?: string; view?: 'team-builder' | 'date-grid' }) => void;
@@ -138,16 +139,99 @@ function grd(cols: number): string {
     return `ems-form-grid-${cols}`;
 }
 
+function formatDuration(startStr?: string, endStr?: string): string {
+    if (!startStr || !endStr) return '—';
+    const s = new Date(`${startStr}T00:00:00`);
+    const e = new Date(`${endStr}T00:00:00`);
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e < s) return '—';
+    const nights = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
+    const days = nights + 1;
+    return `${days} day${days === 1 ? '' : 's'} / ${nights} night${nights === 1 ? '' : 's'}`;
+}
+
+function parseLegacyCoords(val?: string): { lat: number | null; lng: number | null } {
+    if (!val) return { lat: null, lng: null };
+    const m = val.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (!m) return { lat: null, lng: null };
+    return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+}
+
+function formatCoords(lat: number | null, lng: number | null): string {
+    if (lat === null || lng === null || Number.isNaN(lat) || Number.isNaN(lng)) return '—';
+    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+function makeWaypoint(id: string, label: string, lat: number | null = null, lng: number | null = null): RouteWaypoint {
+    return { id, label, lat, lng, notes: '' };
+}
+
+function seedRouteDays(event: Expedition): ExpeditionRouteDay[] {
+    if (Array.isArray(event.ems_route_days) && event.ems_route_days.length > 0) {
+        return event.ems_route_days.map((d, idx) => ({
+            day_number: d.day_number || idx + 1,
+            date: d.date || '',
+            start: { ...d.start },
+            checkpoints: (d.checkpoints || []).map((cp) => ({ ...cp })),
+            end: { ...d.end },
+        }));
+    }
+
+    let dayCount = 1;
+    let startDateObj: Date | null = null;
+    if (event.ems_start_date && event.ems_end_date) {
+        const s = new Date(`${event.ems_start_date}T00:00:00`);
+        const e = new Date(`${event.ems_end_date}T00:00:00`);
+        if (!Number.isNaN(s.getTime()) && !Number.isNaN(e.getTime()) && e >= s) {
+            dayCount = Math.min(14, Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1));
+            startDateObj = s;
+        }
+    }
+
+    const legacyStart = parseLegacyCoords(event.ems_start_location);
+    const legacyEnd = parseLegacyCoords(event.ems_end_location);
+
+    const days: ExpeditionRouteDay[] = [];
+    for (let i = 0; i < dayCount; i++) {
+        const dayNum = i + 1;
+        let dateStr = '';
+        if (startDateObj) {
+            const d = new Date(startDateObj.getTime() + i * 86400000);
+            dateStr = d.toISOString().split('T')[0];
+        }
+        const isFirst = i === 0;
+        const isLast = i === dayCount - 1;
+        days.push({
+            day_number: dayNum,
+            date: dateStr,
+            start: makeWaypoint(`day-${dayNum}-start`, 'Start', isFirst ? legacyStart.lat : null, isFirst ? legacyStart.lng : null),
+            checkpoints: [],
+            end: makeWaypoint(`day-${dayNum}-end`, 'End', isLast ? legacyEnd.lat : null, isLast ? legacyEnd.lng : null),
+        });
+    }
+    return days;
+}
+
 /* Overview */
 const OverviewTab: React.FC<{
     event: Expedition;
     osmEvents?: OSMEvent[];
+    lastSync?: string | null;
     editing: boolean;
     onCancelEdit: () => void;
     onUpdated?: (e: Expedition) => void;
-}> = ({ event, osmEvents = [], editing, onCancelEdit, onUpdated }) => {
+}> = ({ event, osmEvents = [], lastSync = null, editing, onCancelEdit, onUpdated }) => {
     const matchedOsm = osmEvents?.find(e => Number(e.event_id) === Number(event.ems_osm_event_id) || Number(e.id) === Number(event.ems_osm_event_id));
-    const osmEventDisplay = matchedOsm ? matchedOsm.name : (event.ems_osm_event_id || '—');
+    const osmEventDisplay = matchedOsm ? matchedOsm.name : (event.ems_osm_event_id ? `#${event.ems_osm_event_id}` : 'Not linked');
+
+    const allocatedTeams = (event.teams ?? []).filter(t => t.ems_team_code !== 'UNALLOCATED').length;
+    const maxTeamsNum = event.ems_max_teams ? Number(event.ems_max_teams) : 0;
+    const maxTeamsLabel = maxTeamsNum > 0 ? `${maxTeamsNum} Max` : 'Uncapped';
+
+    const assignedVol = event.assigned_volunteers ?? 0;
+    const reqVol = Number(event.ems_req_volunteers || 0);
+    const assignedAssessor = event.assigned_assessors ?? 0;
+    const reqAssessor = Number(event.ems_req_assessors || 0);
+    const routesApproved = event.routes_approved ?? 0;
 
     return (
         <div>
@@ -163,61 +247,83 @@ const OverviewTab: React.FC<{
                     onCancel={onCancelEdit}
                 />
             ) : (
-                <div className="ems-overview-cards ems-overview-cards--flush">
-                    <div className="ems-overview-card">
-                        <h3 className="ems-overview-card__title">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                            Event Details
-                        </h3>
-                        <div className={grd(2)}>
-                            <FieldVal label="Type" value={capitalize(event.ems_type)} />
-                            <FieldVal label="Transport" value={capitalize(event.ems_transport || '')} />
-                            <FieldVal label="Level" value={capitalize(event.ems_level)} />
-                            <FieldVal label="First Aid" value={FA_LABELS[event.ems_first_aid_level as FirstAidLevel] ?? event.ems_first_aid_level} />
+                <>
+                    {/* 4-Card Operational Summary Strip */}
+                    <div className="ems-overview-summary-strip">
+                        <div className="ems-summary-kpi">
+                            <div className="ems-summary-kpi__label">Teams</div>
+                            <div className="ems-summary-kpi__value">{allocatedTeams} / {maxTeamsLabel}</div>
+                        </div>
+                        <div className="ems-summary-kpi">
+                            <div className="ems-summary-kpi__label">Staffing</div>
+                            <div className="ems-summary-kpi__value">
+                                Volunteers: {assignedVol}/{reqVol} · Assessors: {assignedAssessor}/{reqAssessor}
+                            </div>
+                        </div>
+                        <div className="ems-summary-kpi">
+                            <div className="ems-summary-kpi__label">Route Plans</div>
+                            <div className="ems-summary-kpi__value">{routesApproved}/{allocatedTeams} Approved</div>
+                            <div className="ems-summary-kpi__sub">Deadline: {formatDate(event.ems_route_deadline)}</div>
+                        </div>
+                        <div className="ems-summary-kpi">
+                            <div className="ems-summary-kpi__label">OSM Event</div>
+                            <div className="ems-summary-kpi__value">
+                                {event.ems_osm_event_id ? `#${event.ems_osm_event_id}` : 'Not linked'}
+                            </div>
+                            <div className="ems-summary-kpi__sub">
+                                {event.ems_osm_event_id
+                                    ? `Synced: ${lastSync ? new Date(lastSync).toLocaleString() : 'Never'}`
+                                    : 'Link in Edit Event'}
+                            </div>
                         </div>
                     </div>
 
-                    <div className="ems-overview-card">
-                        <h3 className="ems-overview-card__title">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            Schedule
-                        </h3>
-                        <div className={grd(2)}>
-                            <FieldVal label="Start Date" value={formatDate(event.ems_start_date)} />
-                            <FieldVal label="Start Time" value={event.ems_start_time} />
-                            <FieldVal label="End Date" value={formatDate(event.ems_end_date)} />
-                            <FieldVal label="End Time" value={event.ems_end_time} />
+                    <div className="ems-overview-cards">
+                        <div className="ems-overview-card">
+                            <h3 className="ems-overview-card__title">Expedition Summary</h3>
+                            <div className={grd(2)}>
+                                <FieldVal label="Type" value={capitalize(event.ems_type)} />
+                                <FieldVal label="Level" value={capitalize(event.ems_level)} />
+                                <FieldVal label="Transport" value={capitalize(event.ems_transport || '')} />
+                                <FieldVal label="First Aid Required" value={FA_LABELS[event.ems_first_aid_level as FirstAidLevel] ?? event.ems_first_aid_level} />
+                                <FieldVal label="Start Date & Time" value={`${formatDate(event.ems_start_date)}${event.ems_start_time ? ` · ${event.ems_start_time}` : ''}`} />
+                                <FieldVal label="End Date & Time" value={`${formatDate(event.ems_end_date)}${event.ems_end_time ? ` · ${event.ems_end_time}` : ''}`} />
+                                <FieldVal label="Duration" value={formatDuration(event.ems_start_date, event.ems_end_date)} />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="ems-overview-card">
-                        <h3 className="ems-overview-card__title">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Leader in Charge
-                        </h3>
-                        <div className={grd(2)}>
-                            <FieldVal label="Name" value={event.ems_lic_name} />
-                            <FieldVal label="Public Email" value={event.ems_lic_email} />
-                            <FieldVal label="Public Phone" value={event.ems_lic_phone} />
-                            <FieldVal label="Private Email" value={event.ems_lic_private_email} />
-                            <FieldVal label="Private Phone" value={event.ems_lic_private_phone} />
+                        <div className="ems-overview-card">
+                            <h3 className="ems-overview-card__title">Leader in Charge</h3>
+                            <div className={grd(2)}>
+                                <FieldVal label="Name" value={event.ems_lic_name} />
+                                <FieldVal label="Public Email" value={event.ems_lic_email} />
+                                <FieldVal label="Public Phone" value={event.ems_lic_phone} />
+                                <FieldVal label="Private Email" value={event.ems_lic_private_email} />
+                                <FieldVal label="Private Phone" value={event.ems_lic_private_phone} />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="ems-overview-card">
-                        <h3 className="ems-overview-card__title">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                            Requirements & OSM Sync
-                        </h3>
-                        <div className={grd(2)}>
-                            <FieldVal label="Required Assessors" value={event.ems_req_assessors || '0'} />
-                            <FieldVal label="Required Volunteers" value={event.ems_req_volunteers || '0'} />
-                            <FieldVal label="Max Teams" value={event.ems_max_teams && Number(event.ems_max_teams) > 0 ? String(event.ems_max_teams) : 'Uncapped'} />
-                            <FieldVal label="OSM Event" value={osmEventDisplay} />
-                            <FieldVal label="Route Status" value={capitalize(event.ems_route_status || 'draft')} />
+                        <div className="ems-overview-card">
+                            <h3 className="ems-overview-card__title">Requirements &amp; OSM Sync</h3>
+                            <div className={grd(2)}>
+                                <FieldVal label="Required Assessors" value={event.ems_req_assessors || '0'} />
+                                <FieldVal label="Required Volunteers" value={event.ems_req_volunteers || '0'} />
+                                <FieldVal label="Max Teams" value={maxTeamsNum > 0 ? String(maxTeamsNum) : 'Uncapped'} />
+                                <FieldVal label="OSM Event" value={osmEventDisplay} />
+                                <FieldVal label="Route Status" value={capitalize(event.ems_route_status || 'draft')} />
+                            </div>
+                        </div>
+
+                        <div className="ems-overview-card">
+                            <h3 className="ems-overview-card__title">Joining Instructions &amp; Notes</h3>
+                            {event.ems_joining_instructions ? (
+                                <div className="ems-joining-instructions-body">{event.ems_joining_instructions}</div>
+                            ) : (
+                                <p className="ems-meta-text ems-italic">No joining instructions added yet. Use Edit Event to add details.</p>
+                            )}
                         </div>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );
@@ -227,9 +333,9 @@ const OverviewTab: React.FC<{
 const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => void }> = ({ event, onUpdated }) => {
     const [editing, setEditing] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [days, setDays] = useState<ExpeditionRouteDay[]>(() => seedRouteDays(event));
+    const [activeTarget, setActiveTarget] = useState<ActiveWaypointTarget | null>(null);
     const [formData, setFormData] = useState({
-        ems_start_location: event.ems_start_location || '',
-        ems_end_location: event.ems_end_location || '',
         ems_route_status: event.ems_route_status || 'draft',
         ems_route_deadline: event.ems_route_deadline || '',
         ems_route_info: event.ems_route_info || '',
@@ -237,9 +343,9 @@ const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => voi
 
     useEffect(() => {
         if (!editing) {
+            setDays(seedRouteDays(event));
+            setActiveTarget(null);
             setFormData({
-                ems_start_location: event.ems_start_location || '',
-                ems_end_location: event.ems_end_location || '',
                 ems_route_status: event.ems_route_status || 'draft',
                 ems_route_deadline: event.ems_route_deadline || '',
                 ems_route_info: event.ems_route_info || '',
@@ -247,12 +353,128 @@ const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => voi
         }
     }, [event, editing]);
 
+    const updateWaypoint = (
+        dayIndex: number,
+        kind: 'start' | 'checkpoint' | 'end',
+        patch: Partial<RouteWaypoint>,
+        checkpointIndex?: number
+    ) => {
+        setDays((prev) =>
+            prev.map((d, idx) => {
+                if (idx !== dayIndex) return d;
+                if (kind === 'start') return { ...d, start: { ...d.start, ...patch } };
+                if (kind === 'end') return { ...d, end: { ...d.end, ...patch } };
+                const nextCps = d.checkpoints.map((cp, cIdx) =>
+                    cIdx === checkpointIndex ? { ...cp, ...patch } : cp
+                );
+                return { ...d, checkpoints: nextCps };
+            })
+        );
+    };
+
+    const handleMapPick = (target: ActiveWaypointTarget, lat: number, lng: number) => {
+        updateWaypoint(target.dayIndex, target.kind, { lat, lng }, target.checkpointIndex);
+        setActiveTarget(null);
+    };
+
+    const handleAddCheckpoint = (dayIndex: number) => {
+        let newCpIndex = 0;
+        setDays((prev) =>
+            prev.map((d, idx) => {
+                if (idx !== dayIndex) return d;
+                newCpIndex = d.checkpoints.length;
+                const cpNum = newCpIndex + 1;
+                return {
+                    ...d,
+                    checkpoints: [
+                        ...d.checkpoints,
+                        makeWaypoint(`cp-${d.day_number}-${cpNum}-${Date.now()}`, `Checkpoint ${cpNum}`),
+                    ],
+                };
+            })
+        );
+        setActiveTarget({ dayIndex, kind: 'checkpoint', checkpointIndex: newCpIndex });
+    };
+
+    const handleRemoveCheckpoint = (dayIndex: number, cpIndex: number) => {
+        setDays((prev) =>
+            prev.map((d, idx) => {
+                if (idx !== dayIndex) return d;
+                return { ...d, checkpoints: d.checkpoints.filter((_, i) => i !== cpIndex) };
+            })
+        );
+        setActiveTarget(null);
+    };
+
+    const handleAddDay = () => {
+        setDays((prev) => {
+            const nextNum = prev.length + 1;
+            const lastDay = prev[prev.length - 1];
+            let nextDate = '';
+            if (lastDay?.date) {
+                const d = new Date(`${lastDay.date}T00:00:00`);
+                if (!Number.isNaN(d.getTime())) {
+                    d.setDate(d.getDate() + 1);
+                    nextDate = d.toISOString().split('T')[0];
+                }
+            }
+            return [
+                ...prev,
+                {
+                    day_number: nextNum,
+                    date: nextDate,
+                    start: makeWaypoint(`day-${nextNum}-start`, 'Start'),
+                    checkpoints: [],
+                    end: makeWaypoint(`day-${nextNum}-end`, 'End'),
+                },
+            ];
+        });
+    };
+
+    const handleRemoveDay = (dayIndex: number) => {
+        setDays((prev) => {
+            if (prev.length <= 1) return prev;
+            return prev
+                .filter((_, idx) => idx !== dayIndex)
+                .map((d, idx) => ({ ...d, day_number: idx + 1 }));
+        });
+        setActiveTarget(null);
+    };
+
+    const handleCopyPrevEnd = (dayIndex: number) => {
+        if (dayIndex <= 0) return;
+        const prevEnd = days[dayIndex - 1]?.end;
+        if (!prevEnd) return;
+        updateWaypoint(dayIndex, 'start', {
+            label: prevEnd.label || `Day ${dayIndex} End`,
+            lat: prevEnd.lat,
+            lng: prevEnd.lng,
+            notes: prevEnd.notes || '',
+        });
+    };
+
     const handleSave = async () => {
         setSaving(true);
         try {
+            const firstStart = days[0]?.start;
+            const lastEnd = days[days.length - 1]?.end;
+            const derivedStart =
+                firstStart && firstStart.lat !== null && firstStart.lng !== null
+                    ? `${firstStart.lat.toFixed(6)}, ${firstStart.lng.toFixed(6)}`
+                    : event.ems_start_location || '';
+            const derivedEnd =
+                lastEnd && lastEnd.lat !== null && lastEnd.lng !== null
+                    ? `${lastEnd.lat.toFixed(6)}, ${lastEnd.lng.toFixed(6)}`
+                    : event.ems_end_location || '';
+
             const res = await apiFetch(`/events/${event.ID}`, {
                 method: 'PATCH',
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    ems_route_days: days,
+                    ems_start_location: derivedStart,
+                    ems_end_location: derivedEnd,
+                }),
             });
             if (res.ok) {
                 const updated = await res.json();
@@ -266,6 +488,95 @@ const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => voi
         }
     };
 
+    const readOnlyDays = Array.isArray(event.ems_route_days) && event.ems_route_days.length > 0
+        ? event.ems_route_days
+        : seedRouteDays(event);
+
+    const renderCoordInputs = (
+        wp: RouteWaypoint,
+        dayIndex: number,
+        kind: 'start' | 'checkpoint' | 'end',
+        cpIndex?: number
+    ) => {
+        const isActive =
+            activeTarget?.dayIndex === dayIndex &&
+            activeTarget?.kind === kind &&
+            (kind !== 'checkpoint' || activeTarget?.checkpointIndex === cpIndex);
+
+        return (
+            <div className="ems-route-wp-row">
+                <input
+                    type="text"
+                    className="ems-form-input ems-route-wp-label"
+                    aria-label={`Day ${days[dayIndex].day_number} ${kind === 'checkpoint' ? `CP${(cpIndex ?? 0) + 1}` : kind} label`}
+                    value={wp.label}
+                    onChange={(e) => updateWaypoint(dayIndex, kind, { label: e.target.value }, cpIndex)}
+                    placeholder="Location name"
+                />
+                <input
+                    type="number"
+                    step="0.000001"
+                    className="ems-form-input ems-route-wp-coord"
+                    aria-label={`Day ${days[dayIndex].day_number} ${kind === 'checkpoint' ? `CP${(cpIndex ?? 0) + 1}` : kind} latitude`}
+                    value={wp.lat ?? ''}
+                    onChange={(e) =>
+                        updateWaypoint(
+                            dayIndex,
+                            kind,
+                            { lat: e.target.value === '' ? null : parseFloat(e.target.value) },
+                            cpIndex
+                        )
+                    }
+                    placeholder="Lat"
+                />
+                <input
+                    type="number"
+                    step="0.000001"
+                    className="ems-form-input ems-route-wp-coord"
+                    aria-label={`Day ${days[dayIndex].day_number} ${kind === 'checkpoint' ? `CP${(cpIndex ?? 0) + 1}` : kind} longitude`}
+                    value={wp.lng ?? ''}
+                    onChange={(e) =>
+                        updateWaypoint(
+                            dayIndex,
+                            kind,
+                            { lng: e.target.value === '' ? null : parseFloat(e.target.value) },
+                            cpIndex
+                        )
+                    }
+                    placeholder="Lng"
+                />
+                <input
+                    type="text"
+                    className="ems-form-input ems-route-wp-notes"
+                    aria-label={`Day ${days[dayIndex].day_number} ${kind === 'checkpoint' ? `CP${(cpIndex ?? 0) + 1}` : kind} notes`}
+                    value={wp.notes || ''}
+                    onChange={(e) => updateWaypoint(dayIndex, kind, { notes: e.target.value }, cpIndex)}
+                    placeholder="Notes (optional)"
+                />
+                <button
+                    type="button"
+                    className={`button button-small ${isActive ? 'button-primary' : ''}`}
+                    onClick={() =>
+                        setActiveTarget(
+                            isActive ? null : { dayIndex, kind, checkpointIndex: cpIndex }
+                        )
+                    }
+                >
+                    {isActive ? 'Picking…' : 'Pick on Map'}
+                </button>
+                {kind === 'checkpoint' && cpIndex !== undefined && (
+                    <button
+                        type="button"
+                        className="button-link ems-import-error"
+                        onClick={() => handleRemoveCheckpoint(dayIndex, cpIndex)}
+                    >
+                        Remove
+                    </button>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div>
             <div className="ems-edit-bar">
@@ -277,33 +588,77 @@ const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => voi
             {editing ? (
                 <div className="ems-form-section">
                     <h3 className="ems-tab-section-title">Edit Route Details</h3>
-                    <div className="ems-form-grid-2">
-                        <label className="ems-form-group">
-                            <div className="ems-form-label">Start Location Coordinates (lat, lng)</div>
-                            <input
-                                value={formData.ems_start_location}
-                                onChange={e => setFormData(prev => ({ ...prev, ems_start_location: e.target.value }))}
-                                className="ems-form-input"
-                                placeholder="e.g. 55.9533, -3.1883"
-                            />
-                        </label>
-                        <label className="ems-form-group">
-                            <div className="ems-form-label">End Location Coordinates (lat, lng)</div>
-                            <input
-                                value={formData.ems_end_location}
-                                onChange={e => setFormData(prev => ({ ...prev, ems_end_location: e.target.value }))}
-                                className="ems-form-input"
-                                placeholder="e.g. 55.9877, -3.2012"
-                            />
-                        </label>
-                    </div>
 
                     <OSMMapPicker
-                        startValue={formData.ems_start_location}
-                        endValue={formData.ems_end_location}
-                        onSelectStart={val => setFormData(prev => ({ ...prev, ems_start_location: val }))}
-                        onSelectEnd={val => setFormData(prev => ({ ...prev, ems_end_location: val }))}
+                        days={days}
+                        activeTarget={activeTarget}
+                        onSelectTarget={setActiveTarget}
+                        onMapPick={handleMapPick}
+                        onAddCheckpoint={handleAddCheckpoint}
                     />
+
+                    <div className="ems-route-days-editor ems-mt-16">
+                        {days.map((day, dIdx) => (
+                            <div key={day.day_number} className="ems-route-day-card">
+                                <div className="ems-route-day-card__header">
+                                    <div>
+                                        <strong>Day {day.day_number}</strong>
+                                        {day.date && <span className="ems-meta-text ems-ml-6">({formatDate(day.date)})</span>}
+                                    </div>
+                                    <div className="ems-route-day-card__actions">
+                                        {dIdx > 0 && (
+                                            <button
+                                                type="button"
+                                                className="button button-small"
+                                                onClick={() => handleCopyPrevEnd(dIdx)}
+                                            >
+                                                Same as Day {day.day_number - 1} End
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="button button-small"
+                                            onClick={() => handleAddCheckpoint(dIdx)}
+                                        >
+                                            + Add Checkpoint
+                                        </button>
+                                        {days.length > 1 && (
+                                            <button
+                                                type="button"
+                                                className="button-link ems-import-error"
+                                                onClick={() => handleRemoveDay(dIdx)}
+                                            >
+                                                Remove Day
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="ems-route-day-card__body">
+                                    <div className="ems-route-wp-group">
+                                        <div className="ems-route-wp-tag ems-route-wp-tag--start">Start</div>
+                                        {renderCoordInputs(day.start, dIdx, 'start')}
+                                    </div>
+
+                                    {day.checkpoints.map((cp, cpIdx) => (
+                                        <div key={cp.id || cpIdx} className="ems-route-wp-group">
+                                            <div className="ems-route-wp-tag ems-route-wp-tag--cp">CP{cpIdx + 1}</div>
+                                            {renderCoordInputs(cp, dIdx, 'checkpoint', cpIdx)}
+                                        </div>
+                                    ))}
+
+                                    <div className="ems-route-wp-group">
+                                        <div className="ems-route-wp-tag ems-route-wp-tag--end">End</div>
+                                        {renderCoordInputs(day.end, dIdx, 'end')}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        <button type="button" className="button" onClick={handleAddDay}>
+                            + Add Day
+                        </button>
+                    </div>
 
                     <div className="ems-form-grid-2 ems-mt-16">
                         <label className="ems-form-group">
@@ -345,24 +700,78 @@ const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => voi
                 </div>
             ) : (
                 <div className="ems-tab-section">
-                    <h3 className="ems-tab-section-title">Route Information & Planning</h3>
                     <div className="ems-form-grid-3 ems-mb-16">
-                        <FieldVal label="Start Location" value={<LocationDisplay value={event.ems_start_location} />} />
-                        <FieldVal label="End Location" value={<LocationDisplay value={event.ems_end_location} />} />
+                        <FieldVal label="Route Status" value={capitalize(event.ems_route_status || 'draft')} />
                         <FieldVal label="Route Deadline" value={formatDate(event.ems_route_deadline)} />
+                        <FieldVal label="Days Planned" value={`${readOnlyDays.length} day${readOnlyDays.length === 1 ? '' : 's'}`} />
                     </div>
-                    <OSMReadOnlyMap startLocation={event.ems_start_location} endLocation={event.ems_end_location} />
+
                     {event.ems_route_info ? (
-                        <div className="ems-mt-24">
-                            <h4 className="ems-tab-section-title">Route Details</h4>
+                        <div className="ems-mb-16">
+                            <h4 className="ems-tab-section-title">Route Description</h4>
                             <div
                                 className="ems-rte-readonly ems-rte-readonly__content"
                                 dangerouslySetInnerHTML={{ __html: event.ems_route_info }}
                             />
                         </div>
                     ) : (
-                        <p className="ems-meta-text ems-italic ems-mt-16">No route description uploaded yet.</p>
+                        <p className="ems-meta-text ems-italic ems-mb-16">No route description uploaded yet.</p>
                     )}
+
+                    <OSMReadOnlyMap
+                        days={readOnlyDays}
+                        startLocation={event.ems_start_location}
+                        endLocation={event.ems_end_location}
+                    />
+
+                    <div className="ems-route-itinerary ems-mt-16">
+                        <h4 className="ems-tab-section-title">Day-by-Day Itinerary</h4>
+                        <table className="widefat striped ems-route-itinerary__table">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Start</th>
+                                    <th>Intermediate Checkpoints</th>
+                                    <th>End</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {readOnlyDays.map((day) => (
+                                    <tr key={day.day_number}>
+                                        <td>
+                                            <strong>Day {day.day_number}</strong>
+                                            {day.date && <div className="ems-meta-text">{formatDate(day.date)}</div>}
+                                        </td>
+                                        <td>
+                                            <div className="ems-route-itinerary__label">{day.start.label || 'Start'}</div>
+                                            <div className="ems-route-itinerary__coords">{formatCoords(day.start.lat, day.start.lng)}</div>
+                                            {day.start.notes && <div className="ems-route-itinerary__notes">{day.start.notes}</div>}
+                                        </td>
+                                        <td>
+                                            {day.checkpoints.length === 0 ? (
+                                                <span className="ems-meta-text">None</span>
+                                            ) : (
+                                                <ul className="ems-route-itinerary__cp-list">
+                                                    {day.checkpoints.map((cp, idx) => (
+                                                        <li key={cp.id || idx}>
+                                                            <strong>CP{idx + 1}:</strong> {cp.label || `Checkpoint ${idx + 1}`}{' '}
+                                                            <span className="ems-route-itinerary__coords">({formatCoords(cp.lat, cp.lng)})</span>
+                                                            {cp.notes && <div className="ems-route-itinerary__notes">{cp.notes}</div>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <div className="ems-route-itinerary__label">{day.end.label || 'End'}</div>
+                                            <div className="ems-route-itinerary__coords">{formatCoords(day.end.lat, day.end.lng)}</div>
+                                            {day.end.notes && <div className="ems-route-itinerary__notes">{day.end.notes}</div>}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>
@@ -896,6 +1305,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
     onBack,
     osmEvents = [],
     allEvents = [],
+    lastSync = null,
     onEventUpdated,
     initialEdit = false,
     onOpenTeamBuilder,
@@ -1028,6 +1438,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({
                     <OverviewTab
                         event={event}
                         osmEvents={osmEvents}
+                        lastSync={lastSync}
                         editing={editing}
                         onCancelEdit={() => setEditing(false)}
                         onUpdated={handleUpdated}

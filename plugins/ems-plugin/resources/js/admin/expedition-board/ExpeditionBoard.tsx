@@ -213,6 +213,7 @@ const ExpeditionBoard: React.FC = () => {
                             onBack={handleBack}
                             osmEvents={osmEvents}
                             allEvents={data.seasons[0]?.events ?? []}
+                            lastSync={data.last_sync ?? null}
                             onEventUpdated={handleEventUpdated}
                             initialEdit={initialEdit}
                             onOpenTeamBuilder={handleOpenTeamBuilder}

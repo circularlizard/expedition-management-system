@@ -52,6 +52,7 @@ class Expedition_Repository {
 			'ems_end_date',
 			'ems_end_time',
 			'ems_route_info',
+			'ems_joining_instructions',
 			'ems_route_deadline',
 			'ems_osm_event_id',
 			'ems_status',
@@ -61,6 +62,14 @@ class Expedition_Repository {
 			'ems_first_aid_requirements',
 			'ems_route_status',
 		);
+
+		if ( isset( $data['ems_route_days'] ) && is_array( $data['ems_route_days'] ) ) {
+			$normalized_days = $this->normalize_route_days( $data['ems_route_days'] );
+			$data            = $this->derive_locations_from_days( $data, $normalized_days );
+			if ( ! empty( $normalized_days ) ) {
+				update_post_meta( $post_id, 'ems_route_days', wp_json_encode( $normalized_days ) );
+			}
+		}
 
 		foreach ( $meta_fields as $key ) {
 			if ( isset( $data[ $key ] ) && $data[ $key ] !== '' ) {
@@ -111,6 +120,7 @@ class Expedition_Repository {
 			'ems_end_date',
 			'ems_end_time',
 			'ems_route_info',
+			'ems_joining_instructions',
 			'ems_route_deadline',
 			'ems_osm_event_id',
 			'ems_status',
@@ -120,6 +130,16 @@ class Expedition_Repository {
 			'ems_first_aid_requirements',
 			'ems_route_status',
 		);
+
+		if ( array_key_exists( 'ems_route_days', $data ) ) {
+			if ( is_array( $data['ems_route_days'] ) && ! empty( $data['ems_route_days'] ) ) {
+				$normalized_days = $this->normalize_route_days( $data['ems_route_days'] );
+				$data            = $this->derive_locations_from_days( $data, $normalized_days );
+				update_post_meta( $id, 'ems_route_days', wp_json_encode( $normalized_days ) );
+			} else {
+				delete_post_meta( $id, 'ems_route_days' );
+			}
+		}
 
 		foreach ( $meta_fields as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
@@ -314,6 +334,7 @@ class Expedition_Repository {
 			'ems_end_date',
 			'ems_end_time',
 			'ems_route_info',
+			'ems_joining_instructions',
 			'ems_route_deadline',
 			'ems_osm_event_id',
 			'ems_status',
@@ -328,6 +349,16 @@ class Expedition_Repository {
 			$result[ $key ] = get_post_meta( $post->ID, $key, true );
 		}
 
+		$raw_days = get_post_meta( $post->ID, 'ems_route_days', true );
+		if ( is_string( $raw_days ) && $raw_days !== '' ) {
+			$decoded                  = json_decode( $raw_days, true );
+			$result['ems_route_days'] = is_array( $decoded ) ? $decoded : array();
+		} elseif ( is_array( $raw_days ) ) {
+			$result['ems_route_days'] = $raw_days;
+		} else {
+			$result['ems_route_days'] = array();
+		}
+
 		if ( $result['ems_max_teams'] === '' ) {
 			foreach ( array( '_ems_max_teams', '_ems_capacity_teams', 'ems_capacity_teams' ) as $legacy_key ) {
 				$legacy_val = get_post_meta( $post->ID, $legacy_key, true );
@@ -339,5 +370,83 @@ class Expedition_Repository {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Normalize multi-day route waypoints payload.
+	 *
+	 * @param array<int, mixed> $days Raw route days.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function normalize_route_days( array $days ): array {
+		$normalized = array();
+		$index      = 1;
+		foreach ( $days as $day ) {
+			if ( ! is_array( $day ) ) {
+				continue;
+			}
+			$day_number  = isset( $day['day_number'] ) && (int) $day['day_number'] > 0 ? (int) $day['day_number'] : $index;
+			$checkpoints = array();
+			if ( ! empty( $day['checkpoints'] ) && is_array( $day['checkpoints'] ) ) {
+				foreach ( $day['checkpoints'] as $cp_idx => $cp ) {
+					if ( is_array( $cp ) ) {
+						$checkpoints[] = $this->normalize_waypoint( $cp, "cp-{$day_number}-" . ( $cp_idx + 1 ), 'Checkpoint ' . ( $cp_idx + 1 ) );
+					}
+				}
+			}
+			$normalized[] = array(
+				'day_number'  => $day_number,
+				'date'        => isset( $day['date'] ) ? sanitize_text_field( (string) $day['date'] ) : '',
+				'start'       => $this->normalize_waypoint( is_array( $day['start'] ?? null ) ? $day['start'] : array(), "day-{$day_number}-start", 'Start' ),
+				'checkpoints' => $checkpoints,
+				'end'         => $this->normalize_waypoint( is_array( $day['end'] ?? null ) ? $day['end'] : array(), "day-{$day_number}-end", 'End' ),
+			);
+			$index++;
+		}
+		return $normalized;
+	}
+
+	/**
+	 * Normalize a single route waypoint.
+	 *
+	 * @param array<string, mixed> $wp Raw waypoint.
+	 * @param string               $default_id Fallback ID.
+	 * @param string               $default_label Fallback label.
+	 * @return array<string, mixed>
+	 */
+	private function normalize_waypoint( array $wp, string $default_id, string $default_label ): array {
+		$lat = isset( $wp['lat'] ) && $wp['lat'] !== '' && is_numeric( $wp['lat'] ) ? (float) $wp['lat'] : null;
+		$lng = isset( $wp['lng'] ) && $wp['lng'] !== '' && is_numeric( $wp['lng'] ) ? (float) $wp['lng'] : null;
+
+		return array(
+			'id'    => ! empty( $wp['id'] ) ? sanitize_text_field( (string) $wp['id'] ) : $default_id,
+			'label' => isset( $wp['label'] ) && $wp['label'] !== '' ? sanitize_text_field( (string) $wp['label'] ) : $default_label,
+			'lat'   => $lat,
+			'lng'   => $lng,
+			'notes' => isset( $wp['notes'] ) ? sanitize_textarea_field( (string) $wp['notes'] ) : '',
+		);
+	}
+
+	/**
+	 * Derive backward-compatible ems_start_location and ems_end_location from Day 1 Start and Last Day End.
+	 *
+	 * @param array<string, mixed>             $data Expedition payload.
+	 * @param array<int, array<string, mixed>> $days Normalized route days.
+	 * @return array<string, mixed>
+	 */
+	private function derive_locations_from_days( array $data, array $days ): array {
+		if ( empty( $days ) ) {
+			return $data;
+		}
+		$first_start = $days[0]['start'] ?? null;
+		if ( is_array( $first_start ) && $first_start['lat'] !== null && $first_start['lng'] !== null ) {
+			$data['ems_start_location'] = sprintf( '%.6f, %.6f', (float) $first_start['lat'], (float) $first_start['lng'] );
+		}
+		$last_day = $days[ count( $days ) - 1 ];
+		$last_end = $last_day['end'] ?? null;
+		if ( is_array( $last_end ) && $last_end['lat'] !== null && $last_end['lng'] !== null ) {
+			$data['ems_end_location'] = sprintf( '%.6f, %.6f', (float) $last_end['lat'], (float) $last_end['lng'] );
+		}
+		return $data;
 	}
 }
