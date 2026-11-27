@@ -487,7 +487,10 @@ export default function CohortsContinuityView({
         method: 'DELETE',
         headers: { 'X-WP-Nonce': nonce },
       });
-      if (!res.ok) throw new Error('Failed to delete team.');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.message || 'Failed to delete team.');
+      }
       onFeedback({ ok: true, msg: `Deleted team "${name}".` });
       await onRefreshAll();
     } catch (err: any) {
