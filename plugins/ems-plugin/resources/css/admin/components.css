@@ -1701,7 +1701,8 @@ tr.ems-table-group-header:hover td,
 
 /* ─── Expedition Signups Matrix Table by District and Unit ───────────────── */
 .ems-matrix-table-wrap {
-    overflow-x: auto;
+    overflow: auto;
+    max-height: 560px;
     margin-top: 16px;
     border: 1px solid var(--ems-border, #E7E5E4);
     border-radius: var(--ems-radius, 8px);
@@ -1709,15 +1710,28 @@ tr.ems-table-group-header:hover td,
 
 .ems-matrix-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 13px;
     text-align: left;
+}
+
+.ems-matrix-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 4;
 }
 
 .ems-matrix-table th,
 .ems-matrix-table td {
     padding: 8px 10px;
-    border: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ems-matrix-table th:first-child,
+.ems-matrix-table td:first-child {
+    border-left: 1px solid #e2e8f0;
 }
 
 .ems-matrix-table thead th {
@@ -1725,6 +1739,7 @@ tr.ems-table-group-header:hover td,
     font-weight: 600;
     color: #475569;
     font-size: 12px;
+    border-top: 1px solid #e2e8f0;
 }
 
 .ems-matrix-table thead th.ems-matrix-th-level {
@@ -1847,6 +1862,50 @@ tr.ems-table-group-header:hover td,
 .ems-matrix-col-unit {
     color: #1e293b;
     background: #ffffff;
+    font-weight: 500;
+}
+
+.ems-matrix-col-unit--indented {
+    padding-left: 28px !important;
+}
+
+.ems-matrix-district-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    width: 100%;
+}
+
+.ems-matrix-district-toggle:hover .ems-table-group-header__title {
+    text-decoration: underline;
+}
+
+.ems-matrix-district-chevron {
+    font-size: 11px;
+    color: #334155;
+    width: 12px;
+    display: inline-block;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.ems-matrix-cell--missing-exped {
+    background-color: #fffbeb !important;
+    box-shadow: inset 0 0 0 1px #fde68a;
+}
+
+.ems-matrix-cell--missing-exped .ems-matrix-btn-cell,
+.ems-matrix-cell--missing-exped .ems-matrix-muted-zero {
+    color: #92400e !important;
+    font-weight: 700;
 }
 
 .ems-matrix-col-subtotal-label {
@@ -2232,11 +2291,144 @@ tr.ems-table-group-header:hover td,
     margin-top: 6px;
 }
 
+.ems-dashboard-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 960px) {
+    .ems-dashboard-kpi-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .ems-dashboard-kpi-strip {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ems-dashboard-kpi-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #64748b;
+    background: #ffffff;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.ems-dashboard-kpi-card:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.ems-dashboard-kpi-card--participant {
+    border-left-color: #2271b1;
+}
+
+.ems-dashboard-kpi-card--expedition {
+    border-left-color: #15803d;
+}
+
+.ems-dashboard-kpi-card--warning {
+    border-left-color: #d97706;
+    background: #fffbeb;
+}
+
+.ems-dashboard-kpi-card--warning:hover {
+    background: #fef3c7;
+}
+
+.ems-dashboard-kpi-card--clean {
+    border-left-color: #15803d;
+}
+
+.ems-dashboard-kpi-card__label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #50575e;
+}
+
+.ems-dashboard-kpi-card__value {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #1d2327;
+    font-variant-numeric: tabular-nums;
+}
+
+.ems-dashboard-kpi-card__sub {
+    font-size: 12px;
+    color: #646970;
+}
+
+.ems-dashboard-footnote {
+    font-size: 12px;
+    color: #50575e;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
 .ems-dashboard-level-card {
     display: flex;
     flex-direction: column;
     gap: 12px;
     padding: 14px 16px;
+    border-top: 3px solid #cbd5e1;
+}
+
+.ems-dashboard-level-card--bronze {
+    border-top-color: #ba8748;
+}
+
+.ems-dashboard-level-card--silver {
+    border-top-color: #64748b;
+}
+
+.ems-dashboard-level-card--gold {
+    border-top-color: #b4975a;
+}
+
+.ems-dashboard-level-title--bronze {
+    color: #935a13;
+}
+
+.ems-dashboard-level-title--silver {
+    color: #475569;
+}
+
+.ems-dashboard-level-title--gold {
+    color: #854d0e;
+}
+
+.ems-dashboard-anomaly-pill {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+    font-weight: 500;
+}
+
+.ems-dashboard-anomaly-pill:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+}
+
+.ems-dashboard-no-anomalies {
+    font-size: 12px;
+    color: #64748b;
+    font-style: italic;
 }
 
 .ems-dashboard-level-main {

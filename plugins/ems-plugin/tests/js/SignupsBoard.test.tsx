@@ -452,11 +452,15 @@ describe('SignupsBoard', () => {
 
         await waitFor(() => {
             expect(screen.getByTestId('card-signups-by-level')).toBeInTheDocument();
+            expect(screen.getByTestId('dashboard-kpi-strip')).toBeInTheDocument();
+            expect(screen.getByTestId('kpi-unique-explorers')).toBeInTheDocument();
+            expect(screen.getByTestId('kpi-participant-places')).toBeInTheDocument();
+            expect(screen.getByTestId('kpi-expedition-signups')).toBeInTheDocument();
+            expect(screen.getByTestId('kpi-anomalies-triage')).toBeInTheDocument();
             expect(screen.getByText(/Signups by DofE Level/i)).toBeInTheDocument();
             expect(screen.getByTestId('card-level-bronze')).toBeInTheDocument();
             expect(screen.getByTestId('card-level-silver')).toBeInTheDocument();
             expect(screen.getByTestId('card-level-gold')).toBeInTheDocument();
-            expect(screen.getByTestId('card-no-expedition')).toBeInTheDocument();
             expect(screen.getByText(/Cumulative Signups by Week/i)).toBeInTheDocument();
         });
         expect(document.querySelectorAll('.ems-dashboard-progress').length).toBe(0);
@@ -475,10 +479,11 @@ describe('SignupsBoard', () => {
         expect(screen.getByTestId('card-level-silver')).toHaveTextContent(/Silver/i);
         expect(screen.getByTestId('card-level-gold')).toHaveTextContent(/Gold/i);
 
-        // Verify breakdowns (unique explorers, not raw form count)
+        // Verify KPI strip & breakdowns (unique explorers, not raw form count)
         expect(screen.getByTestId('metric-type-total')).toHaveTextContent('4');
         expect(screen.getByTestId('metric-type-participant')).toHaveTextContent('3');
         expect(screen.getByTestId('metric-type-expedition')).toHaveTextContent('2');
+        expect(screen.getByTestId('metric-anomalies-total')).toHaveTextContent('4');
         expect(screen.getByTestId('metric-level-bronze')).toHaveTextContent('2');
         expect(screen.getByTestId('metric-level-silver')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-level-gold')).toHaveTextContent('1');
@@ -486,27 +491,21 @@ describe('SignupsBoard', () => {
         expect(screen.getByTestId('metric-level-gold-biking')).toHaveTextContent('1');
         expect(screen.getByTestId('metric-level-bronze-paddling')).toHaveTextContent('0');
 
-        // Verify Participant Place Only (Alice Smith - bronze, Charlie Smith - silver; Mary has exped)
-        expect(screen.getByTestId('metric-no-expedition-total')).toHaveTextContent('2');
-        expect(screen.getByTestId('metric-no-expedition-bronze')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-no-expedition-silver')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-no-expedition-gold')).toHaveTextContent('0');
+        // Verify unified SignupAnomalyService anomaly pills (non-zero shown, zero-count hidden)
+        expect(screen.getByTestId('metric-anomaly-place_without_expedition-bronze')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-anomaly-place_without_expedition-silver')).toHaveTextContent('1');
+        expect(screen.queryByTestId('metric-anomaly-place_without_expedition-gold')).not.toBeInTheDocument();
 
-        // Verify Expedition Only (Bob Smith - gold expedition without participant place)
-        expect(screen.getByTestId('metric-no-participant-total')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-no-participant-bronze')).toHaveTextContent('0');
-        expect(screen.getByTestId('metric-no-participant-silver')).toHaveTextContent('0');
-        expect(screen.getByTestId('metric-no-participant-gold')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-anomaly-expedition_without_place-gold')).toHaveTextContent('1');
+        expect(screen.queryByTestId('metric-anomaly-expedition_without_place-bronze')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('metric-anomaly-expedition_without_place-silver')).not.toBeInTheDocument();
 
-        // Verify Duplicate Signups per level (Mary Jones has 2 bronze participant signups)
-        expect(screen.getByTestId('metric-duplicates-bronze')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-duplicates-silver')).toHaveTextContent('0');
+        expect(screen.getByTestId('metric-anomaly-duplicate_signup-bronze')).toHaveTextContent('1');
+        expect(screen.queryByTestId('metric-anomaly-duplicate_signup-silver')).not.toBeInTheDocument();
 
-        // Verify both OSM anomalies per level (Alice Smith = bronze candidate match, Charlie Smith = silver no match)
-        expect(screen.getByTestId('metric-unmatched-candidates-bronze')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-unmatched-no-match-bronze')).toHaveTextContent('0');
-        expect(screen.getByTestId('metric-unmatched-candidates-silver')).toHaveTextContent('0');
-        expect(screen.getByTestId('metric-unmatched-no-match-silver')).toHaveTextContent('1');
+        // Participant-only signups do not trigger unmatched_osm; Bob Smith (gold, scout_id 30002, is_synced_osm 1) is synced
+        expect(screen.queryByTestId('metric-anomaly-unmatched_osm-bronze')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('metric-anomaly-unmatched_osm-silver')).not.toBeInTheDocument();
 
         // Verify cumulative chart renders 2 lines and a legend (Participant Place and Expedition Preference) without a Signup Type filter
         expect(screen.queryByLabelText(/Chart Signup Type/i)).not.toBeInTheDocument();
@@ -524,27 +523,63 @@ describe('SignupsBoard', () => {
         expect(screen.getByTestId('chart-cumulative-participant')).toHaveTextContent('1');
         expect(screen.getByTestId('chart-cumulative-expedition')).toHaveTextContent('0');
 
-        // Click "Participant Place Only" section to drill down to filtered Signups Table
-        fireEvent.click(screen.getByTestId('card-no-expedition'));
+        // Click a non-zero anomaly pill on Bronze card -> switches to Anomalies & Chasers pre-filtered to Bronze + that anomaly
+        fireEvent.click(screen.getByTestId('metric-anomaly-place_without_expedition-bronze'));
+        await waitFor(() => {
+            expect(screen.getByText(/Anomalies & Chasers \(1 Explorers\)/i)).toBeInTheDocument();
+            expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+            expect(screen.queryByText('Charlie Smith')).not.toBeInTheDocument();
+        });
+
+        // Switch back to Dashboard and click Participant Places KPI card to drill down to Signups Table
+        fireEvent.click(screen.getByRole('button', { name: /Dashboard/i }));
+        await waitFor(() => {
+            expect(screen.getByTestId('kpi-participant-places')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByTestId('kpi-participant-places'));
 
         await waitFor(() => {
             expect(screen.getByText('Alice Smith')).toBeInTheDocument();
             expect(screen.getByText('Charlie Smith')).toBeInTheDocument();
-            expect(screen.queryByText('Mary Jones')).not.toBeInTheDocument();
+            expect(screen.getByText('Mary Jones')).toBeInTheDocument();
             expect(screen.queryByText('Bob Smith')).not.toBeInTheDocument();
         });
 
-        // Switch back to Dashboard and click "Expedition Only" section
+        // Switch back to Dashboard and click Expedition Sign-ups KPI card
         fireEvent.click(screen.getByRole('button', { name: /Dashboard/i }));
         await waitFor(() => {
-            expect(screen.getByTestId('card-no-participant')).toBeInTheDocument();
+            expect(screen.getByTestId('kpi-expedition-signups')).toBeInTheDocument();
         });
-        fireEvent.click(screen.getByTestId('card-no-participant'));
+        fireEvent.click(screen.getByTestId('kpi-expedition-signups'));
 
         await waitFor(() => {
             expect(screen.getByText('Bob Smith')).toBeInTheDocument();
+            expect(screen.getByText('Mary Jones')).toBeInTheDocument();
             expect(screen.queryByText('Alice Smith')).not.toBeInTheDocument();
-            expect(screen.queryByText('Mary Jones')).not.toBeInTheDocument();
+        });
+    });
+
+    it('shows cross-level dual submission footnote when level explorer sum exceeds Unique Explorers', async () => {
+        const dualLevelSignups = [
+            ...mockCombinedSignups,
+            {
+                ...mockCombinedSignups[0],
+                id: 99,
+                dofe_level: 'silver', // Mary Jones now has both Bronze and Silver
+                created_at: '2026-06-25 10:00:00',
+            },
+        ];
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => dualLevelSignups })
+            .mockResolvedValueOnce({ ok: true, json: async () => mockExplorers });
+
+        render(<SignupsBoard />);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('cross-level-footnote')).toHaveTextContent(
+                /Level totals \(4\) exceed Unique Explorers \(3\) because 1 explorer has submissions across multiple award levels/i
+            );
         });
     });
 
@@ -1458,11 +1493,19 @@ describe('SignupsBoard', () => {
 
         const bordersSubtotal = screen.getByTestId('matrix-subtotal-Borders');
         expect(bordersSubtotal.classList.contains('ems-table-group-header')).toBe(true);
-        expect(within(bordersSubtotal).getByText('Borders Subtotal')).toHaveClass('ems-table-group-header__title');
+        expect(within(bordersSubtotal).getByText('Borders')).toHaveClass('ems-table-group-header__title');
         expect(within(bordersSubtotal).getByText('2 units')).toHaveClass('ems-table-group-header__badge');
 
         // Subtotal row is positioned ABOVE unit rows
         expect(bordersSubtotal.compareDocumentPosition(kelsoRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+        // Collapsing Borders hides its unit rows, expanding restores them
+        const bordersToggle = within(bordersSubtotal).getByRole('button', { name: /Borders/i });
+        fireEvent.click(bordersToggle);
+        expect(screen.queryByTestId('matrix-row-Kelso ESU')).not.toBeInTheDocument();
+        fireEvent.click(bordersToggle);
+        kelsoRow = screen.getByTestId('matrix-row-Kelso ESU');
+        expect(kelsoRow).toBeInTheDocument();
 
         // 1. Default mode: All Signups
         expect(within(kelsoRow).getByTestId('cell-bronze-participant')).toHaveTextContent('1');
@@ -1531,6 +1574,61 @@ describe('SignupsBoard', () => {
         });
     });
 
+    it('highlights Unit Summary cells in amber when Place > Exped', async () => {
+        const signupsWithMissingExped = [
+            {
+                id: 201,
+                type: 'participant',
+                scout_id: 30010,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Maya',
+                explorer_last_name: 'Patel',
+                dofe_level: 'bronze',
+                signup_status: 'submitted',
+                created_at: '2026-08-01 10:00:00',
+            },
+            {
+                id: 202,
+                type: 'participant',
+                scout_id: 30011,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Noah',
+                explorer_last_name: 'Reed',
+                dofe_level: 'bronze',
+                signup_status: 'submitted',
+                created_at: '2026-08-02 10:00:00',
+            },
+            {
+                id: 203,
+                type: 'expedition',
+                scout_id: 30010,
+                unit_name: 'Kelso ESU',
+                explorer_first_name: 'Maya',
+                explorer_last_name: 'Patel',
+                dofe_level: 'bronze',
+                expedition_preferences: { exped_type: 'Hillwalking' },
+                signup_status: 'submitted',
+                created_at: '2026-08-03 10:00:00',
+            },
+        ];
+
+        (global.fetch as any)
+            .mockResolvedValueOnce({ ok: true, json: async () => signupsWithMissingExped })
+            .mockResolvedValueOnce({ ok: true, json: async () => [] });
+
+        render(<SignupsBoard />);
+
+        const kelsoRow = await screen.findByTestId('matrix-row-Kelso ESU');
+        const bronzePlaceCell = within(kelsoRow).getByTestId('cell-bronze-participant');
+        const bronzeExpedCell = within(kelsoRow).getByTestId('cell-bronze-expedition');
+        const silverPlaceCell = within(kelsoRow).getByTestId('cell-silver-participant');
+
+        expect(bronzePlaceCell).toHaveClass('ems-matrix-cell--missing-exped');
+        expect(bronzeExpedCell).toHaveClass('ems-matrix-cell--missing-exped');
+        expect(bronzeExpedCell).toHaveAttribute('data-missing-exped', 'true');
+        expect(silverPlaceCell).not.toHaveClass('ems-matrix-cell--missing-exped');
+    });
+
     it('treats non-zero scout_id with is_synced_osm=0 as unmatched in badge and OSM Sync sort', async () => {
         const signups = [
             {
@@ -1593,7 +1691,8 @@ describe('SignupsBoard', () => {
         render(<SignupsBoard />);
 
         await waitFor(() => {
-            expect(screen.getByTestId('metric-unmatched-no-match-bronze')).toHaveTextContent('2');
+            expect(screen.getByTestId('metric-anomaly-place_without_expedition-bronze')).toHaveTextContent('3');
+            expect(screen.queryByTestId('metric-anomaly-unmatched_osm-bronze')).not.toBeInTheDocument();
         });
 
         fireEvent.click(screen.getByRole('button', { name: /Signups Table/i }));

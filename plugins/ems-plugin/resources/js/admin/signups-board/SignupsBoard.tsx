@@ -48,6 +48,8 @@ export default function SignupsBoard() {
     const osmIconInverseUrl = `${pluginUrl}assets/images/osm_icon_inverse.png`;
 
     const [activeViewTab, setActiveViewTab] = useState<'dashboard' | 'table' | 'anomalies'>('dashboard');
+    const [chaserInitialAnomalies, setChaserInitialAnomalies] = useState<string[] | undefined>(undefined);
+    const [chaserInitialLevel, setChaserInitialLevel] = useState<'all' | 'bronze' | 'silver' | 'gold'>('all');
     const [signups, setSignups] = useState<any[]>([]);
     const [explorers, setExplorers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -918,10 +920,12 @@ export default function SignupsBoard() {
                         className={`nav-tab ${activeViewTab === 'anomalies' ? 'nav-tab-active' : ''}`}
                         onClick={() => {
                             setSelectedSignup(null);
+                            setChaserInitialAnomalies(undefined);
+                            setChaserInitialLevel('all');
                             setActiveViewTab('anomalies');
                         }}
                     >
-                        Anomalies &amp; Chasers ({dashboardMetrics.unmatchedOsm.explorersCount + dashboardMetrics.participantWithoutExpedition.totalExplorers + dashboardMetrics.expeditionWithoutParticipant.totalExplorers})
+                        Anomalies &amp; Chasers ({dashboardMetrics.anomalies.totalExplorers})
                     </button>
                 </nav>
 
@@ -932,8 +936,21 @@ export default function SignupsBoard() {
                             explorers={explorers}
                             units={availableUnits}
                             onNavigateToTable={handleNavigateToTable}
-                            onOpenChaserTab={() => {
+                            onOpenChaserTab={(options) => {
                                 setSelectedSignup(null);
+                                if (options === 'unpaired_signups') {
+                                    setChaserInitialAnomalies(['place_without_expedition', 'expedition_without_place']);
+                                    setChaserInitialLevel('all');
+                                } else if (options === 'unmatched_osm') {
+                                    setChaserInitialAnomalies(['unmatched_osm', 'pending_osm_sync']);
+                                    setChaserInitialLevel('all');
+                                } else if (options && typeof options === 'object') {
+                                    setChaserInitialAnomalies(options.anomalies);
+                                    setChaserInitialLevel(options.level || 'all');
+                                } else {
+                                    setChaserInitialAnomalies(undefined);
+                                    setChaserInitialLevel('all');
+                                }
                                 setActiveViewTab('anomalies');
                             }}
                         />
@@ -943,6 +960,8 @@ export default function SignupsBoard() {
                         <UnitChaserView
                             signups={signups}
                             units={availableUnits}
+                            initialAnomalies={chaserInitialAnomalies}
+                            initialLevel={chaserInitialLevel}
                             onSelectExplorer={(s) => setSelectedSignup(s)}
                             onChaserSent={fetchData}
                         />

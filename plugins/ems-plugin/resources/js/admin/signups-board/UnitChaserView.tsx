@@ -8,29 +8,23 @@ import {
     faUser,
 } from '@fortawesome/free-solid-svg-icons';
 import {
+    ANOMALY_META,
+    computeSignupAnomaliesByKey,
+    getEffectiveSignupAnomalies,
     groupSignupsByExplorerIdentity,
-    isSignupSyncedWithOsm,
 } from './dashboardMetrics';
 import { getUnitDistrictMap, normalize } from './tableUtils';
 import { RichTextEditor, ShortcodeOption } from '../expedition-board/RichTextEditor';
 
 export type ChaserType = 'osm_share' | 'unpaired_signups' | 'missing_edofe';
-
-export const ANOMALY_META: { key: string; label: string }[] = [
-    { key: 'unmatched_osm', label: 'Unmatched OSM' },
-    { key: 'pending_osm_sync', label: 'Pending OSM Sync' },
-    { key: 'expedition_without_place', label: 'Expedition Without Place' },
-    { key: 'place_without_expedition', label: 'Place Without Expedition' },
-    { key: 'missing_edofe', label: 'Missing eDofE' },
-    { key: 'level_mismatch', label: 'Level Mismatch' },
-    { key: 'duplicate_signup', label: 'Duplicate' },
-    { key: 'unvalidated_asn', label: 'Unvalidated ASN' },
-];
+export { ANOMALY_META };
 
 interface UnitChaserViewProps {
     chaserType?: ChaserType;
     signups: any[];
     units: any[];
+    initialAnomalies?: string[];
+    initialLevel?: 'all' | 'bronze' | 'silver' | 'gold';
     onSelectExplorer?: (signup: any) => void;
     onChaserSent?: () => void;
 }
@@ -92,12 +86,17 @@ const escapeHtml = (str: string): string =>
 export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
     signups,
     units,
+    initialAnomalies,
+    initialLevel = 'all',
     onSelectExplorer,
     onChaserSent,
 }) => {
     const [selectedAnomalies, setSelectedAnomalies] = useState<string[]>(
-        ANOMALY_META.map((a) => a.key)
+        initialAnomalies && initialAnomalies.length > 0
+            ? initialAnomalies
+            : ANOMALY_META.map((a) => a.key)
     );
+    const [levelFilter, setLevelFilter] = useState<'all' | 'bronze' | 'silver' | 'gold'>(initialLevel);
     const [deselectedExplorerKeys, setDeselectedExplorerKeys] = useState<Set<string>>(() => new Set());
     const [history, setHistory] = useState<Record<string, string>>({});
     const [fluentSmtpUrl, setFluentSmtpUrl] = useState<string>('admin.php?page=fluent-mail#/logs');
@@ -113,10 +112,11 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
     useEffect(() => {
         if (!rootUrl) return;
         let active = true;
-        fetch(`${rootUrl}/signups/chaser-history?type=osm_share`, {
+        const req = fetch(`${rootUrl}/signups/chaser-history?type=osm_share`, {
             headers: { 'X-WP-Nonce': nonce },
-        })
-            .then((res) => (res.ok ? res.json() : null))
+        });
+        if (!req || typeof req.then !== 'function') return;
+        req.then((res) => (res && res.ok ? res.json() : null))
             .then((data) => {
                 if (!active || !data) return;
                 if (data.history && typeof data.history === 'object' && !Array.isArray(data.history)) {
@@ -149,30 +149,46 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
         );
     };
 
+    useEffect(() => {
+        if (initialAnomalies && initialAnomalies.length > 0) {
+            setSelectedAnomalies(initialAnomalies);
+        } else {
+            setSelectedAnomalies(ANOMALY_META.map((a) => a.key));
+        }
+    }, [initialAnomalies]);
+
+    useEffect(() => {
+        setLevelFilter(initialLevel || 'all');
+    }, [initialLevel]);
+
     const unitGroups = useMemo<UnitChaserGroup[]>(() => {
-        const activeSignups = (signups || []).filter((s: any) => s.signup_status !== 'archived');
+        const fallbackAnomalies = computeSignupAnomaliesByKey(signups || []);
+        const activeSignups = (signups || []).filter((s: any) => {
+            if ((s.signup_status || 'submitted') === 'archived') return false;
+            const stage = String(s.kanban_stage || '');
+            if (stage === 'cancelled') return false;
+            if (s.type === 'expedition' && stage === 'withdrawn') return false;
+            return true;
+        });
         const buckets = groupSignupsByExplorerIdentity(activeSignups);
         const byUnit: Record<string, UnitChaserGroup> = {};
 
         buckets.forEach((bucket, idx) => {
-            const primary = bucket.items[0];
+            const scopedItems =
+                levelFilter === 'all'
+                    ? bucket.items
+                    : bucket.items.filter((i: any) => normalize(i.dofe_level) === levelFilter);
+            if (scopedItems.length === 0) return;
+
+            const primary = scopedItems[0];
             if (!primary) return;
 
             const explorerAnomalies = new Set<string>();
-            bucket.items.forEach((item: any) => {
-                if (Array.isArray(item.anomalies) && item.anomalies.length > 0) {
-                    item.anomalies.forEach((a: string) => explorerAnomalies.add(a));
-                } else {
-                    if (!item.dofe_number) {
-                        explorerAnomalies.add('missing_edofe');
-                    }
-                }
+            scopedItems.forEach((item: any) => {
+                getEffectiveSignupAnomalies(item, fallbackAnomalies).forEach((a) =>
+                    explorerAnomalies.add(a)
+                );
             });
-            if (bucket.scoutId === 0) {
-                explorerAnomalies.add('unmatched_osm');
-            } else if (bucket.items.some((item: any) => !isSignupSyncedWithOsm(item))) {
-                explorerAnomalies.add('pending_osm_sync');
-            }
 
             const matching = Array.from(explorerAnomalies).filter((a) => selectedAnomalies.includes(a));
             if (matching.length === 0) return;
@@ -248,7 +264,7 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
         });
 
         return Object.values(byUnit).sort((a, b) => a.unitName.localeCompare(b.unitName));
-    }, [signups, selectedAnomalies, unitLookup, unitDistrictMap]);
+    }, [signups, selectedAnomalies, levelFilter, unitLookup, unitDistrictMap]);
 
     const isExplorerSelected = (key: string): boolean => !deselectedExplorerKeys.has(key);
 
@@ -460,6 +476,17 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                 </div>
 
                 <div className="ems-flex-center ems-wrap ems-gap-8">
+                    <select
+                        aria-label="Filter anomalies by award level"
+                        className="ems-select-sm"
+                        value={levelFilter}
+                        onChange={(e) => setLevelFilter(e.target.value as any)}
+                    >
+                        <option value="all">All Levels</option>
+                        <option value="bronze">Bronze</option>
+                        <option value="silver">Silver</option>
+                        <option value="gold">Gold</option>
+                    </select>
                     {ANOMALY_META.map((a) => {
                         const checked = selectedAnomalies.includes(a.key);
                         return (

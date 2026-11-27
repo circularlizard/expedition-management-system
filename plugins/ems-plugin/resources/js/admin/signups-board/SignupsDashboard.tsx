@@ -1,15 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faAward,
     faPersonHiking,
     faBicycle,
     faWater,
     faCampground,
-    faCompass,
     faChartLine
 } from '@fortawesome/free-solid-svg-icons';
 import {
+    ANOMALY_META,
+    AnomalyKey,
     computeSignupsDashboardMetrics,
     computeWeeklyCumulativeSeries,
     computeExpeditionDistrictUnitMatrix,
@@ -26,12 +26,18 @@ export interface TableDrilldownFilters {
     grouping?: 'none' | 'unit' | 'level' | 'explorer' | 'parent';
 }
 
+export type ChaserTabNavigationOptions =
+    | 'all'
+    | 'unmatched_osm'
+    | 'unpaired_signups'
+    | { anomalies: AnomalyKey[]; level?: 'all' | 'bronze' | 'silver' | 'gold' };
+
 interface SignupsDashboardProps {
     signups: any[];
     explorers?: any[];
     units?: any[];
     onNavigateToTable: (filters: TableDrilldownFilters) => void;
-    onOpenChaserTab?: (tab: 'unmatched_osm' | 'unpaired_signups') => void;
+    onOpenChaserTab?: (options: ChaserTabNavigationOptions) => void;
 }
 
 export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
@@ -47,6 +53,19 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     const [matrixDistrictFilter, setMatrixDistrictFilter] = useState<string>('all');
     const [matrixSearchQuery, setMatrixSearchQuery] = useState<string>('');
     const [matrixTypeFilter, setMatrixTypeFilter] = useState<'all' | 'expedition' | 'participant'>('all');
+    const [collapsedDistricts, setCollapsedDistricts] = useState<Set<string>>(() => new Set());
+
+    const toggleDistrict = (district: string) => {
+        setCollapsedDistricts((prev) => {
+            const next = new Set(prev);
+            if (next.has(district)) {
+                next.delete(district);
+            } else {
+                next.add(district);
+            }
+            return next;
+        });
+    };
 
     const renderCountBtn = (
         count: number,
@@ -106,6 +125,11 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
     );
 
     const totalSignups = metrics.byType.total;
+    const levelExplorersSum =
+        metrics.byLevel.bronze.uniqueExplorers +
+        metrics.byLevel.silver.uniqueExplorers +
+        metrics.byLevel.gold.uniqueExplorers;
+    const crossLevelDelta = levelExplorersSum - metrics.byType.uniqueExplorers;
 
     // SVG Chart dimensions and coordinate helpers
     const svgWidth = 860;
@@ -182,69 +206,8 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
             {/* Row 1: Unified Signups by DofE Level & Health Breakdown */}
             <div className="ems-overview-card" data-testid="card-signups-by-level">
                 <div className="ems-flex-between ems-wrap ems-gap-12">
-                    <div>
-                        <div className="ems-overview-card__title">
-                            <span><FontAwesomeIcon icon={faAward} /></span> Signups by DofE Level
-                        </div>
-                        <div className="ems-flex-center ems-gap-12 ems-wrap ems-mt-4">
-                            <span className="ems-dashboard-hero-number" data-testid="metric-type-total">
-                                {metrics.byType.uniqueExplorers}
-                            </span>
-                            <span className="ems-meta-text">
-                                Unique explorers ({totalSignups} form submissions)
-                            </span>
-                            <button
-                                type="button"
-                                className="ems-dashboard-mini-pill ems-cursor-pointer"
-                                onClick={() => onNavigateToTable({ typeFilter: 'participant', anomalyFilter: 'all' })}
-                            >
-                                <span className="ems-status-badge ems-status-badge--participant">Place</span>{' '}
-                                <strong data-testid="metric-type-participant">{metrics.byType.uniqueParticipant}</strong>
-                            </button>
-                            <button
-                                type="button"
-                                className="ems-dashboard-mini-pill ems-cursor-pointer"
-                                onClick={() => onNavigateToTable({ typeFilter: 'expedition', anomalyFilter: 'all' })}
-                            >
-                                <span className="ems-status-badge ems-status-badge--expedition">Exped</span>{' '}
-                                <strong data-testid="metric-type-expedition">{metrics.byType.uniqueExpedition}</strong>
-                            </button>
-                        </div>
-                    </div>
-
+                    <div className="ems-overview-card__title">Signups by DofE Level</div>
                     <div className="ems-flex-center ems-gap-8 ems-wrap">
-                        <button
-                            type="button"
-                            className="button button-small"
-                            data-testid="card-no-expedition"
-                            onClick={() =>
-                                onNavigateToTable({
-                                    typeFilter: 'participant',
-                                    anomalyFilter: 'no_expedition',
-                                })
-                            }
-                        >
-                            Place Only:{' '}
-                            <strong data-testid="metric-no-expedition-total">
-                                {metrics.participantWithoutExpedition.totalExplorers}
-                            </strong>
-                        </button>
-                        <button
-                            type="button"
-                            className="button button-small"
-                            data-testid="card-no-participant"
-                            onClick={() =>
-                                onNavigateToTable({
-                                    typeFilter: 'expedition',
-                                    anomalyFilter: 'no_participant',
-                                })
-                            }
-                        >
-                            Exped Only:{' '}
-                            <strong data-testid="metric-no-participant-total">
-                                {metrics.expeditionWithoutParticipant.totalExplorers}
-                            </strong>
-                        </button>
                         {onOpenChaserTab && (
                             <>
                                 <button
@@ -273,19 +236,90 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                     </div>
                 </div>
 
+                {/* 4-Card KPI Strip */}
+                <div className="ems-dashboard-kpi-strip ems-mt-12" data-testid="dashboard-kpi-strip">
+                    <button
+                        type="button"
+                        className="ems-dashboard-kpi-card"
+                        data-testid="kpi-unique-explorers"
+                        onClick={() => onNavigateToTable({ typeFilter: 'all', anomalyFilter: 'all' })}
+                    >
+                        <span className="ems-dashboard-kpi-card__label">Unique Explorers</span>
+                        <strong className="ems-dashboard-kpi-card__value" data-testid="metric-type-total">
+                            {metrics.byType.uniqueExplorers}
+                        </strong>
+                        <span className="ems-dashboard-kpi-card__sub">{totalSignups} form submissions</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className="ems-dashboard-kpi-card ems-dashboard-kpi-card--participant"
+                        data-testid="kpi-participant-places"
+                        onClick={() => onNavigateToTable({ typeFilter: 'participant', anomalyFilter: 'all' })}
+                    >
+                        <span className="ems-dashboard-kpi-card__label">Participant Places</span>
+                        <strong className="ems-dashboard-kpi-card__value" data-testid="metric-type-participant">
+                            {metrics.byType.uniqueParticipant}
+                        </strong>
+                        <span className="ems-dashboard-kpi-card__sub">{metrics.byType.participant} submissions</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className="ems-dashboard-kpi-card ems-dashboard-kpi-card--expedition"
+                        data-testid="kpi-expedition-signups"
+                        onClick={() => onNavigateToTable({ typeFilter: 'expedition', anomalyFilter: 'all' })}
+                    >
+                        <span className="ems-dashboard-kpi-card__label">Expedition Sign-ups</span>
+                        <strong className="ems-dashboard-kpi-card__value" data-testid="metric-type-expedition">
+                            {metrics.byType.uniqueExpedition}
+                        </strong>
+                        <span className="ems-dashboard-kpi-card__sub">{metrics.byType.expedition} submissions</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className={`ems-dashboard-kpi-card ${metrics.anomalies.totalExplorers > 0 ? 'ems-dashboard-kpi-card--warning' : 'ems-dashboard-kpi-card--clean'}`}
+                        data-testid="kpi-anomalies-triage"
+                        onClick={() => onOpenChaserTab?.('all')}
+                    >
+                        <span className="ems-dashboard-kpi-card__label">Anomalies Needing Triage</span>
+                        <strong className="ems-dashboard-kpi-card__value" data-testid="metric-anomalies-total">
+                            {metrics.anomalies.totalExplorers}
+                        </strong>
+                        <span className="ems-dashboard-kpi-card__sub">
+                            {metrics.anomalies.totalExplorers > 0 ? 'Triage & chase →' : 'All signups clean'}
+                        </span>
+                    </button>
+                </div>
+
+                {crossLevelDelta > 0 && (
+                    <div
+                        className="ems-dashboard-footnote ems-mt-8"
+                        data-testid="cross-level-footnote"
+                        title="Explorers who submitted forms across more than one DofE award level are counted once per level."
+                    >
+                        Level totals ({levelExplorersSum}) exceed Unique Explorers ({metrics.byType.uniqueExplorers}) because{' '}
+                        {crossLevelDelta} explorer{crossLevelDelta === 1 ? ' has' : 's have'} submissions across multiple award levels.
+                    </div>
+                )}
+
                 <div className="ems-dashboard-grid-3 ems-mt-12">
                     {(['bronze', 'silver', 'gold'] as const).map((lvl) => {
                         const data = metrics.byLevel[lvl];
                         const label = lvl.charAt(0).toUpperCase() + lvl.slice(1);
-                        const placeOnly = metrics.participantWithoutExpedition.byLevel[lvl];
-                        const expedOnly = metrics.expeditionWithoutParticipant.byLevel[lvl];
                         const paired = metrics.pairedExplorers.byLevel[lvl];
-                        const dupes = metrics.duplicates.byLevel[lvl];
-                        const osmCandidates = metrics.unmatchedOsm.withCandidatesByLevel[lvl];
-                        const osmNoMatch = metrics.unmatchedOsm.noMatchByLevel[lvl];
+                        const activeAnomalies = ANOMALY_META.map((a) => ({
+                            ...a,
+                            count: metrics.anomalies.byType[a.key].byLevel[lvl],
+                        })).filter((a) => a.count > 0);
 
                         return (
-                            <div key={lvl} className="ems-dashboard-stat-item ems-dashboard-level-card" data-testid={`card-level-${lvl}`}>
+                            <div
+                                key={lvl}
+                                className={`ems-dashboard-stat-item ems-dashboard-level-card ems-dashboard-level-card--${lvl}`}
+                                data-testid={`card-level-${lvl}`}
+                            >
                                 <div className="ems-dashboard-level-main">
                                     <img
                                         src={`${pluginUrl}assets/images/dofe_logo_${lvl}.png`}
@@ -293,7 +327,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                         className="ems-dashboard-level-logo"
                                     />
                                     <div className="ems-dashboard-level-stats">
-                                        <div className="ems-dashboard-level-title">{label}</div>
+                                        <div className={`ems-dashboard-level-title ems-dashboard-level-title--${lvl}`}>{label}</div>
                                         <div
                                             className="ems-flex-center ems-gap-8 ems-cursor-pointer ems-mt-4"
                                             onClick={() => onNavigateToTable({ levelFilter: lvl, anomalyFilter: 'all' })}
@@ -381,77 +415,28 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                 <div className="ems-dashboard-level-section">
                                     <div className="ems-dashboard-level-section-label">Anomalies</div>
                                     <div className="ems-dashboard-level-anomalies">
-                                    <button
-                                        type="button"
-                                        className="ems-dashboard-mini-pill"
-                                        onClick={() =>
-                                            onNavigateToTable({
-                                                typeFilter: 'participant',
-                                                levelFilter: lvl,
-                                                anomalyFilter: 'no_expedition',
-                                            })
-                                        }
-                                    >
-                                        Place Only:{' '}
-                                        <strong data-testid={`metric-no-expedition-${lvl}`}>{placeOnly}</strong>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="ems-dashboard-mini-pill"
-                                        onClick={() =>
-                                            onNavigateToTable({
-                                                typeFilter: 'expedition',
-                                                levelFilter: lvl,
-                                                anomalyFilter: 'no_participant',
-                                            })
-                                        }
-                                    >
-                                        Exped Only:{' '}
-                                        <strong data-testid={`metric-no-participant-${lvl}`}>{expedOnly}</strong>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="ems-dashboard-mini-pill"
-                                        onClick={() =>
-                                            onNavigateToTable({
-                                                typeFilter: 'all',
-                                                levelFilter: lvl,
-                                                anomalyFilter: 'duplicate',
-                                                grouping: 'explorer',
-                                            })
-                                        }
-                                    >
-                                        Duplicates:{' '}
-                                        <strong data-testid={`metric-duplicates-${lvl}`}>{dupes}</strong>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="ems-dashboard-mini-pill"
-                                        onClick={() =>
-                                            onNavigateToTable({
-                                                typeFilter: 'all',
-                                                levelFilter: lvl,
-                                                anomalyFilter: 'unmatched_osm',
-                                            })
-                                        }
-                                    >
-                                        OSM Candidate Match:{' '}
-                                        <strong data-testid={`metric-unmatched-candidates-${lvl}`}>{osmCandidates}</strong>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="ems-dashboard-mini-pill"
-                                        onClick={() =>
-                                            onNavigateToTable({
-                                                typeFilter: 'all',
-                                                levelFilter: lvl,
-                                                anomalyFilter: 'unmatched_osm',
-                                            })
-                                        }
-                                    >
-                                        OSM No Match:{' '}
-                                        <strong data-testid={`metric-unmatched-no-match-${lvl}`}>{osmNoMatch}</strong>
-                                    </button>
+                                        {activeAnomalies.length === 0 ? (
+                                            <span className="ems-dashboard-no-anomalies" data-testid={`no-anomalies-${lvl}`}>
+                                                No active anomalies
+                                            </span>
+                                        ) : (
+                                            activeAnomalies.map((anomaly) => (
+                                                <button
+                                                    key={anomaly.key}
+                                                    type="button"
+                                                    className="ems-dashboard-mini-pill ems-dashboard-anomaly-pill"
+                                                    data-testid={`metric-anomaly-${anomaly.key}-${lvl}`}
+                                                    onClick={() =>
+                                                        onOpenChaserTab?.({
+                                                            anomalies: [anomaly.key],
+                                                            level: lvl,
+                                                        })
+                                                    }
+                                                >
+                                                    {anomaly.label}: <strong>{anomaly.count}</strong>
+                                                </button>
+                                            ))
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -464,9 +449,7 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
             <div className="ems-overview-card" data-testid="expedition-signups-matrix-card">
                 <div className="ems-dashboard-chart-header">
                     <div>
-                        <div className="ems-overview-card__title">
-                            <span><FontAwesomeIcon icon={faCompass} /></span> Unit Summary
-                        </div>
+                        <div className="ems-overview-card__title">Unit Summary</div>
                         <div className="ems-meta-text">
                             Breakdown of explorer registrations across scouting districts and explorer units split by DofE level and expedition mode.
                         </div>
@@ -566,89 +549,96 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                 {matrixTypeFilter === 'expedition' ? (
                                     <>
                                         <tr>
-                                            <th rowSpan={2} scope="col">District</th>
                                             <th rowSpan={2} scope="col">Unit</th>
                                             <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-bronze">
-                                                <FontAwesomeIcon icon={faAward} /> Bronze
+                                                Bronze
                                             </th>
                                             <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-silver">
-                                                <FontAwesomeIcon icon={faAward} /> Silver
+                                                Silver
                                             </th>
                                             <th colSpan={3} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-gold">
-                                                <FontAwesomeIcon icon={faAward} /> Gold
+                                                Gold
                                             </th>
                                             <th rowSpan={2} scope="col" className="ems-matrix-th-level">Total</th>
                                         </tr>
                                         <tr>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faPersonHiking} /> HW</th>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faBicycle} /> Bike</th>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faWater} /> Paddle</th>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faPersonHiking} /> HW</th>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faBicycle} /> Bike</th>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faWater} /> Paddle</th>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faPersonHiking} /> HW</th>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faBicycle} /> Bike</th>
-                                            <th scope="col" className="ems-matrix-th-sub"><FontAwesomeIcon icon={faWater} /> Paddle</th>
+                                            <th scope="col" className="ems-matrix-th-sub">HW</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Bike</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Paddle</th>
+                                            <th scope="col" className="ems-matrix-th-sub">HW</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Bike</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Paddle</th>
+                                            <th scope="col" className="ems-matrix-th-sub">HW</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Bike</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Paddle</th>
                                         </tr>
                                     </>
                                 ) : matrixTypeFilter === 'participant' ? (
                                     <tr>
-                                        <th scope="col">District</th>
                                         <th scope="col">Unit</th>
                                         <th scope="col" className="ems-matrix-th-level ems-matrix-th-bronze">
-                                            <FontAwesomeIcon icon={faAward} /> Bronze
+                                            Bronze
                                         </th>
                                         <th scope="col" className="ems-matrix-th-level ems-matrix-th-silver">
-                                            <FontAwesomeIcon icon={faAward} /> Silver
+                                            Silver
                                         </th>
                                         <th scope="col" className="ems-matrix-th-level ems-matrix-th-gold">
-                                            <FontAwesomeIcon icon={faAward} /> Gold
+                                            Gold
                                         </th>
                                         <th scope="col" className="ems-matrix-th-level">Total</th>
                                     </tr>
                                 ) : (
                                     <>
                                         <tr>
-                                            <th rowSpan={2} scope="col">District</th>
                                             <th rowSpan={2} scope="col">Unit</th>
                                             <th colSpan={2} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-bronze">
-                                                <FontAwesomeIcon icon={faAward} /> Bronze
+                                                Bronze
                                             </th>
                                             <th colSpan={2} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-silver">
-                                                <FontAwesomeIcon icon={faAward} /> Silver
+                                                Silver
                                             </th>
                                             <th colSpan={2} scope="colgroup" className="ems-matrix-th-level ems-matrix-th-gold">
-                                                <FontAwesomeIcon icon={faAward} /> Gold
+                                                Gold
                                             </th>
                                             <th rowSpan={2} scope="col" className="ems-matrix-th-level">Total</th>
                                         </tr>
                                         <tr>
-                                            <th scope="col" className="ems-matrix-th-sub">Places</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Place</th>
                                             <th scope="col" className="ems-matrix-th-sub">Exped</th>
-                                            <th scope="col" className="ems-matrix-th-sub">Places</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Place</th>
                                             <th scope="col" className="ems-matrix-th-sub">Exped</th>
-                                            <th scope="col" className="ems-matrix-th-sub">Places</th>
+                                            <th scope="col" className="ems-matrix-th-sub">Place</th>
                                             <th scope="col" className="ems-matrix-th-sub">Exped</th>
                                         </tr>
                                     </>
                                 )}
                             </thead>
                             <tbody>
-                                {filteredMatrixGroups.map((group) => (
+                                {filteredMatrixGroups.map((group) => {
+                                    const isCollapsed = collapsedDistricts.has(group.district);
+                                    return (
                                     <React.Fragment key={group.district}>
-                                        {/* District Subtotal (Positioned ABOVE the unit rows) */}
+                                        {/* District Collapsible Group Header */}
                                         <tr
                                             key={`subtotal_${group.district}`}
                                             className="ems-matrix-row-subtotal ems-table-group-header"
                                             data-testid={`matrix-subtotal-${group.district}`}
                                         >
-                                            <td colSpan={2} className="ems-matrix-col-subtotal-label">
-                                                <div className="ems-table-group-header__content">
-                                                    <span className="ems-table-group-header__title">{group.district} Subtotal</span>
+                                            <td className="ems-matrix-col-subtotal-label">
+                                                <button
+                                                    type="button"
+                                                    className="ems-matrix-district-toggle"
+                                                    aria-expanded={!isCollapsed}
+                                                    onClick={() => toggleDistrict(group.district)}
+                                                >
+                                                    <span className="ems-matrix-district-chevron" aria-hidden="true">
+                                                        {isCollapsed ? '▸' : '▾'}
+                                                    </span>
+                                                    <span className="ems-table-group-header__title">{group.district}</span>
                                                     <span className="ems-table-group-header__badge">
                                                         {group.units.length} {group.units.length === 1 ? 'unit' : 'units'}
                                                     </span>
-                                                </div>
+                                                </button>
                                             </td>
                                             {matrixTypeFilter === 'expedition' ? (
                                                 <>
@@ -729,10 +719,13 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                         </tr>
 
                                         {/* Unit Rows */}
-                                        {group.units.map((row) => (
+                                        {!isCollapsed && group.units.map((row) => {
+                                            const bronzeMissingExped = row.counts.bronze.participant > row.counts.bronze.expedition;
+                                            const silverMissingExped = row.counts.silver.participant > row.counts.silver.expedition;
+                                            const goldMissingExped = row.counts.gold.participant > row.counts.gold.expedition;
+                                            return (
                                             <tr key={`${group.district}_${row.unit}`} data-testid={`matrix-row-${row.unit}`}>
-                                                <th scope="row" className="ems-matrix-col-district">{group.district}</th>
-                                                <td className="ems-matrix-col-unit">{row.unit}</td>
+                                                <th scope="row" className="ems-matrix-col-unit ems-matrix-col-unit--indented">{row.unit}</th>
 
                                                 {matrixTypeFilter === 'expedition' ? (
                                                     <>
@@ -787,22 +780,52 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <td className="ems-matrix-cell-number" data-testid="cell-bronze-participant">
+                                                        <td
+                                                            className={`ems-matrix-cell-number ${bronzeMissingExped ? 'ems-matrix-cell--missing-exped' : ''}`}
+                                                            data-testid="cell-bronze-participant"
+                                                            data-missing-exped={bronzeMissingExped ? 'true' : undefined}
+                                                            title={bronzeMissingExped ? `Missing expedition sign-ups (${row.counts.bronze.participant} places vs ${row.counts.bronze.expedition} exped)` : undefined}
+                                                        >
                                                             {renderCountBtn(row.counts.bronze.participant, { typeFilter: 'participant', levelFilter: 'bronze', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
                                                         </td>
-                                                        <td className="ems-matrix-cell-number" data-testid="cell-bronze-expedition">
+                                                        <td
+                                                            className={`ems-matrix-cell-number ${bronzeMissingExped ? 'ems-matrix-cell--missing-exped' : ''}`}
+                                                            data-testid="cell-bronze-expedition"
+                                                            data-missing-exped={bronzeMissingExped ? 'true' : undefined}
+                                                            title={bronzeMissingExped ? `Missing expedition sign-ups (${row.counts.bronze.participant} places vs ${row.counts.bronze.expedition} exped)` : undefined}
+                                                        >
                                                             {renderCountBtn(row.counts.bronze.expedition, { typeFilter: 'expedition', levelFilter: 'bronze', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
                                                         </td>
-                                                        <td className="ems-matrix-cell-number" data-testid="cell-silver-participant">
+                                                        <td
+                                                            className={`ems-matrix-cell-number ${silverMissingExped ? 'ems-matrix-cell--missing-exped' : ''}`}
+                                                            data-testid="cell-silver-participant"
+                                                            data-missing-exped={silverMissingExped ? 'true' : undefined}
+                                                            title={silverMissingExped ? `Missing expedition sign-ups (${row.counts.silver.participant} places vs ${row.counts.silver.expedition} exped)` : undefined}
+                                                        >
                                                             {renderCountBtn(row.counts.silver.participant, { typeFilter: 'participant', levelFilter: 'silver', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
                                                         </td>
-                                                        <td className="ems-matrix-cell-number" data-testid="cell-silver-expedition">
+                                                        <td
+                                                            className={`ems-matrix-cell-number ${silverMissingExped ? 'ems-matrix-cell--missing-exped' : ''}`}
+                                                            data-testid="cell-silver-expedition"
+                                                            data-missing-exped={silverMissingExped ? 'true' : undefined}
+                                                            title={silverMissingExped ? `Missing expedition sign-ups (${row.counts.silver.participant} places vs ${row.counts.silver.expedition} exped)` : undefined}
+                                                        >
                                                             {renderCountBtn(row.counts.silver.expedition, { typeFilter: 'expedition', levelFilter: 'silver', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
                                                         </td>
-                                                        <td className="ems-matrix-cell-number" data-testid="cell-gold-participant">
+                                                        <td
+                                                            className={`ems-matrix-cell-number ${goldMissingExped ? 'ems-matrix-cell--missing-exped' : ''}`}
+                                                            data-testid="cell-gold-participant"
+                                                            data-missing-exped={goldMissingExped ? 'true' : undefined}
+                                                            title={goldMissingExped ? `Missing expedition sign-ups (${row.counts.gold.participant} places vs ${row.counts.gold.expedition} exped)` : undefined}
+                                                        >
                                                             {renderCountBtn(row.counts.gold.participant, { typeFilter: 'participant', levelFilter: 'gold', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
                                                         </td>
-                                                        <td className="ems-matrix-cell-number" data-testid="cell-gold-expedition">
+                                                        <td
+                                                            className={`ems-matrix-cell-number ${goldMissingExped ? 'ems-matrix-cell--missing-exped' : ''}`}
+                                                            data-testid="cell-gold-expedition"
+                                                            data-missing-exped={goldMissingExped ? 'true' : undefined}
+                                                            title={goldMissingExped ? `Missing expedition sign-ups (${row.counts.gold.participant} places vs ${row.counts.gold.expedition} exped)` : undefined}
+                                                        >
                                                             {renderCountBtn(row.counts.gold.expedition, { typeFilter: 'expedition', levelFilter: 'gold', unitFilter: row.unit, districtFilter: group.district, anomalyFilter: 'all' })}
                                                         </td>
                                                         <td className="ems-matrix-cell-number" data-testid="cell-total">
@@ -811,13 +834,15 @@ export const SignupsDashboard: React.FC<SignupsDashboardProps> = ({
                                                     </>
                                                 )}
                                             </tr>
-                                        ))}
+                                            );
+                                        })}
                                     </React.Fragment>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                             <tfoot>
                                 <tr className="ems-matrix-row-grand-total" data-testid="matrix-grand-total">
-                                    <td colSpan={2} className="ems-matrix-col-subtotal-label">
+                                    <td className="ems-matrix-col-subtotal-label">
                                         <strong>Total</strong>
                                     </td>
                                     {matrixTypeFilter === 'expedition' ? (

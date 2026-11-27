@@ -13,6 +13,40 @@ export interface LevelBreakdown {
     };
 }
 
+export type AnomalyKey =
+    | 'place_without_expedition'
+    | 'expedition_without_place'
+    | 'level_mismatch'
+    | 'duplicate_signup'
+    | 'unmatched_osm'
+    | 'pending_osm_sync'
+    | 'missing_edofe'
+    | 'unvalidated_asn';
+
+export const ANOMALY_META: { key: AnomalyKey; label: string }[] = [
+    { key: 'place_without_expedition', label: 'Place Without Expedition' },
+    { key: 'expedition_without_place', label: 'Expedition Without Place' },
+    { key: 'level_mismatch', label: 'Level Mismatch' },
+    { key: 'duplicate_signup', label: 'Duplicate' },
+    { key: 'unmatched_osm', label: 'Unmatched OSM' },
+    { key: 'pending_osm_sync', label: 'Pending OSM Sync' },
+    { key: 'missing_edofe', label: 'Missing eDofE' },
+    { key: 'unvalidated_asn', label: 'Unvalidated ASN' },
+];
+
+const ANOMALY_KEY_SET = new Set<string>(ANOMALY_META.map((a) => a.key));
+
+export interface AnomalyTypeMetric {
+    explorersCount: number;
+    rowsCount: number;
+    byLevel: {
+        bronze: number;
+        silver: number;
+        gold: number;
+    };
+    signupKeys: Set<string>;
+}
+
 export interface UnpairedGroupMetric {
     totalExplorers: number;
     totalRows: number;
@@ -43,6 +77,10 @@ export interface DashboardMetrics {
         biking: number;
         paddling: number;
         unspecified: number;
+    };
+    anomalies: {
+        totalExplorers: number;
+        byType: Record<AnomalyKey, AnomalyTypeMetric>;
     };
     participantWithoutExpedition: UnpairedGroupMetric;
     expeditionWithoutParticipant: UnpairedGroupMetric;
@@ -461,7 +499,148 @@ export function groupSignupsByExplorerIdentity(signups: any[]): ExplorerBucket[]
     return groups;
 }
 
+const buildAnomalyIdentityKey = (item: any): string => {
+    const scoutId = Number(item?.scout_id || 0);
+    if (scoutId > 0) {
+        return `scout:${scoutId}`;
+    }
+    const first = normalize(item?.explorer_first_name);
+    const last = normalize(item?.explorer_last_name);
+    const parent = normalize(item?.parent_email);
+    return `name:${first}|${last}|${parent}`;
+};
+
+/**
+ * Mirrors server-side SignupAnomalyService::computeAnomalies() as a fallback
+ * when signup rows do not carry precomputed `anomalies` from the REST API.
+ */
+export function computeSignupAnomaliesByKey(signups: any[]): Map<string, AnomalyKey[]> {
+    const byKey = new Map<string, AnomalyKey[]>();
+    const all: any[] = [];
+
+    (signups || []).forEach((row) => {
+        if (!row) return;
+        const stage = String(row.kanban_stage || '');
+        if (row.type === 'participant') {
+            if (stage === 'cancelled') return;
+            all.push(row);
+        } else if (row.type === 'expedition') {
+            if ((row.signup_status || 'submitted') === 'archived') return;
+            if (stage === 'cancelled' || stage === 'withdrawn') return;
+            all.push(row);
+        }
+    });
+
+    const buckets = new Map<string, any[]>();
+    const dupMap = new Map<string, string[]>();
+
+    all.forEach((item) => {
+        const identity = buildAnomalyIdentityKey(item);
+        const list = buckets.get(identity) || [];
+        list.push(item);
+        buckets.set(identity, list);
+
+        if ((item.signup_status || 'submitted') !== 'archived') {
+            const type = String(item.type || '');
+            const level = normalize(item.dofe_level);
+            const dupKey = `${identity}|${type}|${level}`;
+            const dupList = dupMap.get(dupKey) || [];
+            dupList.push(`${type}_${Number(item.id || 0)}`);
+            dupMap.set(dupKey, dupList);
+        }
+    });
+
+    buckets.forEach((items) => {
+        const pLevels = new Set<string>();
+        const eLevels = new Set<string>();
+
+        items.forEach((item) => {
+            const lvl = normalize(item.dofe_level);
+            if (item.type === 'participant') {
+                pLevels.add(lvl);
+            } else if (item.type === 'expedition') {
+                eLevels.add(lvl);
+            }
+        });
+
+        const hasP = pLevels.size > 0;
+        const hasE = eLevels.size > 0;
+        const levelMismatch =
+            hasP &&
+            hasE &&
+            (pLevels.size !== eLevels.size || Array.from(pLevels).some((l) => !eLevels.has(l)));
+
+        items.forEach((item) => {
+            if ((item.signup_status || 'submitted') === 'archived') return;
+
+            const type = String(item.type || '');
+            const lvl = normalize(item.dofe_level);
+            const flags: AnomalyKey[] = [];
+
+            if (type === 'participant' && !eLevels.has(lvl)) {
+                flags.push('place_without_expedition');
+            }
+            if (type === 'expedition' && !pLevels.has(lvl) && !item.participant_place_allocated) {
+                flags.push('expedition_without_place');
+            }
+            if (levelMismatch) {
+                flags.push('level_mismatch');
+            }
+
+            const dupKey = `${buildAnomalyIdentityKey(item)}|${type}|${lvl}`;
+            if ((dupMap.get(dupKey)?.length || 0) > 1) {
+                flags.push('duplicate_signup');
+            }
+
+            if (type === 'expedition') {
+                const scoutId = Number(item.scout_id || 0);
+                if (scoutId === 0) {
+                    flags.push('unmatched_osm');
+                } else if (!item.is_synced_osm || item.is_synced_osm === 0) {
+                    flags.push('pending_osm_sync');
+                }
+
+                const asn = String(item.additional_support_needs || '').trim();
+                const asnValidated = item.asn_validated;
+                if (asn !== '' && (asnValidated === null || asnValidated === undefined || Number(asnValidated) === 0)) {
+                    flags.push('unvalidated_asn');
+                }
+            }
+
+            if (String(item.dofe_number || '').trim() === '') {
+                flags.push('missing_edofe');
+            }
+
+            byKey.set(getSignupRecordKey(item), flags);
+        });
+    });
+
+    return byKey;
+}
+
+export function getEffectiveSignupAnomalies(
+    item: any,
+    fallbackByKey: Map<string, AnomalyKey[]>
+): AnomalyKey[] {
+    if (Array.isArray(item?.anomalies)) {
+        return item.anomalies.filter((a: any): a is AnomalyKey => ANOMALY_KEY_SET.has(String(a)));
+    }
+    return fallbackByKey.get(getSignupRecordKey(item)) || [];
+}
+
+const createEmptyAnomalyTypeMetric = (): AnomalyTypeMetric => ({
+    explorersCount: 0,
+    rowsCount: 0,
+    byLevel: {
+        bronze: 0,
+        silver: 0,
+        gold: 0,
+    },
+    signupKeys: new Set<string>(),
+});
+
 export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] = []): DashboardMetrics {
+    const fallbackAnomalies = computeSignupAnomaliesByKey(signups);
     const metrics: DashboardMetrics = {
         byType: {
             total: signups.length,
@@ -481,6 +660,19 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
             biking: 0,
             paddling: 0,
             unspecified: 0,
+        },
+        anomalies: {
+            totalExplorers: 0,
+            byType: {
+                place_without_expedition: createEmptyAnomalyTypeMetric(),
+                expedition_without_place: createEmptyAnomalyTypeMetric(),
+                level_mismatch: createEmptyAnomalyTypeMetric(),
+                duplicate_signup: createEmptyAnomalyTypeMetric(),
+                unmatched_osm: createEmptyAnomalyTypeMetric(),
+                pending_osm_sync: createEmptyAnomalyTypeMetric(),
+                missing_edofe: createEmptyAnomalyTypeMetric(),
+                unvalidated_asn: createEmptyAnomalyTypeMetric(),
+            },
         },
         participantWithoutExpedition: {
             totalExplorers: 0,
@@ -562,11 +754,6 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
             if (isParticipant) metrics.byLevel[level].participant++;
             if (isExpedition) metrics.byLevel[level].expedition++;
         }
-
-        if (!isSignupSyncedWithOsm(s)) {
-            metrics.unmatchedOsm.rowsCount++;
-            metrics.unmatchedOsm.signupKeys.add(getSignupRecordKey(s));
-        }
     });
 
     const explorerGroups = groupSignupsByExplorerIdentity(signups);
@@ -590,8 +777,50 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
             metrics.byExpeditionType[et]++;
         });
 
-        let hasAnyPlaceWithoutExped = false;
-        let hasAnyExpedWithoutPlace = false;
+        // Unified anomaly aggregation matching SignupAnomalyService & Anomalies & Chasers tab
+        const activeItems = group.items.filter((i) => {
+            if ((i.signup_status || 'submitted') === 'archived') return false;
+            const stage = String(i.kanban_stage || '');
+            if (stage === 'cancelled') return false;
+            if (i.type === 'expedition' && stage === 'withdrawn') return false;
+            return true;
+        });
+
+        const explorerAnomalies = new Set<AnomalyKey>();
+        const levelAnomalies: Record<'bronze' | 'silver' | 'gold', Set<AnomalyKey>> = {
+            bronze: new Set<AnomalyKey>(),
+            silver: new Set<AnomalyKey>(),
+            gold: new Set<AnomalyKey>(),
+        };
+
+        activeItems.forEach((item) => {
+            const flags = getEffectiveSignupAnomalies(item, fallbackAnomalies);
+            const itemKey = getSignupRecordKey(item);
+            const itemLvl = normalize(item.dofe_level);
+
+            flags.forEach((flag) => {
+                explorerAnomalies.add(flag);
+                metrics.anomalies.byType[flag].rowsCount++;
+                metrics.anomalies.byType[flag].signupKeys.add(itemKey);
+                if (itemLvl === 'bronze' || itemLvl === 'silver' || itemLvl === 'gold') {
+                    levelAnomalies[itemLvl].add(flag);
+                }
+            });
+        });
+
+        if (explorerAnomalies.size > 0) {
+            metrics.anomalies.totalExplorers++;
+            explorerAnomalies.forEach((flag) => {
+                metrics.anomalies.byType[flag].explorersCount++;
+            });
+        }
+
+        levels.forEach((lvl) => {
+            levelAnomalies[lvl].forEach((flag) => {
+                metrics.anomalies.byType[flag].byLevel[lvl]++;
+            });
+        });
+
         let hasAnyPaired = false;
 
         levels.forEach((lvl) => {
@@ -620,39 +849,19 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
                 });
             }
 
-            if (lvlParticipants.length > 0 && lvlExpeditions.length === 0) {
-                hasAnyPlaceWithoutExped = true;
-                metrics.participantWithoutExpedition.byLevel[lvl]++;
-                metrics.participantWithoutExpedition.totalRows += lvlParticipants.length;
-                lvlParticipants.forEach((item) => {
-                    metrics.participantWithoutExpedition.signupKeys.add(getSignupRecordKey(item));
-                });
-            } else if (lvlExpeditions.length > 0 && lvlParticipants.length === 0) {
-                hasAnyExpedWithoutPlace = true;
-                metrics.expeditionWithoutParticipant.byLevel[lvl]++;
-                metrics.expeditionWithoutParticipant.totalRows += lvlExpeditions.length;
-                lvlExpeditions.forEach((item) => {
-                    metrics.expeditionWithoutParticipant.signupKeys.add(getSignupRecordKey(item));
-                });
-            } else if (lvlParticipants.length > 0 && lvlExpeditions.length > 0) {
+            if (lvlParticipants.length > 0 && lvlExpeditions.length > 0) {
                 hasAnyPaired = true;
                 metrics.pairedExplorers.byLevel[lvl]++;
             }
         });
 
-        if (hasAnyPlaceWithoutExped) {
-            metrics.participantWithoutExpedition.totalExplorers++;
-        }
-        if (hasAnyExpedWithoutPlace) {
-            metrics.expeditionWithoutParticipant.totalExplorers++;
-        }
         if (hasAnyPaired) {
             metrics.pairedExplorers.totalExplorers++;
         }
 
-        // 2. Duplicate Signups (same explorer, same form type, same DofE level)
+        // Duplicate Signups (legacy breakdown kept in sync with duplicate_signup)
         const byTypeAndLevel: Record<string, any[]> = {};
-        group.items.forEach((item) => {
+        activeItems.forEach((item) => {
             const key = `${item.type}_${normalize(item.dofe_level)}`;
             if (!byTypeAndLevel[key]) {
                 byTypeAndLevel[key] = [];
@@ -663,28 +872,21 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
         Object.values(byTypeAndLevel).forEach((bucket) => {
             if (bucket.length > 1) {
                 metrics.duplicates.groupsCount++;
-                metrics.duplicates.rowsCount += bucket.length;
-                const bucketLvl = normalize(bucket[0].dofe_level);
-                if (bucketLvl === 'bronze' || bucketLvl === 'silver' || bucketLvl === 'gold') {
-                    metrics.duplicates.byLevel[bucketLvl]++;
-                }
                 if (bucket[0].type === 'participant') {
                     metrics.duplicates.participantGroups++;
                 } else if (bucket[0].type === 'expedition') {
                     metrics.duplicates.expeditionGroups++;
                 }
-                bucket.forEach((item) => {
-                    metrics.duplicates.signupKeys.add(getSignupRecordKey(item));
-                });
             }
         });
 
-        // 3. Unmatched OSM unique explorer count (overall, candidate vs no-match, and per level)
-        const hasUnmatched = group.items.some((s) => !isSignupSyncedWithOsm(s));
-        if (hasUnmatched) {
-            metrics.unmatchedOsm.explorersCount++;
-            const hasCandidate = group.items.some(
-                (s) => !isSignupSyncedWithOsm(s) && getMatchSuggestions(s, explorers).length > 0
+        // Unmatched OSM candidate vs no-match breakdown (expedition only, matching SignupAnomalyService)
+        const unmatchedItems = activeItems.filter((item) =>
+            getEffectiveSignupAnomalies(item, fallbackAnomalies).includes('unmatched_osm')
+        );
+        if (unmatchedItems.length > 0) {
+            const hasCandidate = unmatchedItems.some(
+                (s) => getMatchSuggestions(s, explorers).length > 0
             );
             if (hasCandidate) {
                 metrics.unmatchedOsm.withCandidatesCount++;
@@ -693,11 +895,10 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
             }
         }
         levels.forEach((lvl) => {
-            const lvlUnmatchedItems = group.items.filter(
-                (s) => normalize(s.dofe_level) === lvl && !isSignupSyncedWithOsm(s)
+            const lvlUnmatchedItems = unmatchedItems.filter(
+                (s) => normalize(s.dofe_level) === lvl
             );
             if (lvlUnmatchedItems.length > 0) {
-                metrics.unmatchedOsm.byLevel[lvl]++;
                 const hasLvlCandidate = lvlUnmatchedItems.some(
                     (s) => getMatchSuggestions(s, explorers).length > 0
                 );
@@ -709,6 +910,30 @@ export function computeSignupsDashboardMetrics(signups: any[], explorers: any[] 
             }
         });
     });
+
+    // Keep legacy top-level fields synced with unified SignupAnomalyService counts
+    const pWithoutE = metrics.anomalies.byType.place_without_expedition;
+    metrics.participantWithoutExpedition.totalExplorers = pWithoutE.explorersCount;
+    metrics.participantWithoutExpedition.totalRows = pWithoutE.rowsCount;
+    metrics.participantWithoutExpedition.byLevel = { ...pWithoutE.byLevel };
+    metrics.participantWithoutExpedition.signupKeys = pWithoutE.signupKeys;
+
+    const eWithoutP = metrics.anomalies.byType.expedition_without_place;
+    metrics.expeditionWithoutParticipant.totalExplorers = eWithoutP.explorersCount;
+    metrics.expeditionWithoutParticipant.totalRows = eWithoutP.rowsCount;
+    metrics.expeditionWithoutParticipant.byLevel = { ...eWithoutP.byLevel };
+    metrics.expeditionWithoutParticipant.signupKeys = eWithoutP.signupKeys;
+
+    const dup = metrics.anomalies.byType.duplicate_signup;
+    metrics.duplicates.rowsCount = dup.rowsCount;
+    metrics.duplicates.byLevel = { ...dup.byLevel };
+    metrics.duplicates.signupKeys = dup.signupKeys;
+
+    const osm = metrics.anomalies.byType.unmatched_osm;
+    metrics.unmatchedOsm.rowsCount = osm.rowsCount;
+    metrics.unmatchedOsm.explorersCount = osm.explorersCount;
+    metrics.unmatchedOsm.byLevel = { ...osm.byLevel };
+    metrics.unmatchedOsm.signupKeys = osm.signupKeys;
 
     return metrics;
 }
