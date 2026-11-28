@@ -288,6 +288,16 @@ class TeamController {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/teams/solver/expeditions',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_solver_expeditions' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/teams/solver/propose',
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -865,6 +875,18 @@ class TeamController {
 		$weights = is_array( $body['weights'] ?? null ) ? $body['weights'] : $body;
 		return new \WP_REST_Response(
 			array( 'weights' => $this->get_team_solver()->saveWeights( $weights ) ),
+			200
+		);
+	}
+
+	public function get_solver_expeditions( \WP_REST_Request $request ): \WP_REST_Response {
+		$params = array(
+			'scope'          => sanitize_text_field( (string) ( $request->get_param( 'scope' ) ?? 'bucket' ) ),
+			'dofe_level'     => sanitize_text_field( (string) ( $request->get_param( 'dofe_level' ) ?? '' ) ),
+			'transport_mode' => sanitize_text_field( (string) ( $request->get_param( 'transport_mode' ) ?? '' ) ),
+		);
+		return new \WP_REST_Response(
+			array( 'expeditions' => $this->get_team_solver()->getSelectableExpeditions( $params ) ),
 			200
 		);
 	}

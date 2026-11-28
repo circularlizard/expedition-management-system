@@ -285,9 +285,16 @@ describe('AutoProposeTeamsModal', () => {
     expect(screen.getByText(/Cross-bucket match: Gavin Reid is signed up for Gold Hillwalking/i)).toBeInTheDocument();
     expect(screen.getByText(/No matching sign-up found in this bucket/i)).toBeInTheDocument();
 
-    // Select first ambiguous radio candidate
+    // Select first ambiguous radio candidate -> immediately auto-saves via PUT
     const radios = screen.getAllByRole('radio');
     fireEvent.click(radios[0]);
+
+    await waitFor(() => {
+      const putCalls = fetchMock.mock.calls.filter(
+        ([u, i]) => typeof u === 'string' && u.includes('/preferences/101') && i?.method === 'PUT'
+      );
+      expect(putCalls.length).toBeGreaterThanOrEqual(1);
+    });
 
     // Toggle Prefer / Avoid on the negation-flagged token (Bob Brown)
     const avoidButtons = screen.getAllByRole('button', { name: 'Avoid' });
@@ -308,20 +315,35 @@ describe('AutoProposeTeamsModal', () => {
     const addCandBtn = await screen.findByRole('button', { name: /Robert Brown \(Lauderdale ESU\)/i });
     fireEvent.click(addCandBtn);
 
-    // Toggle Show All Explorers
+    // Inline Saved ✓ status pill appears after auto-save
+    expect(await screen.findByText('Saved ✓')).toBeInTheDocument();
+
+    // Toggle Show All Explorers -> renders unit groups & sequential numbering
     fireEvent.click(screen.getByRole('checkbox', { name: /Show All Explorers/i }));
     expect(await screen.findByText('Clara Fraser')).toBeInTheDocument();
+    expect(screen.getByText('#1 of 2')).toBeInTheDocument();
+    expect(screen.getByText('#2 of 2')).toBeInTheDocument();
 
-    // Save & Proceed to Step 2
-    fireEvent.click(screen.getByRole('button', { name: /Save & Proceed to Step 2/i }));
+    // Unit groups are collapsible via their header button
+    const pentlandHeader = screen.getByRole('button', { name: /Pentland ESU/i });
+    expect(pentlandHeader).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(pentlandHeader);
+    expect(pentlandHeader).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Clara Fraser')).not.toBeInTheDocument();
+    fireEvent.click(pentlandHeader);
+    expect(pentlandHeader).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Clara Fraser')).toBeInTheDocument();
+
+    // Proceed to Step 2
+    fireEvent.click(screen.getByRole('button', { name: /Proceed to Step 2/i }));
 
     await waitFor(() => {
-      const putCall = fetchMock.mock.calls.find(
+      const putCalls = fetchMock.mock.calls.filter(
         ([u, i]) => typeof u === 'string' && u.includes('/preferences/101') && i?.method === 'PUT'
       );
-      expect(putCall).toBeDefined();
-      const body = JSON.parse(String(putCall?.[1]?.body));
-      expect(body.decisions).toEqual(
+      expect(putCalls.length).toBeGreaterThanOrEqual(4);
+      const lastBody = JSON.parse(String(putCalls[putCalls.length - 1]?.[1]?.body));
+      expect(lastBody.decisions).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ id: 1, target_signup_id: 201, match_status: 'confirmed', preference_type: 'prefer' }),
           expect.objectContaining({ id: 2, target_signup_id: 204, match_status: 'confirmed', preference_type: 'avoid' }),
@@ -380,9 +402,9 @@ describe('AutoProposeTeamsModal', () => {
       />
     );
 
-    // Zero flagged items -> Skip to Step 2 available
-    const skipBtn = await screen.findByRole('button', { name: /Skip to Step 2/i });
-    fireEvent.click(skipBtn);
+    // Zero flagged items -> Proceed to Step 2 available
+    const proceedBtn = await screen.findByRole('button', { name: /Proceed to Step 2/i });
+    fireEvent.click(proceedBtn);
 
     // Step 2: Scope selector & default weights
     expect(screen.getByLabelText(/Avoid exclusions/i)).toHaveValue(-500);
@@ -492,8 +514,8 @@ describe('AutoProposeTeamsModal', () => {
       if (url.includes('/preferences/queue')) {
         return { ok: true, json: async () => unitPrefQueue };
       }
-      if (url.includes('/preferences/genders') && init?.method === 'PUT') {
-        return { ok: true, json: async () => ({ updated: 1 }) };
+      if (url.includes('/preferences/501') && init?.method === 'PUT') {
+        return { ok: true, json: async () => ({ updated: 1, gender: 'male', items: [] }) };
       }
       if (url.includes('/teams/solver/propose')) {
         return { ok: true, json: async () => genderProposal };
@@ -520,23 +542,23 @@ describe('AutoProposeTeamsModal', () => {
     expect(screen.getByRole('button', { name: 'Avoid' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'No Match' })).toBeInTheDocument();
 
-    // Gender selector defaults to Female ('female') and updates via PUT /preferences/genders
+    // Gender selector defaults to Female ('female') and updates via PUT /preferences/501
     const genderSelect = screen.getByLabelText('Gender for Sophie Kerr') as HTMLSelectElement;
     expect(genderSelect.value).toBe('female');
     fireEvent.change(genderSelect, { target: { value: 'male' } });
 
     await waitFor(() => {
       const genderCall = fetchMock.mock.calls.find(
-        ([u, i]) => typeof u === 'string' && u.includes('/preferences/genders') && i?.method === 'PUT'
+        ([u, i]) => typeof u === 'string' && u.includes('/preferences/501') && i?.method === 'PUT'
       );
       expect(genderCall).toBeDefined();
-      expect(JSON.parse(String(genderCall?.[1]?.body))).toEqual({
-        genders: [{ signup_id: 501, gender: 'male' }],
-      });
+      expect(JSON.parse(String(genderCall?.[1]?.body))).toEqual(
+        expect.objectContaining({ gender: 'male' })
+      );
     });
 
     // Proceed to Step 2
-    fireEvent.click(screen.getByRole('button', { name: /Skip to Step 2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Proceed to Step 2/i }));
 
     // Multi-level defaults to Full Season, first radio shows Current filter (Bronze, Silver / Hillwalking)
     expect(screen.getByRole('radio', { name: /Full Season \(All Buckets/i })).toBeChecked();
@@ -557,6 +579,115 @@ describe('AutoProposeTeamsModal', () => {
     expect(await screen.findByText(/1M \/ 1F/i)).toBeInTheDocument();
     expect(screen.getByText(/Solo Gender Teams:/i)).toBeInTheDocument();
     expect(screen.getByText(/H-BP1-2 \(practice: Sophie Kerr — solo female\)/i)).toBeInTheDocument();
+  });
+
+  it('supports in-modal level/mode scope switching and Step 2 Target Expeditions to Fill filtering', async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes('/preferences/parse')) {
+        return { ok: true, json: async () => ({ parsed: 2 }) };
+      }
+      if (url.includes('/preferences/queue')) {
+        return { ok: true, json: async () => mockAllQueue };
+      }
+      if (url.includes('/teams/solver/expeditions')) {
+        return {
+          ok: true,
+          json: async () => ({
+            expeditions: [
+              {
+                expedition_id: 10,
+                event_code: 'H-SP1',
+                title: 'Silver Practice 1',
+                stage: 'practice',
+                dofe_level: 'silver',
+                transport_mode: 'foot',
+                start_date: '2026-05-28',
+                available_count: 42,
+              },
+              {
+                expedition_id: 11,
+                event_code: 'H-SP2',
+                title: 'Silver Practice 2',
+                stage: 'practice',
+                dofe_level: 'silver',
+                transport_mode: 'foot',
+                start_date: '2026-06-11',
+                available_count: 18,
+              },
+              {
+                expedition_id: 20,
+                event_code: 'H-SQ1',
+                title: 'Silver Qualifier 1',
+                stage: 'qualifier',
+                dofe_level: 'silver',
+                transport_mode: 'foot',
+                start_date: '2026-07-02',
+                available_count: 40,
+              },
+            ],
+          }),
+        };
+      }
+      if (url.includes('/teams/solver/propose') && init?.method === 'POST') {
+        return { ok: true, json: async () => mockProposal };
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    render(
+      <AutoProposeTeamsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        level="silver"
+        transport="hillwalking"
+        onRefreshAll={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByText('Alice MacLeod')).toBeInTheDocument();
+
+    // Switch mode to Biking via in-modal toolbar
+    fireEvent.click(screen.getByRole('button', { name: 'Biking' }));
+    expect(await screen.findByText(/Silver · Biking · Step 1 of 2/i)).toBeInTheDocument();
+
+    // Switch back to Hillwalking and proceed to Step 2
+    fireEvent.click(screen.getByRole('button', { name: 'Hillwalking' }));
+    const proceedBtn = screen.getByRole('button', { name: /Proceed to Step 2/i });
+    await waitFor(() => expect(proceedBtn).not.toBeDisabled());
+    fireEvent.click(proceedBtn);
+
+    // Target Expeditions to Fill checklist renders with availability counts
+    expect(await screen.findByText('Target Expeditions to Fill')).toBeInTheDocument();
+    const sp1Checkbox = screen.getByRole('checkbox', { name: /H-SP1/i });
+    const sp2Checkbox = screen.getByRole('checkbox', { name: /H-SP2/i });
+    const sq1Checkbox = screen.getByRole('checkbox', { name: /H-SQ1/i });
+    expect(sp1Checkbox).toBeChecked();
+    expect(sp2Checkbox).toBeChecked();
+    expect(sq1Checkbox).toBeChecked();
+
+    // Unchecking both Practice expeditions disables Generate Proposal with validation error
+    fireEvent.click(sp1Checkbox);
+    fireEvent.click(sp2Checkbox);
+    expect(screen.getByText(/Select at least 1 Practice expedition for Silver Hillwalking/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Generate Proposal/i })).toBeDisabled();
+
+    // Re-check H-SP2 and generate proposal -> passes included_expedition_codes: ['H-SQ1', 'H-SP2']
+    fireEvent.click(sp2Checkbox);
+    const generateBtn = screen.getByRole('button', { name: /Generate Proposal/i });
+    expect(generateBtn).not.toBeDisabled();
+    fireEvent.click(generateBtn);
+
+    await waitFor(() => {
+      const proposeCall = fetchMock.mock.calls.find(
+        ([u, i]) => typeof u === 'string' && u.includes('/teams/solver/propose') && i?.method === 'POST'
+      );
+      expect(proposeCall).toBeDefined();
+      const body = JSON.parse(String(proposeCall?.[1]?.body));
+      expect(body.included_expedition_codes).toEqual(expect.arrayContaining(['H-SP2', 'H-SQ1']));
+      expect(body.included_expedition_codes).not.toContain('H-SP1');
+    });
   });
 });
 

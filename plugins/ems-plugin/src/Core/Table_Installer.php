@@ -121,6 +121,17 @@ class Table_Installer {
 			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN additional_support_needs TEXT DEFAULT NULL AFTER dofe_number" );
 		}
 
+		if ( ! $this->column_exists( $wpdb, $explorers_table, 'gender' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$explorers_table} ADD COLUMN gender VARCHAR(20) DEFAULT NULL AFTER patrol" );
+		}
+
+		$signups_table = $wpdb->prefix . 'ems_expedition_signups';
+		if ( ! $this->column_exists( $wpdb, $signups_table, 'gender' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$signups_table} ADD COLUMN gender VARCHAR(20) DEFAULT NULL AFTER dob" );
+		}
+
 		$participant_table = $wpdb->prefix . 'ems_participant_signups';
 		if ( ! $this->column_exists( $wpdb, $participant_table, 'leader_email' ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -560,6 +571,7 @@ class Table_Installer {
             p2_email1            VARCHAR(100)    NOT NULL DEFAULT '',
             p2_email2            VARCHAR(100)    NOT NULL DEFAULT '',
             patrol               VARCHAR(100)    NOT NULL DEFAULT '',
+            gender               VARCHAR(20)              DEFAULT NULL,
             first_aid_level      VARCHAR(30)     NOT NULL DEFAULT 'none',
             dofe_number          VARCHAR(50)              DEFAULT NULL,
             additional_support_needs TEXT                 DEFAULT NULL,
@@ -676,6 +688,7 @@ class Table_Installer {
             leader_email           VARCHAR(100)             DEFAULT NULL,
             dofe_level             VARCHAR(20)     NOT NULL,
             dob                    DATE                     DEFAULT NULL,
+            gender                 VARCHAR(20)              DEFAULT NULL,
             dofe_registered        VARCHAR(50)     NOT NULL DEFAULT 'n',
             dofe_number            VARCHAR(50)              DEFAULT NULL,
             expedition_preferences TEXT                     DEFAULT NULL,

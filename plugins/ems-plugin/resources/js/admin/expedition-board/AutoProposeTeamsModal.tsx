@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faCheck,
+  faChevronDown,
+  faChevronRight,
   faCircleCheck,
   faCircleExclamation,
   faMagnifyingGlass,
@@ -18,6 +19,7 @@ import type {
   PreferenceQueueItemDTO,
   PreferenceQueueResponseDTO,
   PreferenceTokenDTO,
+  SelectableExpeditionDTO,
   SolverApplyResponseDTO,
   SolverProposalDTO,
   SolverWeightsDTO,
@@ -132,11 +134,21 @@ interface TokenDraft {
 }
 
 interface AddedTeammateDraft {
+  id?: number;
   tempKey: string;
   target_signup_id: number;
   explorer_name: string;
   unit_name: string;
   preference_type: TeammatePreferenceType;
+}
+
+const ALL_LEVELS: Array<'bronze' | 'silver' | 'gold'> = ['bronze', 'silver', 'gold'];
+
+function formatShortDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
 function buildApiUrl(rootUrl: string, path: string): string {
@@ -210,13 +222,16 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
   const config = window.emsExpeditionBoard || { root_url: '/wp-json/ems/v1', nonce: '' };
   const rootUrl = propRootUrl || config.root_url;
   const nonce = propNonce !== undefined ? propNonce : config.nonce;
-  const canonicalTransport = useMemo(() => toCanonicalTransportMode(transport), [transport]);
-  const selectedLevels = useMemo(
+  const initialCanonicalTransport = useMemo(() => toCanonicalTransportMode(transport), [transport]);
+  const initialSelectedLevels = useMemo(
     () => (levels && levels.length > 0 ? levels : [level]),
     [levels, level]
   );
-  const selectedLevelsKey = selectedLevels.join(',');
-  const isMultiLevel = selectedLevels.length > 1;
+
+  const [activeLevels, setActiveLevels] = useState<Array<'bronze' | 'silver' | 'gold'>>(initialSelectedLevels);
+  const [activeTransport, setActiveTransport] = useState<string>(initialCanonicalTransport);
+  const activeLevelsKey = activeLevels.join(',');
+  const isMultiLevel = activeLevels.length > 1 || activeTransport === 'all';
 
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -228,6 +243,9 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
   const [tokenDrafts, setTokenDrafts] = useState<Record<number, TokenDraft>>({});
   const [addedBySource, setAddedBySource] = useState<Record<number, AddedTeammateDraft[]>>({});
   const [genderDrafts, setGenderDrafts] = useState<Record<number, ExplorerGender>>({});
+  const [cardSaveState, setCardSaveState] = useState<Record<number, 'saving' | 'saved' | 'error'>>({});
+  const [collapsedUnits, setCollapsedUnits] = useState<Record<string, boolean>>({});
+  const inFlightSavesRef = useRef<Map<number, Promise<void>>>(new Map());
 
   // Bucket-scoped search picker state (keyed by `token-${tokenId}` or `add-${sourceSignupId}`)
   const [searchOpenKey, setSearchOpenKey] = useState<string | null>(null);
@@ -240,6 +258,9 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
   const [solverScope, setSolverScope] = useState<'bucket' | 'full_season'>(
     isMultiLevel ? 'full_season' : 'bucket'
   );
+  const [selectableExpeditions, setSelectableExpeditions] = useState<SelectableExpeditionDTO[]>([]);
+  const [loadingExpeditions, setLoadingExpeditions] = useState(false);
+  const [includedCodes, setIncludedCodes] = useState<string[]>([]);
   const [weights, setWeights] = useState<SolverWeightsDTO>(DEFAULT_WEIGHTS);
   const [savingWeights, setSavingWeights] = useState(false);
   const [weightsSavedMsg, setWeightsSavedMsg] = useState<string | null>(null);
@@ -274,14 +295,20 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
   }, []);
 
   const fetchQueue = useCallback(
-    async (filter: 'needs_review' | 'all') => {
+    async (
+      filter: 'needs_review' | 'all',
+      levelsToFetch: Array<'bronze' | 'silver' | 'gold'> = activeLevels,
+      transportToFetch: string = activeTransport
+    ) => {
       const results = await Promise.all(
-        selectedLevels.map(async (lvl) => {
+        levelsToFetch.map(async (lvl) => {
           const params = new URLSearchParams({
             dofe_level: lvl,
-            transport_mode: canonicalTransport,
             filter,
           });
+          if (transportToFetch && transportToFetch !== 'all') {
+            params.set('transport_mode', transportToFetch);
+          }
           const res = await fetch(`${buildApiUrl(rootUrl, '/preferences/queue')}?${params.toString()}`, {
             headers: { 'X-WP-Nonce': nonce },
           });
@@ -338,26 +365,63 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
       hydrateDrafts(normalized.items);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rootUrl, nonce, selectedLevelsKey, canonicalTransport, hydrateDrafts]
+    [rootUrl, nonce, activeLevelsKey, activeTransport, hydrateDrafts]
+  );
+
+  const parseAndLoadScope = useCallback(
+    async (
+      filter: 'needs_review' | 'all',
+      levelsToLoad: Array<'bronze' | 'silver' | 'gold'>,
+      transportToLoad: string
+    ) => {
+      await Promise.all(
+        levelsToLoad.map(async (lvl) => {
+          const payload: Record<string, string> = { dofe_level: lvl };
+          if (transportToLoad && transportToLoad !== 'all') {
+            payload.transport_mode = transportToLoad;
+          }
+          const parseRes = await fetch(buildApiUrl(rootUrl, '/preferences/parse'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-WP-Nonce': nonce,
+            },
+            body: JSON.stringify(payload),
+          });
+          if (!parseRes.ok) {
+            const errData = await parseRes.json().catch(() => ({}));
+            throw new Error(errData.message || `Failed to parse wishlists (HTTP ${parseRes.status})`);
+          }
+        })
+      );
+      await fetchQueue(filter, levelsToLoad, transportToLoad);
+    },
+    [rootUrl, nonce, fetchQueue]
   );
 
   // Run parse + initial queue load on open
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    setActiveLevels(initialSelectedLevels);
+    setActiveTransport(initialCanonicalTransport);
     setStep(1);
     setFilterMode('needs_review');
-    setSolverScope(isMultiLevel ? 'full_season' : 'bucket');
+    setSolverScope(initialSelectedLevels.length > 1 ? 'full_season' : 'bucket');
     setQueueError(null);
     setTokenDrafts({});
     setAddedBySource({});
     setGenderDrafts({});
+    setCardSaveState({});
+    setCollapsedUnits({});
     setSearchOpenKey(null);
     setProposal(null);
     setProposalError(null);
     setWarningsDismissed(false);
     setWeightsSavedMsg(null);
     setApplyError(null);
+    setSelectableExpeditions([]);
+    setIncludedCodes([]);
 
     // Load saved solver weights in the background (gracefully keep DEFAULT_WEIGHTS if unavailable)
     fetch(buildApiUrl(rootUrl, '/teams/solver/weights'), {
@@ -376,28 +440,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
     const init = async () => {
       setLoadingQueue(true);
       try {
-        await Promise.all(
-          selectedLevels.map(async (lvl) => {
-            const parseRes = await fetch(buildApiUrl(rootUrl, '/preferences/parse'), {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-WP-Nonce': nonce,
-              },
-              body: JSON.stringify({
-                dofe_level: lvl,
-                transport_mode: canonicalTransport,
-              }),
-            });
-            if (!parseRes.ok) {
-              const errData = await parseRes.json().catch(() => ({}));
-              throw new Error(errData.message || `Failed to parse wishlists (HTTP ${parseRes.status})`);
-            }
-          })
-        );
-        if (!cancelled) {
-          await fetchQueue('needs_review');
-        }
+        await parseAndLoadScope('needs_review', initialSelectedLevels, initialCanonicalTransport);
       } catch (err) {
         if (!cancelled) {
           setQueueError(err instanceof Error ? err.message : 'Failed to parse teammate wishlists.');
@@ -414,27 +457,204 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, rootUrl, nonce, selectedLevelsKey, isMultiLevel, canonicalTransport, fetchQueue]);
+  }, [isOpen, rootUrl, nonce, initialSelectedLevels, initialCanonicalTransport]);
 
-  const handleGenderChange = async (signupId: number, gender: ExplorerGender) => {
-    setGenderDrafts((prev) => ({ ...prev, [signupId]: gender }));
-    try {
-      const res = await fetch(buildApiUrl(rootUrl, '/preferences/genders'), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-WP-Nonce': nonce,
-        },
-        body: JSON.stringify({
-          genders: [{ signup_id: signupId, gender }],
-        }),
+  // Fetch selectable expeditions when entering Step 2 or changing solver scope
+  useEffect(() => {
+    if (!isOpen || step !== 2) return;
+    let cancelled = false;
+    setLoadingExpeditions(true);
+
+    const params = new URLSearchParams({
+      scope: solverScope,
+      dofe_level: activeLevels.join(','),
+    });
+    if (activeTransport && activeTransport !== 'all') {
+      params.set('transport_mode', activeTransport);
+    }
+
+    fetch(`${buildApiUrl(rootUrl, '/teams/solver/expeditions')}?${params.toString()}`, {
+      headers: { 'X-WP-Nonce': nonce },
+    })
+      .then((res) => (res && res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const list = Array.isArray(data?.expeditions) ? (data.expeditions as SelectableExpeditionDTO[]) : [];
+        setSelectableExpeditions(list);
+        setIncludedCodes(list.map((e) => e.event_code).filter(Boolean));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSelectableExpeditions([]);
+          setIncludedCodes([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingExpeditions(false);
+        }
       });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        setQueueError(errData.message || `Failed to update gender (HTTP ${res.status})`);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, step, solverScope, activeLevelsKey, activeTransport, rootUrl, nonce, activeLevels]);
+
+  const buildDecisionsForItem = (
+    item: PreferenceQueueItemDTO,
+    draftsMap: Record<number, TokenDraft>,
+    addedList: AddedTeammateDraft[]
+  ): PreferenceDecisionItemDTO[] => {
+    const decisions: PreferenceDecisionItemDTO[] = item.tokens.map((tok) => {
+      const draft = draftsMap[tok.id];
+      const targetId = draft ? draft.target_signup_id : tok.target_signup_id;
+      const prefType = draft ? draft.preference_type : tok.preference_type;
+      const rawStatus = draft ? draft.match_status : tok.match_status;
+      const matchStatus: 'confirmed' | 'ignored' =
+        rawStatus === 'ignored' || targetId === null ? 'ignored' : 'confirmed';
+
+      return {
+        id: tok.id,
+        target_signup_id: matchStatus === 'ignored' ? null : targetId,
+        preference_type: prefType,
+        match_status: matchStatus,
+        raw_token: tok.raw_token,
+      };
+    });
+
+    for (const extra of addedList) {
+      decisions.push({
+        ...(extra.id ? { id: extra.id } : {}),
+        target_signup_id: extra.target_signup_id,
+        preference_type: extra.preference_type,
+        match_status: 'confirmed',
+        raw_token: extra.explorer_name,
+      });
+    }
+    return decisions;
+  };
+
+  const persistCard = (
+    item: PreferenceQueueItemDTO,
+    nextDrafts: Record<number, TokenDraft>,
+    nextAddedList: AddedTeammateDraft[],
+    nextGender: ExplorerGender,
+    removedSavedIds: number[] = []
+  ): Promise<void> => {
+    const sourceId = item.source_signup_id;
+    const decisions = buildDecisionsForItem(item, nextDrafts, nextAddedList);
+    for (const removedId of removedSavedIds) {
+      decisions.push({
+        id: removedId,
+        target_signup_id: null,
+        preference_type: 'prefer',
+        match_status: 'ignored',
+      });
+    }
+
+    setCardSaveState((prev) => ({ ...prev, [sourceId]: 'saving' }));
+
+    const prevPromise = inFlightSavesRef.current.get(sourceId) || Promise.resolve();
+    const savePromise = prevPromise
+      .catch(() => {})
+      .then(async () => {
+        const res = await fetch(buildApiUrl(rootUrl, `/preferences/${sourceId}`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-WP-Nonce': nonce,
+          },
+          body: JSON.stringify({ decisions, gender: nextGender }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            data.message || `Failed to save preferences for ${item.explorer_name} (HTTP ${res.status})`
+          );
+        }
+
+        // Attach server-assigned IDs to any newly added teammates so subsequent edits update instead of duplicating
+        if (Array.isArray(data.items)) {
+          const serverItems = data.items as Array<{
+            id?: number;
+            target_signup_id?: number | null;
+            preference_type?: string;
+            match_status?: string;
+          }>;
+          setAddedBySource((prev) => {
+            const currentList = prev[sourceId];
+            if (!currentList || currentList.length === 0) return prev;
+            let changed = false;
+            const updatedList = currentList.map((extra) => {
+              if (extra.id) return extra;
+              const match = serverItems.find(
+                (si) =>
+                  si.id &&
+                  si.target_signup_id === extra.target_signup_id &&
+                  si.preference_type === extra.preference_type &&
+                  si.match_status === 'confirmed'
+              );
+              if (match?.id) {
+                changed = true;
+                return { ...extra, id: match.id };
+              }
+              return extra;
+            });
+            return changed ? { ...prev, [sourceId]: updatedList } : prev;
+          });
+        }
+
+        setTokenDrafts((prev) => {
+          const next = { ...prev };
+          let changed = false;
+          for (const tok of item.tokens) {
+            if (next[tok.id]?.dirty) {
+              next[tok.id] = { ...next[tok.id], dirty: false };
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
+
+        setCardSaveState((prev) => ({ ...prev, [sourceId]: 'saved' }));
+      })
+      .catch((err) => {
+        setCardSaveState((prev) => ({ ...prev, [sourceId]: 'error' }));
+        setQueueError(err instanceof Error ? err.message : 'Failed to save preference decisions.');
+      });
+
+    inFlightSavesRef.current.set(sourceId, savePromise);
+    void savePromise.finally(() => {
+      if (inFlightSavesRef.current.get(sourceId) === savePromise) {
+        inFlightSavesRef.current.delete(sourceId);
       }
+    });
+    return savePromise;
+  };
+
+  const handleGenderChange = (item: PreferenceQueueItemDTO, gender: ExplorerGender) => {
+    const signupId = item.source_signup_id;
+    setGenderDrafts((prev) => ({ ...prev, [signupId]: gender }));
+    const currentAdded = addedBySource[signupId] || [];
+    void persistCard(item, tokenDrafts, currentAdded, gender);
+  };
+
+  const handleScopeSwitch = async (
+    nextLevels: Array<'bronze' | 'silver' | 'gold'>,
+    nextTransport: string
+  ) => {
+    setActiveLevels(nextLevels);
+    setActiveTransport(nextTransport);
+    setSolverScope(nextLevels.length > 1 || nextTransport === 'all' ? 'full_season' : 'bucket');
+    setLoadingQueue(true);
+    setQueueError(null);
+    setProposal(null);
+    try {
+      await parseAndLoadScope(filterMode, nextLevels, nextTransport);
     } catch (err) {
-      setQueueError(err instanceof Error ? err.message : 'Failed to update gender.');
+      setQueueError(err instanceof Error ? err.message : 'Failed to load preference queue.');
+    } finally {
+      setLoadingQueue(false);
     }
   };
 
@@ -443,7 +663,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
     setLoadingQueue(true);
     setQueueError(null);
     try {
-      await fetchQueue(nextFilter);
+      await fetchQueue(nextFilter, activeLevels, activeTransport);
     } catch (err) {
       setQueueError(err instanceof Error ? err.message : 'Failed to load preference queue.');
     } finally {
@@ -486,89 +706,44 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
     void runCandidateSearch(sourceSignupId, '');
   };
 
-  const updateTokenDraft = (token: PreferenceTokenDTO, patch: Partial<TokenDraft>) => {
-    setTokenDrafts((prev) => {
-      const current: TokenDraft = prev[token.id] || {
-        id: token.id,
-        target_signup_id: token.target_signup_id,
-        preference_type: token.preference_type,
-        match_status: token.match_status,
-        resolved_target_name: token.resolved_target_name,
-        resolved_target_unit: token.resolved_target_unit,
-        dirty: false,
-      };
-      return {
-        ...prev,
-        [token.id]: {
-          ...current,
-          ...patch,
-          dirty: true,
-        },
-      };
-    });
-  };
-
-  const handleSaveItem = async (item: PreferenceQueueItemDTO): Promise<boolean> => {
-    const decisions: PreferenceDecisionItemDTO[] = item.tokens.map((tok) => {
-      const draft = tokenDrafts[tok.id];
-      const targetId = draft ? draft.target_signup_id : tok.target_signup_id;
-      const prefType = draft ? draft.preference_type : tok.preference_type;
-      const rawStatus = draft ? draft.match_status : tok.match_status;
-      const matchStatus: 'confirmed' | 'ignored' =
-        rawStatus === 'ignored' || targetId === null ? 'ignored' : 'confirmed';
-
-      return {
-        id: tok.id,
-        target_signup_id: matchStatus === 'ignored' ? null : targetId,
-        preference_type: prefType,
-        match_status: matchStatus,
-        raw_token: tok.raw_token,
-      };
-    });
-
-    const added = addedBySource[item.source_signup_id] || [];
-    for (const extra of added) {
-      decisions.push({
-        target_signup_id: extra.target_signup_id,
-        preference_type: extra.preference_type,
-        match_status: 'confirmed',
-        raw_token: extra.explorer_name,
-      });
-    }
-
-    const res = await fetch(buildApiUrl(rootUrl, `/preferences/${item.source_signup_id}`), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-WP-Nonce': nonce,
+  const updateTokenDraftAndSave = (
+    item: PreferenceQueueItemDTO,
+    token: PreferenceTokenDTO,
+    patch: Partial<TokenDraft>
+  ) => {
+    const current: TokenDraft = tokenDrafts[token.id] || {
+      id: token.id,
+      target_signup_id: token.target_signup_id,
+      preference_type: token.preference_type,
+      match_status: token.match_status,
+      resolved_target_name: token.resolved_target_name,
+      resolved_target_unit: token.resolved_target_unit,
+      dirty: false,
+    };
+    const nextDrafts: Record<number, TokenDraft> = {
+      ...tokenDrafts,
+      [token.id]: {
+        ...current,
+        ...patch,
+        dirty: true,
       },
-      body: JSON.stringify({ decisions }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(data.message || `Failed to save preferences for ${item.explorer_name} (HTTP ${res.status})`);
-    }
-    return true;
+    };
+    setTokenDrafts(nextDrafts);
+    const currentAdded = addedBySource[item.source_signup_id] || [];
+    const currentGender: ExplorerGender =
+      genderDrafts[item.source_signup_id] !== undefined
+        ? genderDrafts[item.source_signup_id]
+        : item.gender ?? '';
+    void persistCard(item, nextDrafts, currentAdded, currentGender);
   };
 
-  const handleSaveAndProceed = async () => {
+  const handleProceedToStep2 = async () => {
     setSavingStep1(true);
     setQueueError(null);
     try {
-      const items = queueData?.items || [];
-      const dirtyItems = items.filter((item) => {
-        const hasDirtyToken = item.tokens.some((tok) => tokenDrafts[tok.id]?.dirty);
-        const hasAdded = (addedBySource[item.source_signup_id] || []).length > 0;
-        return hasDirtyToken || hasAdded;
-      });
-
-      for (const item of dirtyItems) {
-        await handleSaveItem(item);
-      }
-
-      if (dirtyItems.length > 0) {
-        setAddedBySource({});
-        await fetchQueue(filterMode);
+      const pending = Array.from(inFlightSavesRef.current.values());
+      if (pending.length > 0) {
+        await Promise.allSettled(pending);
       }
       setStep(2);
     } catch (err) {
@@ -611,19 +786,24 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
     setProposalError(null);
     setWarningsDismissed(false);
     try {
+      const payload: Record<string, unknown> = {
+        scope: solverScope,
+        dofe_level: activeLevels.length === 1 ? activeLevels[0] : activeLevels.join(','),
+        dofe_levels: activeLevels,
+        transport_mode: activeTransport === 'all' ? '' : activeTransport,
+        weights,
+      };
+      if (selectableExpeditions.length > 0) {
+        payload.included_expedition_codes = includedCodes;
+      }
+
       const res = await fetch(buildApiUrl(rootUrl, '/teams/solver/propose'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-WP-Nonce': nonce,
         },
-        body: JSON.stringify({
-          scope: solverScope,
-          dofe_level: selectedLevels.length === 1 ? selectedLevels[0] : selectedLevels.join(','),
-          dofe_levels: selectedLevels,
-          transport_mode: canonicalTransport,
-          weights,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -681,6 +861,78 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
   const zeroFlaggedRemaining = (summary?.needs_review ?? 0) === 0;
   const items = queueData?.items || [];
 
+  const groupedUnits = useMemo(() => {
+    const byUnit = new Map<string, PreferenceQueueItemDTO[]>();
+    for (const item of items) {
+      const unitLabel = (item.unit_name || '').trim() || 'Unassigned Unit';
+      const arr = byUnit.get(unitLabel) || [];
+      arr.push(item);
+      byUnit.set(unitLabel, arr);
+    }
+    const sortedUnitNames = Array.from(byUnit.keys()).sort((a, b) => a.localeCompare(b));
+    let seqCounter = 0;
+    return sortedUnitNames.map((unitName) => {
+      const unitItems = (byUnit.get(unitName) || [])
+        .slice()
+        .sort((a, b) => a.explorer_name.localeCompare(b.explorer_name))
+        .map((item) => {
+          seqCounter += 1;
+          return { item, seq: seqCounter };
+        });
+      return { unitName, items: unitItems };
+    });
+  }, [items]);
+
+  const practiceExpeditions = useMemo(
+    () => selectableExpeditions.filter((e) => e.stage === 'practice'),
+    [selectableExpeditions]
+  );
+  const qualifierExpeditions = useMemo(
+    () => selectableExpeditions.filter((e) => e.stage === 'qualifier'),
+    [selectableExpeditions]
+  );
+
+  const expeditionValidationError = useMemo(() => {
+    if (selectableExpeditions.length === 0) return null;
+    const includedSet = new Set(includedCodes.map((c) => c.toUpperCase()));
+    const buckets = new Map<
+      string,
+      { level: string; mode: string; hasPractice: boolean; hasQualifier: boolean; checkedPractice: number; checkedQualifier: number }
+    >();
+    for (const exp of selectableExpeditions) {
+      const key = `${exp.dofe_level}|${exp.transport_mode}`;
+      const entry = buckets.get(key) || {
+        level: exp.dofe_level,
+        mode: exp.transport_mode,
+        hasPractice: false,
+        hasQualifier: false,
+        checkedPractice: 0,
+        checkedQualifier: 0,
+      };
+      const isChecked = includedSet.has(exp.event_code.toUpperCase());
+      if (exp.stage === 'practice') {
+        entry.hasPractice = true;
+        if (isChecked) entry.checkedPractice += 1;
+      } else {
+        entry.hasQualifier = true;
+        if (isChecked) entry.checkedQualifier += 1;
+      }
+      buckets.set(key, entry);
+    }
+    for (const entry of buckets.values()) {
+      if (entry.hasPractice && entry.checkedPractice === 0) {
+        return `Select at least 1 Practice expedition for ${formatLevelLabel(entry.level)} ${formatTransportLabel(entry.mode)}.`;
+      }
+      if (entry.hasQualifier && entry.checkedQualifier === 0) {
+        return `Select at least 1 Qualifier expedition for ${formatLevelLabel(entry.level)} ${formatTransportLabel(entry.mode)}.`;
+      }
+    }
+    return null;
+  }, [selectableExpeditions, includedCodes]);
+
+  const subtitleLevelText = activeLevels.map(formatLevelLabel).join(', ');
+  const subtitleModeText = activeTransport === 'all' ? 'All Modes' : formatTransportLabel(activeTransport);
+
   return (
     <div
       className="ems-modal-backdrop"
@@ -700,7 +952,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
               Auto-Propose Teams
             </h2>
             <div className="ems-dispatch-modal__subtitle">
-              {selectedLevels.map(formatLevelLabel).join(', ')} · {formatTransportLabel(transport)} ·{' '}
+              {subtitleLevelText} · {subtitleModeText} ·{' '}
               {step === 1 ? 'Step 1 of 2: Confirm Teammate Links' : 'Step 2 of 2: Propose & Load Draft Teams'}
             </div>
           </div>
@@ -753,6 +1005,68 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                   <FontAwesomeIcon icon={faCircleExclamation} /> {queueError}
                 </div>
               )}
+
+              {/* In-Modal Level & Mode Scope Switcher */}
+              <div className="ems-propose-scope-bar">
+                <div className="ems-propose-scope-group">
+                  <span className="ems-propose-scope-group__label">Level:</span>
+                  <div className="ems-btn-group" role="group" aria-label="Filter by DofE level">
+                    {ALL_LEVELS.map((lvl) => {
+                      const isSelected = activeLevels.includes(lvl);
+                      return (
+                        <button
+                          key={lvl}
+                          type="button"
+                          className={`button button-small ${isSelected ? 'button-primary' : 'button-secondary'}`}
+                          disabled={loadingQueue}
+                          onClick={() => {
+                            let next: Array<'bronze' | 'silver' | 'gold'>;
+                            if (isSelected) {
+                              if (activeLevels.length === 1) return;
+                              next = activeLevels.filter((l) => l !== lvl);
+                            } else {
+                              next = ALL_LEVELS.filter((l) => activeLevels.includes(l) || l === lvl);
+                            }
+                            void handleScopeSwitch(next, activeTransport);
+                          }}
+                        >
+                          {formatLevelLabel(lvl)}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      className={`button button-small ${activeLevels.length === 3 ? 'button-primary' : 'button-secondary'}`}
+                      disabled={loadingQueue}
+                      onClick={() => void handleScopeSwitch([...ALL_LEVELS], activeTransport)}
+                    >
+                      All
+                    </button>
+                  </div>
+                </div>
+
+                <div className="ems-propose-scope-group">
+                  <span className="ems-propose-scope-group__label">Mode:</span>
+                  <div className="ems-btn-group" role="group" aria-label="Filter by expedition mode">
+                    {[
+                      { value: 'foot', label: 'Hillwalking' },
+                      { value: 'cycle', label: 'Biking' },
+                      { value: 'paddle', label: 'Paddling' },
+                      { value: 'all', label: 'All' },
+                    ].map((m) => (
+                      <button
+                        key={m.value}
+                        type="button"
+                        className={`button button-small ${activeTransport === m.value ? 'button-primary' : 'button-secondary'}`}
+                        disabled={loadingQueue}
+                        onClick={() => void handleScopeSwitch(activeLevels, m.value)}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
               {/* Summary & Filter Controls */}
               <div
@@ -815,443 +1129,499 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                   </span>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {items.map((item) => {
-                    const addedList = addedBySource[item.source_signup_id] || [];
-                    const addPickerKey = `add-${item.source_signup_id}`;
-                    const currentGender: ExplorerGender =
-                      genderDrafts[item.source_signup_id] !== undefined
-                        ? genderDrafts[item.source_signup_id]
-                        : item.gender ?? '';
-
+                <div>
+                  {groupedUnits.map((group) => {
+                    const isCollapsed = Boolean(collapsedUnits[group.unitName]);
                     return (
-                      <div
-                        key={item.source_signup_id}
-                        style={{
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '6px',
-                          padding: '12px',
-                          background: '#fff',
-                        }}
+                    <div key={group.unitName} className="ems-unit-group">
+                      <button
+                        type="button"
+                        className="ems-unit-group__header"
+                        aria-expanded={!isCollapsed}
+                        onClick={() =>
+                          setCollapsedUnits((prev) => ({
+                            ...prev,
+                            [group.unitName]: !prev[group.unitName],
+                          }))
+                        }
                       >
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '8px',
-                            marginBottom: '6px',
-                          }}
-                        >
-                          <div>
-                            <strong style={{ fontSize: '14px' }}>{item.explorer_name}</strong>{' '}
-                            <span style={{ fontSize: '12px', color: '#475569' }}>
-                              ({item.unit_name}) · {formatLevelLabel(item.dofe_level)} ·{' '}
-                              {formatTransportLabel(item.transport_mode)}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <label
+                        <FontAwesomeIcon
+                          icon={isCollapsed ? faChevronRight : faChevronDown}
+                          style={{ fontSize: '11px', color: '#475569', width: '12px' }}
+                        />
+                        <span>{group.unitName}</span>
+                        <span className="ems-unit-group__count">
+                          ({group.items.length} {group.items.length === 1 ? 'explorer' : 'explorers'})
+                        </span>
+                      </button>
+                      {!isCollapsed && (
+                      <div className="ems-unit-group__cards">
+                        {group.items.map(({ item, seq }) => {
+                          const addedList = addedBySource[item.source_signup_id] || [];
+                          const addPickerKey = `add-${item.source_signup_id}`;
+                          const currentGender: ExplorerGender =
+                            genderDrafts[item.source_signup_id] !== undefined
+                              ? genderDrafts[item.source_signup_id]
+                              : item.gender ?? '';
+                          const saveStatus = cardSaveState[item.source_signup_id];
+
+                          return (
+                            <div
+                              key={item.source_signup_id}
                               style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '12px',
-                                color: '#334155',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '6px',
+                                padding: '12px',
+                                background: '#fff',
                               }}
                             >
-                              <span>Gender:</span>
-                              <select
-                                aria-label={`Gender for ${item.explorer_name}`}
-                                value={currentGender}
-                                onChange={(e) =>
-                                  void handleGenderChange(item.source_signup_id, e.target.value as ExplorerGender)
-                                }
-                                disabled={savingStep1}
-                                style={{ fontSize: '12px', padding: '2px 28px 2px 8px', minWidth: '105px', minHeight: '28px', height: 'auto' }}
-                              >
-                                <option value="">Unknown</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                              </select>
-                            </label>
-                            <button
-                              type="button"
-                              className="button button-secondary"
-                              onClick={() => openSearchPicker(addPickerKey, item.source_signup_id)}
-                            >
-                              <FontAwesomeIcon icon={faPlus} /> + Add teammate
-                            </button>
-                          </div>
-                        </div>
-
-                        <div style={{ fontSize: '12px', color: '#334155', marginBottom: '8px' }}>
-                          Raw wishlist: <em>{item.wishlist_raw || '—'}</em>
-                        </div>
-
-                        {/* + Add teammate inline bucket-scoped search */}
-                        {searchOpenKey === addPickerKey && (
-                          <div
-                            style={{
-                              marginBottom: '10px',
-                              padding: '8px',
-                              background: '#f8fafc',
-                              border: '1px solid #cbd5e1',
-                              borderRadius: '4px',
-                            }}
-                          >
-                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
-                              <input
-                                type="text"
-                                className="regular-text"
-                                placeholder={`Search ${item.explorer_name}'s bucket by name or unit…`}
-                                aria-label={`Add teammate search for ${item.explorer_name}`}
-                                value={searchQuery}
-                                onChange={(e) => {
-                                  const q = e.target.value;
-                                  setSearchQuery(q);
-                                  void runCandidateSearch(item.source_signup_id, q);
-                                }}
-                                style={{ flex: 1 }}
-                              />
-                            </div>
-                            {searchLoading ? (
-                              <div style={{ fontSize: '12px', color: '#64748b' }}>Searching…</div>
-                            ) : searchResults.length === 0 ? (
-                              <div style={{ fontSize: '12px', color: '#64748b' }}>No matching explorers in this bucket.</div>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '140px', overflowY: 'auto' }}>
-                                {searchResults.map((cand) => (
-                                  <button
-                                    key={cand.signup_id}
-                                    type="button"
-                                    className="button button-link"
-                                    style={{ textAlign: 'left', padding: '2px 4px', fontSize: '12px' }}
-                                    onClick={() => {
-                                      setAddedBySource((prev) => ({
-                                        ...prev,
-                                        [item.source_signup_id]: [
-                                          ...(prev[item.source_signup_id] || []),
-                                          {
-                                            tempKey: `${item.source_signup_id}-${cand.signup_id}-${Date.now()}`,
-                                            target_signup_id: cand.signup_id,
-                                            explorer_name: cand.explorer_name,
-                                            unit_name: cand.unit_name,
-                                            preference_type: 'prefer',
-                                          },
-                                        ],
-                                      }));
-                                      setSearchOpenKey(null);
-                                    }}
-                                  >
-                                    {cand.explorer_name} ({cand.unit_name}) · {cand.shared_code_count} shared code(s)
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Manually added teammates */}
-                        {addedList.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
-                            {addedList.map((extra) => (
                               <div
-                                key={extra.tempKey}
                                 style={{
                                   display: 'flex',
-                                  alignItems: 'center',
                                   justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
                                   gap: '8px',
-                                  padding: '6px 8px',
-                                  background: '#f0fdf4',
-                                  border: '1px solid #86efac',
-                                  borderRadius: '4px',
-                                  fontSize: '12px',
+                                  marginBottom: '6px',
                                 }}
                               >
-                                <span>
-                                  Added: <strong>{extra.explorer_name}</strong> ({extra.unit_name})
-                                </span>
-                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                  <span className="ems-explorer-seq">
+                                    #{seq} of {items.length}
+                                  </span>
+                                  <strong style={{ fontSize: '14px' }}>{item.explorer_name}</strong>{' '}
+                                  <span style={{ fontSize: '12px', color: '#475569' }}>
+                                    ({item.unit_name}) · {formatLevelLabel(item.dofe_level)} ·{' '}
+                                    {formatTransportLabel(item.transport_mode)}
+                                  </span>
+                                  {saveStatus === 'saving' && (
+                                    <span className="ems-save-pill ems-save-pill--saving">Saving…</span>
+                                  )}
+                                  {saveStatus === 'saved' && (
+                                    <span className="ems-save-pill ems-save-pill--saved">Saved ✓</span>
+                                  )}
+                                  {saveStatus === 'error' && (
+                                    <span className="ems-save-pill ems-save-pill--error">Save failed</span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <label
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontSize: '12px',
+                                      color: '#334155',
+                                    }}
+                                  >
+                                    <span>Gender:</span>
+                                    <select
+                                      aria-label={`Gender for ${item.explorer_name}`}
+                                      value={currentGender}
+                                      onChange={(e) =>
+                                        handleGenderChange(item, e.target.value as ExplorerGender)
+                                      }
+                                      disabled={savingStep1}
+                                      style={{ fontSize: '12px', padding: '2px 28px 2px 8px', minWidth: '105px', minHeight: '28px', height: 'auto' }}
+                                    >
+                                      <option value="">Unknown</option>
+                                      <option value="male">Male</option>
+                                      <option value="female">Female</option>
+                                      <option value="other">Other</option>
+                                    </select>
+                                  </label>
                                   <button
                                     type="button"
-                                    className={`button ${extra.preference_type === 'prefer' ? 'button-primary' : 'button-secondary'}`}
-                                    onClick={() =>
-                                      setAddedBySource((prev) => ({
-                                        ...prev,
-                                        [item.source_signup_id]: (prev[item.source_signup_id] || []).map((a) =>
-                                          a.tempKey === extra.tempKey ? { ...a, preference_type: 'prefer' } : a
-                                        ),
-                                      }))
-                                    }
+                                    className="button button-secondary"
+                                    onClick={() => openSearchPicker(addPickerKey, item.source_signup_id)}
                                   >
-                                    Prefer
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={`button ${extra.preference_type === 'avoid' ? 'button-primary' : 'button-secondary'}`}
-                                    onClick={() =>
-                                      setAddedBySource((prev) => ({
-                                        ...prev,
-                                        [item.source_signup_id]: (prev[item.source_signup_id] || []).map((a) =>
-                                          a.tempKey === extra.tempKey ? { ...a, preference_type: 'avoid' } : a
-                                        ),
-                                      }))
-                                    }
-                                  >
-                                    Avoid
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="button button-link"
-                                    onClick={() =>
-                                      setAddedBySource((prev) => ({
-                                        ...prev,
-                                        [item.source_signup_id]: (prev[item.source_signup_id] || []).filter(
-                                          (a) => a.tempKey !== extra.tempKey
-                                        ),
-                                      }))
-                                    }
-                                  >
-                                    Remove
+                                    <FontAwesomeIcon icon={faPlus} /> + Add teammate
                                   </button>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
 
-                        {/* Parsed tokens */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {item.tokens.map((tok) => {
-                            const draft = tokenDrafts[tok.id];
-                            const effectiveStatus = draft ? draft.match_status : tok.match_status;
-                            const effectivePrefType = draft ? draft.preference_type : tok.preference_type;
-                            const effectiveTargetId = draft ? draft.target_signup_id : tok.target_signup_id;
-                            const effectiveTargetName = draft ? draft.resolved_target_name : tok.resolved_target_name;
-                            const effectiveTargetUnit = draft ? draft.resolved_target_unit : tok.resolved_target_unit;
-                            const badge = getStatusBadgeStyle(effectiveStatus, tok.unit_hint);
-                            const tokenPickerKey = `token-${tok.id}`;
+                              <div style={{ fontSize: '12px', color: '#334155', marginBottom: '8px' }}>
+                                Raw wishlist: <em>{item.wishlist_raw || '—'}</em>
+                              </div>
 
-                            return (
-                              <div
-                                key={tok.id}
-                                style={{
-                                  padding: '8px 10px',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '4px',
-                                  background: '#f8fafc',
-                                }}
-                              >
+                              {/* + Add teammate inline bucket-scoped search */}
+                              {searchOpenKey === addPickerKey && (
                                 <div
                                   style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    flexWrap: 'wrap',
-                                    gap: '8px',
+                                    marginBottom: '10px',
+                                    padding: '8px',
+                                    background: '#f8fafc',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '4px',
                                   }}
                                 >
-                                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                                    <span style={{ fontWeight: 600, fontSize: '13px' }}>"{tok.raw_token}"</span>
-                                    {tok.unit_hint && (
-                                      <span style={{ fontSize: '11px', color: '#475569' }}>
-                                        (hint: {tok.unit_hint})
-                                      </span>
-                                    )}
-                                    <span
-                                      className="ems-badge"
-                                      style={{
-                                        background: badge.bg,
-                                        color: badge.color,
-                                        border: `1px solid ${badge.border}`,
-                                        fontSize: '11px',
-                                      }}
-                                    >
-                                      {badge.label}
-                                    </span>
-                                    {tok.flag_negation && (
-                                      <span
-                                        className="ems-badge"
-                                        style={{
-                                          background: '#fef3c7',
-                                          color: '#92400e',
-                                          border: '1px solid #f59e0b',
-                                          fontSize: '11px',
-                                        }}
-                                      >
-                                        <FontAwesomeIcon icon={faTriangleExclamation} /> Negation detected
-                                      </span>
-                                    )}
-                                    {effectiveTargetId && effectiveTargetName && (
-                                      <span style={{ fontSize: '12px', color: '#166534' }}>
-                                        → <strong>{effectiveTargetName}</strong>
-                                        {effectiveTargetUnit ? ` (${effectiveTargetUnit})` : ''}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                    <div className="ems-btn-group" role="group" aria-label={`Preference type for ${tok.raw_token}`}>
-                                      <button
-                                        type="button"
-                                        className={`button ${effectivePrefType === 'prefer' ? 'button-primary' : 'button-secondary'}`}
-                                        onClick={() => updateTokenDraft(tok, { preference_type: 'prefer' })}
-                                      >
-                                        Prefer
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className={`button ${effectivePrefType === 'avoid' ? 'button-primary' : 'button-secondary'}`}
-                                        onClick={() => updateTokenDraft(tok, { preference_type: 'avoid' })}
-                                      >
-                                        Avoid
-                                      </button>
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      className="button button-secondary"
-                                      onClick={() => openSearchPicker(tokenPickerKey, item.source_signup_id)}
-                                    >
-                                      <FontAwesomeIcon icon={faMagnifyingGlass} /> Search &amp; override
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      className="button button-secondary"
-                                      onClick={() =>
-                                        updateTokenDraft(tok, {
-                                          target_signup_id: null,
-                                          match_status: 'ignored',
-                                          resolved_target_name: null,
-                                          resolved_target_unit: null,
-                                        })
-                                      }
-                                    >
-                                      No Match
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Ambiguous radio candidates */}
-                                {tok.match_status === 'ambiguous' && tok.candidates.length > 0 && (
-                                  <div style={{ marginTop: '8px', paddingLeft: '6px' }}>
-                                    <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
-                                      Multiple matches in this bucket — select the right explorer:
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                      {tok.candidates.map((cand) => (
-                                        <label
-                                          key={cand.signup_id}
-                                          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}
-                                        >
-                                          <input
-                                            type="radio"
-                                            name={`ambiguous-token-${tok.id}`}
-                                            checked={effectiveTargetId === cand.signup_id && effectiveStatus === 'confirmed'}
-                                            onChange={() =>
-                                              updateTokenDraft(tok, {
-                                                target_signup_id: cand.signup_id,
-                                                match_status: 'confirmed',
-                                                resolved_target_name: cand.explorer_name,
-                                                resolved_target_unit: cand.unit_name,
-                                              })
-                                            }
-                                          />
-                                          <span>
-                                            <strong>{cand.explorer_name}</strong> — {cand.unit_name} ·{' '}
-                                            {cand.shared_code_count} shared expedition code(s)
-                                          </span>
-                                        </label>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Cross-bucket notice */}
-                                {tok.match_status === 'cross_bucket' && (
-                                  <div style={{ marginTop: '6px', fontSize: '12px', color: '#991b1b' }}>
-                                    <FontAwesomeIcon icon={faTriangleExclamation} />{' '}
-                                    {tok.candidates[0]
-                                      ? `Cross-bucket match: ${tok.candidates[0].explorer_name} is signed up for ${formatLevelLabel(
-                                          tok.candidates[0].dofe_level
-                                        )} ${formatTransportLabel(tok.candidates[0].transport_mode)} — ineligible for same-bucket pairing.`
-                                      : 'Cross-bucket match — signed up for a different DofE level or transport mode (ineligible).'}
-                                  </div>
-                                )}
-
-                                {/* Not found notice */}
-                                {tok.match_status === 'not_found' && effectiveStatus === 'not_found' && (
-                                  <div style={{ marginTop: '6px', fontSize: '12px', color: '#991b1b' }}>
-                                    <FontAwesomeIcon icon={faCircleExclamation} /> No matching sign-up found in this bucket. Use{' '}
-                                    <strong>Search &amp; override</strong> to link manually, or mark <strong>No Match</strong>.
-                                  </div>
-                                )}
-
-                                {/* Bucket-scoped Search & override picker */}
-                                {searchOpenKey === tokenPickerKey && (
-                                  <div
-                                    style={{
-                                      marginTop: '8px',
-                                      padding: '8px',
-                                      background: '#fff',
-                                      border: '1px solid #cbd5e1',
-                                      borderRadius: '4px',
-                                    }}
-                                  >
+                                  <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
                                     <input
                                       type="text"
                                       className="regular-text"
-                                      placeholder={`Search eligible ${formatLevelLabel(item.dofe_level)} ${formatTransportLabel(
-                                        item.transport_mode
-                                      )} explorers…`}
-                                      aria-label={`Search override for ${tok.raw_token}`}
+                                      placeholder={`Search ${item.explorer_name}'s bucket by name or unit…`}
+                                      aria-label={`Add teammate search for ${item.explorer_name}`}
                                       value={searchQuery}
                                       onChange={(e) => {
                                         const q = e.target.value;
                                         setSearchQuery(q);
                                         void runCandidateSearch(item.source_signup_id, q);
                                       }}
-                                      style={{ width: '100%', marginBottom: '6px' }}
+                                      style={{ flex: 1 }}
                                     />
-                                    {searchLoading ? (
-                                      <div style={{ fontSize: '12px', color: '#64748b' }}>Searching…</div>
-                                    ) : searchResults.length === 0 ? (
-                                      <div style={{ fontSize: '12px', color: '#64748b' }}>No matching explorers in this bucket.</div>
-                                    ) : (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '140px', overflowY: 'auto' }}>
-                                        {searchResults.map((cand) => (
-                                          <button
-                                            key={cand.signup_id}
-                                            type="button"
-                                            className="button button-link"
-                                            style={{ textAlign: 'left', padding: '2px 4px', fontSize: '12px' }}
-                                            onClick={() => {
-                                              updateTokenDraft(tok, {
+                                  </div>
+                                  {searchLoading ? (
+                                    <div style={{ fontSize: '12px', color: '#64748b' }}>Searching…</div>
+                                  ) : searchResults.length === 0 ? (
+                                    <div style={{ fontSize: '12px', color: '#64748b' }}>No matching explorers in this bucket.</div>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '140px', overflowY: 'auto' }}>
+                                      {searchResults.map((cand) => (
+                                        <button
+                                          key={cand.signup_id}
+                                          type="button"
+                                          className="button button-link"
+                                          style={{ textAlign: 'left', padding: '2px 4px', fontSize: '12px' }}
+                                          onClick={() => {
+                                            const nextAdded: AddedTeammateDraft[] = [
+                                              ...addedList,
+                                              {
+                                                tempKey: `${item.source_signup_id}-${cand.signup_id}-${Date.now()}`,
                                                 target_signup_id: cand.signup_id,
-                                                match_status: 'confirmed',
-                                                resolved_target_name: cand.explorer_name,
-                                                resolved_target_unit: cand.unit_name,
-                                              });
-                                              setSearchOpenKey(null);
+                                                explorer_name: cand.explorer_name,
+                                                unit_name: cand.unit_name,
+                                                preference_type: 'prefer',
+                                              },
+                                            ];
+                                            setAddedBySource((prev) => ({
+                                              ...prev,
+                                              [item.source_signup_id]: nextAdded,
+                                            }));
+                                            setSearchOpenKey(null);
+                                            void persistCard(item, tokenDrafts, nextAdded, currentGender);
+                                          }}
+                                        >
+                                          {cand.explorer_name} ({cand.unit_name}) · {cand.shared_code_count} shared code(s)
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Manually added teammates */}
+                              {addedList.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                                  {addedList.map((extra) => (
+                                    <div
+                                      key={extra.tempKey}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '8px',
+                                        padding: '6px 8px',
+                                        background: '#f0fdf4',
+                                        border: '1px solid #86efac',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                      }}
+                                    >
+                                      <span>
+                                        Added: <strong>{extra.explorer_name}</strong> ({extra.unit_name})
+                                      </span>
+                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                        <button
+                                          type="button"
+                                          className={`button ${extra.preference_type === 'prefer' ? 'button-primary' : 'button-secondary'}`}
+                                          onClick={() => {
+                                            const nextAdded = addedList.map((a) =>
+                                              a.tempKey === extra.tempKey ? { ...a, preference_type: 'prefer' as const } : a
+                                            );
+                                            setAddedBySource((prev) => ({
+                                              ...prev,
+                                              [item.source_signup_id]: nextAdded,
+                                            }));
+                                            void persistCard(item, tokenDrafts, nextAdded, currentGender);
+                                          }}
+                                        >
+                                          Prefer
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className={`button ${extra.preference_type === 'avoid' ? 'button-primary' : 'button-secondary'}`}
+                                          onClick={() => {
+                                            const nextAdded = addedList.map((a) =>
+                                              a.tempKey === extra.tempKey ? { ...a, preference_type: 'avoid' as const } : a
+                                            );
+                                            setAddedBySource((prev) => ({
+                                              ...prev,
+                                              [item.source_signup_id]: nextAdded,
+                                            }));
+                                            void persistCard(item, tokenDrafts, nextAdded, currentGender);
+                                          }}
+                                        >
+                                          Avoid
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="button button-link"
+                                          onClick={() => {
+                                            const nextAdded = addedList.filter((a) => a.tempKey !== extra.tempKey);
+                                            setAddedBySource((prev) => ({
+                                              ...prev,
+                                              [item.source_signup_id]: nextAdded,
+                                            }));
+                                            void persistCard(
+                                              item,
+                                              tokenDrafts,
+                                              nextAdded,
+                                              currentGender,
+                                              extra.id ? [extra.id] : []
+                                            );
+                                          }}
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Parsed tokens */}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {item.tokens.map((tok) => {
+                                  const draft = tokenDrafts[tok.id];
+                                  const effectiveStatus = draft ? draft.match_status : tok.match_status;
+                                  const effectivePrefType = draft ? draft.preference_type : tok.preference_type;
+                                  const effectiveTargetId = draft ? draft.target_signup_id : tok.target_signup_id;
+                                  const effectiveTargetName = draft ? draft.resolved_target_name : tok.resolved_target_name;
+                                  const effectiveTargetUnit = draft ? draft.resolved_target_unit : tok.resolved_target_unit;
+                                  const badge = getStatusBadgeStyle(effectiveStatus, tok.unit_hint);
+                                  const tokenPickerKey = `token-${tok.id}`;
+
+                                  return (
+                                    <div
+                                      key={tok.id}
+                                      style={{
+                                        padding: '8px 10px',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '4px',
+                                        background: '#f8fafc',
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center',
+                                          flexWrap: 'wrap',
+                                          gap: '8px',
+                                        }}
+                                      >
+                                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                                          <span style={{ fontWeight: 600, fontSize: '13px' }}>"{tok.raw_token}"</span>
+                                          {tok.unit_hint && (
+                                            <span style={{ fontSize: '11px', color: '#475569' }}>
+                                              (hint: {tok.unit_hint})
+                                            </span>
+                                          )}
+                                          <span
+                                            className="ems-badge"
+                                            style={{
+                                              background: badge.bg,
+                                              color: badge.color,
+                                              border: `1px solid ${badge.border}`,
+                                              fontSize: '11px',
                                             }}
                                           >
-                                            {cand.explorer_name} ({cand.unit_name}) · {cand.shared_code_count} shared code(s)
+                                            {badge.label}
+                                          </span>
+                                          {tok.flag_negation && (
+                                            <span
+                                              className="ems-badge"
+                                              style={{
+                                                background: '#fef3c7',
+                                                color: '#92400e',
+                                                border: '1px solid #f59e0b',
+                                                fontSize: '11px',
+                                              }}
+                                            >
+                                              <FontAwesomeIcon icon={faTriangleExclamation} /> Negation detected
+                                            </span>
+                                          )}
+                                          {effectiveTargetId && effectiveTargetName && (
+                                            <span style={{ fontSize: '12px', color: '#166534' }}>
+                                              → <strong>{effectiveTargetName}</strong>
+                                              {effectiveTargetUnit ? ` (${effectiveTargetUnit})` : ''}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                          <div className="ems-btn-group" role="group" aria-label={`Preference type for ${tok.raw_token}`}>
+                                            <button
+                                              type="button"
+                                              className={`button ${effectivePrefType === 'prefer' ? 'button-primary' : 'button-secondary'}`}
+                                              onClick={() => updateTokenDraftAndSave(item, tok, { preference_type: 'prefer' })}
+                                            >
+                                              Prefer
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className={`button ${effectivePrefType === 'avoid' ? 'button-primary' : 'button-secondary'}`}
+                                              onClick={() => updateTokenDraftAndSave(item, tok, { preference_type: 'avoid' })}
+                                            >
+                                              Avoid
+                                            </button>
+                                          </div>
+
+                                          <button
+                                            type="button"
+                                            className="button button-secondary"
+                                            onClick={() => openSearchPicker(tokenPickerKey, item.source_signup_id)}
+                                          >
+                                            <FontAwesomeIcon icon={faMagnifyingGlass} /> Search &amp; override
                                           </button>
-                                        ))}
+
+                                          <button
+                                            type="button"
+                                            className="button button-secondary"
+                                            onClick={() =>
+                                              updateTokenDraftAndSave(item, tok, {
+                                                target_signup_id: null,
+                                                match_status: 'ignored',
+                                                resolved_target_name: null,
+                                                resolved_target_unit: null,
+                                              })
+                                            }
+                                          >
+                                            No Match
+                                          </button>
+                                        </div>
                                       </div>
-                                    )}
-                                  </div>
-                                )}
+
+                                      {/* Ambiguous radio candidates */}
+                                      {tok.match_status === 'ambiguous' && tok.candidates.length > 0 && (
+                                        <div style={{ marginTop: '8px', paddingLeft: '6px' }}>
+                                          <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
+                                            Multiple matches in this bucket — select the right explorer:
+                                          </div>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            {tok.candidates.map((cand) => (
+                                              <label
+                                                key={cand.signup_id}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}
+                                              >
+                                                <input
+                                                  type="radio"
+                                                  name={`ambiguous-token-${tok.id}`}
+                                                  checked={effectiveTargetId === cand.signup_id && effectiveStatus === 'confirmed'}
+                                                  onChange={() =>
+                                                    updateTokenDraftAndSave(item, tok, {
+                                                      target_signup_id: cand.signup_id,
+                                                      match_status: 'confirmed',
+                                                      resolved_target_name: cand.explorer_name,
+                                                      resolved_target_unit: cand.unit_name,
+                                                    })
+                                                  }
+                                                />
+                                                <span>
+                                                  <strong>{cand.explorer_name}</strong> — {cand.unit_name} ·{' '}
+                                                  {cand.shared_code_count} shared expedition code(s)
+                                                </span>
+                                              </label>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Cross-bucket notice */}
+                                      {tok.match_status === 'cross_bucket' && (
+                                        <div style={{ marginTop: '6px', fontSize: '12px', color: '#991b1b' }}>
+                                          <FontAwesomeIcon icon={faTriangleExclamation} />{' '}
+                                          {tok.candidates[0]
+                                            ? `Cross-bucket match: ${tok.candidates[0].explorer_name} is signed up for ${formatLevelLabel(
+                                                tok.candidates[0].dofe_level
+                                              )} ${formatTransportLabel(tok.candidates[0].transport_mode)} — ineligible for same-bucket pairing.`
+                                            : 'Cross-bucket match — signed up for a different DofE level or transport mode (ineligible).'}
+                                        </div>
+                                      )}
+
+                                      {/* Not found notice */}
+                                      {tok.match_status === 'not_found' && effectiveStatus === 'not_found' && (
+                                        <div style={{ marginTop: '6px', fontSize: '12px', color: '#991b1b' }}>
+                                          <FontAwesomeIcon icon={faCircleExclamation} /> No matching sign-up found in this bucket. Use{' '}
+                                          <strong>Search &amp; override</strong> to link manually, or mark <strong>No Match</strong>.
+                                        </div>
+                                      )}
+
+                                      {/* Bucket-scoped Search & override picker */}
+                                      {searchOpenKey === tokenPickerKey && (
+                                        <div
+                                          style={{
+                                            marginTop: '8px',
+                                            padding: '8px',
+                                            background: '#fff',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '4px',
+                                          }}
+                                        >
+                                          <input
+                                            type="text"
+                                            className="regular-text"
+                                            placeholder={`Search eligible ${formatLevelLabel(item.dofe_level)} ${formatTransportLabel(
+                                              item.transport_mode
+                                            )} explorers…`}
+                                            aria-label={`Search override for ${tok.raw_token}`}
+                                            value={searchQuery}
+                                            onChange={(e) => {
+                                              const q = e.target.value;
+                                              setSearchQuery(q);
+                                              void runCandidateSearch(item.source_signup_id, q);
+                                            }}
+                                            style={{ width: '100%', marginBottom: '6px' }}
+                                          />
+                                          {searchLoading ? (
+                                            <div style={{ fontSize: '12px', color: '#64748b' }}>Searching…</div>
+                                          ) : searchResults.length === 0 ? (
+                                            <div style={{ fontSize: '12px', color: '#64748b' }}>No matching explorers in this bucket.</div>
+                                          ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '140px', overflowY: 'auto' }}>
+                                              {searchResults.map((cand) => (
+                                                <button
+                                                  key={cand.signup_id}
+                                                  type="button"
+                                                  className="button button-link"
+                                                  style={{ textAlign: 'left', padding: '2px 4px', fontSize: '12px' }}
+                                                  onClick={() => {
+                                                    updateTokenDraftAndSave(item, tok, {
+                                                      target_signup_id: cand.signup_id,
+                                                      match_status: 'confirmed',
+                                                      resolved_target_name: cand.explorer_name,
+                                                      resolved_target_unit: cand.unit_name,
+                                                    });
+                                                    setSearchOpenKey(null);
+                                                  }}
+                                                >
+                                                  {cand.explorer_name} ({cand.unit_name}) · {cand.shared_code_count} shared code(s)
+                                                </button>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            );
-                          })}
-                        </div>
+                            </div>
+                          );
+                        })}
                       </div>
+                      )}
+                    </div>
                     );
                   })}
                 </div>
@@ -1294,7 +1664,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                       disabled={proposing || applying}
                     />
                     <span>
-                      Current filter ({selectedLevels.map(formatLevelLabel).join(', ')} / {formatTransportLabel(transport)}
+                      Current filter ({subtitleLevelText} / {subtitleModeText}
                       {typeof queueData?.summary?.bucket_signups_count === 'number'
                         ? ` — ${queueData.summary.bucket_signups_count} explorer${queueData.summary.bucket_signups_count === 1 ? '' : 's'}`
                         : ''}
@@ -1319,6 +1689,82 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                     </span>
                   </label>
                 </div>
+
+                {/* Target Expeditions to Fill */}
+                {selectableExpeditions.length > 0 && (
+                  <div className="ems-target-expeditions">
+                    <div className="ems-target-expeditions__title">Target Expeditions to Fill</div>
+                    {loadingExpeditions ? (
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>Loading expeditions…</div>
+                    ) : (
+                      <div className="ems-target-expeditions__groups">
+                        <div>
+                          <div className="ems-target-expeditions__stage">Practice</div>
+                          <div className="ems-target-expeditions__list">
+                            {practiceExpeditions.map((exp) => {
+                              const dateStr = formatShortDate(exp.start_date);
+                              const checked = includedCodes.includes(exp.event_code);
+                              return (
+                                <label key={exp.expedition_id} className="ems-target-expeditions__item">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={proposing || applying}
+                                    onChange={(e) => {
+                                      setIncludedCodes((prev) =>
+                                        e.target.checked
+                                          ? Array.from(new Set([...prev, exp.event_code]))
+                                          : prev.filter((c) => c !== exp.event_code)
+                                      );
+                                    }}
+                                  />
+                                  <span>
+                                    <strong>{exp.event_code}</strong> ({dateStr ? `${dateStr} · ` : ''}
+                                    {exp.available_count} avail)
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="ems-target-expeditions__stage">Qualifier</div>
+                          <div className="ems-target-expeditions__list">
+                            {qualifierExpeditions.map((exp) => {
+                              const dateStr = formatShortDate(exp.start_date);
+                              const checked = includedCodes.includes(exp.event_code);
+                              return (
+                                <label key={exp.expedition_id} className="ems-target-expeditions__item">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={proposing || applying}
+                                    onChange={(e) => {
+                                      setIncludedCodes((prev) =>
+                                        e.target.checked
+                                          ? Array.from(new Set([...prev, exp.event_code]))
+                                          : prev.filter((c) => c !== exp.event_code)
+                                      );
+                                    }}
+                                  />
+                                  <span>
+                                    <strong>{exp.event_code}</strong> ({dateStr ? `${dateStr} · ` : ''}
+                                    {exp.available_count} avail)
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {expeditionValidationError && (
+                      <div className="ems-error-notice" style={{ marginTop: '8px', marginBottom: 0 }} role="alert">
+                        <FontAwesomeIcon icon={faTriangleExclamation} /> {expeditionValidationError}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div
                   style={{
@@ -1427,7 +1873,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                   type="button"
                   className="button button-primary"
                   onClick={handleGenerateProposal}
-                  disabled={proposing || applying}
+                  disabled={proposing || applying || expeditionValidationError !== null}
                 >
                   {proposing ? (
                     <>
@@ -1697,20 +2143,10 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                 Cancel
               </button>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {zeroFlaggedRemaining && (
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    onClick={() => setStep(2)}
-                    disabled={loadingQueue || savingStep1}
-                  >
-                    Skip to Step 2 →
-                  </button>
-                )}
                 <button
                   type="button"
                   className="button button-primary"
-                  onClick={handleSaveAndProceed}
+                  onClick={handleProceedToStep2}
                   disabled={loadingQueue || savingStep1}
                 >
                   {savingStep1 ? (
@@ -1718,9 +2154,7 @@ export const AutoProposeTeamsModal: React.FC<AutoProposeTeamsModalProps> = ({
                       <FontAwesomeIcon icon={faSpinner} spin /> Saving…
                     </>
                   ) : (
-                    <>
-                      <FontAwesomeIcon icon={faCheck} /> Save &amp; Proceed to Step 2
-                    </>
+                    'Proceed to Step 2 →'
                   )}
                 </button>
               </div>

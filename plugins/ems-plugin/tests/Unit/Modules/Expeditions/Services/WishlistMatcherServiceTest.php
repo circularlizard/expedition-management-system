@@ -342,4 +342,80 @@ class WishlistMatcherServiceTest extends EMSTestCase {
 		$this->assertCount( 1, $candidates );
 		$this->assertSame( 'male', $candidates[0]['gender'] );
 	}
+
+	public function test_gender_hydration_from_osm_and_signup_tables_and_db_persistence_on_save_decisions(): void {
+		$signups = array(
+			array_merge(
+				$this->signupRow( 1, 'Sam', 'Taylor', 'silver', 'Hillwalking', '' ),
+				array(
+					'scout_id'      => 5001,
+					'osm_gender'    => 'Male',
+					'signup_gender' => '',
+				)
+			),
+			array_merge(
+				$this->signupRow( 2, 'Alex', 'Reid', 'silver', 'Hillwalking', '' ),
+				array(
+					'scout_id'      => 0,
+					'osm_gender'    => null,
+					'signup_gender' => 'Prefer not to say',
+				)
+			),
+			array_merge(
+				$this->signupRow( 3, 'Pat', 'Ross', 'silver', 'Hillwalking', '' ),
+				array(
+					'scout_id'      => 0,
+					'osm_gender'    => null,
+					'signup_gender' => 'Unknown',
+				)
+			),
+		);
+
+		$prefRows    = array();
+		$wpdbUpdates = array();
+		$wpdb        = \Mockery::mock( \wpdb::class );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+			static fn( string $q, ...$args ): string => vsprintf( strtr( $q, array( '%d' => '%s', '%s' => "'%s'" ) ), $args )
+		);
+		$wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+			static function ( string $query ) use ( $signups, &$prefRows ): array {
+				if ( str_contains( $query, 'SELECT id, scout_id FROM wp_ems_expedition_signups' ) ) {
+					return array( array( 'id' => 1, 'scout_id' => 5001 ) );
+				}
+				if ( str_contains( $query, 'ems_expedition_signups' ) ) {
+					return $signups;
+				}
+				if ( str_contains( $query, 'ems_teammate_preferences' ) ) {
+					return array_values( $prefRows );
+				}
+				return array();
+			}
+		);
+		$wpdb->shouldReceive( 'update' )->andReturnUsing(
+			static function ( string $table, array $data, array $where ) use ( &$wpdbUpdates ): int {
+				$wpdbUpdates[] = array(
+					'table' => $table,
+					'data'  => $data,
+					'where' => $where,
+				);
+				return 1;
+			}
+		);
+
+		$service = new WishlistMatcherService( $wpdb );
+		$queue   = $service->getQueue( array( 'filter' => 'all' ) );
+
+		$this->assertCount( 3, $queue['items'] );
+		$this->assertSame( 'male', $queue['items'][0]['gender'] );
+		$this->assertSame( 'other', $queue['items'][1]['gender'] );
+		$this->assertSame( '', $queue['items'][2]['gender'] );
+
+		$saved = $service->saveDecisions( 1, array(), 'female' );
+		$this->assertSame( 'female', $saved['gender'] );
+
+		$tablesUpdated = array_column( $wpdbUpdates, 'table' );
+		$this->assertContains( 'wp_ems_expedition_signups', $tablesUpdated );
+		$this->assertContains( 'wp_ems_osm_explorers', $tablesUpdated );
+	}
 }

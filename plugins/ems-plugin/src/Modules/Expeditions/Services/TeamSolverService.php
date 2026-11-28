@@ -81,10 +81,21 @@ class TeamSolverService {
 			}
 		}
 		$filterLevels = array_values( array_unique( $filterLevels ) );
-		$filterMode   = isset( $params['transport_mode'] ) && $params['transport_mode'] !== ''
+		$filterMode   = isset( $params['transport_mode'] ) && $params['transport_mode'] !== '' && strtolower( trim( (string) $params['transport_mode'] ) ) !== 'all'
 			? $this->matcher->normalizeTransportMode( (string) $params['transport_mode'] )
 			: '';
 		$weights      = $this->resolveWeights( is_array( $params['weights'] ?? null ) ? $params['weights'] : array() );
+
+		$includedCodes = null;
+		if ( array_key_exists( 'included_expedition_codes', $params ) && is_array( $params['included_expedition_codes'] ) ) {
+			$includedCodes = array();
+			foreach ( $params['included_expedition_codes'] as $code ) {
+				$upper = strtoupper( trim( (string) $code ) );
+				if ( $upper !== '' ) {
+					$includedCodes[ $upper ] = true;
+				}
+			}
+		}
 
 		$signups     = $this->matcher->loadActiveSignups();
 		$expeditions = $this->loadActiveExpeditions();
@@ -132,9 +143,9 @@ class TeamSolverService {
 		$bucketsSolved     = array();
 		$proposedCountByExp = array();
 		$compromises       = array(
-			'date_conflict_pending'    => 0,
-			'split_date'               => 0,
-			'unfulfilled_mutual_pairs' => 0,
+			'date_conflict_pending'    => array(),
+			'split_date'               => array(),
+			'unfulfilled_mutual_pairs' => array(),
 			'solo_gender_teams'        => array(),
 		);
 		$stats             = array(
@@ -173,8 +184,8 @@ class TeamSolverService {
 				continue;
 			}
 
-			$practiceExps  = $this->filterExpeditionsForBucket( $expeditions, $level, $mode, 'practice' );
-			$qualifierExps = $this->filterExpeditionsForBucket( $expeditions, $level, $mode, 'qualifier' );
+			$practiceExps  = $this->filterExpeditionsForBucket( $expeditions, $level, $mode, 'practice', $includedCodes );
+			$qualifierExps = $this->filterExpeditionsForBucket( $expeditions, $level, $mode, 'qualifier', $includedCodes );
 
 			if ( empty( $practiceExps ) || empty( $qualifierExps ) ) {
 				$warnings[] = sprintf(
@@ -213,9 +224,18 @@ class TeamSolverService {
 				$proposedTeams[] = $team;
 			}
 
-			$compromises['date_conflict_pending']    += $bucketResult['compromises']['date_conflict_pending'];
-			$compromises['split_date']               += $bucketResult['compromises']['split_date'];
-			$compromises['unfulfilled_mutual_pairs'] += $bucketResult['compromises']['unfulfilled_mutual_pairs'];
+			$compromises['date_conflict_pending']    = array_merge(
+				$compromises['date_conflict_pending'],
+				$bucketResult['compromises']['date_conflict_pending']
+			);
+			$compromises['split_date']               = array_merge(
+				$compromises['split_date'],
+				$bucketResult['compromises']['split_date']
+			);
+			$compromises['unfulfilled_mutual_pairs'] = array_merge(
+				$compromises['unfulfilled_mutual_pairs'],
+				$bucketResult['compromises']['unfulfilled_mutual_pairs']
+			);
 			$compromises['solo_gender_teams']         = array_merge(
 				$compromises['solo_gender_teams'],
 				$bucketResult['compromises']['solo_gender_teams']
@@ -245,6 +265,9 @@ class TeamSolverService {
 				if ( $filterMode !== '' && $exp['transport_mode'] !== $filterMode ) {
 					continue;
 				}
+			}
+			if ( $includedCodes !== null && ! isset( $includedCodes[ strtoupper( (string) $exp['event_code'] ) ] ) ) {
+				continue;
 			}
 			$expeditionCapacity[] = array(
 				'expedition_id'  => $eid,
@@ -396,7 +419,7 @@ class TeamSolverService {
 	 * @param array<string, int>               $weights
 	 * @param array<string, mixed>             $lockedInfo
 	 * @param array<int, int>                  $proposedCountByExp
-	 * @return array{teams: array<int, array<string, mixed>>, warnings: array<int, string>, compromises: array{date_conflict_pending: int, split_date: int, unfulfilled_mutual_pairs: int, solo_gender_teams: array<int, array{team_name: string, stage: string, solo_gender: string, explorer_name: string}>}, stats: array{total_explorers: int, total_teams: int, mutual_pairs_fulfilled: int, mutual_pairs_total: int, first_aid_teams_covered: int}}
+	 * @return array{teams: array<int, array<string, mixed>>, warnings: array<int, string>, compromises: array{date_conflict_pending: array<int, array<string, mixed>>, split_date: array<int, array<string, mixed>>, unfulfilled_mutual_pairs: array<int, array<string, mixed>>, solo_gender_teams: array<int, array{team_name: string, stage: string, solo_gender: string, explorer_name: string}>}, stats: array{total_explorers: int, total_teams: int, mutual_pairs_fulfilled: int, mutual_pairs_total: int, first_aid_teams_covered: int}}
 	 */
 	private function solveBucket(
 		string $level,
@@ -432,9 +455,9 @@ class TeamSolverService {
 				'teams'       => array(),
 				'warnings'    => $warnings,
 				'compromises' => array(
-					'date_conflict_pending'    => 0,
-					'split_date'               => 0,
-					'unfulfilled_mutual_pairs' => 0,
+					'date_conflict_pending'    => array(),
+					'split_date'               => array(),
+					'unfulfilled_mutual_pairs' => array(),
 					'solo_gender_teams'        => array(),
 				),
 				'stats'       => array(
@@ -651,7 +674,7 @@ class TeamSolverService {
 
 		$nextSeqByPracticeExp = $lockedInfo['max_seq_by_exp'];
 		$teamsOut             = array();
-		$dateConflicts        = 0;
+		$dateConflicts        = array();
 		$firstAidCovered      = 0;
 		$soloGenderTeams      = array();
 
@@ -695,8 +718,23 @@ class TeamSolverService {
 				}
 				$pAvail = empty( $s['practice_codes'] ) || in_array( strtoupper( $pCode ), $s['practice_codes'], true );
 				$qAvail = empty( $s['qualifier_codes'] ) || in_array( strtoupper( $qCode ), $s['qualifier_codes'], true );
-				if ( ! $pAvail || ! $qAvail ) {
-					++$dateConflicts;
+				if ( ! $pAvail ) {
+					$dateConflicts[] = array(
+						'expedition_signup_id' => (int) $s['id'],
+						'explorer_name'        => (string) $s['explorer_name'],
+						'team_name'            => $teamName,
+						'stage'                => 'practice',
+						'event_code'           => $pCode,
+					);
+				}
+				if ( ! $qAvail ) {
+					$dateConflicts[] = array(
+						'expedition_signup_id' => (int) $s['id'],
+						'explorer_name'        => (string) $s['explorer_name'],
+						'team_name'            => $teamName,
+						'stage'                => 'qualifier',
+						'event_code'           => $qCode,
+					);
 				}
 
 				foreach ( $memberIndices as $otherIdx ) {
@@ -759,10 +797,18 @@ class TeamSolverService {
 			);
 		}
 
-		$mutualFulfilled = 0;
+		$mutualFulfilled        = 0;
+		$unfulfilledMutualPairs = array();
 		foreach ( $mutualPairs as list( $u, $v ) ) {
 			if ( $bestState['assign'][ $u ] === $bestState['assign'][ $v ] ) {
 				++$mutualFulfilled;
+			} else {
+				$unfulfilledMutualPairs[] = array(
+					'source_signup_id' => (int) $signupByIdx[ $u ]['id'],
+					'source_name'      => (string) $signupByIdx[ $u ]['explorer_name'],
+					'target_signup_id' => (int) $signupByIdx[ $v ]['id'],
+					'target_name'      => (string) $signupByIdx[ $v ]['explorer_name'],
+				);
 			}
 		}
 
@@ -771,8 +817,8 @@ class TeamSolverService {
 			'warnings'    => $warnings,
 			'compromises' => array(
 				'date_conflict_pending'    => $dateConflicts,
-				'split_date'               => 0,
-				'unfulfilled_mutual_pairs' => count( $mutualPairs ) - $mutualFulfilled,
+				'split_date'               => array(),
+				'unfulfilled_mutual_pairs' => $unfulfilledMutualPairs,
 				'solo_gender_teams'        => $soloGenderTeams,
 			),
 			'stats'       => array(
@@ -1205,10 +1251,105 @@ class TeamSolverService {
 	}
 
 	/**
-	 * @param array<int, array<string, mixed>> $exps
+	 * List active expeditions for Step 2 Target Expeditions to Fill checklist,
+	 * with availability counts for unlocked explorers in the selected scope.
+	 *
+	 * @param array<string, mixed> $params
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function filterExpeditionsForBucket( array $exps, string $level, string $mode, string $stage ): array {
+	public function getSelectableExpeditions( array $params = array() ): array {
+		$scope        = (string) ( $params['scope'] ?? 'bucket' ) === 'full_season' ? 'full_season' : 'bucket';
+		$filterLevels = array();
+		if ( ! empty( $params['dofe_levels'] ) && is_array( $params['dofe_levels'] ) ) {
+			foreach ( $params['dofe_levels'] as $lvl ) {
+				$clean = strtolower( trim( (string) $lvl ) );
+				if ( $clean !== '' ) {
+					$filterLevels[] = $clean;
+				}
+			}
+		} elseif ( isset( $params['dofe_level'] ) && trim( (string) $params['dofe_level'] ) !== '' ) {
+			foreach ( explode( ',', (string) $params['dofe_level'] ) as $lvl ) {
+				$clean = strtolower( trim( (string) $lvl ) );
+				if ( $clean !== '' ) {
+					$filterLevels[] = $clean;
+				}
+			}
+		}
+		$filterLevels = array_values( array_unique( $filterLevels ) );
+		$filterMode   = isset( $params['transport_mode'] ) && $params['transport_mode'] !== '' && strtolower( trim( (string) $params['transport_mode'] ) ) !== 'all'
+			? $this->matcher->normalizeTransportMode( (string) $params['transport_mode'] )
+			: '';
+
+		$signups     = $this->matcher->loadActiveSignups();
+		$expeditions = $this->loadActiveExpeditions();
+		$lockedInfo  = $this->loadLockedTeamsInfo();
+
+		$unlockedSignups = array();
+		foreach ( $signups as $s ) {
+			$sid = (int) $s['id'];
+			if ( isset( $lockedInfo['locked_signups'][ $sid ] ) ) {
+				continue;
+			}
+			if ( $scope === 'bucket' ) {
+				if ( ! empty( $filterLevels ) && ! in_array( $s['dofe_level'], $filterLevels, true ) ) {
+					continue;
+				}
+				if ( $filterMode !== '' && $s['transport_mode'] !== $filterMode ) {
+					continue;
+				}
+			}
+			$unlockedSignups[] = $s;
+		}
+
+		$out = array();
+		foreach ( $expeditions as $exp ) {
+			if ( $scope === 'bucket' ) {
+				if ( ! empty( $filterLevels ) && ! in_array( $exp['dofe_level'], $filterLevels, true ) && $exp['dofe_level'] !== 'multiple' ) {
+					continue;
+				}
+				if ( $filterMode !== '' && $exp['transport_mode'] !== $filterMode ) {
+					continue;
+				}
+			}
+
+			$upperCode      = strtoupper( (string) $exp['event_code'] );
+			$codeField      = $exp['stage'] === 'practice' ? 'practice_codes' : 'qualifier_codes';
+			$availableCount = 0;
+			foreach ( $unlockedSignups as $s ) {
+				if ( $s['transport_mode'] !== $exp['transport_mode'] ) {
+					continue;
+				}
+				if ( $exp['dofe_level'] !== 'multiple' && $s['dofe_level'] !== $exp['dofe_level'] ) {
+					continue;
+				}
+				$codes = $s[ $codeField ] ?? array();
+				if ( empty( $codes ) || ( $upperCode !== '' && in_array( $upperCode, $codes, true ) ) ) {
+					++$availableCount;
+				}
+			}
+
+			$out[] = array(
+				'expedition_id'   => (int) $exp['id'],
+				'event_code'      => (string) $exp['event_code'],
+				'title'           => (string) $exp['title'],
+				'stage'           => (string) $exp['stage'],
+				'dofe_level'      => (string) $exp['dofe_level'],
+				'transport_mode'  => (string) $exp['transport_mode'],
+				'start_date'      => (string) ( $exp['start_date'] ?? '' ),
+				'end_date'        => (string) ( $exp['end_date'] ?? '' ),
+				'available_count' => $availableCount,
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * @param array<int, array<string, mixed>> $exps
+	 * @param array<string, bool>|null         $includedCodes
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function filterExpeditionsForBucket( array $exps, string $level, string $mode, string $stage, ?array $includedCodes = null ): array {
 		$filtered = array();
 		foreach ( $exps as $exp ) {
 			if ( $exp['stage'] !== $stage ) {
@@ -1218,6 +1359,9 @@ class TeamSolverService {
 				continue;
 			}
 			if ( $exp['dofe_level'] !== $level && $exp['dofe_level'] !== 'multiple' ) {
+				continue;
+			}
+			if ( $includedCodes !== null && ! isset( $includedCodes[ strtoupper( (string) $exp['event_code'] ) ] ) ) {
 				continue;
 			}
 			$filtered[] = $exp;
@@ -1274,6 +1418,8 @@ class TeamSolverService {
 				'dofe_level'     => strtolower( trim( (string) get_post_meta( $eid, 'ems_level', true ) ) ),
 				'transport_mode' => $this->matcher->normalizeTransportMode( (string) ( get_post_meta( $eid, 'ems_transport', true ) ?: 'foot' ) ),
 				'stage'          => $stage,
+				'start_date'     => trim( (string) get_post_meta( $eid, 'ems_start_date', true ) ),
+				'end_date'       => trim( (string) get_post_meta( $eid, 'ems_end_date', true ) ),
 				'max_teams'      => $max,
 			);
 		}

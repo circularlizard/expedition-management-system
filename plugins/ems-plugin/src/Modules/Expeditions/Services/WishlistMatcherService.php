@@ -204,6 +204,7 @@ class WishlistMatcherService {
 						'source_signup_id' => $sourceId,
 						'explorer_name'    => $src['explorer_name'],
 						'unit_name'        => $src['unit_name'],
+						'unit_short_code'  => $src['unit_short_code'] ?? '',
 						'gender'           => $src['gender'] ?? '',
 						'dofe_level'       => $src['dofe_level'],
 						'transport_mode'   => $src['transport_mode'],
@@ -265,6 +266,7 @@ class WishlistMatcherService {
 				'source_signup_id' => $sourceId,
 				'explorer_name'    => $src['explorer_name'],
 				'unit_name'        => $src['unit_name'],
+				'unit_short_code'  => $src['unit_short_code'] ?? '',
 				'gender'           => $src['gender'] ?? '',
 				'dofe_level'       => $src['dofe_level'],
 				'transport_mode'   => $src['transport_mode'],
@@ -440,10 +442,15 @@ class WishlistMatcherService {
 
 		$items = $this->prefs->findBySourceSignupId( $sourceSignupId );
 
-		return array(
+		$response = array(
 			'updated' => $updated,
 			'items'   => $items,
 		);
+		if ( $gender !== null ) {
+			$response['gender'] = $this->prefs->normalizeGender( $gender );
+		}
+
+		return $response;
 	}
 
 	/**
@@ -1074,8 +1081,10 @@ class WishlistMatcherService {
 			"SELECT s.id, s.scout_id, s.unit_id, s.unit_name,
 				s.explorer_first_name, s.explorer_last_name,
 				s.dofe_level, s.expedition_preferences,
+				s.gender AS signup_gender,
 				s.first_aid_status, s.first_aid_expiry,
 				e.first_name AS osm_first_name, e.last_name AS osm_last_name,
+				e.gender AS osm_gender,
 				e.first_aid_level AS osm_first_aid_level,
 				u.name AS resolved_unit_name, u.short_code AS unit_short_code, u.district AS unit_district
 			FROM {$signupsTable} s
@@ -1104,14 +1113,26 @@ class WishlistMatcherService {
 			}
 
 			$signupId = (int) $row['id'];
+			$scoutId  = (int) ( $row['scout_id'] ?? 0 );
+			$gender   = '';
+			if ( $scoutId > 0 ) {
+				$gender = $this->prefs->normalizeGender( (string) ( $row['osm_gender'] ?? '' ) );
+			}
+			if ( $gender === '' ) {
+				$gender = $this->prefs->normalizeGender( (string) ( $row['signup_gender'] ?? '' ) );
+			}
+			if ( $gender === '' ) {
+				$gender = $genderMap[ $signupId ] ?? '';
+			}
+
 			$result[] = array(
 				'id'                  => $signupId,
-				'scout_id'            => (int) ( $row['scout_id'] ?? 0 ),
+				'scout_id'            => $scoutId,
 				'unit_id'             => isset( $row['unit_id'] ) && $row['unit_id'] !== null ? (int) $row['unit_id'] : null,
 				'unit_name'           => $unitName,
 				'unit_short_code'     => trim( (string) ( $row['unit_short_code'] ?? '' ) ),
 				'district'            => trim( (string) ( $row['unit_district'] ?? '' ) ),
-				'gender'              => $genderMap[ $signupId ] ?? '',
+				'gender'              => $gender,
 				'first_name'          => $first,
 				'last_name'           => $last,
 				'explorer_name'       => trim( $first . ' ' . $last ),

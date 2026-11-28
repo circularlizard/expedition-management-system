@@ -672,4 +672,92 @@ class TeamSolverServiceTest extends EMSTestCase {
 		sort( $teamUnitPrefixes );
 		$this->assertSame( array( 'Unit A', 'Unit B' ), $teamUnitPrefixes );
 	}
+
+	public function test_propose_respects_included_expedition_codes_and_records_date_conflict_pending(): void {
+		$signups = array();
+		for ( $i = 1; $i <= 3; $i++ ) {
+			$signups[] = $this->makeSignup( $i, 'Avail', (string) $i, 'silver', 'Hillwalking', 'Lauderdale ESU' );
+		}
+		// Explorer 4 is ONLY available for H-SP1 (which will be unchecked).
+		$exp4                           = $this->makeSignup( 4, 'Conflict', 'Explorer', 'silver', 'Hillwalking', 'Lauderdale ESU' );
+		$exp4['expedition_preferences'] = wp_json_encode(
+			array(
+				'exped_type'            => 'Hillwalking',
+				'exped_practice_dates'  => array( 'H-SP1' ),
+				'exped_qualifier_dates' => array( 'H-SQ1' ),
+				'exped_team_names'      => '',
+			)
+		);
+		$signups[]                      = $exp4;
+
+		$expPosts = array(
+			$this->mockPost( 101, 'expedition', 'Silver Practice 1' ),
+			$this->mockPost( 102, 'expedition', 'Silver Practice 2' ),
+			$this->mockPost( 201, 'expedition', 'Silver Qualifier 1' ),
+		);
+		$meta     = array(
+			101 => array(
+				'ems_event_code' => 'H-SP1',
+				'ems_level'      => 'silver',
+				'ems_transport'  => 'hillwalking',
+				'ems_type'       => 'practice',
+				'ems_status'     => 'active',
+				'ems_start_date' => '2026-05-28',
+			),
+			102 => array(
+				'ems_event_code' => 'H-SP2',
+				'ems_level'      => 'silver',
+				'ems_transport'  => 'hillwalking',
+				'ems_type'       => 'practice',
+				'ems_status'     => 'active',
+				'ems_start_date' => '2026-06-11',
+			),
+			201 => array(
+				'ems_event_code' => 'H-SQ1',
+				'ems_level'      => 'silver',
+				'ems_transport'  => 'hillwalking',
+				'ems_type'       => 'qualifying',
+				'ems_status'     => 'active',
+				'ems_start_date' => '2026-07-02',
+			),
+		);
+
+		Functions\when( 'get_posts' )->alias(
+			static fn( array $args ): array => ( $args['post_type'] ?? '' ) === 'expedition' ? $expPosts : array()
+		);
+		Functions\when( 'get_post_meta' )->alias(
+			static fn( int $postId, string $key ): string => (string) ( $meta[ $postId ][ $key ] ?? '' )
+		);
+
+		$wpdb         = \Mockery::mock( \wpdb::class );
+		$wpdb->prefix = 'wp_';
+		$wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+			static fn( string $query ): array => str_contains( $query, 'ems_expedition_signups' ) ? $signups : array()
+		);
+
+		$solver = new TeamSolverService( $wpdb );
+		$result = $solver->propose(
+			array(
+				'scope'                     => 'bucket',
+				'dofe_level'                => 'silver',
+				'transport_mode'            => 'foot',
+				'included_expedition_codes' => array( 'H-SP2', 'H-SQ1' ),
+			)
+		);
+
+		$this->assertCount( 1, $result['proposed_teams'] );
+		$this->assertSame( 'H-SP2', $result['proposed_teams'][0]['practice_code'] );
+		$this->assertSame( 'H-SQ1', $result['proposed_teams'][0]['qualifier_code'] );
+
+		$capCodes = array_column( $result['expedition_capacity'], 'event_code' );
+		$this->assertNotContains( 'H-SP1', $capCodes );
+		$this->assertContains( 'H-SP2', $capCodes );
+
+		$conflicts = $result['compromises']['date_conflict_pending'];
+		$this->assertCount( 1, $conflicts );
+		$this->assertSame( 4, $conflicts[0]['expedition_signup_id'] );
+		$this->assertSame( 'Conflict Explorer', $conflicts[0]['explorer_name'] );
+		$this->assertSame( 'practice', $conflicts[0]['stage'] );
+		$this->assertSame( 'H-SP2', $conflicts[0]['event_code'] );
+	}
 }

@@ -1438,5 +1438,150 @@
     flex-shrink: 0;
 }
 
+/* Auto-Propose Teams Modal Enhancements */
+.ems-propose-scope-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.ems-propose-scope-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ems-propose-scope-group__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.ems-unit-group {
+    margin-bottom: 14px;
+}
+
+.ems-unit-group__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    padding: 6px 10px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 8px;
+}
+
+.ems-unit-group__header:hover {
+    background: #e2e8f0;
+}
+
+.ems-unit-group__count {
+    font-size: 12px;
+    font-weight: 400;
+    color: #475569;
+}
+
+.ems-unit-group__cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ems-explorer-seq {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 6px;
+}
+
+.ems-save-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.ems-save-pill--saving {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.ems-save-pill--saved {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+}
+
+.ems-save-pill--error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+.ems-target-expeditions {
+    margin-top: 10px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+}
+
+.ems-target-expeditions__title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #0f172a;
+}
+
+.ems-target-expeditions__groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.ems-target-expeditions__stage {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.ems-target-expeditions__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ems-target-expeditions__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+
 
 

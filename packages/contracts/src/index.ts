@@ -167,12 +167,25 @@ export interface PreferenceQueueItemDTO {
   source_signup_id: number;
   explorer_name: string;
   unit_name: string;
+  unit_short_code?: string;
   dofe_level: string;
   transport_mode: string;
   gender?: ExplorerGender;
   wishlist_raw: string;
   wishlist_hash: string;
   tokens: PreferenceTokenDTO[];
+}
+
+export interface SelectableExpeditionDTO {
+  expedition_id: number;
+  event_code: string;
+  title: string;
+  stage: 'practice' | 'qualifier';
+  dofe_level: string;
+  transport_mode: string;
+  start_date?: string;
+  end_date?: string;
+  available_count: number;
 }
 
 export interface PreferenceQueueResponseDTO {
