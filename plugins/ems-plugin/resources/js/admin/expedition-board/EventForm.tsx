@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Expedition, OSMEvent } from './types';
+import { RouteDeadlineInput } from './RouteDeadlineInput';
 
 interface EventFormProps {
     seasonId: number;
@@ -288,6 +289,14 @@ export const EventForm: React.FC<EventFormProps> = ({ seasonId, initialEvent, os
                             <div className="ems-form-label">End Time</div>
                             <input type="time" name="ems_end_time" value={formData.ems_end_time} onChange={handleChange} className="ems-form-input" />
                         </label>
+                        <RouteDeadlineInput
+                            startDate={formData.ems_start_date}
+                            deadline={formData.ems_route_deadline}
+                            onChange={(nextDeadline) =>
+                                setFormData((prev) => ({ ...prev, ems_route_deadline: nextDeadline }))
+                            }
+                            className="ems-form-group--span2"
+                        />
                     </div>
                 </div>
 

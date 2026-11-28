@@ -14,6 +14,7 @@ import { OSMReadOnlyMap } from './OSMReadOnlyMap';
 import { EventRosterPanel } from '../volunteers/EventRosterPanel';
 import { RichTextEditor } from './RichTextEditor';
 import { OSMMapPicker, ActiveWaypointTarget } from './OSMMapPicker';
+import { RouteDeadlineInput, formatRouteDeadlineWithOffset } from './RouteDeadlineInput';
 
 interface EventDetailPageProps {
     event: Expedition;
@@ -263,7 +264,9 @@ const OverviewTab: React.FC<{
                         <div className="ems-summary-kpi">
                             <div className="ems-summary-kpi__label">Route Plans</div>
                             <div className="ems-summary-kpi__value">{routesApproved}/{allocatedTeams} Approved</div>
-                            <div className="ems-summary-kpi__sub">Deadline: {formatDate(event.ems_route_deadline)}</div>
+                            <div className="ems-summary-kpi__sub">
+                                Deadline: {formatRouteDeadlineWithOffset(event.ems_route_deadline, event.ems_start_date, formatDate)}
+                            </div>
                         </div>
                         <div className="ems-summary-kpi">
                             <div className="ems-summary-kpi__label">OSM Event</div>
@@ -672,15 +675,13 @@ const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => voi
                                 <option value="confirmed">Confirmed</option>
                             </select>
                         </label>
-                        <label className="ems-form-group">
-                            <div className="ems-form-label">Route Deadline</div>
-                            <input
-                                type="date"
-                                value={formData.ems_route_deadline}
-                                onChange={e => setFormData(prev => ({ ...prev, ems_route_deadline: e.target.value }))}
-                                className="ems-form-input"
-                            />
-                        </label>
+                        <RouteDeadlineInput
+                            startDate={event.ems_start_date}
+                            deadline={formData.ems_route_deadline}
+                            onChange={(nextDeadline) =>
+                                setFormData((prev) => ({ ...prev, ems_route_deadline: nextDeadline }))
+                            }
+                        />
                     </div>
 
                     <label className="ems-form-group ems-mt-16">
@@ -702,7 +703,10 @@ const RouteTab: React.FC<{ event: Expedition; onUpdated?: (e: Expedition) => voi
                 <div className="ems-tab-section">
                     <div className="ems-form-grid-3 ems-mb-16">
                         <FieldVal label="Route Status" value={capitalize(event.ems_route_status || 'draft')} />
-                        <FieldVal label="Route Deadline" value={formatDate(event.ems_route_deadline)} />
+                        <FieldVal
+                            label="Route Deadline"
+                            value={formatRouteDeadlineWithOffset(event.ems_route_deadline, event.ems_start_date, formatDate)}
+                        />
                         <FieldVal label="Days Planned" value={`${readOnlyDays.length} day${readOnlyDays.length === 1 ? '' : 's'}`} />
                     </div>
 

@@ -318,4 +318,37 @@ describe('EventDetailPage Tab Functions', () => {
             expect(body.ems_end_location).toBe('55.990000, -3.220000');
         });
     });
+
+    it('synchronizes route deadline date and days-prior offset in RouteTab and saves ems_route_deadline', async () => {
+        render(<EventDetailPage event={mockEvent} onBack={() => {}} />);
+
+        fireEvent.click(screen.getByText('Route'));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Route' }));
+
+        const dateInput = screen.getByLabelText('Route Deadline Date') as HTMLInputElement;
+        const offsetInput = screen.getByLabelText('Days Prior to Start') as HTMLInputElement;
+
+        // mockEvent.ems_start_date is '2026-06-28'; entering 21 days prior sets 2026-06-07
+        fireEvent.change(offsetInput, { target: { value: '21' } });
+        expect(dateInput.value).toBe('2026-06-07');
+
+        // Changing date to 2026-06-14 updates offset to 14 days prior
+        fireEvent.change(dateInput, { target: { value: '2026-06-14' } });
+        expect(offsetInput.value).toBe('14');
+
+        (global.fetch as any).mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ ...mockEvent, ems_route_deadline: '2026-06-14' }),
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Route Details' }));
+
+        await waitFor(() => {
+            const patchCall = (global.fetch as any).mock.calls.find(
+                (c: any) => c[0].includes('/events/10') && c[1]?.method === 'PATCH'
+            );
+            expect(patchCall).toBeDefined();
+            const body = JSON.parse(patchCall[1].body);
+            expect(body.ems_route_deadline).toBe('2026-06-14');
+        });
+    });
 });
