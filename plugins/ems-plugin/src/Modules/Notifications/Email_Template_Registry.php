@@ -245,6 +245,58 @@ class Email_Template_Registry {
 
 		$this->register_template(
 			array(
+				'slug'            => 'individual_chase',
+				'label'           => 'Individual / Parent Anomaly Chase',
+				'category'        => 'Signups & Chasers',
+				'description'     => 'Sent directly to an Explorer and/or Parent/Guardian from the Anomalies & Chasers screen.',
+				'subject_option'  => Signup_Chaser_Controller::OPTION_INDIVIDUAL_CHASE_SUBJECT,
+				'reply_to_option' => Signup_Chaser_Controller::OPTION_INDIVIDUAL_CHASE_REPLY_TO,
+				'body_option'     => Signup_Chaser_Controller::OPTION_INDIVIDUAL_CHASE_BODY,
+				'default_subject' => Signup_Chaser_Controller::DEFAULT_INDIVIDUAL_CHASE_SUBJECT,
+				'default_body'    => Signup_Chaser_Controller::DEFAULT_INDIVIDUAL_CHASE_BODY,
+				'tokens'          => array(
+					array(
+						'token'       => '{{explorer_name}}',
+						'label'       => 'Explorer Name',
+						'description' => 'Full name of the explorer',
+						'example'     => 'Amy Brown',
+					),
+					array(
+						'token'       => '{{explorer_first_name}}',
+						'label'       => 'Explorer First Name',
+						'description' => 'First name of the explorer',
+						'example'     => 'Amy',
+					),
+					array(
+						'token'       => '{{dofe_level}}',
+						'label'       => 'DofE Level',
+						'description' => 'Explorer DofE award level',
+						'example'     => 'Bronze',
+					),
+					array(
+						'token'       => '{{unit_name}}',
+						'label'       => 'Unit Name',
+						'description' => 'Explorer Unit name',
+						'example'     => 'Kelso ESU',
+					),
+					array(
+						'token'       => '{{anomalies_list}}',
+						'label'       => 'Anomalies List',
+						'description' => 'Comma-separated list of detected anomaly labels for this explorer',
+						'example'     => 'Place Without Expedition, Missing eDofE',
+					),
+					array(
+						'token'       => '{{site_name}}',
+						'label'       => 'Site Name',
+						'description' => 'WordPress site title',
+						'example'     => $live_site_name,
+					),
+				),
+			)
+		);
+
+		$this->register_template(
+			array(
 				'slug'            => 'fluent_otp',
 				'label'           => 'Email OTP Verification',
 				'category'        => 'System & Verification',

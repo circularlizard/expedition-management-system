@@ -361,37 +361,80 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
         }
     };
 
-    const openIndividualChaserModal = (group: UnitChaserGroup, exp: ChaserExplorerItem) => {
+    const openIndividualChaserModal = async (group: UnitChaserGroup, exp: ChaserExplorerItem) => {
         setNotice(null);
+        setLoadingPreview(exp.key);
         const anomalyList = exp.anomalies
             .map((a) => ANOMALY_META.find((m) => m.key === a)?.label || a)
             .join(', ');
         const allSelected = exp.recipientOptions.map((o) => o.email);
 
-        setDraft({
-            audience: 'individual',
-            chaserType: 'unpaired_signups',
-            unitName: group.unitName,
-            to: allSelected.join(', '),
-            cc: group.leaderEmail || '',
-            recipientOptions: exp.recipientOptions,
-            selectedEmails: allSelected,
-            manualEmails: '',
-            subject: `Action Required: DofE Sign-up for ${exp.name}`,
-            message: `<p>Hello,</p><p>We are reviewing the DofE sign-up for <strong>${escapeHtml(exp.name)}</strong> (${escapeHtml(exp.level)}) and noticed the following item(s) to resolve:</p><p><strong>${escapeHtml(anomalyList)}</strong></p><p>Please reply to let us know or complete the missing details.</p><p>Thank you</p>`,
-            anomalies: exp.anomalies,
-            includedSignups: [
-                {
-                    id: Number(exp.primarySignup.id),
-                    type: String(exp.primarySignup.type),
-                    scout_id: Number(exp.scoutId || 0),
+        const hasOsm = exp.anomalies.some((a) => a === 'unmatched_osm' || a === 'pending_osm_sync');
+        const hasUnpaired = exp.anomalies.some(
+            (a) => a === 'place_without_expedition' || a === 'expedition_without_place'
+        );
+        const hasMissingEdofe = exp.anomalies.includes('missing_edofe');
+        const inferredType: ChaserType = hasOsm
+            ? 'osm_share'
+            : hasUnpaired
+              ? 'unpaired_signups'
+              : hasMissingEdofe
+                ? 'missing_edofe'
+                : 'unpaired_signups';
+
+        const fallbackSubject = `Action Required: DofE Sign-up for ${exp.name}`;
+        const fallbackBody = `<p>Hello,</p><p>We are reviewing the DofE sign-up for <strong>${escapeHtml(exp.name)}</strong> (${escapeHtml(exp.level)}) and noticed the following item(s) to resolve:</p><p><strong>${escapeHtml(anomalyList)}</strong></p><p>Please reply to let us know or complete the missing details.</p><p>Thank you</p>`;
+
+        try {
+            const res = await fetch(`${rootUrl}/signups/send-chaser`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': nonce,
                 },
-            ],
-            targetSignupId: Number(exp.primarySignup.id),
-            targetSignupType: String(exp.primarySignup.type),
-            targetScoutId: Number(exp.scoutId || 0),
-            explorerName: exp.name,
-        });
+                body: JSON.stringify({
+                    target_audience: 'individual',
+                    chaser_type: inferredType,
+                    unit_name: group.unitName,
+                    explorer_name: exp.name,
+                    explorer_first_name: exp.firstName,
+                    dofe_level: exp.level,
+                    anomalies: exp.anomalies,
+                    preview: true,
+                }),
+            });
+            const data = await res.json();
+
+            setDraft({
+                audience: 'individual',
+                chaserType: inferredType,
+                unitName: group.unitName,
+                to: allSelected.join(', '),
+                cc: group.leaderEmail || '',
+                recipientOptions: exp.recipientOptions,
+                selectedEmails: allSelected,
+                manualEmails: '',
+                subject: data?.subject || fallbackSubject,
+                message: data?.message || fallbackBody,
+                anomalies: exp.anomalies,
+                includedSignups: [
+                    {
+                        id: Number(exp.primarySignup.id),
+                        type: String(exp.primarySignup.type),
+                        scout_id: Number(exp.scoutId || 0),
+                    },
+                ],
+                targetSignupId: Number(exp.primarySignup.id),
+                targetSignupType: String(exp.primarySignup.type),
+                targetScoutId: Number(exp.scoutId || 0),
+                explorerName: exp.name,
+                shortcodes: Array.isArray(data?.shortcodes) ? data.shortcodes : [],
+            });
+        } catch {
+            setNotice({ type: 'error', text: 'Could not load chaser email preview.' });
+        } finally {
+            setLoadingPreview(null);
+        }
     };
 
     const handleSend = async () => {
@@ -604,10 +647,11 @@ export const UnitChaserView: React.FC<UnitChaserViewProps> = ({
                                                 <button
                                                     type="button"
                                                     className="button button-small"
-                                                    disabled={!exp.email && !exp.parentEmail}
+                                                    disabled={(!exp.email && !exp.parentEmail) || loadingPreview === exp.key}
                                                     onClick={() => openIndividualChaserModal(group, exp)}
                                                 >
-                                                    <FontAwesomeIcon icon={faUser} /> Email Individual
+                                                    <FontAwesomeIcon icon={faUser} />{' '}
+                                                    {loadingPreview === exp.key ? 'Loading…' : 'Email Individual'}
                                                 </button>
                                             </td>
                                         </tr>

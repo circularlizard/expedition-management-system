@@ -1773,6 +1773,17 @@ describe('SignupsBoard', () => {
             }
             if (url.includes('/signups/send-chaser')) {
                 const body = JSON.parse(opts.body);
+                if (body.preview && body.target_audience === 'individual') {
+                    return Promise.resolve({
+                        ok: true,
+                        json: async () => ({
+                            unit_name: 'Kelso ESU',
+                            subject: '[SES] Custom Individual Chase for Zoe Adams',
+                            message: '<p>Templated individual message for Zoe Adams</p>',
+                            shortcodes: [{ token: '{{explorer_name}}', label: 'Explorer Name' }],
+                        }),
+                    });
+                }
                 if (body.preview) {
                     return Promise.resolve({
                         ok: true,
@@ -1828,6 +1839,7 @@ describe('SignupsBoard', () => {
         // Individual modal
         fireEvent.click(screen.getByRole('button', { name: /Email Individual/i }));
         await waitFor(() => expect(screen.getByText(/Email Individual \/ Parent — Zoe Adams/i)).toBeInTheDocument());
+        expect(screen.getByDisplayValue('[SES] Custom Individual Chase for Zoe Adams')).toBeInTheDocument();
     });
 
     it('includes Register Interest expedition preferences in Paddling chips and drilldown', async () => {

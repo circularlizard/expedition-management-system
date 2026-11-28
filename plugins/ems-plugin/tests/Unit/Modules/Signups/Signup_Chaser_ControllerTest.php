@@ -517,6 +517,7 @@ class Signup_Chaser_ControllerTest extends EMSTestCase {
 			static fn( string $key, $default = false ) => $key === 'ems_feature_flags' ? array() : $default
 		);
 		Functions\when( 'is_email' )->returnArg();
+		Functions\when( 'get_bloginfo' )->justReturn( 'SES' );
 		Functions\when( 'esc_html' )->returnArg();
 
 		$signup_repo = \Mockery::mock( Signup_Repository::class );
@@ -629,5 +630,104 @@ class Signup_Chaser_ControllerTest extends EMSTestCase {
 		$this->assertSame( 1, $data['explorer_count'] );
 		$this->assertStringContainsString( 'Amy Brown', $data['message'] );
 		$this->assertStringNotContainsString( 'Ben Clark', $data['message'] );
+	}
+
+	public function test_preview_individual_chaser_uses_template_and_returns_shortcodes(): void {
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = false ) {
+				if ( $key === 'ems_feature_flags' ) {
+					return array();
+				}
+				if ( $key === Signup_Chaser_Controller::OPTION_INDIVIDUAL_CHASE_SUBJECT ) {
+					return '[{{site_name}}] Custom Subject for {{explorer_first_name}}';
+				}
+				if ( $key === Signup_Chaser_Controller::OPTION_INDIVIDUAL_CHASE_BODY ) {
+					return '<p>Hi {{explorer_name}} ({{dofe_level}} in {{unit_name}}), please fix: {{anomalies_list}}</p>';
+				}
+				if ( $key === Signup_Chaser_Controller::OPTION_INDIVIDUAL_CHASE_REPLY_TO ) {
+					return 'dofe@example.com';
+				}
+				return $default;
+			}
+		);
+		Functions\when( 'get_bloginfo' )->justReturn( 'SES' );
+		Functions\when( 'esc_html' )->returnArg();
+
+		$signup_repo = \Mockery::mock( Signup_Repository::class );
+		$unit_repo   = \Mockery::mock( Unit_Repository::class );
+		$controller  = new Signup_Chaser_Controller( $signup_repo, $unit_repo, new Email_Template_Service() );
+
+		$request = new \WP_REST_Request( 'POST', '/ems/v1/signups/send-chaser' );
+		$request->set_param( 'target_audience', 'individual' );
+		$request->set_param( 'chaser_type', 'unpaired_signups' );
+		$request->set_param( 'unit_name', 'Kelso ESU' );
+		$request->set_param( 'explorer_name', 'Zoe Adams' );
+		$request->set_param( 'explorer_first_name', 'Zoe' );
+		$request->set_param( 'dofe_level', 'BRONZE' );
+		$request->set_param( 'anomalies', array( 'place_without_expedition', 'missing_edofe' ) );
+		$request->set_param( 'preview', true );
+
+		$response = $controller->send_chaser( $request );
+		$this->assertInstanceOf( \WP_REST_Response::class, $response );
+		$data = $response->get_data();
+
+		$this->assertSame( '[SES] Custom Subject for Zoe', $data['subject'] );
+		$this->assertSame( '<p>Hi Zoe Adams (BRONZE in Kelso ESU), please fix: Place Without Expedition, Missing eDofE</p>', $data['message'] );
+		$this->assertSame( 'dofe@example.com', $data['reply_to'] );
+		$this->assertNotEmpty( $data['shortcodes'] );
+		$tokens = array_column( $data['shortcodes'], 'token' );
+		$this->assertContains( '{{explorer_name}}', $tokens );
+		$this->assertContains( '{{anomalies_list}}', $tokens );
+	}
+
+	public function test_send_individual_chaser_applies_reply_to_and_renders_override_tokens(): void {
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = false ) {
+				if ( $key === 'ems_feature_flags' ) {
+					return array();
+				}
+				if ( $key === Signup_Chaser_Controller::OPTION_INDIVIDUAL_CHASE_REPLY_TO ) {
+					return 'reply@example.com';
+				}
+				return $default;
+			}
+		);
+		Functions\when( 'is_email' )->returnArg();
+		Functions\when( 'get_bloginfo' )->justReturn( 'SES' );
+		Functions\when( 'esc_html' )->returnArg();
+
+		$signup_repo = \Mockery::mock( Signup_Repository::class );
+		$unit_repo   = \Mockery::mock( Unit_Repository::class );
+
+		$captured_mail = null;
+		Functions\when( 'wp_mail' )->alias(
+			static function ( $to, $subject, $message, $headers = array() ) use ( &$captured_mail ): bool {
+				$captured_mail = array(
+					'to'      => $to,
+					'subject' => $subject,
+					'message' => $message,
+					'headers' => $headers,
+				);
+				return true;
+			}
+		);
+
+		$controller = new Signup_Chaser_Controller( $signup_repo, $unit_repo, new Email_Template_Service() );
+
+		$request = new \WP_REST_Request( 'POST', '/ems/v1/signups/send-chaser' );
+		$request->set_param( 'target_audience', 'individual' );
+		$request->set_param( 'chaser_type', 'missing_edofe' );
+		$request->set_param( 'to_override', 'zoe@example.com' );
+		$request->set_param( 'explorer_name', 'Zoe Adams' );
+		$request->set_param( 'anomalies', array( 'missing_edofe' ) );
+		$request->set_param( 'subject_override', 'Hello {{explorer_first_name}}' );
+		$request->set_param( 'body_override', '<p>Issues: {{anomalies_list}}</p>' );
+
+		$response = $controller->send_chaser( $request );
+		$this->assertInstanceOf( \WP_REST_Response::class, $response );
+		$this->assertNotNull( $captured_mail );
+		$this->assertSame( 'Hello Zoe', $captured_mail['subject'] );
+		$this->assertSame( '<p>Issues: Missing eDofE</p>', $captured_mail['message'] );
+		$this->assertContains( 'Reply-To: reply@example.com', $captured_mail['headers'] );
 	}
 }

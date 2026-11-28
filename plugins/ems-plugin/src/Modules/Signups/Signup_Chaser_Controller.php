@@ -32,6 +32,10 @@ class Signup_Chaser_Controller {
 	public const OPTION_MISSING_EDOFE_REPLY_TO = 'ems_missing_edofe_chase_email_reply_to';
 	public const OPTION_MISSING_EDOFE_BODY     = 'ems_missing_edofe_chase_email_body';
 
+	public const OPTION_INDIVIDUAL_CHASE_SUBJECT  = 'ems_individual_chase_email_subject';
+	public const OPTION_INDIVIDUAL_CHASE_REPLY_TO = 'ems_individual_chase_email_reply_to';
+	public const OPTION_INDIVIDUAL_CHASE_BODY     = 'ems_individual_chase_email_body';
+
 	public const DEFAULT_OSM_SHARE_SUBJECT = '[{{site_name}}] Action Required: Please share Explorer(s) in OSM for {{unit_name}}';
 	public const DEFAULT_OSM_SHARE_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> have signed up for DofE but do not yet have a synced Online Scout Manager (OSM) record in our system:</p>\n{{explorer_list_osm}}\n<p>Please could you share these Explorer(s) with the Regional DofE section in OSM so we can link their signups?</p>\n<p>Thank you,<br>{{site_name}}</p>";
 
@@ -43,6 +47,9 @@ class Signup_Chaser_Controller {
 
 	public const DEFAULT_MISSING_EDOFE_SUBJECT = '[{{site_name}}] Missing eDofE Number(s) for {{unit_name}}';
 	public const DEFAULT_MISSING_EDOFE_BODY    = "<p>Hello,</p>\n<p>The following Explorer(s) from <strong>{{unit_name}}</strong> do not yet have an eDofE ID recorded on their signups:</p>\n{{missing_edofe_explorer_list}}\n<p>Please could you confirm or register their eDofE numbers so we can verify their award status?</p>\n<p>Thank you,<br>{{site_name}}</p>";
+
+	public const DEFAULT_INDIVIDUAL_CHASE_SUBJECT = '[{{site_name}}] Action Required: DofE Sign-up for {{explorer_name}}';
+	public const DEFAULT_INDIVIDUAL_CHASE_BODY    = "<p>Hello,</p>\n<p>We are reviewing the DofE sign-up for <strong>{{explorer_name}}</strong> ({{dofe_level}}) and noticed the following item(s) to resolve:</p>\n<p><strong>{{anomalies_list}}</strong></p>\n<p>Please reply to let us know or complete the missing details.</p>\n<p>Thank you,<br>{{site_name}}</p>";
 
 	private Signup_Repository $signup_repo;
 	private Unit_Repository $unit_repo;
@@ -603,19 +610,80 @@ class Signup_Chaser_Controller {
 	}
 
 	/**
-	 * Sends an individual/parent anomaly chaser email and logs per-Explorer history.
+	 * Sends (or previews) an individual/parent anomaly chaser email and logs per-Explorer history.
 	 *
 	 * @param string[] $anomalies
 	 */
 	private function send_individual_chaser( \WP_REST_Request $request, string $chaser_type, array $anomalies ): \WP_REST_Response|\WP_Error {
-		$to_raw       = trim( (string) $request->get_param( 'to_override' ) );
-		$cc           = trim( (string) $request->get_param( 'cc_email' ) );
-		$subject      = trim( (string) $request->get_param( 'subject_override' ) );
-		$body         = (string) $request->get_param( 'body_override' );
-		$signup_id    = (int) $request->get_param( 'target_signup_id' );
-		$signup_type  = sanitize_key( (string) $request->get_param( 'target_signup_type' ) );
-		$scout_id     = (int) $request->get_param( 'target_scout_id' );
-		$explorer     = trim( (string) $request->get_param( 'explorer_name' ) ) ?: 'Explorer';
+		$preview          = (bool) $request->get_param( 'preview' );
+		$to_raw           = trim( (string) $request->get_param( 'to_override' ) );
+		$cc               = trim( (string) $request->get_param( 'cc_email' ) );
+		$subject_override = trim( (string) $request->get_param( 'subject_override' ) );
+		$body_override    = (string) $request->get_param( 'body_override' );
+		$signup_id        = (int) $request->get_param( 'target_signup_id' );
+		$signup_type      = sanitize_key( (string) $request->get_param( 'target_signup_type' ) );
+		$scout_id         = (int) $request->get_param( 'target_scout_id' );
+		$explorer         = trim( (string) $request->get_param( 'explorer_name' ) ) ?: 'Explorer';
+		$first_name       = trim( (string) $request->get_param( 'explorer_first_name' ) );
+		if ( $first_name === '' ) {
+			$parts      = preg_split( '/\s+/', $explorer );
+			$first_name = ! empty( $parts[0] ) ? $parts[0] : $explorer;
+		}
+		$dofe_level = trim( (string) $request->get_param( 'dofe_level' ) );
+		$unit_name  = trim( (string) $request->get_param( 'unit_name' ) );
+
+		$site_name = function_exists( 'get_bloginfo' ) ? (string) get_bloginfo( 'name' ) : 'EMS';
+		if ( $site_name !== '' && function_exists( 'wp_specialchars_decode' ) ) {
+			$site_name = wp_specialchars_decode( $site_name, ENT_QUOTES );
+		}
+
+		$anomalies_list = $this->format_anomaly_labels( $anomalies );
+
+		$replacements = array(
+			'{{explorer_name}}'       => $explorer,
+			'{{explorer_first_name}}' => $first_name,
+			'{{dofe_level}}'          => $dofe_level,
+			'{{unit_name}}'           => $unit_name,
+			'{{anomalies_list}}'      => $anomalies_list,
+			'{{site_name}}'           => $site_name,
+		);
+
+		$rendered = $this->email_service->resolve_template(
+			self::OPTION_INDIVIDUAL_CHASE_SUBJECT,
+			self::DEFAULT_INDIVIDUAL_CHASE_SUBJECT,
+			self::OPTION_INDIVIDUAL_CHASE_BODY,
+			self::DEFAULT_INDIVIDUAL_CHASE_BODY,
+			$replacements
+		);
+
+		if ( $preview ) {
+			$raw_subject = trim( (string) get_option( self::OPTION_INDIVIDUAL_CHASE_SUBJECT, '' ) );
+			if ( $raw_subject === '' ) {
+				$raw_subject = self::DEFAULT_INDIVIDUAL_CHASE_SUBJECT;
+			}
+			$raw_body = trim( (string) get_option( self::OPTION_INDIVIDUAL_CHASE_BODY, '' ) );
+			if ( $raw_body === '' ) {
+				$raw_body = self::DEFAULT_INDIVIDUAL_CHASE_BODY;
+			}
+
+			$registry     = new Email_Template_Registry();
+			$template_def = $registry->get( 'individual_chase' );
+			$shortcodes   = is_array( $template_def['tokens'] ?? null ) ? $template_def['tokens'] : array();
+
+			return new \WP_REST_Response(
+				array(
+					'unit_name'    => $unit_name,
+					'subject'      => $rendered['subject'],
+					'message'      => $rendered['message'],
+					'raw_subject'  => $raw_subject,
+					'raw_message'  => $raw_body,
+					'replacements' => $replacements,
+					'shortcodes'   => $shortcodes,
+					'reply_to'     => trim( (string) get_option( self::OPTION_INDIVIDUAL_CHASE_REPLY_TO, '' ) ),
+				),
+				200
+			);
+		}
 
 		$to_list = array();
 		foreach ( preg_split( '/[,;]+/', $to_raw ) ?: array() as $candidate ) {
@@ -633,14 +701,22 @@ class Signup_Chaser_Controller {
 		$to_param = count( $to_list ) === 1 ? reset( $to_list ) : array_values( $to_list );
 		$to_log   = implode( ', ', array_values( $to_list ) );
 
-		if ( $subject === '' ) {
-			$subject = 'Action Required: DofE Expedition Sign-up for ' . $explorer;
-		}
-		if ( trim( $body ) === '' ) {
-			$body = '<p>Hello,</p><p>We need a quick update on the DofE Expedition sign-up for <strong>' . esc_html( $explorer ) . '</strong>.</p><p>Thank you.</p>';
+		$has_subject_override = $subject_override !== '';
+		$has_body_override    = trim( $body_override ) !== '';
+		if ( $has_subject_override || $has_body_override ) {
+			$rendered_override = $this->email_service->render(
+				$has_subject_override ? $subject_override : $rendered['subject'],
+				$has_body_override ? $body_override : $rendered['message'],
+				$replacements
+			);
+			$subject = $rendered_override['subject'];
+			$body    = $rendered_override['message'];
+		} else {
+			$subject = $rendered['subject'];
+			$body    = $rendered['message'];
 		}
 
-		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
+		$base_headers = array();
 		if ( $cc !== '' ) {
 			$valid_ccs = array();
 			foreach ( preg_split( '/[,;]+/', $cc ) ?: array() as $candidate ) {
@@ -651,9 +727,16 @@ class Signup_Chaser_Controller {
 				}
 			}
 			if ( ! empty( $valid_ccs ) ) {
-				$headers[] = 'Cc: ' . implode( ', ', array_values( $valid_ccs ) );
+				$base_headers[] = 'Cc: ' . implode( ', ', array_values( $valid_ccs ) );
 			}
 		}
+
+		$headers = $this->email_service->build_headers(
+			self::OPTION_INDIVIDUAL_CHASE_REPLY_TO,
+			$replacements,
+			$base_headers,
+			true
+		);
 
 		$sent = (bool) wp_mail( $to_param, $subject, $body, $headers );
 		if ( ! $sent ) {
@@ -697,6 +780,34 @@ class Signup_Chaser_Controller {
 			),
 			200
 		);
+	}
+
+	/**
+	 * Formats anomaly keys into a comma-separated list of human-readable labels.
+	 *
+	 * @param string[] $anomalies
+	 */
+	private function format_anomaly_labels( array $anomalies ): string {
+		$labels_map = array(
+			'place_without_expedition' => 'Place Without Expedition',
+			'expedition_without_place' => 'Expedition Without Place',
+			'level_mismatch'           => 'Level Mismatch',
+			'duplicate_signup'         => 'Duplicate',
+			'unmatched_osm'            => 'Unmatched OSM',
+			'pending_osm_sync'         => 'Pending OSM Sync',
+			'missing_edofe'            => 'Missing eDofE',
+			'unvalidated_asn'          => 'Unvalidated ASN',
+		);
+
+		$labels = array();
+		foreach ( $anomalies as $key ) {
+			$clean = sanitize_key( (string) $key );
+			if ( $clean !== '' ) {
+				$labels[] = esc_html( $labels_map[ $clean ] ?? $clean );
+			}
+		}
+
+		return implode( ', ', $labels );
 	}
 
 	/**

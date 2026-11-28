@@ -14,7 +14,13 @@ class Email_Template_RegistryTest extends EMSTestCase {
 		$this->assertContains( 'leader_invite', $slugs );
 		$this->assertContains( 'osm_share_request', $slugs );
 		$this->assertContains( 'unpaired_chase', $slugs );
+		$this->assertContains( 'individual_chase', $slugs );
 		$this->assertContains( 'fluent_otp', $slugs );
+
+		$individual = $registry->get( 'individual_chase' );
+		$this->assertNotNull( $individual );
+		$this->assertSame( 'Signups & Chasers', $individual['category'] );
+		$this->assertSame( 'ems_individual_chase_email_subject', $individual['subject_option'] );
 
 		$osm = $registry->get( 'osm_share_request' );
 		$this->assertNotNull( $osm );
